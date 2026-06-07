@@ -16,16 +16,17 @@ local cam = workspace.CurrentCamera
 
 ------------------------------------------------------------------- THEME
 local T = {
-    bg   = Color3.fromRGB(18, 20, 26),
-    bg2  = Color3.fromRGB(26, 29, 37),
-    bg3  = Color3.fromRGB(36, 40, 50),
-    line = Color3.fromRGB(58, 64, 78),
-    text = Color3.fromRGB(232, 234, 240),
-    sub  = Color3.fromRGB(150, 156, 170),
-    acc  = Color3.fromRGB(96, 142, 230),
+    bg   = Color3.fromRGB(14, 15, 20),
+    bg2  = Color3.fromRGB(22, 24, 31),
+    bg3  = Color3.fromRGB(32, 36, 46),
+    line = Color3.fromRGB(48, 53, 66),
+    text = Color3.fromRGB(236, 238, 244),
+    sub  = Color3.fromRGB(138, 145, 161),
+    acc  = Color3.fromRGB(120, 140, 255),
+    acc2 = Color3.fromRGB(90, 110, 230),
     good = Color3.fromRGB(96, 200, 140),
     warn = Color3.fromRGB(230, 180, 80),
-    bad  = Color3.fromRGB(230, 96, 110),
+    bad  = Color3.fromRGB(235, 90, 105),
 }
 
 ----------------------------------------------------------------- HELPERS
@@ -162,10 +163,10 @@ function UI:addTab(name)
     b.AutomaticSize = Enum.AutomaticSize.X; b.Size = UDim2.new(0, 0, 1, 0)
     b.BackgroundColor3 = T.bg2; b.AutoButtonColor = false
     b.Font = Enum.Font.GothamSemibold; b.TextSize = 12; b.TextColor3 = T.sub
-    b.Text = "  " .. name .. "  "; corner(b, 6)
+    b.Text = "  " .. name .. "  "; corner(b, 8)
     local panel = Instance.new("ScrollingFrame", self.body)
     panel.Size = UDim2.new(1, 0, 1, 0); panel.BackgroundTransparency = 1
-    panel.BorderSizePixel = 0; panel.ScrollBarThickness = 4
+    panel.BorderSizePixel = 0; panel.ScrollBarThickness = 3
     panel.ScrollBarImageColor3 = T.line; panel.CanvasSize = UDim2.new(0,0,0,0)
     panel.AutomaticCanvasSize = Enum.AutomaticSize.Y; panel.Visible = false
     local lay = Instance.new("UIListLayout", panel); lay.Padding = UDim.new(0, 6)
@@ -181,8 +182,10 @@ function UI:switchTab(tab)
     for _, t in ipairs(self.tabs) do
         local on = t == tab
         t.panel.Visible = on
-        t.btn.BackgroundColor3 = on and T.acc or T.bg2
-        t.btn.TextColor3 = on and Color3.fromRGB(255,255,255) or T.sub
+        TweenService:Create(t.btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = on and T.acc or T.bg2,
+            TextColor3 = on and Color3.fromRGB(255,255,255) or T.sub,
+        }):Play()
     end
     self.cur = tab
 end
@@ -191,13 +194,14 @@ local function cur(self) return self.cur.panel end
 local function rowF(parent, h)
     local f = Instance.new("Frame", parent)
     f.Size = UDim2.new(1, -4, 0, h or 32); f.BackgroundColor3 = T.bg2; f.BorderSizePixel = 0
-    corner(f, 6); return f
+    corner(f, 8); return f
 end
 
 function UI:addSection(title)
     local f = Instance.new("Frame", cur(self))
-    f.Size = UDim2.new(1, -4, 0, 22); f.BackgroundTransparency = 1
-    text(f, string.upper(title), { bold = true, size = 11, color = T.sub, fillX = true, h = 22 })
+    f.Size = UDim2.new(1, -4, 0, 26); f.BackgroundTransparency = 1
+    local l = text(f, string.upper(title), { bold = true, size = 11, color = T.sub, fillX = true, h = 26 })
+    l.Position = UDim2.new(0, 4, 0, 4)
 end
 
 function UI:addLabel(t)
@@ -208,53 +212,78 @@ end
 
 function UI:addButton(label, cb)
     local b = Instance.new("TextButton", cur(self))
-    b.Size = UDim2.new(1, -4, 0, 30); b.BackgroundColor3 = T.acc
-    b.AutoButtonColor = true; b.Font = Enum.Font.GothamSemibold
+    b.Size = UDim2.new(1, -4, 0, 32); b.BackgroundColor3 = T.acc
+    b.AutoButtonColor = false; b.Font = Enum.Font.GothamSemibold
     b.TextSize = 13; b.TextColor3 = Color3.fromRGB(255,255,255); b.Text = label
-    corner(b, 6); b.MouseButton1Click:Connect(function() if cb then cb() end end)
+    corner(b, 8)
+    b.MouseEnter:Connect(function() TweenService:Create(b, TweenInfo.new(0.12), { BackgroundColor3 = T.acc2 }):Play() end)
+    b.MouseLeave:Connect(function() TweenService:Create(b, TweenInfo.new(0.12), { BackgroundColor3 = T.acc }):Play() end)
+    b.MouseButton1Click:Connect(function() if cb then cb() end end)
     return b
 end
 
 function UI:addToggle(label, default, cb)
-    local f = rowF(cur(self), 32); pad(f, 10)
-    local l = text(f, label, { size = 13, h = 22, fillX = true }); l.Size = UDim2.new(1, -56, 1, 0)
+    local f = rowF(cur(self), 36); pad(f, 12)
+    local l = text(f, label, { size = 13, h = 22, fillX = true }); l.Size = UDim2.new(1, -48, 1, 0)
     local sw = Instance.new("TextButton", f)
-    sw.Size = UDim2.new(0, 36, 0, 18); sw.Position = UDim2.new(1, -36, 0.5, -9)
+    sw.Size = UDim2.new(0, 40, 0, 22); sw.Position = UDim2.new(1, -40, 0.5, -11)
     sw.Text = ""; sw.AutoButtonColor = false
-    sw.BackgroundColor3 = default and T.acc or T.bg3; corner(sw, 9)
+    sw.BackgroundColor3 = default and T.acc or T.bg3; corner(sw, 11)
     local knob = Instance.new("Frame", sw)
-    knob.Size = UDim2.new(0, 14, 0, 14); knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    knob.BorderSizePixel = 0; knob.Position = UDim2.new(0, default and 20 or 2, 0.5, -7); corner(knob, 7)
+    knob.Size = UDim2.new(0, 16, 0, 16); knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0; knob.Position = UDim2.new(0, default and 21 or 3, 0.5, -8); corner(knob, 8)
     local state = default and true or false
     local function update()
-        TweenService:Create(sw, TweenInfo.new(0.15), { BackgroundColor3 = state and T.acc or T.bg3 }):Play()
-        TweenService:Create(knob, TweenInfo.new(0.15), { Position = UDim2.new(0, state and 20 or 2, 0.5, -7) }):Play()
+        TweenService:Create(sw, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { BackgroundColor3 = state and T.acc or T.bg3 }):Play()
+        TweenService:Create(knob, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { Position = UDim2.new(0, state and 21 or 3, 0.5, -8) }):Play()
     end
     sw.MouseButton1Click:Connect(function() state = not state; update(); if cb then cb(state) end end)
     return { get = function() return state end, set = function(_, v) state = v; update(); if cb then cb(state) end end }
 end
 
 function UI:addSlider(label, mn, mx, def, cb)
-    local f = rowF(cur(self), 46); pad(f, 10)
-    local l = text(f, label, { size = 12, h = 18 }); l.Position = UDim2.new(0, 10, 0, 4); l.Size = UDim2.new(1, -80, 0, 18)
+    local f = rowF(cur(self), 56); pad(f, 12)
+    local l = text(f, label, { size = 12, h = 18 })
+    l.Position = UDim2.new(0, 0, 0, 0); l.Size = UDim2.new(1, -54, 0, 18)
     local v = Instance.new("TextLabel", f)
-    v.BackgroundTransparency = 1; v.Font = Enum.Font.GothamSemibold; v.TextSize = 12
-    v.TextColor3 = T.sub; v.TextXAlignment = Enum.TextXAlignment.Right
-    v.Size = UDim2.new(0, 60, 0, 18); v.Position = UDim2.new(1, -70, 0, 4); v.Text = tostring(def)
+    v.BackgroundColor3 = T.bg3; v.BorderSizePixel = 0
+    v.Font = Enum.Font.GothamSemibold; v.TextSize = 11; v.TextColor3 = T.text
+    v.Size = UDim2.new(0, 48, 0, 20); v.Position = UDim2.new(1, -48, 0, -1)
+    v.Text = tostring(def); corner(v, 6)
     local tr = Instance.new("Frame", f)
-    tr.Size = UDim2.new(1, -20, 0, 6); tr.Position = UDim2.new(0, 10, 1, -14)
+    tr.Size = UDim2.new(1, 0, 0, 6); tr.Position = UDim2.new(0, 0, 1, -10)
     tr.BackgroundColor3 = T.bg3; tr.BorderSizePixel = 0; corner(tr, 3)
     local fill = Instance.new("Frame", tr)
     fill.BackgroundColor3 = T.acc; fill.BorderSizePixel = 0
     fill.Size = UDim2.new((def - mn) / (mx - mn), 0, 1, 0); corner(fill, 3)
+    local knob = Instance.new("Frame", tr)
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.Size = UDim2.new(0, 14, 0, 14)
+    knob.Position = UDim2.new((def - mn) / (mx - mn), 0, 0.5, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255); knob.BorderSizePixel = 0
+    corner(knob, 7); stroke(knob, T.acc, 2)
+    local hit = Instance.new("Frame", tr)
+    hit.Size = UDim2.new(1, 0, 0, 22); hit.Position = UDim2.new(0, 0, 0.5, -11)
+    hit.BackgroundTransparency = 1; hit.ZIndex = 2
     local dr
-    tr.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dr = true end end)
-    UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dr = false end end)
+    local function setFromX(px)
+        local rel = math.clamp((px - tr.AbsolutePosition.X) / tr.AbsoluteSize.X, 0, 1)
+        local val = math.floor(mn + (mx - mn) * rel + 0.5)
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        knob.Position = UDim2.new(rel, 0, 0.5, 0)
+        v.Text = tostring(val); if cb then cb(val) end
+    end
+    hit.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dr = true; setFromX(i.Position.X)
+        end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dr = false end
+    end)
     UIS.InputChanged:Connect(function(i)
-        if dr and i.UserInputType == Enum.UserInputType.MouseMovement then
-            local rel = math.clamp((i.Position.X - tr.AbsolutePosition.X) / tr.AbsoluteSize.X, 0, 1)
-            local val = math.floor(mn + (mx - mn) * rel + 0.5)
-            fill.Size = UDim2.new(rel, 0, 1, 0); v.Text = tostring(val); if cb then cb(val) end
+        if dr and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            setFromX(i.Position.X)
         end
     end)
 end
