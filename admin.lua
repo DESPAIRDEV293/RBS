@@ -820,7 +820,7 @@ local function phrp(p)  local c = pchar(p); return c and c:FindFirstChild("Human
 
 
 local selected
-local refreshPlayerList, refreshSelTag, repaintChips -- forward
+local refreshPlayerList -- forward
 
 ------------------------------------------------------- PLAYERS TAB
 section(pgPlayers, "Player list")
