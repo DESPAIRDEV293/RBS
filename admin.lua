@@ -163,10 +163,10 @@ function UI:addTab(name)
     b.AutomaticSize = Enum.AutomaticSize.X; b.Size = UDim2.new(0, 0, 1, 0)
     b.BackgroundColor3 = T.bg2; b.AutoButtonColor = false
     b.Font = Enum.Font.GothamSemibold; b.TextSize = 12; b.TextColor3 = T.sub
-    b.Text = "  " .. name .. "  "; corner(b, 6)
+    b.Text = "  " .. name .. "  "; corner(b, 8)
     local panel = Instance.new("ScrollingFrame", self.body)
     panel.Size = UDim2.new(1, 0, 1, 0); panel.BackgroundTransparency = 1
-    panel.BorderSizePixel = 0; panel.ScrollBarThickness = 4
+    panel.BorderSizePixel = 0; panel.ScrollBarThickness = 3
     panel.ScrollBarImageColor3 = T.line; panel.CanvasSize = UDim2.new(0,0,0,0)
     panel.AutomaticCanvasSize = Enum.AutomaticSize.Y; panel.Visible = false
     local lay = Instance.new("UIListLayout", panel); lay.Padding = UDim.new(0, 6)
@@ -182,8 +182,10 @@ function UI:switchTab(tab)
     for _, t in ipairs(self.tabs) do
         local on = t == tab
         t.panel.Visible = on
-        t.btn.BackgroundColor3 = on and T.acc or T.bg2
-        t.btn.TextColor3 = on and Color3.fromRGB(255,255,255) or T.sub
+        TweenService:Create(t.btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = on and T.acc or T.bg2,
+            TextColor3 = on and Color3.fromRGB(255,255,255) or T.sub,
+        }):Play()
     end
     self.cur = tab
 end
@@ -192,13 +194,14 @@ local function cur(self) return self.cur.panel end
 local function rowF(parent, h)
     local f = Instance.new("Frame", parent)
     f.Size = UDim2.new(1, -4, 0, h or 32); f.BackgroundColor3 = T.bg2; f.BorderSizePixel = 0
-    corner(f, 6); return f
+    corner(f, 8); return f
 end
 
 function UI:addSection(title)
     local f = Instance.new("Frame", cur(self))
-    f.Size = UDim2.new(1, -4, 0, 22); f.BackgroundTransparency = 1
-    text(f, string.upper(title), { bold = true, size = 11, color = T.sub, fillX = true, h = 22 })
+    f.Size = UDim2.new(1, -4, 0, 26); f.BackgroundTransparency = 1
+    local l = text(f, string.upper(title), { bold = true, size = 11, color = T.sub, fillX = true, h = 26 })
+    l.Position = UDim2.new(0, 4, 0, 4)
 end
 
 function UI:addLabel(t)
