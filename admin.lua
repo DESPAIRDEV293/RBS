@@ -641,7 +641,7 @@ local pgVisuals = makeTab("Visuals", "◐")
 local pgWorld   = makeTab("World",   "◊")
 local pgTags    = makeTab("Tags",    "#")
 local pgAim     = makeTab("Aim",     "✚")
-local pgAK      = makeTab("AK Pack",  "◆")
+
 local pgServer  = makeTab("Server",  "≡")
 local pgConfig  = makeTab("Config",  "⚙")
 
@@ -652,52 +652,6 @@ local function hrp()   local c = char(); return c and c:FindFirstChild("Humanoid
 local function pchar(p) return p and p.Character end
 local function phrp(p)  local c = pchar(p); return c and c:FindFirstChild("HumanoidRootPart") end
 
-local AK_BASE = "https://raw.githubusercontent.com/SGscriptOnTop/AK--ADMIN/main/"
-local AK_CATEGORIES = {
-    { title = "Command bars & UI", scripts = { "Cmdbar.lua", "Cmdsbar.lua", "cmds.lua", "allcmdss.luau", "Ak Update logs guii.lua", "AK introlol.lua", "AKstall.lua", "Ad.lua" } },
-    { title = "Bypass & chat", scripts = { "AKbypasser.lua", "Akbypasser public.lua", "bypasser.lua", "betterchatdtcsyss.luau", "Chatlogs.luau", "Chattroll.lua", "chatdraw.lua", "clearcmd.luau", "cspy.luau", "execute logs.lua" } },
-    { title = "Combat & aim", scripts = { "aimbot.lua", "FOV.lua", "adbot.lua", "Blade ball.lua", "autoprry.lua" } },
-    { title = "Movement & targeting", scripts = { "Bring.lua", "fling.lua", "Clip.lua", "Dropkick.lua", "Chainedpower.lua", "firework.lua", "copyavatarr.lua" } },
-    { title = "Annoy / troll", scripts = { "Annoy.lua", "Annoyplayer.lua", "annoynearest.lua", "annoyserver.lua", "deinemudda.lua", "DemonMic.lua", "facefuck.lua", "firefuck.lua", "byebye.lua", "dc.lua" } },
-    { title = "Anti / protection", scripts = { "Anti Headsit.lua", "Antiall.luau", "antiall2.lua", "antiall3.lua", "Antifling.lua", "Antikick.lua", "Antikick.luau", "Antikick2.lua", "Antivoid.lua", "antibang.lua", "antilogger.lua", "Breakghost.lua" } },
-    { title = "Avatar & animation", scripts = { "Animcopy.lua", "Animlogger.lua", "Copy anim.lua", "Clone.luau", "Crown.lua", "Bodyinvis.lua", "Bodyletter.lua", "Bodysnake.lua", "fakeverify.lua" } },
-    { title = "World & maps", scripts = { "Badeplate.lua", "Baseplate.lua", "Blockmap.lua", "Darkmap.lua", "autogrmr.luau", "autoreactivatevc.lua", "boomboxtoggles.lua" } },
-    { title = "Extra repo files", scripts = { "Bot template2.lua", "Errornotif.luau", "atrials.lua", "crash.lua", "free ak admin obf.lua", "fdgdgdgdfvbdf.lua" } },
-}
-
-local function akUrl(scriptName)
-    return AK_BASE .. scriptName:gsub(" ", "%%20")
-end
-local function prettyScriptName(scriptName)
-    return (scriptName:gsub("%.luau$", ""):gsub("%.lua$", ""))
-end
-local function runAKScript(scriptName)
-    task.spawn(function()
-        notify("Fetching " .. prettyScriptName(scriptName), "good")
-        local source
-        local ok, err = pcall(function()
-            source = game:HttpGet(akUrl(scriptName), true)
-        end)
-        if not ok or type(source) ~= "string" or #source < 2 then
-            notify("AK fetch failed: " .. scriptName, "bad")
-            warn("[seige.lol] AK fetch failed", scriptName, err)
-            return
-        end
-        local fn, compileErr = loadstring(source)
-        if not fn then
-            notify("AK compile failed: " .. scriptName, "bad")
-            warn("[seige.lol] AK compile failed", scriptName, compileErr)
-            return
-        end
-        local ran, runErr = pcall(fn)
-        if ran then
-            notify("Loaded " .. prettyScriptName(scriptName), "good")
-        else
-            notify("AK runtime error: " .. scriptName, "bad")
-            warn("[seige.lol] AK runtime error", scriptName, runErr)
-        end
-    end)
-end
 
 local selected
 local refreshPlayerList, refreshSelTag, repaintChips -- forward
@@ -1302,28 +1256,6 @@ bind(RunService.RenderStepped:Connect(function()
 end))
 
 ------------------------------------------------------- SERVER TAB
-section(pgAK, "Full AK--ADMIN hubs")
-label(pgAK, "Launch the original AK hub or any individual repo script inside this UI.")
-button(pgAK, "Launch AKHUB.lua  (full original hub)", function()
-    runAKScript("AKHUB.lua")
-end)
-button(pgAK, "Launch akactivee.luau  (largest active build)", function()
-    runAKScript("akactivee.luau")
-end)
-button(pgAK, "Copy AKHUB loadstring", function()
-    local code = 'loadstring(game:HttpGet("' .. akUrl("AKHUB.lua") .. '", true))()'
-    if setclipboard then setclipboard(code); notify("AKHUB loadstring copied", "good") else notify("No clipboard access", "warn") end
-end)
-
-section(pgAK, "Individual AK scripts")
-for _, group in ipairs(AK_CATEGORIES) do
-    section(pgAK, group.title)
-    for _, scriptName in ipairs(group.scripts) do
-        button(pgAK, prettyScriptName(scriptName), function()
-            runAKScript(scriptName)
-        end)
-    end
-end
 
 ------------------------------------------------------- SERVER TAB
 section(pgServer, "Server")
