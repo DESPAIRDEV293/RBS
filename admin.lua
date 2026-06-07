@@ -1300,14 +1300,20 @@ local function buildBill(p)
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
     })
-    tagBills[p] = { gui = gui, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, base = math.random() * 6.28 }
+    tagBills[p] = { gui = gui, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, base = math.random() * 6.28 }
     refreshBill(p)
 end
 local function rebuildBills()
-    clearBills(); if not floatOn then return end
-    for _, p in ipairs(Players:GetPlayers()) do buildBill(p) end
+    clearBills()
+    -- LP's tag always shown
+    buildBill(LP)
+    if not floatOn then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP then buildBill(p) end
+    end
 end
-toggle(pgTags, "Show floating tags above heads", true, function(s) floatOn = s; rebuildBills() end)
+toggle(pgTags, "Show floating tags above heads", false, function(s) floatOn = s; rebuildBills() end)
+
 button(pgTags, "Refresh floating tags", rebuildBills)
 
 bind(RunService.Heartbeat:Connect(function()
