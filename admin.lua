@@ -1350,18 +1350,25 @@ local function refreshBill(p)
     e.name.Text = (cfg and cfg.displayName) or p.DisplayName
     e.handle.Text = "@" .. p.Name
 
-    -- Custom icon override (DB or per-player)
+    -- Custom icon override (DB or per-player). Force a refresh by clearing first.
     local customIcon = TagIcons:get(p.UserId) or (cfg and cfg.icon)
     if e.av then
+        local target
         if customIcon then
-            local url = resolveIconUrl(customIcon)
-            pcall(function() e.av.Image = url end)
+            target = resolveIconUrl(customIcon)
         else
             pcall(function()
-                e.av.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+                target = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
             end)
         end
+        if target and target ~= "" and e.av.Image ~= target then
+            pcall(function() e.av.Image = "" end)
+            pcall(function() e.av.Image = target end)
+            e.av.ImageTransparency = 0
+        end
     end
+
+
 
     -- Side chip / color
     local dbColor = cfg and parseColor(cfg.color)
