@@ -296,14 +296,14 @@ function UI:addSlider(label, mn, mx, def, cb)
             dr = true; setFromX(i.Position.X)
         end
     end)
-    UIS.InputEnded:Connect(function(i)
+    self:bind(UIS.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dr = false end
-    end)
-    UIS.InputChanged:Connect(function(i)
+    end))
+    self:bind(UIS.InputChanged:Connect(function(i)
         if dr and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
             setFromX(i.Position.X)
         end
-    end)
+    end))
 end
 
 function UI:addTextBox(placeholder, cb)
@@ -423,7 +423,7 @@ function UI:addPlayerList(onClick, getBadge)
             local r, b = makeRow(p); rows[p] = { row = r, badge = b }
         end
     end
-    Players.PlayerAdded:Connect(refresh); Players.PlayerRemoving:Connect(refresh)
+    self:bind(Players.PlayerAdded:Connect(refresh)); self:bind(Players.PlayerRemoving:Connect(refresh))
     refresh()
     return {
         refresh = refresh,
