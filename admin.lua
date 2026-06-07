@@ -315,6 +315,57 @@ function UI:addDropdown(label, opts, cb)
     end)
 end
 
+-- Pixel-art tag chips wrapped in a flex row. Returns { addChip = fn(label, cb, isActive), refresh = fn() }
+function UI:addTagRow()
+    local wrap = Instance.new("Frame", cur(self))
+    wrap.Size = UDim2.new(1, -4, 0, 0); wrap.AutomaticSize = Enum.AutomaticSize.Y
+    wrap.BackgroundTransparency = 1
+    local lay = Instance.new("UIListLayout", wrap)
+    lay.FillDirection = Enum.FillDirection.Horizontal
+    lay.Wraps = true; lay.SortOrder = Enum.SortOrder.LayoutOrder
+    lay.Padding = UDim.new(0, 6)
+    local api = {}
+    function api.addChip(label, cb, getActive)
+        local outer = Instance.new("Frame", wrap)
+        outer.BackgroundTransparency = 1
+        outer.AutomaticSize = Enum.AutomaticSize.X
+        outer.Size = UDim2.new(0, 0, 0, 30)
+        -- Pixel shadow (offset solid block, no rounding)
+        local shadow = Instance.new("Frame", outer)
+        shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
+        shadow.BorderSizePixel = 0
+        shadow.Position = UDim2.new(0, 3, 0, 3)
+        shadow.Size = UDim2.new(1, -3, 1, -3)
+        -- Button
+        local b = Instance.new("TextButton", outer)
+        b.AutomaticSize = Enum.AutomaticSize.X
+        b.Size = UDim2.new(0, 0, 1, -3)
+        b.BackgroundColor3 = Color3.fromRGB(255,255,255)
+        b.AutoButtonColor = false
+        b.Font = Enum.Font.GothamBold; b.TextSize = 12
+        b.TextColor3 = Color3.fromRGB(15,15,15)
+        b.Text = "  " .. label .. "  "
+        corner(b, 6); stroke(b, Color3.fromRGB(0,0,0), 2)
+        local padInner = Instance.new("UIPadding", b)
+        padInner.PaddingLeft = UDim.new(0, 6); padInner.PaddingRight = UDim.new(0, 6)
+        local function paint()
+            local active = getActive and getActive()
+            if active then
+                b.BackgroundColor3 = T.acc
+                b.TextColor3 = Color3.fromRGB(255,255,255)
+            else
+                b.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                b.TextColor3 = Color3.fromRGB(15,15,15)
+            end
+        end
+        b.MouseButton1Click:Connect(function() if cb then cb() end; paint() end)
+        paint()
+        return { paint = paint, button = b }
+    end
+    function api.repaint() for _, c in ipairs(wrap:GetChildren()) do if c:IsA("Frame") and c:FindFirstChildOfClass("TextButton") then end end end
+    return api
+end
+
 function UI:addPlayerList(onClick, getBadge)
     -- Container expands with content; outer tab panel handles scrolling.
     local f = Instance.new("Frame", cur(self))
