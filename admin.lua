@@ -316,39 +316,39 @@ function UI:addDropdown(label, opts, cb)
 end
 
 function UI:addPlayerList(onClick, getBadge)
+    -- Container expands with content; outer tab panel handles scrolling.
     local f = Instance.new("Frame", cur(self))
-    f.Size = UDim2.new(1, -4, 0, 220); f.BackgroundColor3 = T.bg2; f.BorderSizePixel = 0
-    corner(f, 6)
-    local sf = Instance.new("ScrollingFrame", f)
-    sf.Size = UDim2.new(1, -8, 1, -8); sf.Position = UDim2.new(0, 4, 0, 4)
-    sf.BackgroundTransparency = 1; sf.BorderSizePixel = 0
-    sf.ScrollBarThickness = 3; sf.CanvasSize = UDim2.new(0,0,0,0)
-    sf.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    local lay = Instance.new("UIListLayout", sf); lay.Padding = UDim.new(0, 4)
+    f.Size = UDim2.new(1, -4, 0, 0); f.AutomaticSize = Enum.AutomaticSize.Y
+    f.BackgroundColor3 = T.bg2; f.BorderSizePixel = 0
+    corner(f, 8); pad(f, 6)
+    local lay = Instance.new("UIListLayout", f); lay.Padding = UDim.new(0, 4)
     local rows = {}
     local function makeRow(p)
-        local r = Instance.new("TextButton", sf)
-        r.Size = UDim2.new(1, -4, 0, 36); r.BackgroundColor3 = T.bg3
-        r.AutoButtonColor = true; r.Text = ""; corner(r, 6)
+        local r = Instance.new("TextButton", f)
+        r.Size = UDim2.new(1, 0, 0, 44); r.BackgroundColor3 = T.bg3
+        r.AutoButtonColor = false; r.Text = ""; corner(r, 8)
         local img = Instance.new("ImageLabel", r)
-        img.Size = UDim2.new(0, 28, 0, 28); img.Position = UDim2.new(0, 4, 0.5, -14)
-        img.BackgroundColor3 = T.bg; img.BorderSizePixel = 0; corner(img, 14)
+        img.Size = UDim2.new(0, 32, 0, 32); img.Position = UDim2.new(0, 6, 0.5, -16)
+        img.BackgroundColor3 = T.bg; img.BorderSizePixel = 0; corner(img, 16)
         local ok, url = pcall(function()
             return Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
         end)
         if ok then img.Image = url end
         local n = text(r, p.DisplayName, { bold = true, size = 13, h = 18 })
-        n.Position = UDim2.new(0, 40, 0, 4); n.Size = UDim2.new(1, -120, 0, 18)
+        n.Position = UDim2.new(0, 46, 0, 5); n.Size = UDim2.new(1, -130, 0, 18)
         local s = text(r, "@" .. p.Name, { size = 11, color = T.sub, h = 14 })
-        s.Position = UDim2.new(0, 40, 0, 20); s.Size = UDim2.new(1, -120, 0, 14)
-        local badge = text(r, "", { size = 11, color = T.sub, h = 18, align = Enum.TextXAlignment.Right })
-        badge.Position = UDim2.new(1, -78, 0.5, -9); badge.Size = UDim2.new(0, 72, 0, 18)
+        s.Position = UDim2.new(0, 46, 0, 23); s.Size = UDim2.new(1, -130, 0, 14)
+        local badge = text(r, "", { size = 11, color = T.sub, h = 18 })
+        badge.TextXAlignment = Enum.TextXAlignment.Right
+        badge.Position = UDim2.new(1, -84, 0.5, -9); badge.Size = UDim2.new(0, 78, 0, 18)
         if getBadge then badge.Text = getBadge(p) or "" end
+        r.MouseEnter:Connect(function() TweenService:Create(r, TweenInfo.new(0.1), { BackgroundColor3 = T.line }):Play() end)
+        r.MouseLeave:Connect(function() TweenService:Create(r, TweenInfo.new(0.1), { BackgroundColor3 = T.bg3 }):Play() end)
         r.MouseButton1Click:Connect(function() if onClick then onClick(p) end end)
         return r, badge
     end
     local function refresh()
-        for _, c in ipairs(sf:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+        for _, c in ipairs(f:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
         rows = {}
         for _, p in ipairs(Players:GetPlayers()) do
             local r, b = makeRow(p); rows[p] = { row = r, badge = b }
