@@ -1,8 +1,18 @@
 -- Roblox Admin (loadstring build) — single-file, client-side, executor-friendly.
--- Usage:  loadstring(game:HttpGet("<raw url of this file>"))()
+-- Usage:  loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua?v=" .. tostring(os.time())))()
+local ADMIN_BUILD = "2026-06-07-sync-1"
 
-if _G.__AdminLoaded then _G.__AdminUI:toggle(); return end
+if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
+if _G.__AdminUI then
+    if type(_G.__AdminUI) == "table" and _G.__AdminUI.destroy then
+        pcall(function() _G.__AdminUI:destroy() end)
+    elseif type(_G.__AdminUI) == "table" and _G.__AdminUI.screen then
+        pcall(function() _G.__AdminUI.screen:Destroy() end)
+    end
+end
 _G.__AdminLoaded = true
+_G.__AdminBuild = ADMIN_BUILD
+print("[Admin] Loading build " .. ADMIN_BUILD)
 
 local Players       = game:GetService("Players")
 local UIS           = game:GetService("UserInputService")
@@ -45,7 +55,7 @@ local function text(parent, str, o)
     l.Size = o.fillX and UDim2.new(1, 0, 0, o.h or 20) or UDim2.new(0, o.w or 0, 0, o.h or 20)
     return l
 end
-local function drag(handle, target)
+local function drag(handle, target, owner)
     local d, sm, sp
     handle.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
@@ -53,14 +63,15 @@ local function drag(handle, target)
             i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then d = false end end)
         end
     end)
-    UIS.InputChanged:Connect(function(i)
+    local sig = UIS.InputChanged:Connect(function(i)
         if d and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
             local dd = i.Position - sm
             target.Position = UDim2.new(sp.X.Scale, sp.X.Offset + dd.X, sp.Y.Scale, sp.Y.Offset + dd.Y)
         end
     end)
+    if owner and owner.conns then table.insert(owner.conns, sig) end
 end
-local function resize(grip, target, min)
+local function resize(grip, target, min, owner)
     local r, sm, ss
     grip.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -68,12 +79,13 @@ local function resize(grip, target, min)
             i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then r = false end end)
         end
     end)
-    UIS.InputChanged:Connect(function(i)
+    local sig = UIS.InputChanged:Connect(function(i)
         if r and i.UserInputType == Enum.UserInputType.MouseMovement then
             local dd = i.Position - sm
             target.Size = UDim2.new(0, math.max(min.X, ss.X.Offset + dd.X), 0, math.max(min.Y, ss.Y.Offset + dd.Y))
         end
     end)
+    if owner and owner.conns then table.insert(owner.conns, sig) end
 end
 
 local function parentSafe(gui)
@@ -87,6 +99,7 @@ UI.__index = UI
 
 function UI.new(title, size)
     local self = setmetatable({}, UI)
+    self.conns = {}
     local screen = Instance.new("ScreenGui")
     screen.Name = "AdminUI_" .. tostring(math.random(1e6,9e6))
     screen.ResetOnSpawn = false; screen.IgnoreGuiInset = true
@@ -107,8 +120,8 @@ function UI.new(title, size)
     local mask = Instance.new("Frame", bar)
     mask.Position = UDim2.new(0, 0, 1, -12); mask.Size = UDim2.new(1, 0, 0, 12)
     mask.BackgroundColor3 = T.bg2; mask.BorderSizePixel = 0
-    drag(bar, win)
-    text(bar, title, { bold = true, size = 14, h = 34, w = 240 }).Position = UDim2.new(0, 14, 0, 0)
+    drag(bar, win, self)
+    text(bar, title .. "  " .. ADMIN_BUILD, { bold = true, size = 14, h = 34, w = 300 }).Position = UDim2.new(0, 14, 0, 0)
 
     local function topBtn(sym, x, color)
         local b = Instance.new("TextButton", bar)
@@ -141,7 +154,7 @@ function UI.new(title, size)
     local grip = Instance.new("TextButton", win)
     grip.Size = UDim2.new(0, 14, 0, 14); grip.Position = UDim2.new(1, -16, 1, -16)
     grip.BackgroundColor3 = T.line; grip.Text = ""; grip.AutoButtonColor = false
-    corner(grip, 3); resize(grip, win, Vector2.new(340, 260))
+    corner(grip, 3); resize(grip, win, Vector2.new(340, 260), self)
 
     local toasts = Instance.new("Frame", screen)
     toasts.AnchorPoint = Vector2.new(1, 1); toasts.Position = UDim2.new(1, -16, 1, -16)
@@ -157,6 +170,12 @@ end
 
 function UI:setVisible(v) self.screen.Enabled = v end
 function UI:toggle()      self.screen.Enabled = not self.screen.Enabled end
+function UI:bind(sig)     table.insert(self.conns, sig); return sig end
+function UI:destroy()
+    for _, sig in ipairs(self.conns or {}) do pcall(function() sig:Disconnect() end) end
+    self.conns = {}
+    if self.screen then pcall(function() self.screen:Destroy() end) end
+end
 
 function UI:addTab(name)
     local b = Instance.new("TextButton", self.tabBar)
@@ -278,14 +297,14 @@ function UI:addSlider(label, mn, mx, def, cb)
             dr = true; setFromX(i.Position.X)
         end
     end)
-    UIS.InputEnded:Connect(function(i)
+    self:bind(UIS.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dr = false end
-    end)
-    UIS.InputChanged:Connect(function(i)
+    end))
+    self:bind(UIS.InputChanged:Connect(function(i)
         if dr and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
             setFromX(i.Position.X)
         end
-    end)
+    end))
 end
 
 function UI:addTextBox(placeholder, cb)
@@ -405,7 +424,7 @@ function UI:addPlayerList(onClick, getBadge)
             local r, b = makeRow(p); rows[p] = { row = r, badge = b }
         end
     end
-    Players.PlayerAdded:Connect(refresh); Players.PlayerRemoving:Connect(refresh)
+    self:bind(Players.PlayerAdded:Connect(refresh)); self:bind(Players.PlayerRemoving:Connect(refresh))
     refresh()
     return {
         refresh = refresh,
@@ -510,7 +529,7 @@ win:addSlider("Walk speed", 16, 200, 16, function(v) ws = v; local h = hum(LP); 
 win:addSlider("Jump power", 50, 500, 50, function(v) jp = v; local h = hum(LP); if h then h.JumpPower = v end end)
 local infJump = false
 win:addToggle("Infinite jump", false, function(s) infJump = s end)
-UIS.JumpRequest:Connect(function() if infJump then local h = hum(LP); if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end end)
+win:bind(UIS.JumpRequest:Connect(function() if infJump then local h = hum(LP); if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end end))
 
 local flying, bv, bg
 local function stopFly() flying = false; if bv then bv:Destroy() bv=nil end; if bg then bg:Destroy() bg=nil end end
@@ -527,7 +546,7 @@ win:addSlider("Fly speed", 20, 250, 60, function(v) flySpeed = v end)
 local noclip = false
 win:addToggle("Noclip", false, function(s) noclip = s end)
 
-RunService.Stepped:Connect(function()
+win:bind(RunService.Stepped:Connect(function()
     if flying and bv then
         local d = Vector3.zero
         if UIS:IsKeyDown(Enum.KeyCode.W) then d += cam.CFrame.LookVector end
@@ -544,11 +563,11 @@ RunService.Stepped:Connect(function()
             if part:IsA("BasePart") then part.CanCollide = false end
         end
     end
-end)
-LP.CharacterAdded:Connect(function(c)
+end))
+win:bind(LP.CharacterAdded:Connect(function(c)
     stopFly()
     local h = c:WaitForChild("Humanoid"); h.WalkSpeed = ws; h.JumpPower = jp
-end)
+end))
 
 win:addSection("Utility")
 win:addButton("Reset character", function() LP.Character:BreakJoints() end)
@@ -621,9 +640,12 @@ end
 win:addToggle("ESP enabled", false, function(s) espEnabled = s; rebuildEsp() end)
 win:addDropdown("ESP filter", { "All", "Friends", "Targets", "Tagged" }, function(o) espFilter = o; rebuildEsp() end)
 win:addButton("Refresh ESP", rebuildEsp)
-Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() task.wait(0.5); rebuildEsp() end) end)
+local function bindCharacterRefresh(p)
+    win:bind(p.CharacterAdded:Connect(function() task.wait(0.5); rebuildEsp() end))
+end
+win:bind(Players.PlayerAdded:Connect(function(p) bindCharacterRefresh(p) end))
 for _, p in ipairs(Players:GetPlayers()) do
-    p.CharacterAdded:Connect(function() task.wait(0.5); rebuildEsp() end)
+    bindCharacterRefresh(p)
 end
 
 win:addSection("Display")
@@ -710,10 +732,18 @@ local origNotify = win.notify
 function win:notify(msg, kind) origNotify(self, msg, kind); pcall(log, tostring(msg)) end
 
 -- HOTKEY -----------------------------------------------------------------
-UIS.InputBegan:Connect(function(i, gp)
+win:bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
     if i.KeyCode == Enum.KeyCode.F2 then win:toggle() end
-end)
+end))
+
+_G.__AdminCleanup = function()
+    pcall(stopFly)
+    pcall(clearEsp)
+    if win then pcall(function() win:destroy() end) end
+    _G.__AdminUI = nil
+    _G.__AdminLoaded = false
+end
 
 win:switchTab(tabPlayers)
-win:notify("Loaded. Press F2 to toggle.", "good")
+win:notify("Loaded " .. ADMIN_BUILD .. ". Press F2 to toggle.", "good")
