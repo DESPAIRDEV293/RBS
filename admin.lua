@@ -1,8 +1,17 @@
 -- Roblox Admin (loadstring build) — single-file, client-side, executor-friendly.
--- Usage:  loadstring(game:HttpGet("<raw url of this file>"))()
+-- Usage:  loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua?v=" .. tostring(os.time())))()
+local ADMIN_BUILD = "2026-06-07-sync-1"
 
-if _G.__AdminLoaded then _G.__AdminUI:toggle(); return end
+if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
+if _G.__AdminUI then
+    if type(_G.__AdminUI) == "table" and _G.__AdminUI.destroy then
+        pcall(function() _G.__AdminUI:destroy() end)
+    elseif type(_G.__AdminUI) == "table" and _G.__AdminUI.screen then
+        pcall(function() _G.__AdminUI.screen:Destroy() end)
+    end
+end
 _G.__AdminLoaded = true
+_G.__AdminBuild = ADMIN_BUILD
 
 local Players       = game:GetService("Players")
 local UIS           = game:GetService("UserInputService")
@@ -45,7 +54,7 @@ local function text(parent, str, o)
     l.Size = o.fillX and UDim2.new(1, 0, 0, o.h or 20) or UDim2.new(0, o.w or 0, 0, o.h or 20)
     return l
 end
-local function drag(handle, target)
+local function drag(handle, target, owner)
     local d, sm, sp
     handle.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
@@ -53,14 +62,15 @@ local function drag(handle, target)
             i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then d = false end end)
         end
     end)
-    UIS.InputChanged:Connect(function(i)
+    local sig = UIS.InputChanged:Connect(function(i)
         if d and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
             local dd = i.Position - sm
             target.Position = UDim2.new(sp.X.Scale, sp.X.Offset + dd.X, sp.Y.Scale, sp.Y.Offset + dd.Y)
         end
     end)
+    if owner and owner.conns then table.insert(owner.conns, sig) end
 end
-local function resize(grip, target, min)
+local function resize(grip, target, min, owner)
     local r, sm, ss
     grip.InputBegan:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -68,12 +78,13 @@ local function resize(grip, target, min)
             i.Changed:Connect(function() if i.UserInputState == Enum.UserInputState.End then r = false end end)
         end
     end)
-    UIS.InputChanged:Connect(function(i)
+    local sig = UIS.InputChanged:Connect(function(i)
         if r and i.UserInputType == Enum.UserInputType.MouseMovement then
             local dd = i.Position - sm
             target.Size = UDim2.new(0, math.max(min.X, ss.X.Offset + dd.X), 0, math.max(min.Y, ss.Y.Offset + dd.Y))
         end
     end)
+    if owner and owner.conns then table.insert(owner.conns, sig) end
 end
 
 local function parentSafe(gui)
