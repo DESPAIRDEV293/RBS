@@ -1221,7 +1221,7 @@ end)
 
 ------------------------------------------------------- FLOATING TAGS
 section(pgTags, "Floating tags in-game")
-local floatOn = true
+local floatOn = false
 local tagBills = {}
 
 local function clearBills()
@@ -1230,20 +1230,30 @@ local function clearBills()
 end
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
-    local txt = Tags:summary(p.UserId)
-    if txt == "" then e.gui.Enabled = false; return end
     e.gui.Enabled = true
     e.name.Text = p.DisplayName
     e.handle.Text = "@" .. p.Name
-    e.stat.Text = txt:gsub(",", " • ")
-    local c = tagColor(p)
-    e.stroke.Color = c; e.dot.BackgroundColor3 = c
+    local txt = Tags:summary(p.UserId)
+    if txt ~= "" then
+        e.sh.Visible = true
+        e.stat.Text = txt:gsub(",", " • ")
+        local c = tagColor(p)
+        e.stroke.Color = c; e.dot.BackgroundColor3 = c
+    else
+        e.sh.Visible = false
+        if p == LP then
+            e.stroke.Color = T.good; e.dot.BackgroundColor3 = T.good
+        else
+            e.stroke.Color = T.acc; e.dot.BackgroundColor3 = T.acc
+        end
+    end
 end
 local function buildBill(p)
     if tagBills[p] or not pchar(p) then return end
     local head = pchar(p):FindFirstChild("Head"); if not head then return end
     local gui = inst("BillboardGui", pchar(p), {
         Name = "SeigeTagBB", Adornee = head,
+
         Size = UDim2.new(0, 240, 0, 50),
         StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0),
         AlwaysOnTop = true, LightInfluence = 0,
