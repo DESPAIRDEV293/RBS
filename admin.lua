@@ -1345,6 +1345,14 @@ local function clearBills()
     for _, e in pairs(tagBills) do if e.gui then e.gui:Destroy() end end
     tagBills = {}
 end
+local function measureText(text, font, size)
+    local ok, v = pcall(function()
+        return TextService:GetTextSize(text or "", size, font, Vector2.new(10000, 100))
+    end)
+    if ok and v then return v.X end
+    return #(text or "") * size * 0.55
+end
+
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
