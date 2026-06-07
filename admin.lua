@@ -91,6 +91,150 @@ local Root = inst("ScreenGui", nil, {
 })
 safeParent(Root)
 
+------------------------------------------------------- LOAD SCREEN
+local function showLoadScreen()
+    local ls = inst("Frame", Root, {
+        Name = "LoadScreen",
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.fromRGB(8, 9, 14),
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        ZIndex = 500,
+    })
+    inst("UIGradient", ls, {
+        Rotation = 135,
+        Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(14, 16, 24)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(6, 7, 12)),
+        },
+    })
+
+    local card = inst("Frame", ls, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 360, 0, 180),
+        BackgroundColor3 = T.glass,
+        BackgroundTransparency = 0.1,
+        BorderSizePixel = 0,
+        ZIndex = 501,
+    })
+    corner(card, 16)
+    stroke(card, T.acc, 1, 0.5)
+    inst("UIGradient", card, {
+        Rotation = 120,
+        Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, T.bg2),
+            ColorSequenceKeypoint.new(1, T.glass),
+        },
+    })
+
+    local title = inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 26),
+        Size = UDim2.new(1, 0, 0, 28),
+        Font = Enum.Font.GothamBold,
+        Text = "seige.lol",
+        TextColor3 = T.text,
+        TextSize = 22,
+        ZIndex = 502,
+    })
+    local sub = inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 56),
+        Size = UDim2.new(1, 0, 0, 16),
+        Font = Enum.Font.Gotham,
+        Text = "Loading admin · " .. ADMIN_BUILD,
+        TextColor3 = T.sub,
+        TextSize = 11,
+        ZIndex = 502,
+    })
+
+    -- progress bar
+    local barBg = inst("Frame", card, {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 96),
+        Size = UDim2.new(0, 280, 0, 6),
+        BackgroundColor3 = T.bg3,
+        BorderSizePixel = 0,
+        ZIndex = 502,
+    })
+    corner(barBg, 3)
+    local barFill = inst("Frame", barBg, {
+        Size = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = T.acc,
+        BorderSizePixel = 0,
+        ZIndex = 503,
+    })
+    corner(barFill, 3)
+    inst("UIGradient", barFill, {
+        Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, T.acc2),
+            ColorSequenceKeypoint.new(1, T.acc),
+        },
+    })
+
+    local status = inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 116),
+        Size = UDim2.new(1, 0, 0, 14),
+        Font = Enum.Font.Gotham,
+        Text = "Initializing…",
+        TextColor3 = T.dim,
+        TextSize = 10,
+        ZIndex = 502,
+    })
+
+    local credit = inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 1, -22),
+        Size = UDim2.new(1, 0, 0, 14),
+        Font = Enum.Font.Gotham,
+        Text = "made by seige · " .. (LP.Name or ""),
+        TextColor3 = T.dim,
+        TextSize = 10,
+        ZIndex = 502,
+    })
+
+    local steps = {
+        "Hooking services",
+        "Building interface",
+        "Loading modules",
+        "Calibrating combat",
+        "Finalizing",
+        "Ready",
+    }
+
+    local function tween(obj, t, props)
+        TweenService:Create(obj, TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+    end
+
+    -- entrance
+    card.Size = UDim2.new(0, 360, 0, 0)
+    tween(card, 0.35, { Size = UDim2.new(0, 360, 0, 180) })
+
+    task.spawn(function()
+        for i, label in ipairs(steps) do
+            status.Text = label .. "…"
+            local pct = i / #steps
+            tween(barFill, 0.25, { Size = UDim2.new(pct, 0, 1, 0) })
+            task.wait(0.22 + math.random() * 0.18)
+        end
+        task.wait(0.2)
+        tween(ls, 0.4, { BackgroundTransparency = 1 })
+        tween(card, 0.4, { BackgroundTransparency = 1 })
+        for _, d in ipairs(card:GetDescendants()) do
+            if d:IsA("TextLabel") then tween(d, 0.4, { TextTransparency = 1 })
+            elseif d:IsA("Frame") then tween(d, 0.4, { BackgroundTransparency = 1 })
+            elseif d:IsA("UIStroke") then tween(d, 0.4, { Transparency = 1 }) end
+        end
+        task.wait(0.45)
+        ls:Destroy()
+    end)
+end
+showLoadScreen()
+
+
+
 ------------------------------------------------------- WINDOW
 local Win = inst("Frame", Root, {
     AnchorPoint = Vector2.new(0.5, 0.5),
