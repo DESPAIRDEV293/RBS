@@ -212,27 +212,30 @@ end
 
 function UI:addButton(label, cb)
     local b = Instance.new("TextButton", cur(self))
-    b.Size = UDim2.new(1, -4, 0, 30); b.BackgroundColor3 = T.acc
-    b.AutoButtonColor = true; b.Font = Enum.Font.GothamSemibold
+    b.Size = UDim2.new(1, -4, 0, 32); b.BackgroundColor3 = T.acc
+    b.AutoButtonColor = false; b.Font = Enum.Font.GothamSemibold
     b.TextSize = 13; b.TextColor3 = Color3.fromRGB(255,255,255); b.Text = label
-    corner(b, 6); b.MouseButton1Click:Connect(function() if cb then cb() end end)
+    corner(b, 8)
+    b.MouseEnter:Connect(function() TweenService:Create(b, TweenInfo.new(0.12), { BackgroundColor3 = T.acc2 }):Play() end)
+    b.MouseLeave:Connect(function() TweenService:Create(b, TweenInfo.new(0.12), { BackgroundColor3 = T.acc }):Play() end)
+    b.MouseButton1Click:Connect(function() if cb then cb() end end)
     return b
 end
 
 function UI:addToggle(label, default, cb)
-    local f = rowF(cur(self), 32); pad(f, 10)
-    local l = text(f, label, { size = 13, h = 22, fillX = true }); l.Size = UDim2.new(1, -56, 1, 0)
+    local f = rowF(cur(self), 36); pad(f, 12)
+    local l = text(f, label, { size = 13, h = 22, fillX = true }); l.Size = UDim2.new(1, -48, 1, 0)
     local sw = Instance.new("TextButton", f)
-    sw.Size = UDim2.new(0, 36, 0, 18); sw.Position = UDim2.new(1, -36, 0.5, -9)
+    sw.Size = UDim2.new(0, 40, 0, 22); sw.Position = UDim2.new(1, -40, 0.5, -11)
     sw.Text = ""; sw.AutoButtonColor = false
-    sw.BackgroundColor3 = default and T.acc or T.bg3; corner(sw, 9)
+    sw.BackgroundColor3 = default and T.acc or T.bg3; corner(sw, 11)
     local knob = Instance.new("Frame", sw)
-    knob.Size = UDim2.new(0, 14, 0, 14); knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    knob.BorderSizePixel = 0; knob.Position = UDim2.new(0, default and 20 or 2, 0.5, -7); corner(knob, 7)
+    knob.Size = UDim2.new(0, 16, 0, 16); knob.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    knob.BorderSizePixel = 0; knob.Position = UDim2.new(0, default and 21 or 3, 0.5, -8); corner(knob, 8)
     local state = default and true or false
     local function update()
-        TweenService:Create(sw, TweenInfo.new(0.15), { BackgroundColor3 = state and T.acc or T.bg3 }):Play()
-        TweenService:Create(knob, TweenInfo.new(0.15), { Position = UDim2.new(0, state and 20 or 2, 0.5, -7) }):Play()
+        TweenService:Create(sw, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { BackgroundColor3 = state and T.acc or T.bg3 }):Play()
+        TweenService:Create(knob, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { Position = UDim2.new(0, state and 21 or 3, 0.5, -8) }):Play()
     end
     sw.MouseButton1Click:Connect(function() state = not state; update(); if cb then cb(state) end end)
     return { get = function() return state end, set = function(_, v) state = v; update(); if cb then cb(state) end end }
