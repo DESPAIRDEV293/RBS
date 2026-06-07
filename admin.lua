@@ -1277,35 +1277,15 @@ local function rebuildBills()
         if p ~= LP then buildBill(p) end
     end
 end
-toggle(pgTags, "Show floating tags above heads", false, function(s) floatOn = s; rebuildBills() end)
-
-button(pgTags, "Refresh floating tags", rebuildBills)
-
-------------------------------------------------------- TAG ICON (PRO)
-section(pgTags, "Tag icon  ✦ PRO (free preview)")
-label(pgTags, "Image or GIF for the selected player's tag icon.\nAccepts: image URL, rbxassetid://ID, or just an asset ID.\nLeave empty + Save to reset to avatar.")
-local iconUrlBuf = ""
-textbox(pgTags, "Image/GIF URL or asset id…", function(v) iconUrlBuf = v end)
-button(pgTags, "✦ Save icon for selected", function()
-    if not selected then notify("Select a player first", "warn"); return end
-    TagIcons:set(selected.UserId, iconUrlBuf)
-    notify("Tag icon updated for " .. selected.Name, "good")
-end)
-button(pgTags, "Reset selected icon to avatar", function()
-    if not selected then notify("Select a player first", "warn"); return end
-    TagIcons:set(selected.UserId, nil)
-    notify("Tag icon reset", "good")
-end)
-button(pgTags, "✦ Set MY tag icon", function()
-    TagIcons:set(LP.UserId, iconUrlBuf)
-    notify("Your tag icon updated", "good")
-end)
+-- Floating tag visibility and icons are now controlled by the script DB (tags.lua)
+-- and the bottom-right "Enable player tags" prompt.
 
 TagIcons:onChange(function(uid)
     for p, _ in pairs(tagBills) do
         if p.UserId == uid then refreshBill(p) end
     end
 end)
+
 
 
 
