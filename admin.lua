@@ -1,6 +1,6 @@
 -- Roblox Admin (loadstring build) — single-file, client-side, executor-friendly.
 -- Usage:  loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua?v=" .. tostring(os.time())))()
-local ADMIN_BUILD = "2026-06-07-floattags-2"
+local ADMIN_BUILD = "2026-06-07-floattags-3"
 
 if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
 if _G.__AdminUI then
