@@ -471,6 +471,7 @@ local list = win:addPlayerList(
     function(p)
         selected = p
         selStatus:set("Selected: " .. p.DisplayName .. " (@" .. p.Name .. ")")
+        if repaintChips then repaintChips() end
         win:notify("Selected " .. p.Name, "good")
     end,
     function(p) return Tags:summary(p.UserId) end
