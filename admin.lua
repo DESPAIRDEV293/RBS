@@ -1,6 +1,6 @@
 -- Roblox Admin (loadstring build) — single-file, client-side, executor-friendly.
 -- Usage:  loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua?v=" .. tostring(os.time())))()
-local ADMIN_BUILD = "2026-06-07-sync-1"
+local ADMIN_BUILD = "2026-06-07-floattags-1"
 
 if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
 if _G.__AdminUI then
@@ -454,21 +454,29 @@ end
 local Tags = {
     defs = { "Friend", "Target", "Ignore" }, -- editable
     map  = {},                                -- [userId] = { [tag]=true }
+    listeners = {},
 }
 function Tags:get(uid) return self.map[uid] or {} end
 function Tags:has(uid, t) local s = self.map[uid]; return s and s[t] == true end
+function Tags:onChange(fn) table.insert(self.listeners, fn) end
+function Tags:_fire(uid) for _, f in ipairs(self.listeners) do pcall(f, uid) end end
 function Tags:add(uid, t)
     if not self.map[uid] then self.map[uid] = {} end
     self.map[uid][t] = true
     local found = false; for _, x in ipairs(self.defs) do if x == t then found = true break end end
     if not found then table.insert(self.defs, t) end
+    if uid ~= 0 then self:_fire(uid) end
 end
-function Tags:remove(uid, t) if self.map[uid] then self.map[uid][t] = nil end end
+function Tags:remove(uid, t)
+    if self.map[uid] then self.map[uid][t] = nil end
+    if uid ~= 0 then self:_fire(uid) end
+end
 function Tags:toggle(uid, t) if self:has(uid, t) then self:remove(uid, t) else self:add(uid, t) end end
 function Tags:summary(uid)
     local out = {}; for t in pairs(self:get(uid)) do table.insert(out, t) end
     table.sort(out); return table.concat(out, ",")
 end
+
 
 ------------------------------------------------------------------ BUILD
 local win = UI.new("Admin", Vector2.new(460, 560))
@@ -647,6 +655,143 @@ win:bind(Players.PlayerAdded:Connect(function(p) bindCharacterRefresh(p) end))
 for _, p in ipairs(Players:GetPlayers()) do
     bindCharacterRefresh(p)
 end
+
+win:addSection("Floating tags")
+
+-- Per-player BillboardGui above head showing tag chips with a floating animation.
+local floatTagsEnabled = false
+local tagBillboards = {} -- [player] = { gui=BillboardGui, label=TextLabel, stroke=UIStroke, base=number }
+
+local function tagDisplayColor(p)
+    if Tags:has(p.UserId, "Target") then return T.bad end
+    if Tags:has(p.UserId, "Friend") then return T.good end
+    if Tags:has(p.UserId, "Ignore") then return T.sub end
+    return T.acc
+end
+
+local function clearTagBillboards()
+    for _, e in pairs(tagBillboards) do if e.gui then e.gui:Destroy() end end
+    tagBillboards = {}
+end
+
+local function refreshTagBillboardFor(p)
+    local entry = tagBillboards[p]
+    if not entry then return end
+    local txt = Tags:summary(p.UserId)
+    if txt == "" then
+        entry.label.Text = ""
+        entry.gui.Enabled = false
+    else
+        entry.label.Text = "  " .. txt:gsub(",", "  •  ") .. "  "
+        local c = tagDisplayColor(p)
+        entry.label.TextColor3 = c
+        entry.stroke.Color = c
+        entry.gui.Enabled = true
+    end
+end
+
+local function buildTagBillboard(p)
+    if tagBillboards[p] or not p.Character then return end
+    local head = p.Character:FindFirstChild("Head")
+    if not head then return end
+    local gui = Instance.new("BillboardGui")
+    gui.Name = "AdminTagBB"
+    gui.Adornee = head
+    gui.Size = UDim2.new(0, 220, 0, 34)
+    gui.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
+    gui.AlwaysOnTop = true
+    gui.LightInfluence = 0
+    gui.Parent = p.Character
+
+    local bg = Instance.new("Frame", gui)
+    bg.Size = UDim2.new(1, 0, 1, 0)
+    bg.BackgroundColor3 = Color3.fromRGB(14, 15, 20)
+    bg.BackgroundTransparency = 0.2
+    bg.BorderSizePixel = 0
+    local corner = Instance.new("UICorner", bg); corner.CornerRadius = UDim.new(0, 8)
+    local stroke = Instance.new("UIStroke", bg)
+    stroke.Thickness = 1.5
+    stroke.Color = T.acc
+    stroke.Transparency = 0.1
+
+    local lbl = Instance.new("TextLabel", bg)
+    lbl.BackgroundTransparency = 1
+    lbl.Size = UDim2.new(1, 0, 1, 0)
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 14
+    lbl.TextColor3 = T.acc
+    lbl.TextStrokeTransparency = 0.6
+    lbl.Text = ""
+
+    tagBillboards[p] = { gui = gui, label = lbl, stroke = stroke, bg = bg, base = math.random() * 6.28 }
+    refreshTagBillboardFor(p)
+end
+
+local function rebuildTagBillboards()
+    clearTagBillboards()
+    if not floatTagsEnabled then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP then buildTagBillboard(p) end
+    end
+end
+
+-- Floating animation: bob up/down, gentle pulse.
+win:bind(RunService.Heartbeat:Connect(function()
+    if not floatTagsEnabled then return end
+    local t = tick()
+    for p, e in pairs(tagBillboards) do
+        if e.gui and e.gui.Parent then
+            local phase = e.base or 0
+            local y = 3 + math.sin(t * 2 + phase) * 0.25
+            e.gui.StudsOffsetWorldSpace = Vector3.new(0, y, 0)
+            if e.stroke then
+                e.stroke.Transparency = 0.15 + (math.sin(t * 3 + phase) + 1) * 0.1
+            end
+        end
+    end
+end))
+
+win:addToggle("Show floating tags", false, function(s)
+    floatTagsEnabled = s
+    rebuildTagBillboards()
+end)
+win:addButton("Refresh floating tags", rebuildTagBillboards)
+
+-- React to tag changes and respawns
+Tags:onChange(function(uid)
+    for p, _ in pairs(tagBillboards) do
+        if p.UserId == uid then refreshTagBillboardFor(p) end
+    end
+    -- if player has no billboard yet but should, add when enabled
+    if floatTagsEnabled then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.UserId == uid and not tagBillboards[p] and p ~= LP then
+                buildTagBillboard(p)
+            end
+        end
+    end
+end)
+
+win:bind(Players.PlayerAdded:Connect(function(p)
+    win:bind(p.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        if floatTagsEnabled and p ~= LP then
+            if tagBillboards[p] then tagBillboards[p].gui:Destroy(); tagBillboards[p] = nil end
+            buildTagBillboard(p)
+        end
+    end))
+end))
+for _, p in ipairs(Players:GetPlayers()) do
+    win:bind(p.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        if floatTagsEnabled and p ~= LP then
+            if tagBillboards[p] then tagBillboards[p].gui:Destroy(); tagBillboards[p] = nil end
+            buildTagBillboard(p)
+        end
+    end))
+end
+
+
 
 win:addSection("Display")
 local bright = false
