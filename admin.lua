@@ -98,6 +98,7 @@ UI.__index = UI
 
 function UI.new(title, size)
     local self = setmetatable({}, UI)
+    self.conns = {}
     local screen = Instance.new("ScreenGui")
     screen.Name = "AdminUI_" .. tostring(math.random(1e6,9e6))
     screen.ResetOnSpawn = false; screen.IgnoreGuiInset = true
@@ -118,8 +119,8 @@ function UI.new(title, size)
     local mask = Instance.new("Frame", bar)
     mask.Position = UDim2.new(0, 0, 1, -12); mask.Size = UDim2.new(1, 0, 0, 12)
     mask.BackgroundColor3 = T.bg2; mask.BorderSizePixel = 0
-    drag(bar, win)
-    text(bar, title, { bold = true, size = 14, h = 34, w = 240 }).Position = UDim2.new(0, 14, 0, 0)
+    drag(bar, win, self)
+    text(bar, title .. "  " .. ADMIN_BUILD, { bold = true, size = 14, h = 34, w = 300 }).Position = UDim2.new(0, 14, 0, 0)
 
     local function topBtn(sym, x, color)
         local b = Instance.new("TextButton", bar)
@@ -152,7 +153,7 @@ function UI.new(title, size)
     local grip = Instance.new("TextButton", win)
     grip.Size = UDim2.new(0, 14, 0, 14); grip.Position = UDim2.new(1, -16, 1, -16)
     grip.BackgroundColor3 = T.line; grip.Text = ""; grip.AutoButtonColor = false
-    corner(grip, 3); resize(grip, win, Vector2.new(340, 260))
+    corner(grip, 3); resize(grip, win, Vector2.new(340, 260), self)
 
     local toasts = Instance.new("Frame", screen)
     toasts.AnchorPoint = Vector2.new(1, 1); toasts.Position = UDim2.new(1, -16, 1, -16)
@@ -168,6 +169,12 @@ end
 
 function UI:setVisible(v) self.screen.Enabled = v end
 function UI:toggle()      self.screen.Enabled = not self.screen.Enabled end
+function UI:bind(sig)     table.insert(self.conns, sig); return sig end
+function UI:destroy()
+    for _, sig in ipairs(self.conns or {}) do pcall(function() sig:Disconnect() end) end
+    self.conns = {}
+    if self.screen then pcall(function() self.screen:Destroy() end) end
+end
 
 function UI:addTab(name)
     local b = Instance.new("TextButton", self.tabBar)
