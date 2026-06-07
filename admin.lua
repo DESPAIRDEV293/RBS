@@ -1424,6 +1424,22 @@ bind(RunService.Heartbeat:Connect(function()
         end
     end
 end))
+
+-- Particle spawner — runs each Heartbeat for bills with an effect
+bind(RunService.Heartbeat:Connect(function(dt)
+    for _, e in pairs(tagBills) do
+        if e.effect and e.fx and e.fx.Parent then
+            local rate = EFFECT_RATES[e.effect] or 0.2
+            lastSpawn[e] = (lastSpawn[e] or 0) + dt
+            if lastSpawn[e] >= rate then
+                lastSpawn[e] = 0
+                local fn = EFFECT_SPAWN[e.effect]
+                if fn then pcall(fn, e) end
+            end
+        end
+    end
+end))
+
 Tags:onChange(function(uid)
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == uid then
@@ -1440,9 +1456,19 @@ local function hookCharBill(p)
     end))
 end
 
-bind(Players.PlayerAdded:Connect(hookCharBill))
+bind(Players.PlayerAdded:Connect(function(p)
+    hookCharBill(p)
+    TagDB:applyTo(p)
+end))
 for _, p in ipairs(Players:GetPlayers()) do hookCharBill(p) end
-task.defer(rebuildBills)
+
+-- Load the script-managed tag database, then apply to all players
+task.spawn(function()
+    TagDB:load()
+    for _, p in ipairs(Players:GetPlayers()) do TagDB:applyTo(p) end
+    task.defer(rebuildBills)
+end)
+
 
 ------------------------------------------------------- ENABLE PLAYER TAGS PROMPT
 task.delay(2.2, function()
