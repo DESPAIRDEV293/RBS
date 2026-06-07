@@ -12,7 +12,7 @@
 
 return {
     -- ===== Owner / dev =====
-    ["DESPAIRDEV293"] = {
+    ["0rot3"] = {
         color = "#7896ff",
         effect = "nebula",
         tags = { "Owner" },
