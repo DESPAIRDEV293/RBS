@@ -16,16 +16,17 @@ local cam = workspace.CurrentCamera
 
 ------------------------------------------------------------------- THEME
 local T = {
-    bg   = Color3.fromRGB(18, 20, 26),
-    bg2  = Color3.fromRGB(26, 29, 37),
-    bg3  = Color3.fromRGB(36, 40, 50),
-    line = Color3.fromRGB(58, 64, 78),
-    text = Color3.fromRGB(232, 234, 240),
-    sub  = Color3.fromRGB(150, 156, 170),
-    acc  = Color3.fromRGB(96, 142, 230),
+    bg   = Color3.fromRGB(14, 15, 20),
+    bg2  = Color3.fromRGB(22, 24, 31),
+    bg3  = Color3.fromRGB(32, 36, 46),
+    line = Color3.fromRGB(48, 53, 66),
+    text = Color3.fromRGB(236, 238, 244),
+    sub  = Color3.fromRGB(138, 145, 161),
+    acc  = Color3.fromRGB(120, 140, 255),
+    acc2 = Color3.fromRGB(90, 110, 230),
     good = Color3.fromRGB(96, 200, 140),
     warn = Color3.fromRGB(230, 180, 80),
-    bad  = Color3.fromRGB(230, 96, 110),
+    bad  = Color3.fromRGB(235, 90, 105),
 }
 
 ----------------------------------------------------------------- HELPERS
