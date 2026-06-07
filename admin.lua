@@ -654,8 +654,10 @@ end
 win:bind(Players.PlayerAdded:Connect(function(p) bindCharacterRefresh(p) end))
 for _, p in ipairs(Players:GetPlayers()) do
     bindCharacterRefresh(p)
+end
 
 win:addSection("Floating tags")
+
 -- Per-player BillboardGui above head showing tag chips with a floating animation.
 local floatTagsEnabled = false
 local tagBillboards = {} -- [player] = { gui=BillboardGui, label=TextLabel, stroke=UIStroke, base=number }
