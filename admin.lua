@@ -639,9 +639,12 @@ end
 win:addToggle("ESP enabled", false, function(s) espEnabled = s; rebuildEsp() end)
 win:addDropdown("ESP filter", { "All", "Friends", "Targets", "Tagged" }, function(o) espFilter = o; rebuildEsp() end)
 win:addButton("Refresh ESP", rebuildEsp)
-Players.PlayerAdded:Connect(function(p) p.CharacterAdded:Connect(function() task.wait(0.5); rebuildEsp() end) end)
+local function bindCharacterRefresh(p)
+    win:bind(p.CharacterAdded:Connect(function() task.wait(0.5); rebuildEsp() end))
+end
+win:bind(Players.PlayerAdded:Connect(function(p) bindCharacterRefresh(p) end))
 for _, p in ipairs(Players:GetPlayers()) do
-    p.CharacterAdded:Connect(function() task.wait(0.5); rebuildEsp() end)
+    bindCharacterRefresh(p)
 end
 
 win:addSection("Display")
@@ -728,10 +731,18 @@ local origNotify = win.notify
 function win:notify(msg, kind) origNotify(self, msg, kind); pcall(log, tostring(msg)) end
 
 -- HOTKEY -----------------------------------------------------------------
-UIS.InputBegan:Connect(function(i, gp)
+win:bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
     if i.KeyCode == Enum.KeyCode.F2 then win:toggle() end
-end)
+end))
+
+_G.__AdminCleanup = function()
+    pcall(stopFly)
+    pcall(clearEsp)
+    if win then pcall(function() win:destroy() end) end
+    _G.__AdminUI = nil
+    _G.__AdminLoaded = false
+end
 
 win:switchTab(tabPlayers)
-win:notify("Loaded. Press F2 to toggle.", "good")
+win:notify("Loaded " .. ADMIN_BUILD .. ". Press F2 to toggle.", "good")
