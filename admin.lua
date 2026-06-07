@@ -898,8 +898,6 @@ function refreshPlayerList(filter)
             row.MouseButton1Click:Connect(function()
                 selected = p
                 selLbl:set("Selected: " .. p.DisplayName .. "  (@" .. p.Name .. ")")
-                if refreshSelTag then refreshSelTag() end
-                if repaintChips then repaintChips() end
                 notify("Selected " .. p.Name, "good")
             end)
         end
