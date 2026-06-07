@@ -1,6 +1,6 @@
 -- Roblox Admin (loadstring build) — single-file, client-side, executor-friendly.
 -- Usage:  loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua?v=" .. tostring(os.time())))()
-local ADMIN_BUILD = "2026-06-07-floattags-3"
+local ADMIN_BUILD = "2026-06-07-floattags-4"
 
 if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
 if _G.__AdminUI then
@@ -659,7 +659,7 @@ end
 win:addSection("Floating tags")
 
 -- Per-player BillboardGui above head showing tag chips with a floating animation.
-local floatTagsEnabled = false
+local floatTagsEnabled = true  -- ON by default so tags are visible immediately
 local tagBillboards = {} -- [player] = { gui=BillboardGui, label=TextLabel, stroke=UIStroke, base=number }
 
 local function tagDisplayColor(p)
@@ -815,7 +815,7 @@ local function rebuildTagBillboards()
     clearTagBillboards()
     if not floatTagsEnabled then return end
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP then buildTagBillboard(p) end
+        buildTagBillboard(p) -- include self
     end
 end
 
@@ -835,45 +835,59 @@ win:bind(RunService.Heartbeat:Connect(function()
     end
 end))
 
-win:addToggle("Show floating tags", false, function(s)
+win:addToggle("Show floating tags", true, function(s)
     floatTagsEnabled = s
     rebuildTagBillboards()
 end)
 win:addButton("Refresh floating tags", rebuildTagBillboards)
 
--- React to tag changes and respawns
-Tags:onChange(function(uid)
-    for p, _ in pairs(tagBillboards) do
-        if p.UserId == uid then refreshTagBillboardFor(p) end
+-- Ensure a player has a billboard if they should
+local function ensureTagBillboardFor(p)
+    if not floatTagsEnabled then return end
+    if tagBillboards[p] and tagBillboards[p].gui and tagBillboards[p].gui.Parent then
+        refreshTagBillboardFor(p); return
     end
-    -- if player has no billboard yet but should, add when enabled
-    if floatTagsEnabled then
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p.UserId == uid and not tagBillboards[p] and p ~= LP then
-                buildTagBillboard(p)
-            end
-        end
+    if tagBillboards[p] then
+        pcall(function() tagBillboards[p].gui:Destroy() end)
+        tagBillboards[p] = nil
+    end
+    if p.Character and p.Character:FindFirstChild("Head") then
+        buildTagBillboard(p)
+    else
+        -- wait for head to arrive
+        task.spawn(function()
+            local char = p.Character or p.CharacterAdded:Wait()
+            char:WaitForChild("Head", 5)
+            task.wait(0.2)
+            if floatTagsEnabled then buildTagBillboard(p) end
+        end)
+    end
+end
+
+-- React to tag add/remove
+Tags:onChange(function(uid)
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.UserId == uid then ensureTagBillboardFor(p) end
     end
 end)
 
-win:bind(Players.PlayerAdded:Connect(function(p)
+local function hookPlayer(p)
     win:bind(p.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        if floatTagsEnabled and p ~= LP then
-            if tagBillboards[p] then tagBillboards[p].gui:Destroy(); tagBillboards[p] = nil end
-            buildTagBillboard(p)
+        task.wait(0.4)
+        if tagBillboards[p] then
+            pcall(function() tagBillboards[p].gui:Destroy() end)
+            tagBillboards[p] = nil
         end
-    end))
-end))
-for _, p in ipairs(Players:GetPlayers()) do
-    win:bind(p.CharacterAdded:Connect(function()
-        task.wait(0.5)
-        if floatTagsEnabled and p ~= LP then
-            if tagBillboards[p] then tagBillboards[p].gui:Destroy(); tagBillboards[p] = nil end
-            buildTagBillboard(p)
-        end
+        ensureTagBillboardFor(p)
     end))
 end
+win:bind(Players.PlayerAdded:Connect(hookPlayer))
+for _, p in ipairs(Players:GetPlayers()) do hookPlayer(p) end
+
+-- Build for anyone already in-game with tags
+task.defer(rebuildTagBillboards)
+
+
 
 
 
