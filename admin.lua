@@ -1322,7 +1322,7 @@ local function buildBill(p)
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
     })
-    tagBills[p] = { gui = gui, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, base = math.random() * 6.28 }
+    tagBills[p] = { gui = gui, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, base = math.random() * 6.28 }
     refreshBill(p)
 end
 local function rebuildBills()
