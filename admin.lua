@@ -12,6 +12,7 @@ if _G.__AdminUI then
 end
 _G.__AdminLoaded = true
 _G.__AdminBuild = ADMIN_BUILD
+print("[Admin] Loading build " .. ADMIN_BUILD)
 
 local Players       = game:GetService("Players")
 local UIS           = game:GetService("UserInputService")
