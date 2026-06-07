@@ -242,16 +242,16 @@ function UI:addToggle(label, default, cb)
 end
 
 function UI:addSlider(label, mn, mx, def, cb)
-    local f = rowF(cur(self), 56); pad(f, 12)
-    local l = text(f, label, { size = 12, h = 18 })
-    l.Position = UDim2.new(0, 0, 0, 0); l.Size = UDim2.new(1, -54, 0, 18)
+    local f = rowF(cur(self), 62); pad(f, 12)
+    local l = text(f, label, { size = 12, h = 20 })
+    l.Position = UDim2.new(0, 0, 0, 0); l.Size = UDim2.new(1, -60, 0, 20)
     local v = Instance.new("TextLabel", f)
     v.BackgroundColor3 = T.bg3; v.BorderSizePixel = 0
     v.Font = Enum.Font.GothamSemibold; v.TextSize = 11; v.TextColor3 = T.text
-    v.Size = UDim2.new(0, 48, 0, 20); v.Position = UDim2.new(1, -48, 0, -1)
+    v.Size = UDim2.new(0, 52, 0, 20); v.Position = UDim2.new(1, -52, 0, 0)
     v.Text = tostring(def); corner(v, 6)
     local tr = Instance.new("Frame", f)
-    tr.Size = UDim2.new(1, 0, 0, 6); tr.Position = UDim2.new(0, 0, 1, -10)
+    tr.Size = UDim2.new(1, 0, 0, 6); tr.Position = UDim2.new(0, 0, 1, -8)
     tr.BackgroundColor3 = T.bg3; tr.BorderSizePixel = 0; corner(tr, 3)
     local fill = Instance.new("Frame", tr)
     fill.BackgroundColor3 = T.acc; fill.BorderSizePixel = 0
@@ -315,40 +315,91 @@ function UI:addDropdown(label, opts, cb)
     end)
 end
 
+-- Pixel-art tag chips wrapped in a flex row. Returns { addChip = fn(label, cb, isActive), refresh = fn() }
+function UI:addTagRow()
+    local wrap = Instance.new("Frame", cur(self))
+    wrap.Size = UDim2.new(1, -4, 0, 0); wrap.AutomaticSize = Enum.AutomaticSize.Y
+    wrap.BackgroundTransparency = 1
+    local lay = Instance.new("UIListLayout", wrap)
+    lay.FillDirection = Enum.FillDirection.Horizontal
+    lay.Wraps = true; lay.SortOrder = Enum.SortOrder.LayoutOrder
+    lay.Padding = UDim.new(0, 6)
+    local api = {}
+    function api.addChip(label, cb, getActive)
+        local outer = Instance.new("Frame", wrap)
+        outer.BackgroundTransparency = 1
+        outer.AutomaticSize = Enum.AutomaticSize.X
+        outer.Size = UDim2.new(0, 0, 0, 30)
+        -- Pixel shadow (offset solid block, no rounding)
+        local shadow = Instance.new("Frame", outer)
+        shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
+        shadow.BorderSizePixel = 0
+        shadow.Position = UDim2.new(0, 3, 0, 3)
+        shadow.Size = UDim2.new(1, -3, 1, -3)
+        -- Button
+        local b = Instance.new("TextButton", outer)
+        b.AutomaticSize = Enum.AutomaticSize.X
+        b.Size = UDim2.new(0, 0, 1, -3)
+        b.BackgroundColor3 = Color3.fromRGB(255,255,255)
+        b.AutoButtonColor = false
+        b.Font = Enum.Font.GothamBold; b.TextSize = 12
+        b.TextColor3 = Color3.fromRGB(15,15,15)
+        b.Text = "  " .. label .. "  "
+        corner(b, 6); stroke(b, Color3.fromRGB(0,0,0), 2)
+        local padInner = Instance.new("UIPadding", b)
+        padInner.PaddingLeft = UDim.new(0, 6); padInner.PaddingRight = UDim.new(0, 6)
+        local function paint()
+            local active = getActive and getActive()
+            if active then
+                b.BackgroundColor3 = T.acc
+                b.TextColor3 = Color3.fromRGB(255,255,255)
+            else
+                b.BackgroundColor3 = Color3.fromRGB(255,255,255)
+                b.TextColor3 = Color3.fromRGB(15,15,15)
+            end
+        end
+        b.MouseButton1Click:Connect(function() if cb then cb() end; paint() end)
+        paint()
+        return { paint = paint, button = b }
+    end
+    function api.repaint() for _, c in ipairs(wrap:GetChildren()) do if c:IsA("Frame") and c:FindFirstChildOfClass("TextButton") then end end end
+    return api
+end
+
 function UI:addPlayerList(onClick, getBadge)
+    -- Container expands with content; outer tab panel handles scrolling.
     local f = Instance.new("Frame", cur(self))
-    f.Size = UDim2.new(1, -4, 0, 220); f.BackgroundColor3 = T.bg2; f.BorderSizePixel = 0
-    corner(f, 6)
-    local sf = Instance.new("ScrollingFrame", f)
-    sf.Size = UDim2.new(1, -8, 1, -8); sf.Position = UDim2.new(0, 4, 0, 4)
-    sf.BackgroundTransparency = 1; sf.BorderSizePixel = 0
-    sf.ScrollBarThickness = 3; sf.CanvasSize = UDim2.new(0,0,0,0)
-    sf.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    local lay = Instance.new("UIListLayout", sf); lay.Padding = UDim.new(0, 4)
+    f.Size = UDim2.new(1, -4, 0, 0); f.AutomaticSize = Enum.AutomaticSize.Y
+    f.BackgroundColor3 = T.bg2; f.BorderSizePixel = 0
+    corner(f, 8); pad(f, 6)
+    local lay = Instance.new("UIListLayout", f); lay.Padding = UDim.new(0, 4)
     local rows = {}
     local function makeRow(p)
-        local r = Instance.new("TextButton", sf)
-        r.Size = UDim2.new(1, -4, 0, 36); r.BackgroundColor3 = T.bg3
-        r.AutoButtonColor = true; r.Text = ""; corner(r, 6)
+        local r = Instance.new("TextButton", f)
+        r.Size = UDim2.new(1, 0, 0, 44); r.BackgroundColor3 = T.bg3
+        r.AutoButtonColor = false; r.Text = ""; corner(r, 8)
         local img = Instance.new("ImageLabel", r)
-        img.Size = UDim2.new(0, 28, 0, 28); img.Position = UDim2.new(0, 4, 0.5, -14)
-        img.BackgroundColor3 = T.bg; img.BorderSizePixel = 0; corner(img, 14)
+        img.Size = UDim2.new(0, 32, 0, 32); img.Position = UDim2.new(0, 6, 0.5, -16)
+        img.BackgroundColor3 = T.bg; img.BorderSizePixel = 0; corner(img, 16)
         local ok, url = pcall(function()
             return Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
         end)
         if ok then img.Image = url end
         local n = text(r, p.DisplayName, { bold = true, size = 13, h = 18 })
-        n.Position = UDim2.new(0, 40, 0, 4); n.Size = UDim2.new(1, -120, 0, 18)
+        n.Position = UDim2.new(0, 46, 0, 5); n.Size = UDim2.new(1, -130, 0, 18)
         local s = text(r, "@" .. p.Name, { size = 11, color = T.sub, h = 14 })
-        s.Position = UDim2.new(0, 40, 0, 20); s.Size = UDim2.new(1, -120, 0, 14)
-        local badge = text(r, "", { size = 11, color = T.sub, h = 18, align = Enum.TextXAlignment.Right })
-        badge.Position = UDim2.new(1, -78, 0.5, -9); badge.Size = UDim2.new(0, 72, 0, 18)
+        s.Position = UDim2.new(0, 46, 0, 23); s.Size = UDim2.new(1, -130, 0, 14)
+        local badge = text(r, "", { size = 11, color = T.sub, h = 18 })
+        badge.TextXAlignment = Enum.TextXAlignment.Right
+        badge.Position = UDim2.new(1, -84, 0.5, -9); badge.Size = UDim2.new(0, 78, 0, 18)
         if getBadge then badge.Text = getBadge(p) or "" end
+        r.MouseEnter:Connect(function() TweenService:Create(r, TweenInfo.new(0.1), { BackgroundColor3 = T.line }):Play() end)
+        r.MouseLeave:Connect(function() TweenService:Create(r, TweenInfo.new(0.1), { BackgroundColor3 = T.bg3 }):Play() end)
         r.MouseButton1Click:Connect(function() if onClick then onClick(p) end end)
         return r, badge
     end
     local function refresh()
-        for _, c in ipairs(sf:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+        for _, c in ipairs(f:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
         rows = {}
         for _, p in ipairs(Players:GetPlayers()) do
             local r, b = makeRow(p); rows[p] = { row = r, badge = b }
@@ -411,6 +462,7 @@ local tabTags    = win:addTab("Tags")
 local tabLogs    = win:addTab("Logs")
 
 local selected -- selected player
+local repaintChips -- forward declaration; assigned in the Tags tab setup
 
 -- PLAYERS ----------------------------------------------------------------
 win:switchTab(tabPlayers)
@@ -420,6 +472,7 @@ local list = win:addPlayerList(
     function(p)
         selected = p
         selStatus:set("Selected: " .. p.DisplayName .. " (@" .. p.Name .. ")")
+        if repaintChips then repaintChips() end
         win:notify("Selected " .. p.Name, "good")
     end,
     function(p) return Tags:summary(p.UserId) end
@@ -609,22 +662,30 @@ local function refreshSelTag()
 end
 
 win:addSection("Apply tag to selected")
-local function tagBtn(t)
-    win:addButton(t, function()
-        if not selected then win:notify("Select a player first", "warn"); return end
-        Tags:toggle(selected.UserId, t)
-        refreshSelTag(); list.updateBadges(); rebuildEsp()
-        win:notify(selected.Name .. " ↔ " .. t, "good")
-    end)
+local tagRow = win:addTagRow()
+local chipRefs = {}
+repaintChips = function() for _, c in ipairs(chipRefs) do c.paint() end end
+local function addTagChip(t)
+    local c = tagRow.addChip(t,
+        function()
+            if not selected then win:notify("Select a player first", "warn"); return end
+            Tags:toggle(selected.UserId, t)
+            refreshSelTag(); list.updateBadges(); rebuildEsp()
+            repaintChips()
+            win:notify(selected.Name .. " ↔ " .. t, "good")
+        end,
+        function() return selected and Tags:has(selected.UserId, t) end
+    )
+    table.insert(chipRefs, c)
 end
-for _, t in ipairs(Tags.defs) do tagBtn(t) end
+for _, t in ipairs(Tags.defs) do addTagChip(t) end
 
 win:addSection("Create new tag")
 win:addTextBox("Tag name…", function(name)
     name = (name or ""):gsub("%s+", "")
     if name == "" then return end
     Tags:add(0, name); Tags:remove(0, name) -- registers in defs without assigning
-    tagBtn(name); win:notify("Tag '" .. name .. "' added", "good")
+    addTagChip(name); win:notify("Tag '" .. name .. "' added", "good")
 end)
 
 win:addSection("Clear")
