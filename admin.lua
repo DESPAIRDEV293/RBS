@@ -770,6 +770,28 @@ function Tags:toggle(uid, t)
     if self:has(uid, t) then self:remove(uid, t) else self:add(uid, t) end
 end
 
+------------------------------------------------------- TAG ICONS (PRO feature, enabled for all)
+local TagIcons = { map = {}, listeners = {} }
+function TagIcons:get(uid) return self.map[uid] end
+function TagIcons:set(uid, url)
+    if url == nil or url == "" then self.map[uid] = nil
+    else self.map[uid] = url end
+    for _, f in ipairs(self.listeners) do pcall(f, uid) end
+end
+function TagIcons:onChange(fn) table.insert(self.listeners, fn) end
+
+-- Accept rbxassetid://, full URL, raw asset id, or any image/gif URL
+local function resolveIconUrl(raw)
+    if not raw or raw == "" then return nil end
+    raw = raw:match("^%s*(.-)%s*$")
+    if raw:match("^rbxassetid://") then return raw end
+    if raw:match("^rbxthumb://") then return raw end
+    if raw:match("^%d+$") then return "rbxassetid://" .. raw end
+    return raw -- http(s):// image/gif URL (executors typically proxy via getcustomasset)
+end
+
+
+
 local function tagColor(p)
     if Tags:has(p.UserId, "Target") then return T.bad end
     if Tags:has(p.UserId, "Friend") then return T.good end
