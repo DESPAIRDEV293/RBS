@@ -454,21 +454,29 @@ end
 local Tags = {
     defs = { "Friend", "Target", "Ignore" }, -- editable
     map  = {},                                -- [userId] = { [tag]=true }
+    listeners = {},
 }
 function Tags:get(uid) return self.map[uid] or {} end
 function Tags:has(uid, t) local s = self.map[uid]; return s and s[t] == true end
+function Tags:onChange(fn) table.insert(self.listeners, fn) end
+function Tags:_fire(uid) for _, f in ipairs(self.listeners) do pcall(f, uid) end end
 function Tags:add(uid, t)
     if not self.map[uid] then self.map[uid] = {} end
     self.map[uid][t] = true
     local found = false; for _, x in ipairs(self.defs) do if x == t then found = true break end end
     if not found then table.insert(self.defs, t) end
+    if uid ~= 0 then self:_fire(uid) end
 end
-function Tags:remove(uid, t) if self.map[uid] then self.map[uid][t] = nil end end
+function Tags:remove(uid, t)
+    if self.map[uid] then self.map[uid][t] = nil end
+    if uid ~= 0 then self:_fire(uid) end
+end
 function Tags:toggle(uid, t) if self:has(uid, t) then self:remove(uid, t) else self:add(uid, t) end end
 function Tags:summary(uid)
     local out = {}; for t in pairs(self:get(uid)) do table.insert(out, t) end
     table.sort(out); return table.concat(out, ",")
 end
+
 
 ------------------------------------------------------------------ BUILD
 local win = UI.new("Admin", Vector2.new(460, 560))
