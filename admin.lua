@@ -659,7 +659,7 @@ end
 win:addSection("Floating tags")
 
 -- Per-player BillboardGui above head showing tag chips with a floating animation.
-local floatTagsEnabled = false
+local floatTagsEnabled = true  -- ON by default so tags are visible immediately
 local tagBillboards = {} -- [player] = { gui=BillboardGui, label=TextLabel, stroke=UIStroke, base=number }
 
 local function tagDisplayColor(p)
