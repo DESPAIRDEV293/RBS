@@ -1166,83 +1166,10 @@ dropdown(pgWorld, "Time preset", { "Noon", "Sunset", "Night", "Dawn" }, function
     Lighting.ClockTime = ({ Noon = 12, Sunset = 18, Night = 0, Dawn = 6 })[o]
 end)
 
-------------------------------------------------------- TAGS TAB
-section(pgTags, "Current selection")
-local selTagLbl = label(pgTags, "No player selected")
-function refreshSelTag()
-    if selected then
-        local s = Tags:summary(selected.UserId)
-        selTagLbl:set(selected.Name .. " — " .. (s ~= "" and s or "no tags"))
-    else
-        selTagLbl:set("No player selected")
-    end
-end
-
-section(pgTags, "Apply tag to selected")
-local chipsHolder = inst("Frame", pgTags, {
-    Size = UDim2.new(1, -8, 0, 0),
-    AutomaticSize = Enum.AutomaticSize.Y,
-    BackgroundTransparency = 1,
-})
-inst("UIListLayout", chipsHolder, {
-    Padding = UDim.new(0, 6),
-    FillDirection = Enum.FillDirection.Horizontal,
-    SortOrder = Enum.SortOrder.LayoutOrder,
-})
-
-function repaintChips()
-    for _, c in ipairs(chipsHolder:GetChildren()) do if c:IsA("TextButton") then
-        local active = selected and Tags:has(selected.UserId, c.Name)
-        c.BackgroundColor3 = active and T.acc or T.bg3
-        c.TextColor3 = active and T.text or T.sub
-    end end
-end
-local function addChip(tag)
-    local b = inst("TextButton", chipsHolder, {
-        Name = tag,
-        Size = UDim2.new(0, 0, 0, 26),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundColor3 = T.bg3,
-        AutoButtonColor = false,
-        Text = "  " .. tag .. "  ",
-        Font = Enum.Font.GothamBold,
-        TextSize = 11,
-        TextColor3 = T.sub,
-    })
-    corner(b, 13); stroke(b, T.line, 1, 0.5)
-    b.MouseButton1Click:Connect(function()
-        if not selected then notify("Select a player first", "warn"); return end
-        Tags:toggle(selected.UserId, tag); refreshSelTag(); repaintChips(); refreshPlayerList()
-    end)
-end
-for _, t in ipairs(Tags.defs) do addChip(t) end
-
-section(pgTags, "Create new tag")
-textbox(pgTags, "Tag name…", function(name)
-    name = name:gsub("^%s+", ""):gsub("%s+$", "")
-    if name == "" then return end
-    Tags:add(0, name); Tags:remove(0, name)
-    addChip(name); notify("Tag '" .. name .. "' added", "good")
-end)
-button(pgTags, "Clear tags on selected", function()
-    if not selected then notify("Select a player first", "warn"); return end
-    for t in pairs(Tags:get(selected.UserId)) do Tags:remove(selected.UserId, t) end
-    refreshSelTag(); repaintChips(); refreshPlayerList()
-end)
-button(pgTags, "Clear ALL tags", function()
-    for uid in pairs(Tags.map) do for t in pairs(Tags.map[uid]) do Tags:remove(uid, t) end end
-    refreshSelTag(); repaintChips(); refreshPlayerList()
-end)
-
--- Hook selection -> refresh chip states
-task.spawn(function()
-    while task.wait(0.4) do refreshSelTag(); repaintChips() end
-end)
-
-------------------------------------------------------- FLOATING TAGS
-section(pgTags, "Floating tags in-game")
+------------------------------------------------------- FLOATING TAGS (driven by tags.lua DB)
 local floatOn = false
 local tagBills = {}
+
 
 local function clearBills()
     for _, e in pairs(tagBills) do if e.gui then e.gui:Destroy() end end
