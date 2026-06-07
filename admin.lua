@@ -1317,7 +1317,6 @@ toggle(pgTags, "Show floating tags above heads", false, function(s) floatOn = s;
 button(pgTags, "Refresh floating tags", rebuildBills)
 
 bind(RunService.Heartbeat:Connect(function()
-    if not floatOn then return end
     local t = tick()
     for p, e in pairs(tagBills) do
         if e.gui and e.gui.Parent then
@@ -1330,7 +1329,7 @@ end))
 Tags:onChange(function(uid)
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == uid then
-            if tagBills[p] then refreshBill(p) else if floatOn then buildBill(p) end end
+            if tagBills[p] then refreshBill(p) else if floatOn or p == LP then buildBill(p) end end
         end
     end
     refreshPlayerList()
@@ -1339,9 +1338,10 @@ local function hookCharBill(p)
     bind(p.CharacterAdded:Connect(function()
         task.wait(0.5)
         if tagBills[p] then pcall(function() tagBills[p].gui:Destroy() end); tagBills[p] = nil end
-        if floatOn then buildBill(p) end
+        if floatOn or p == LP then buildBill(p) end
     end))
 end
+
 bind(Players.PlayerAdded:Connect(hookCharBill))
 for _, p in ipairs(Players:GetPlayers()) do hookCharBill(p) end
 task.defer(rebuildBills)
