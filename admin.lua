@@ -1329,7 +1329,7 @@ bind(UIS.InputEnded:Connect(function(i)
 end))
 
 ------------------------------------------------------- DEFAULT TAB
-tabs["Players"].btn.MouseButton1Click:Wait = nil
+
 -- Manually fire default
 do
     local e = tabs["Players"]
