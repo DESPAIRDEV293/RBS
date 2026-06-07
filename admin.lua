@@ -1291,20 +1291,17 @@ local function clearBills()
 end
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
+    local cfg = TagDB:configFor(p)
     e.gui.Enabled = true
-    e.name.Text = p.DisplayName
+    e.name.Text = (cfg and cfg.displayName) or p.DisplayName
     e.handle.Text = "@" .. p.Name
-    -- Custom icon override (PRO feature)
-    local customIcon = TagIcons:get(p.UserId)
+
+    -- Custom icon override (DB or per-player)
+    local customIcon = TagIcons:get(p.UserId) or (cfg and cfg.icon)
     if e.av then
         if customIcon then
             local url = resolveIconUrl(customIcon)
-            pcall(function()
-                if typeof(getcustomasset) == "function" and url:match("^https?://") then
-                    -- best-effort: many executors expose getcustomasset for remote images
-                end
-                e.av.Image = url
-            end)
+            pcall(function() e.av.Image = url end)
         else
             pcall(function()
                 e.av.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
@@ -1312,21 +1309,28 @@ local function refreshBill(p)
         end
     end
 
+    -- Side chip / color
+    local dbColor = cfg and parseColor(cfg.color)
     local txt = Tags:summary(p.UserId)
     if txt ~= "" then
         e.sh.Visible = true
         e.stat.Text = txt:gsub(",", " • ")
-        local c = tagColor(p)
+        local c = dbColor or tagColor(p)
         e.stroke.Color = c; e.dot.BackgroundColor3 = c
     else
         e.sh.Visible = false
-        if p == LP then
-            e.stroke.Color = T.good; e.dot.BackgroundColor3 = T.good
-        else
-            e.stroke.Color = T.acc; e.dot.BackgroundColor3 = T.acc
-        end
+        local c = dbColor or (p == LP and T.good or T.acc)
+        e.stroke.Color = c; e.dot.BackgroundColor3 = c
+    end
+
+    -- Effect change
+    local newEffect = cfg and cfg.effect
+    if newEffect ~= e.effect then
+        e.effect = newEffect
+        if e.fx then for _, c in ipairs(e.fx:GetChildren()) do c:Destroy() end end
     end
 end
+
 local function buildBill(p)
     if tagBills[p] or not pchar(p) then return end
     local head = pchar(p):FindFirstChild("Head"); if not head then return end
