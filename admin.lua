@@ -242,16 +242,16 @@ function UI:addToggle(label, default, cb)
 end
 
 function UI:addSlider(label, mn, mx, def, cb)
-    local f = rowF(cur(self), 56); pad(f, 12)
-    local l = text(f, label, { size = 12, h = 18 })
-    l.Position = UDim2.new(0, 0, 0, 0); l.Size = UDim2.new(1, -54, 0, 18)
+    local f = rowF(cur(self), 62); pad(f, 12)
+    local l = text(f, label, { size = 12, h = 20 })
+    l.Position = UDim2.new(0, 0, 0, 0); l.Size = UDim2.new(1, -60, 0, 20)
     local v = Instance.new("TextLabel", f)
     v.BackgroundColor3 = T.bg3; v.BorderSizePixel = 0
     v.Font = Enum.Font.GothamSemibold; v.TextSize = 11; v.TextColor3 = T.text
-    v.Size = UDim2.new(0, 48, 0, 20); v.Position = UDim2.new(1, -48, 0, -1)
+    v.Size = UDim2.new(0, 52, 0, 20); v.Position = UDim2.new(1, -52, 0, 0)
     v.Text = tostring(def); corner(v, 6)
     local tr = Instance.new("Frame", f)
-    tr.Size = UDim2.new(1, 0, 0, 6); tr.Position = UDim2.new(0, 0, 1, -10)
+    tr.Size = UDim2.new(1, 0, 0, 6); tr.Position = UDim2.new(0, 0, 1, -8)
     tr.BackgroundColor3 = T.bg3; tr.BorderSizePixel = 0; corner(tr, 3)
     local fill = Instance.new("Frame", tr)
     fill.BackgroundColor3 = T.acc; fill.BorderSizePixel = 0
