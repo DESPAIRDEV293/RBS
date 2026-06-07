@@ -790,6 +790,51 @@ local function resolveIconUrl(raw)
     return raw -- http(s):// image/gif URL (executors typically proxy via getcustomasset)
 end
 
+------------------------------------------------------- TAG DATABASE (script-managed)
+-- tags.lua in the GitHub repo defines per-username overrides:
+--   color (hex), effect (rain/snow/sparkle/nebula), icon, tags{}, displayName
+local TAGS_DB_URL = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
+local TagDB = { entries = {} }
+local function parseColor(c)
+    if typeof(c) == "Color3" then return c end
+    if type(c) == "string" then
+        local hex = c:gsub("#",""):gsub("%s","")
+        if #hex == 6 then
+            local r = tonumber(hex:sub(1,2), 16)
+            local g = tonumber(hex:sub(3,4), 16)
+            local b = tonumber(hex:sub(5,6), 16)
+            if r and g and b then return Color3.fromRGB(r, g, b) end
+        end
+    end
+end
+function TagDB:configFor(p)
+    if not p then return nil end
+    return self.entries[(p.Name or ""):lower()]
+end
+function TagDB:applyTo(p)
+    local cfg = self:configFor(p); if not cfg then return end
+    if cfg.icon then TagIcons:set(p.UserId, cfg.icon) end
+    if type(cfg.tags) == "table" then
+        for _, t in ipairs(cfg.tags) do Tags:add(p.UserId, t) end
+    end
+end
+function TagDB:load()
+    local src
+    pcall(function()
+        src = game:HttpGet(TAGS_DB_URL .. "?v=" .. tostring(os.time()))
+    end)
+    if not src then warn("[Tags] DB fetch failed"); return end
+    local fn, err = loadstring(src)
+    if not fn then warn("[Tags] compile: " .. tostring(err)); return end
+    local ok, data = pcall(fn)
+    if not ok or type(data) ~= "table" then
+        warn("[Tags] eval failed: " .. tostring(data)); return
+    end
+    local entries = {}
+    for k, v in pairs(data) do entries[tostring(k):lower()] = v end
+    self.entries = entries
+    print(("[Tags] DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
+end
 
 
 local function tagColor(p)
@@ -805,7 +850,7 @@ local pgPlayers = makeTab("Players", "◉")
 local pgSelf    = makeTab("Self",    "✦")
 local pgVisuals = makeTab("Visuals", "◐")
 local pgWorld   = makeTab("World",   "◊")
-local pgTags    = makeTab("Tags",    "#")
+-- Tags tab removed — now managed via the script database (tags.lua)
 local pgAim     = makeTab("Aim",     "✚")
 
 local pgServer  = makeTab("Server",  "≡")
@@ -820,7 +865,7 @@ local function phrp(p)  local c = pchar(p); return c and c:FindFirstChild("Human
 
 
 local selected
-local refreshPlayerList, refreshSelTag, repaintChips -- forward
+local refreshPlayerList -- forward
 
 ------------------------------------------------------- PLAYERS TAB
 section(pgPlayers, "Player list")
@@ -898,8 +943,6 @@ function refreshPlayerList(filter)
             row.MouseButton1Click:Connect(function()
                 selected = p
                 selLbl:set("Selected: " .. p.DisplayName .. "  (@" .. p.Name .. ")")
-                if refreshSelTag then refreshSelTag() end
-                if repaintChips then repaintChips() end
                 notify("Selected " .. p.Name, "good")
             end)
         end
@@ -1168,83 +1211,79 @@ dropdown(pgWorld, "Time preset", { "Noon", "Sunset", "Night", "Dawn" }, function
     Lighting.ClockTime = ({ Noon = 12, Sunset = 18, Night = 0, Dawn = 6 })[o]
 end)
 
-------------------------------------------------------- TAGS TAB
-section(pgTags, "Current selection")
-local selTagLbl = label(pgTags, "No player selected")
-function refreshSelTag()
-    if selected then
-        local s = Tags:summary(selected.UserId)
-        selTagLbl:set(selected.Name .. " — " .. (s ~= "" and s or "no tags"))
-    else
-        selTagLbl:set("No player selected")
-    end
-end
-
-section(pgTags, "Apply tag to selected")
-local chipsHolder = inst("Frame", pgTags, {
-    Size = UDim2.new(1, -8, 0, 0),
-    AutomaticSize = Enum.AutomaticSize.Y,
-    BackgroundTransparency = 1,
-})
-inst("UIListLayout", chipsHolder, {
-    Padding = UDim.new(0, 6),
-    FillDirection = Enum.FillDirection.Horizontal,
-    SortOrder = Enum.SortOrder.LayoutOrder,
-})
-
-function repaintChips()
-    for _, c in ipairs(chipsHolder:GetChildren()) do if c:IsA("TextButton") then
-        local active = selected and Tags:has(selected.UserId, c.Name)
-        c.BackgroundColor3 = active and T.acc or T.bg3
-        c.TextColor3 = active and T.text or T.sub
-    end end
-end
-local function addChip(tag)
-    local b = inst("TextButton", chipsHolder, {
-        Name = tag,
-        Size = UDim2.new(0, 0, 0, 26),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundColor3 = T.bg3,
-        AutoButtonColor = false,
-        Text = "  " .. tag .. "  ",
-        Font = Enum.Font.GothamBold,
-        TextSize = 11,
-        TextColor3 = T.sub,
-    })
-    corner(b, 13); stroke(b, T.line, 1, 0.5)
-    b.MouseButton1Click:Connect(function()
-        if not selected then notify("Select a player first", "warn"); return end
-        Tags:toggle(selected.UserId, tag); refreshSelTag(); repaintChips(); refreshPlayerList()
-    end)
-end
-for _, t in ipairs(Tags.defs) do addChip(t) end
-
-section(pgTags, "Create new tag")
-textbox(pgTags, "Tag name…", function(name)
-    name = name:gsub("^%s+", ""):gsub("%s+$", "")
-    if name == "" then return end
-    Tags:add(0, name); Tags:remove(0, name)
-    addChip(name); notify("Tag '" .. name .. "' added", "good")
-end)
-button(pgTags, "Clear tags on selected", function()
-    if not selected then notify("Select a player first", "warn"); return end
-    for t in pairs(Tags:get(selected.UserId)) do Tags:remove(selected.UserId, t) end
-    refreshSelTag(); repaintChips(); refreshPlayerList()
-end)
-button(pgTags, "Clear ALL tags", function()
-    for uid in pairs(Tags.map) do for t in pairs(Tags.map[uid]) do Tags:remove(uid, t) end end
-    refreshSelTag(); repaintChips(); refreshPlayerList()
-end)
-
--- Hook selection -> refresh chip states
-task.spawn(function()
-    while task.wait(0.4) do refreshSelTag(); repaintChips() end
-end)
-
-------------------------------------------------------- FLOATING TAGS
-section(pgTags, "Floating tags in-game")
+------------------------------------------------------- FLOATING TAGS (driven by tags.lua DB)
 local floatOn = false
 local tagBills = {}
+
+-- ===== Particle effects (rain / snow / sparkle / nebula) =====
+local lastSpawn = setmetatable({}, { __mode = "k" })
+local NEBULA_COLORS = {
+    Color3.fromRGB(120, 90, 220),
+    Color3.fromRGB(80, 110, 240),
+    Color3.fromRGB(200, 80, 200),
+    Color3.fromRGB(80, 180, 220),
+}
+local function spawnRain(e)
+    local f = inst("Frame", e.fx, {
+        Size = UDim2.new(0, 2, 0, math.random(8, 14)),
+        Position = UDim2.new(math.random(), 0, 0, -12),
+        BackgroundColor3 = Color3.fromRGB(150, 190, 255),
+        BackgroundTransparency = 0.35,
+        BorderSizePixel = 0, ZIndex = 0,
+    })
+    TweenService:Create(f, TweenInfo.new(0.55, Enum.EasingStyle.Linear),
+        { Position = UDim2.new(f.Position.X.Scale, 0, 1, 8), BackgroundTransparency = 1 }):Play()
+    task.delay(0.6, function() if f then f:Destroy() end end)
+end
+local function spawnSnow(e)
+    local f = inst("Frame", e.fx, {
+        Size = UDim2.new(0, 3, 0, 3),
+        Position = UDim2.new(math.random(), 0, 0, -4),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.15,
+        BorderSizePixel = 0, ZIndex = 0,
+    })
+    corner(f, 2)
+    local x = f.Position.X.Scale + (math.random() - 0.5) * 0.18
+    TweenService:Create(f, TweenInfo.new(1.3, Enum.EasingStyle.Sine),
+        { Position = UDim2.new(x, 0, 1, 4), BackgroundTransparency = 1 }):Play()
+    task.delay(1.35, function() if f then f:Destroy() end end)
+end
+local function spawnSparkle(e)
+    local f = inst("Frame", e.fx, {
+        Size = UDim2.new(0, 2, 0, 2),
+        Position = UDim2.new(math.random(), 0, math.random(), 0),
+        BackgroundColor3 = Color3.fromRGB(255, 240, 180),
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0, ZIndex = 0,
+    })
+    corner(f, 1)
+    TweenService:Create(f, TweenInfo.new(0.55, Enum.EasingStyle.Quad),
+        { Size = UDim2.new(0, 6, 0, 6), BackgroundTransparency = 1 }):Play()
+    task.delay(0.6, function() if f then f:Destroy() end end)
+end
+local function spawnNebula(e)
+    local sz = math.random(22, 38)
+    local f = inst("Frame", e.fx, {
+        Size = UDim2.new(0, sz, 0, sz),
+        Position = UDim2.new(math.random() * 1.2 - 0.1, 0, math.random() * 1.4 - 0.2, 0),
+        BackgroundColor3 = NEBULA_COLORS[math.random(#NEBULA_COLORS)],
+        BackgroundTransparency = 0.78,
+        BorderSizePixel = 0, ZIndex = 0,
+    })
+    corner(f, math.floor(sz / 2))
+    local tx = f.Position.X.Scale + (math.random() - 0.5) * 0.5
+    local ty = f.Position.Y.Scale + (math.random() - 0.5) * 0.4
+    TweenService:Create(f, TweenInfo.new(2.6, Enum.EasingStyle.Sine),
+        { Position = UDim2.new(tx, 0, ty, 0), BackgroundTransparency = 1,
+          Size = UDim2.new(0, sz + 12, 0, sz + 12) }):Play()
+    task.delay(2.7, function() if f then f:Destroy() end end)
+end
+local EFFECT_RATES  = { rain = 0.045, snow = 0.10, sparkle = 0.13, nebula = 0.30 }
+local EFFECT_SPAWN  = { rain = spawnRain, snow = spawnSnow, sparkle = spawnSparkle, nebula = spawnNebula }
+
+
+
 
 local function clearBills()
     for _, e in pairs(tagBills) do if e.gui then e.gui:Destroy() end end
@@ -1252,20 +1291,17 @@ local function clearBills()
 end
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
+    local cfg = TagDB:configFor(p)
     e.gui.Enabled = true
-    e.name.Text = p.DisplayName
+    e.name.Text = (cfg and cfg.displayName) or p.DisplayName
     e.handle.Text = "@" .. p.Name
-    -- Custom icon override (PRO feature)
-    local customIcon = TagIcons:get(p.UserId)
+
+    -- Custom icon override (DB or per-player)
+    local customIcon = TagIcons:get(p.UserId) or (cfg and cfg.icon)
     if e.av then
         if customIcon then
             local url = resolveIconUrl(customIcon)
-            pcall(function()
-                if typeof(getcustomasset) == "function" and url:match("^https?://") then
-                    -- best-effort: many executors expose getcustomasset for remote images
-                end
-                e.av.Image = url
-            end)
+            pcall(function() e.av.Image = url end)
         else
             pcall(function()
                 e.av.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
@@ -1273,21 +1309,28 @@ local function refreshBill(p)
         end
     end
 
+    -- Side chip / color
+    local dbColor = cfg and parseColor(cfg.color)
     local txt = Tags:summary(p.UserId)
     if txt ~= "" then
         e.sh.Visible = true
         e.stat.Text = txt:gsub(",", " • ")
-        local c = tagColor(p)
+        local c = dbColor or tagColor(p)
         e.stroke.Color = c; e.dot.BackgroundColor3 = c
     else
         e.sh.Visible = false
-        if p == LP then
-            e.stroke.Color = T.good; e.dot.BackgroundColor3 = T.good
-        else
-            e.stroke.Color = T.acc; e.dot.BackgroundColor3 = T.acc
-        end
+        local c = dbColor or (p == LP and T.good or T.acc)
+        e.stroke.Color = c; e.dot.BackgroundColor3 = c
+    end
+
+    -- Effect change
+    local newEffect = cfg and cfg.effect
+    if newEffect ~= e.effect then
+        e.effect = newEffect
+        if e.fx then for _, c in ipairs(e.fx:GetChildren()) do c:Destroy() end end
     end
 end
+
 local function buildBill(p)
     if tagBills[p] or not pchar(p) then return end
     local head = pchar(p):FindFirstChild("Head"); if not head then return end
@@ -1301,8 +1344,15 @@ local function buildBill(p)
     local bg = inst("Frame", gui, {
         Size = UDim2.new(1, 0, 0, 42), Position = UDim2.new(0, 0, 0, 4),
         BackgroundColor3 = T.bg, BackgroundTransparency = 0.1, BorderSizePixel = 0,
+        ClipsDescendants = true,
     })
     corner(bg, 21)
+    -- particle layer (sits behind text)
+    local fx = inst("Frame", bg, {
+        Name = "fx", Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1, ZIndex = 0,
+    })
+
     local st = stroke(bg, T.acc, 1.4, 0.3)
     inst("UIGradient", bg, {
         Rotation = 90,
@@ -1340,7 +1390,7 @@ local function buildBill(p)
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
     })
-    tagBills[p] = { gui = gui, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, base = math.random() * 6.28 }
+    tagBills[p] = { gui = gui, bg = bg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, base = math.random() * 6.28, effect = nil, fxToken = 0 }
     refreshBill(p)
 end
 local function rebuildBills()
@@ -1352,35 +1402,15 @@ local function rebuildBills()
         if p ~= LP then buildBill(p) end
     end
 end
-toggle(pgTags, "Show floating tags above heads", false, function(s) floatOn = s; rebuildBills() end)
-
-button(pgTags, "Refresh floating tags", rebuildBills)
-
-------------------------------------------------------- TAG ICON (PRO)
-section(pgTags, "Tag icon  ✦ PRO (free preview)")
-label(pgTags, "Image or GIF for the selected player's tag icon.\nAccepts: image URL, rbxassetid://ID, or just an asset ID.\nLeave empty + Save to reset to avatar.")
-local iconUrlBuf = ""
-textbox(pgTags, "Image/GIF URL or asset id…", function(v) iconUrlBuf = v end)
-button(pgTags, "✦ Save icon for selected", function()
-    if not selected then notify("Select a player first", "warn"); return end
-    TagIcons:set(selected.UserId, iconUrlBuf)
-    notify("Tag icon updated for " .. selected.Name, "good")
-end)
-button(pgTags, "Reset selected icon to avatar", function()
-    if not selected then notify("Select a player first", "warn"); return end
-    TagIcons:set(selected.UserId, nil)
-    notify("Tag icon reset", "good")
-end)
-button(pgTags, "✦ Set MY tag icon", function()
-    TagIcons:set(LP.UserId, iconUrlBuf)
-    notify("Your tag icon updated", "good")
-end)
+-- Floating tag visibility and icons are now controlled by the script DB (tags.lua)
+-- and the bottom-right "Enable player tags" prompt.
 
 TagIcons:onChange(function(uid)
     for p, _ in pairs(tagBills) do
         if p.UserId == uid then refreshBill(p) end
     end
 end)
+
 
 
 
@@ -1394,6 +1424,22 @@ bind(RunService.Heartbeat:Connect(function()
         end
     end
 end))
+
+-- Particle spawner — runs each Heartbeat for bills with an effect
+bind(RunService.Heartbeat:Connect(function(dt)
+    for _, e in pairs(tagBills) do
+        if e.effect and e.fx and e.fx.Parent then
+            local rate = EFFECT_RATES[e.effect] or 0.2
+            lastSpawn[e] = (lastSpawn[e] or 0) + dt
+            if lastSpawn[e] >= rate then
+                lastSpawn[e] = 0
+                local fn = EFFECT_SPAWN[e.effect]
+                if fn then pcall(fn, e) end
+            end
+        end
+    end
+end))
+
 Tags:onChange(function(uid)
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == uid then
@@ -1410,9 +1456,19 @@ local function hookCharBill(p)
     end))
 end
 
-bind(Players.PlayerAdded:Connect(hookCharBill))
+bind(Players.PlayerAdded:Connect(function(p)
+    hookCharBill(p)
+    TagDB:applyTo(p)
+end))
 for _, p in ipairs(Players:GetPlayers()) do hookCharBill(p) end
-task.defer(rebuildBills)
+
+-- Load the script-managed tag database, then apply to all players
+task.spawn(function()
+    TagDB:load()
+    for _, p in ipairs(Players:GetPlayers()) do TagDB:applyTo(p) end
+    task.defer(rebuildBills)
+end)
+
 
 ------------------------------------------------------- ENABLE PLAYER TAGS PROMPT
 task.delay(2.2, function()
