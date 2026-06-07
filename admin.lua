@@ -1302,6 +1302,30 @@ bind(RunService.RenderStepped:Connect(function()
 end))
 
 ------------------------------------------------------- SERVER TAB
+section(pgAK, "Full AK--ADMIN hubs")
+label(pgAK, "Launch the original AK hub or any individual repo script inside this UI.")
+button(pgAK, "Launch AKHUB.lua  (full original hub)", function()
+    runAKScript("AKHUB.lua")
+end)
+button(pgAK, "Launch akactivee.luau  (largest active build)", function()
+    runAKScript("akactivee.luau")
+end)
+button(pgAK, "Copy AKHUB loadstring", function()
+    local code = 'loadstring(game:HttpGet("' .. akUrl("AKHUB.lua") .. '", true))()'
+    if setclipboard then setclipboard(code); notify("AKHUB loadstring copied", "good") else notify("No clipboard access", "warn") end
+end)
+
+section(pgAK, "Individual AK scripts")
+for _, group in ipairs(AK_CATEGORIES) do
+    section(pgAK, group.title)
+    for _, scriptName in ipairs(group.scripts) do
+        button(pgAK, prettyScriptName(scriptName), function()
+            runAKScript(scriptName)
+        end)
+    end
+end
+
+------------------------------------------------------- SERVER TAB
 section(pgServer, "Server")
 button(pgServer, "Rejoin server", function()
     pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
