@@ -528,7 +528,7 @@ win:addSlider("Walk speed", 16, 200, 16, function(v) ws = v; local h = hum(LP); 
 win:addSlider("Jump power", 50, 500, 50, function(v) jp = v; local h = hum(LP); if h then h.JumpPower = v end end)
 local infJump = false
 win:addToggle("Infinite jump", false, function(s) infJump = s end)
-UIS.JumpRequest:Connect(function() if infJump then local h = hum(LP); if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end end)
+win:bind(UIS.JumpRequest:Connect(function() if infJump then local h = hum(LP); if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end end))
 
 local flying, bv, bg
 local function stopFly() flying = false; if bv then bv:Destroy() bv=nil end; if bg then bg:Destroy() bg=nil end end
@@ -545,7 +545,7 @@ win:addSlider("Fly speed", 20, 250, 60, function(v) flySpeed = v end)
 local noclip = false
 win:addToggle("Noclip", false, function(s) noclip = s end)
 
-RunService.Stepped:Connect(function()
+win:bind(RunService.Stepped:Connect(function()
     if flying and bv then
         local d = Vector3.zero
         if UIS:IsKeyDown(Enum.KeyCode.W) then d += cam.CFrame.LookVector end
@@ -562,11 +562,11 @@ RunService.Stepped:Connect(function()
             if part:IsA("BasePart") then part.CanCollide = false end
         end
     end
-end)
-LP.CharacterAdded:Connect(function(c)
+end))
+win:bind(LP.CharacterAdded:Connect(function(c)
     stopFly()
     local h = c:WaitForChild("Humanoid"); h.WalkSpeed = ws; h.JumpPower = jp
-end)
+end))
 
 win:addSection("Utility")
 win:addButton("Reset character", function() LP.Character:BreakJoints() end)
