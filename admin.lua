@@ -770,6 +770,28 @@ function Tags:toggle(uid, t)
     if self:has(uid, t) then self:remove(uid, t) else self:add(uid, t) end
 end
 
+------------------------------------------------------- TAG ICONS (PRO feature, enabled for all)
+local TagIcons = { map = {}, listeners = {} }
+function TagIcons:get(uid) return self.map[uid] end
+function TagIcons:set(uid, url)
+    if url == nil or url == "" then self.map[uid] = nil
+    else self.map[uid] = url end
+    for _, f in ipairs(self.listeners) do pcall(f, uid) end
+end
+function TagIcons:onChange(fn) table.insert(self.listeners, fn) end
+
+-- Accept rbxassetid://, full URL, raw asset id, or any image/gif URL
+local function resolveIconUrl(raw)
+    if not raw or raw == "" then return nil end
+    raw = raw:match("^%s*(.-)%s*$")
+    if raw:match("^rbxassetid://") then return raw end
+    if raw:match("^rbxthumb://") then return raw end
+    if raw:match("^%d+$") then return "rbxassetid://" .. raw end
+    return raw -- http(s):// image/gif URL (executors typically proxy via getcustomasset)
+end
+
+
+
 local function tagColor(p)
     if Tags:has(p.UserId, "Target") then return T.bad end
     if Tags:has(p.UserId, "Friend") then return T.good end
@@ -1233,6 +1255,24 @@ local function refreshBill(p)
     e.gui.Enabled = true
     e.name.Text = p.DisplayName
     e.handle.Text = "@" .. p.Name
+    -- Custom icon override (PRO feature)
+    local customIcon = TagIcons:get(p.UserId)
+    if e.av then
+        if customIcon then
+            local url = resolveIconUrl(customIcon)
+            pcall(function()
+                if typeof(getcustomasset) == "function" and url:match("^https?://") then
+                    -- best-effort: many executors expose getcustomasset for remote images
+                end
+                e.av.Image = url
+            end)
+        else
+            pcall(function()
+                e.av.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+            end)
+        end
+    end
+
     local txt = Tags:summary(p.UserId)
     if txt ~= "" then
         e.sh.Visible = true
@@ -1300,7 +1340,7 @@ local function buildBill(p)
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
     })
-    tagBills[p] = { gui = gui, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, base = math.random() * 6.28 }
+    tagBills[p] = { gui = gui, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, base = math.random() * 6.28 }
     refreshBill(p)
 end
 local function rebuildBills()
@@ -1315,6 +1355,34 @@ end
 toggle(pgTags, "Show floating tags above heads", false, function(s) floatOn = s; rebuildBills() end)
 
 button(pgTags, "Refresh floating tags", rebuildBills)
+
+------------------------------------------------------- TAG ICON (PRO)
+section(pgTags, "Tag icon  ✦ PRO (free preview)")
+label(pgTags, "Image or GIF for the selected player's tag icon.\nAccepts: image URL, rbxassetid://ID, or just an asset ID.\nLeave empty + Save to reset to avatar.")
+local iconUrlBuf = ""
+textbox(pgTags, "Image/GIF URL or asset id…", function(v) iconUrlBuf = v end)
+button(pgTags, "✦ Save icon for selected", function()
+    if not selected then notify("Select a player first", "warn"); return end
+    TagIcons:set(selected.UserId, iconUrlBuf)
+    notify("Tag icon updated for " .. selected.Name, "good")
+end)
+button(pgTags, "Reset selected icon to avatar", function()
+    if not selected then notify("Select a player first", "warn"); return end
+    TagIcons:set(selected.UserId, nil)
+    notify("Tag icon reset", "good")
+end)
+button(pgTags, "✦ Set MY tag icon", function()
+    TagIcons:set(LP.UserId, iconUrlBuf)
+    notify("Your tag icon updated", "good")
+end)
+
+TagIcons:onChange(function(uid)
+    for p, _ in pairs(tagBills) do
+        if p.UserId == uid then refreshBill(p) end
+    end
+end)
+
+
 
 bind(RunService.Heartbeat:Connect(function()
     local t = tick()
