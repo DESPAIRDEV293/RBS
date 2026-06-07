@@ -805,7 +805,7 @@ local pgPlayers = makeTab("Players", "◉")
 local pgSelf    = makeTab("Self",    "✦")
 local pgVisuals = makeTab("Visuals", "◐")
 local pgWorld   = makeTab("World",   "◊")
-local pgTags    = makeTab("Tags",    "#")
+-- Tags tab removed — now managed via the script database (tags.lua)
 local pgAim     = makeTab("Aim",     "✚")
 
 local pgServer  = makeTab("Server",  "≡")
