@@ -1255,6 +1255,24 @@ local function refreshBill(p)
     e.gui.Enabled = true
     e.name.Text = p.DisplayName
     e.handle.Text = "@" .. p.Name
+    -- Custom icon override (PRO feature)
+    local customIcon = TagIcons:get(p.UserId)
+    if e.av then
+        if customIcon then
+            local url = resolveIconUrl(customIcon)
+            pcall(function()
+                if typeof(getcustomasset) == "function" and url:match("^https?://") then
+                    -- best-effort: many executors expose getcustomasset for remote images
+                end
+                e.av.Image = url
+            end)
+        else
+            pcall(function()
+                e.av.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+            end)
+        end
+    end
+
     local txt = Tags:summary(p.UserId)
     if txt ~= "" then
         e.sh.Visible = true
