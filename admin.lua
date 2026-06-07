@@ -1017,10 +1017,11 @@ local chipsHolder = inst("Frame", pgTags, {
     BackgroundTransparency = 1,
 })
 inst("UIListLayout", chipsHolder, {
-    Padding = UDim.new(0, 6), Wraps = true,
+    Padding = UDim.new(0, 6),
     FillDirection = Enum.FillDirection.Horizontal,
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
+
 local function repaintChips()
     for _, c in ipairs(chipsHolder:GetChildren()) do if c:IsA("TextButton") then
         local active = selected and Tags:has(selected.UserId, c.Name)
