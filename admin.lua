@@ -778,6 +778,8 @@ function refreshPlayerList(filter)
             row.MouseButton1Click:Connect(function()
                 selected = p
                 selLbl:set("Selected: " .. p.DisplayName .. "  (@" .. p.Name .. ")")
+                if refreshSelTag then refreshSelTag() end
+                if repaintChips then repaintChips() end
                 notify("Selected " .. p.Name, "good")
             end)
         end
@@ -1049,7 +1051,7 @@ end)
 ------------------------------------------------------- TAGS TAB
 section(pgTags, "Current selection")
 local selTagLbl = label(pgTags, "No player selected")
-local function refreshSelTag()
+function refreshSelTag()
     if selected then
         local s = Tags:summary(selected.UserId)
         selTagLbl:set(selected.Name .. " — " .. (s ~= "" and s or "no tags"))
@@ -1070,7 +1072,7 @@ inst("UIListLayout", chipsHolder, {
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
 
-local function repaintChips()
+function repaintChips()
     for _, c in ipairs(chipsHolder:GetChildren()) do if c:IsA("TextButton") then
         local active = selected and Tags:has(selected.UserId, c.Name)
         c.BackgroundColor3 = active and T.acc or T.bg3
