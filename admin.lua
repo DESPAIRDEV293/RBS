@@ -462,6 +462,7 @@ local tabTags    = win:addTab("Tags")
 local tabLogs    = win:addTab("Logs")
 
 local selected -- selected player
+local repaintChips -- forward declaration; assigned in the Tags tab setup
 
 -- PLAYERS ----------------------------------------------------------------
 win:switchTab(tabPlayers)
