@@ -845,9 +845,27 @@ end
 
 
 ------------------------------------------------------- TAG DATABASE (script-managed)
--- tags.lua in the GitHub repo defines per-username overrides:
---   color (hex), effect (rain/snow/sparkle/nebula), icon, tags{}, displayName
-local TAGS_DB_URL = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
+-- Two sources are tried, in order:
+--   1) TAGS_PASTEBIN_URL  — a raw Pastebin (or any plain-text URL) using the
+--      super-simple line format below. EASIEST to edit, no code knowledge needed.
+--   2) TAGS_DB_URL        — the legacy tags.lua on GitHub (Lua table).
+--
+-- Pastebin line format (one player per line, pipe-separated):
+--   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3
+--
+--   - Only `username` is required. Leave any field blank to skip it (keep the |).
+--   - effect: rain | snow | sparkle | nebula   (or blank for none)
+--   - icon:   a roblox asset id, rbxthumb://, rbxassetid://, or http(s):// URL
+--   - Lines starting with # or // are comments. Blank lines are ignored.
+--
+-- Example paste:
+--   DESPAIRDEV293 | Despair | #ff3b6b | nebula |  | Owner,Dev
+--   Builderman    | Builderman | #00aaff | sparkle | 156 | Roblox
+--
+-- To change tags: edit the paste, hit Save, rejoin (or wait for next load).
+local TAGS_PASTEBIN_URL = "" -- e.g. "https://pastebin.com/raw/XXXXXXXX"
+local TAGS_DB_URL       = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
+
 local TagDB = { entries = {} }
 local function parseColor(c)
     if typeof(c) == "Color3" then return c end
@@ -872,7 +890,56 @@ function TagDB:applyTo(p)
         for _, t in ipairs(cfg.tags) do Tags:add(p.UserId, t) end
     end
 end
+
+local function trim(s) return (tostring(s or ""):gsub("^%s+",""):gsub("%s+$","")) end
+local function parsePastebin(src)
+    local entries = {}
+    local count = 0
+    for raw in tostring(src):gmatch("[^\r\n]+") do
+        local line = trim(raw)
+        if line ~= "" and line:sub(1,1) ~= "#" and line:sub(1,2) ~= "//" then
+            local parts = {}
+            for seg in (line .. "|"):gmatch("([^|]*)|") do parts[#parts+1] = trim(seg) end
+            local user = parts[1]
+            if user and user ~= "" then
+                local entry = {}
+                if parts[2] and parts[2] ~= "" then entry.displayName = parts[2] end
+                if parts[3] and parts[3] ~= "" then entry.color = parts[3] end
+                if parts[4] and parts[4] ~= "" then entry.effect = parts[4]:lower() end
+                if parts[5] and parts[5] ~= "" then entry.icon = parts[5] end
+                if parts[6] and parts[6] ~= "" then
+                    local tags = {}
+                    for t in (parts[6] .. ","):gmatch("([^,]*),") do
+                        t = trim(t); if t ~= "" then tags[#tags+1] = t end
+                    end
+                    if #tags > 0 then entry.tags = tags end
+                end
+                entries[user:lower()] = entry
+                count = count + 1
+            end
+        end
+    end
+    return entries, count
+end
+
 function TagDB:load()
+    -- Try Pastebin source first (easy-edit text format)
+    if TAGS_PASTEBIN_URL ~= "" then
+        local src
+        pcall(function()
+            src = game:HttpGet(TAGS_PASTEBIN_URL .. (TAGS_PASTEBIN_URL:find("?") and "&" or "?") .. "v=" .. tostring(os.time()))
+        end)
+        if src and src ~= "" then
+            local entries, count = parsePastebin(src)
+            if count > 0 then
+                self.entries = entries
+                print(("[Tags] Pastebin DB loaded — %d entries"):format(count))
+                return
+            end
+        end
+        warn("[Tags] Pastebin source empty/unreachable, falling back to GitHub tags.lua")
+    end
+    -- Fallback: legacy Lua table at tags.lua
     local src
     pcall(function()
         src = game:HttpGet(TAGS_DB_URL .. "?v=" .. tostring(os.time()))
@@ -887,8 +954,9 @@ function TagDB:load()
     local entries = {}
     for k, v in pairs(data) do entries[tostring(k):lower()] = v end
     self.entries = entries
-    print(("[Tags] DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
+    print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
 end
+
 
 
 local function tagColor(p)
