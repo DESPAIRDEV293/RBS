@@ -660,22 +660,30 @@ local function refreshSelTag()
 end
 
 win:addSection("Apply tag to selected")
-local function tagBtn(t)
-    win:addButton(t, function()
-        if not selected then win:notify("Select a player first", "warn"); return end
-        Tags:toggle(selected.UserId, t)
-        refreshSelTag(); list.updateBadges(); rebuildEsp()
-        win:notify(selected.Name .. " ↔ " .. t, "good")
-    end)
+local tagRow = win:addTagRow()
+local chipRefs = {}
+local function repaintChips() for _, c in ipairs(chipRefs) do c.paint() end end
+local function addTagChip(t)
+    local c = tagRow.addChip(t,
+        function()
+            if not selected then win:notify("Select a player first", "warn"); return end
+            Tags:toggle(selected.UserId, t)
+            refreshSelTag(); list.updateBadges(); rebuildEsp()
+            repaintChips()
+            win:notify(selected.Name .. " ↔ " .. t, "good")
+        end,
+        function() return selected and Tags:has(selected.UserId, t) end
+    )
+    table.insert(chipRefs, c)
 end
-for _, t in ipairs(Tags.defs) do tagBtn(t) end
+for _, t in ipairs(Tags.defs) do addTagChip(t) end
 
 win:addSection("Create new tag")
 win:addTextBox("Tag name…", function(name)
     name = (name or ""):gsub("%s+", "")
     if name == "" then return end
     Tags:add(0, name); Tags:remove(0, name) -- registers in defs without assigning
-    tagBtn(name); win:notify("Tag '" .. name .. "' added", "good")
+    addTagChip(name); win:notify("Tag '" .. name .. "' added", "good")
 end)
 
 win:addSection("Clear")
