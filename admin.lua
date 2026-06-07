@@ -780,15 +780,69 @@ function TagIcons:set(uid, url)
 end
 function TagIcons:onChange(fn) table.insert(self.listeners, fn) end
 
--- Accept rbxassetid://, full URL, raw asset id, or any image/gif URL
+-- Accept rbxassetid://, full URL, raw asset id, or any image/gif URL.
+-- For external http(s) URLs, try executor-side download → getcustomasset,
+-- otherwise fall back to rbxassetid:// (works only for Roblox-hosted ids).
+local _iconCache = {}
+local function _getcustomasset()
+    return rawget(getfenv(), "getcustomasset")
+        or rawget(getfenv(), "getsynasset")
+        or (syn and syn.getcustomasset)
+        or (getcustomasset)
+end
+local function _writefile() return rawget(getfenv(), "writefile") or writefile end
+local function _isfile()    return rawget(getfenv(), "isfile")    or isfile end
+local function _httpget()
+    return rawget(getfenv(), "http_get")
+        or (syn and syn.request and function(u) local r = syn.request({Url=u, Method="GET"}); return r and r.Body end)
+        or (http and http.request and function(u) local r = http.request({Url=u, Method="GET"}); return r and r.Body end)
+        or (request and function(u) local r = request({Url=u, Method="GET"}); return r and r.Body end)
+        or function(u) return game:HttpGet(u) end
+end
+
 local function resolveIconUrl(raw)
     if not raw or raw == "" then return nil end
-    raw = raw:match("^%s*(.-)%s*$")
-    if raw:match("^rbxassetid://") then return raw end
-    if raw:match("^rbxthumb://") then return raw end
-    if raw:match("^%d+$") then return "rbxassetid://" .. raw end
-    return raw -- http(s):// image/gif URL (executors typically proxy via getcustomasset)
+    raw = tostring(raw):match("^%s*(.-)%s*$")
+    if raw == "" then return nil end
+    if _iconCache[raw] then return _iconCache[raw] end
+
+    -- Pure numeric asset id
+    if raw:match("^%d+$") then
+        local out = "rbxassetid://" .. raw
+        _iconCache[raw] = out; return out
+    end
+    -- Already Roblox-internal
+    if raw:match("^rbxassetid://") or raw:match("^rbxthumb://") or raw:match("^rbxasset://") then
+        _iconCache[raw] = raw; return raw
+    end
+    -- External http(s) — needs executor download + getcustomasset to display in Roblox UI
+    if raw:match("^https?://") then
+        local gca, wf, isf, hg = _getcustomasset(), _writefile(), _isfile(), _httpget()
+        if gca and wf then
+            local ext = raw:match("%.([%w]+)$") or "png"
+            ext = ext:lower():sub(1, 4)
+            local fname = "seige_tagicon_" .. tostring(#_iconCache + 1) .. "." .. ext
+            local ok, body = pcall(hg, raw)
+            if ok and type(body) == "string" and #body > 0 then
+                local wok = pcall(wf, fname, body)
+                if wok then
+                    local aok, asset = pcall(gca, fname)
+                    if aok and asset then
+                        _iconCache[raw] = asset
+                        return asset
+                    end
+                end
+            end
+        end
+        -- Last-ditch: hand it raw; most Roblox clients won't render it but some executors hook ImageLabel.Image
+        _iconCache[raw] = raw
+        return raw
+    end
+    _iconCache[raw] = raw
+    return raw
 end
+
+
 
 ------------------------------------------------------- TAG DATABASE (script-managed)
 -- tags.lua in the GitHub repo defines per-username overrides:
