@@ -1394,15 +1394,8 @@ local function refreshBill(p)
     end
 end
 
-local function measureText(text, font, size)
-    local ok, v = pcall(function()
-        return TextService:GetTextSize(text or "", size, font, Vector2.new(10000, 100))
-    end)
-    if ok and v then return v.X end
-    return #(text or "") * size * 0.55
-end
-
 local function buildBill(p)
+
     if tagBills[p] or not pchar(p) then return end
     -- DB-only: only players with a tags.lua entry get bubbles (LP always gets one)
     if p ~= LP and not TagDB:configFor(p) then return end
