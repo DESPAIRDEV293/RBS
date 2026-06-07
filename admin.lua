@@ -664,7 +664,7 @@ end
 win:addSection("Apply tag to selected")
 local tagRow = win:addTagRow()
 local chipRefs = {}
-local function repaintChips() for _, c in ipairs(chipRefs) do c.paint() end end
+repaintChips = function() for _, c in ipairs(chipRefs) do c.paint() end end
 local function addTagChip(t)
     local c = tagRow.addChip(t,
         function()
