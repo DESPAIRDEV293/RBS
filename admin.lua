@@ -1221,7 +1221,7 @@ end)
 
 ------------------------------------------------------- FLOATING TAGS
 section(pgTags, "Floating tags in-game")
-local floatOn = true
+local floatOn = false
 local tagBills = {}
 
 local function clearBills()
@@ -1230,20 +1230,30 @@ local function clearBills()
 end
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
-    local txt = Tags:summary(p.UserId)
-    if txt == "" then e.gui.Enabled = false; return end
     e.gui.Enabled = true
     e.name.Text = p.DisplayName
     e.handle.Text = "@" .. p.Name
-    e.stat.Text = txt:gsub(",", " • ")
-    local c = tagColor(p)
-    e.stroke.Color = c; e.dot.BackgroundColor3 = c
+    local txt = Tags:summary(p.UserId)
+    if txt ~= "" then
+        e.sh.Visible = true
+        e.stat.Text = txt:gsub(",", " • ")
+        local c = tagColor(p)
+        e.stroke.Color = c; e.dot.BackgroundColor3 = c
+    else
+        e.sh.Visible = false
+        if p == LP then
+            e.stroke.Color = T.good; e.dot.BackgroundColor3 = T.good
+        else
+            e.stroke.Color = T.acc; e.dot.BackgroundColor3 = T.acc
+        end
+    end
 end
 local function buildBill(p)
     if tagBills[p] or not pchar(p) then return end
     local head = pchar(p):FindFirstChild("Head"); if not head then return end
     local gui = inst("BillboardGui", pchar(p), {
         Name = "SeigeTagBB", Adornee = head,
+
         Size = UDim2.new(0, 240, 0, 50),
         StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0),
         AlwaysOnTop = true, LightInfluence = 0,
@@ -1290,18 +1300,23 @@ local function buildBill(p)
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
     })
-    tagBills[p] = { gui = gui, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, base = math.random() * 6.28 }
+    tagBills[p] = { gui = gui, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, base = math.random() * 6.28 }
     refreshBill(p)
 end
 local function rebuildBills()
-    clearBills(); if not floatOn then return end
-    for _, p in ipairs(Players:GetPlayers()) do buildBill(p) end
+    clearBills()
+    -- LP's tag always shown
+    buildBill(LP)
+    if not floatOn then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP then buildBill(p) end
+    end
 end
-toggle(pgTags, "Show floating tags above heads", true, function(s) floatOn = s; rebuildBills() end)
+toggle(pgTags, "Show floating tags above heads", false, function(s) floatOn = s; rebuildBills() end)
+
 button(pgTags, "Refresh floating tags", rebuildBills)
 
 bind(RunService.Heartbeat:Connect(function()
-    if not floatOn then return end
     local t = tick()
     for p, e in pairs(tagBills) do
         if e.gui and e.gui.Parent then
@@ -1314,7 +1329,7 @@ end))
 Tags:onChange(function(uid)
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == uid then
-            if tagBills[p] then refreshBill(p) else if floatOn then buildBill(p) end end
+            if tagBills[p] then refreshBill(p) else if floatOn or p == LP then buildBill(p) end end
         end
     end
     refreshPlayerList()
@@ -1323,12 +1338,100 @@ local function hookCharBill(p)
     bind(p.CharacterAdded:Connect(function()
         task.wait(0.5)
         if tagBills[p] then pcall(function() tagBills[p].gui:Destroy() end); tagBills[p] = nil end
-        if floatOn then buildBill(p) end
+        if floatOn or p == LP then buildBill(p) end
     end))
 end
+
 bind(Players.PlayerAdded:Connect(hookCharBill))
 for _, p in ipairs(Players:GetPlayers()) do hookCharBill(p) end
 task.defer(rebuildBills)
+
+------------------------------------------------------- ENABLE PLAYER TAGS PROMPT
+task.delay(2.2, function()
+    local prompt = inst("Frame", Root, {
+        Name = "TagPrompt",
+        AnchorPoint = Vector2.new(1, 1),
+        Position = UDim2.new(1, -18, 1, 60),
+        Size = UDim2.new(0, 280, 0, 96),
+        BackgroundColor3 = T.glass,
+        BackgroundTransparency = 0.05,
+        BorderSizePixel = 0,
+        ZIndex = 400,
+    })
+    corner(prompt, 12)
+    stroke(prompt, T.acc, 1, 0.4)
+    inst("UIGradient", prompt, {
+        Rotation = 120,
+        Color = ColorSequence.new(T.bg2, T.glass),
+    })
+
+    local dot = inst("Frame", prompt, {
+        Position = UDim2.new(0, 12, 0, 12), Size = UDim2.new(0, 8, 0, 8),
+        BackgroundColor3 = T.acc, BorderSizePixel = 0, ZIndex = 401,
+    })
+    corner(dot, 4)
+    inst("TextLabel", prompt, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 28, 0, 8),
+        Size = UDim2.new(1, -36, 0, 16),
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "Enable player tags",
+        ZIndex = 401,
+    })
+    inst("TextLabel", prompt, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 12, 0, 30),
+        Size = UDim2.new(1, -24, 0, 30),
+        Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true,
+        Text = "Show display names and usernames floating above every player.",
+        ZIndex = 401,
+    })
+
+    local function mkBtn(parent, txt, primary)
+        local b = inst("TextButton", parent, {
+            BackgroundColor3 = primary and T.acc2 or T.bg3,
+            BorderSizePixel = 0, AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 11,
+            TextColor3 = T.text, Text = txt, ZIndex = 401,
+        })
+        corner(b, 8)
+        if not primary then stroke(b, T.line, 1, 0.4) end
+        return b
+    end
+
+    local enableBtn = mkBtn(prompt, "Enable", true)
+    enableBtn.AnchorPoint = Vector2.new(1, 1)
+    enableBtn.Position = UDim2.new(1, -10, 1, -10)
+    enableBtn.Size = UDim2.new(0, 84, 0, 26)
+
+    local dismissBtn = mkBtn(prompt, "Dismiss", false)
+    dismissBtn.AnchorPoint = Vector2.new(1, 1)
+    dismissBtn.Position = UDim2.new(1, -102, 1, -10)
+    dismissBtn.Size = UDim2.new(0, 76, 0, 26)
+
+    local function slideOut()
+        TweenService:Create(prompt, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            { Position = UDim2.new(1, -18, 1, 120) }):Play()
+        task.delay(0.35, function() prompt:Destroy() end)
+    end
+
+    enableBtn.MouseButton1Click:Connect(function()
+        floatOn = true
+        rebuildBills()
+        if notify then pcall(notify, "Player tags enabled", "good") end
+        slideOut()
+    end)
+    dismissBtn.MouseButton1Click:Connect(function() slideOut() end)
+
+    -- slide in
+    TweenService:Create(prompt, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+        { Position = UDim2.new(1, -18, 1, -18) }):Play()
+end)
+
+
 
 ------------------------------------------------------- AIM TAB (camera lock)
 section(pgAim, "Camera lock")
