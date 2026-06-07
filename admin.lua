@@ -236,26 +236,48 @@ function UI:addToggle(label, default, cb)
 end
 
 function UI:addSlider(label, mn, mx, def, cb)
-    local f = rowF(cur(self), 46); pad(f, 10)
-    local l = text(f, label, { size = 12, h = 18 }); l.Position = UDim2.new(0, 10, 0, 4); l.Size = UDim2.new(1, -80, 0, 18)
+    local f = rowF(cur(self), 56); pad(f, 12)
+    local l = text(f, label, { size = 12, h = 18 })
+    l.Position = UDim2.new(0, 0, 0, 0); l.Size = UDim2.new(1, -54, 0, 18)
     local v = Instance.new("TextLabel", f)
-    v.BackgroundTransparency = 1; v.Font = Enum.Font.GothamSemibold; v.TextSize = 12
-    v.TextColor3 = T.sub; v.TextXAlignment = Enum.TextXAlignment.Right
-    v.Size = UDim2.new(0, 60, 0, 18); v.Position = UDim2.new(1, -70, 0, 4); v.Text = tostring(def)
+    v.BackgroundColor3 = T.bg3; v.BorderSizePixel = 0
+    v.Font = Enum.Font.GothamSemibold; v.TextSize = 11; v.TextColor3 = T.text
+    v.Size = UDim2.new(0, 48, 0, 20); v.Position = UDim2.new(1, -48, 0, -1)
+    v.Text = tostring(def); corner(v, 6)
     local tr = Instance.new("Frame", f)
-    tr.Size = UDim2.new(1, -20, 0, 6); tr.Position = UDim2.new(0, 10, 1, -14)
+    tr.Size = UDim2.new(1, 0, 0, 6); tr.Position = UDim2.new(0, 0, 1, -10)
     tr.BackgroundColor3 = T.bg3; tr.BorderSizePixel = 0; corner(tr, 3)
     local fill = Instance.new("Frame", tr)
     fill.BackgroundColor3 = T.acc; fill.BorderSizePixel = 0
     fill.Size = UDim2.new((def - mn) / (mx - mn), 0, 1, 0); corner(fill, 3)
+    local knob = Instance.new("Frame", tr)
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.Size = UDim2.new(0, 14, 0, 14)
+    knob.Position = UDim2.new((def - mn) / (mx - mn), 0, 0.5, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(255,255,255); knob.BorderSizePixel = 0
+    corner(knob, 7); stroke(knob, T.acc, 2)
+    local hit = Instance.new("Frame", tr)
+    hit.Size = UDim2.new(1, 0, 0, 22); hit.Position = UDim2.new(0, 0, 0.5, -11)
+    hit.BackgroundTransparency = 1; hit.ZIndex = 2
     local dr
-    tr.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dr = true end end)
-    UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dr = false end end)
+    local function setFromX(px)
+        local rel = math.clamp((px - tr.AbsolutePosition.X) / tr.AbsoluteSize.X, 0, 1)
+        local val = math.floor(mn + (mx - mn) * rel + 0.5)
+        fill.Size = UDim2.new(rel, 0, 1, 0)
+        knob.Position = UDim2.new(rel, 0, 0.5, 0)
+        v.Text = tostring(val); if cb then cb(val) end
+    end
+    hit.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dr = true; setFromX(i.Position.X)
+        end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dr = false end
+    end)
     UIS.InputChanged:Connect(function(i)
-        if dr and i.UserInputType == Enum.UserInputType.MouseMovement then
-            local rel = math.clamp((i.Position.X - tr.AbsolutePosition.X) / tr.AbsoluteSize.X, 0, 1)
-            local val = math.floor(mn + (mx - mn) * rel + 0.5)
-            fill.Size = UDim2.new(rel, 0, 1, 0); v.Text = tostring(val); if cb then cb(val) end
+        if dr and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            setFromX(i.Position.X)
         end
     end)
 end
