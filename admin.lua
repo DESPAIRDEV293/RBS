@@ -1,6 +1,6 @@
 -- Roblox Admin (loadstring build) — single-file, client-side, executor-friendly.
 -- Usage:  loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua?v=" .. tostring(os.time())))()
-local ADMIN_BUILD = "2026-06-07-floattags-2"
+local ADMIN_BUILD = "2026-06-07-floattags-3"
 
 if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
 if _G.__AdminUI then
@@ -677,55 +677,139 @@ end
 local function refreshTagBillboardFor(p)
     local entry = tagBillboards[p]
     if not entry then return end
-    local txt = Tags:summary(p.UserId)
-    if txt == "" then
-        entry.label.Text = ""
+    local tags = Tags:summary(p.UserId)
+    if tags == "" then
         entry.gui.Enabled = false
-    else
-        entry.label.Text = "  " .. txt:gsub(",", "  •  ") .. "  "
-        local c = tagDisplayColor(p)
-        entry.label.TextColor3 = c
-        entry.stroke.Color = c
-        entry.gui.Enabled = true
+        return
     end
+    entry.gui.Enabled = true
+    entry.name.Text = p.DisplayName
+    entry.handle.Text = "@" .. p.Name
+    entry.stat.Text = tags:gsub(",", " • ")
+    local c = tagDisplayColor(p)
+    entry.stroke.Color = c
+    entry.statDot.BackgroundColor3 = c
 end
 
 local function buildTagBillboard(p)
     if tagBillboards[p] or not p.Character then return end
     local head = p.Character:FindFirstChild("Head")
     if not head then return end
+
     local gui = Instance.new("BillboardGui")
     gui.Name = "AdminTagBB"
     gui.Adornee = head
-    gui.Size = UDim2.new(0, 220, 0, 34)
-    gui.StudsOffsetWorldSpace = Vector3.new(0, 3, 0)
+    gui.Size = UDim2.new(0, 260, 0, 56)
+    gui.StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0)
     gui.AlwaysOnTop = true
     gui.LightInfluence = 0
+    gui.ClipsDescendants = false
     gui.Parent = p.Character
 
+    -- Outer pill
     local bg = Instance.new("Frame", gui)
-    bg.Size = UDim2.new(1, 0, 1, 0)
-    bg.BackgroundColor3 = Color3.fromRGB(14, 15, 20)
-    bg.BackgroundTransparency = 0.2
+    bg.Size = UDim2.new(1, 0, 0, 44)
+    bg.Position = UDim2.new(0, 0, 0, 6)
+    bg.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+    bg.BackgroundTransparency = 0.1
     bg.BorderSizePixel = 0
-    local corner = Instance.new("UICorner", bg); corner.CornerRadius = UDim.new(0, 8)
+    local corner = Instance.new("UICorner", bg); corner.CornerRadius = UDim.new(1, 0)
     local stroke = Instance.new("UIStroke", bg)
-    stroke.Thickness = 1.5
+    stroke.Thickness = 1.4
     stroke.Color = T.acc
-    stroke.Transparency = 0.1
+    stroke.Transparency = 0.25
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-    local lbl = Instance.new("TextLabel", bg)
-    lbl.BackgroundTransparency = 1
-    lbl.Size = UDim2.new(1, 0, 1, 0)
-    lbl.Font = Enum.Font.GothamBold
-    lbl.TextSize = 14
-    lbl.TextColor3 = T.acc
-    lbl.TextStrokeTransparency = 0.6
-    lbl.Text = ""
+    -- Soft inner shadow / gradient
+    local grad = Instance.new("UIGradient", bg)
+    grad.Rotation = 90
+    grad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(34, 34, 42)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 14, 18)),
+    }
 
-    tagBillboards[p] = { gui = gui, label = lbl, stroke = stroke, bg = bg, base = math.random() * 6.28 }
+    -- Avatar circle (left)
+    local av = Instance.new("ImageLabel", bg)
+    av.Size = UDim2.new(0, 34, 0, 34)
+    av.Position = UDim2.new(0, 5, 0.5, -17)
+    av.BackgroundColor3 = Color3.fromRGB(40, 40, 48)
+    av.BorderSizePixel = 0
+    av.ScaleType = Enum.ScaleType.Crop
+    local avCorner = Instance.new("UICorner", av); avCorner.CornerRadius = UDim.new(1, 0)
+    local avStroke = Instance.new("UIStroke", av)
+    avStroke.Thickness = 1
+    avStroke.Color = Color3.fromRGB(60, 60, 72)
+    pcall(function()
+        av.Image = Players:GetUserThumbnailAsync(
+            p.UserId,
+            Enum.ThumbnailType.HeadShot,
+            Enum.ThumbnailSize.Size100x100
+        )
+    end)
+
+    -- Name (top line)
+    local nameLbl = Instance.new("TextLabel", bg)
+    nameLbl.BackgroundTransparency = 1
+    nameLbl.Position = UDim2.new(0, 46, 0, 4)
+    nameLbl.Size = UDim2.new(1, -120, 0, 18)
+    nameLbl.Font = Enum.Font.GothamBold
+    nameLbl.TextSize = 14
+    nameLbl.TextColor3 = Color3.fromRGB(245, 245, 250)
+    nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+    nameLbl.TextYAlignment = Enum.TextYAlignment.Center
+    nameLbl.TextStrokeTransparency = 0.7
+    nameLbl.Text = p.DisplayName
+
+    -- Handle (bottom line)
+    local handle = Instance.new("TextLabel", bg)
+    handle.BackgroundTransparency = 1
+    handle.Position = UDim2.new(0, 46, 0, 22)
+    handle.Size = UDim2.new(1, -120, 0, 16)
+    handle.Font = Enum.Font.Gotham
+    handle.TextSize = 11
+    handle.TextColor3 = Color3.fromRGB(150, 150, 165)
+    handle.TextXAlignment = Enum.TextXAlignment.Left
+    handle.TextYAlignment = Enum.TextYAlignment.Center
+    handle.Text = "@" .. p.Name
+
+    -- Right stat pill
+    local statHolder = Instance.new("Frame", bg)
+    statHolder.AnchorPoint = Vector2.new(1, 0.5)
+    statHolder.Position = UDim2.new(1, -8, 0.5, 0)
+    statHolder.Size = UDim2.new(0, 70, 0, 24)
+    statHolder.BackgroundColor3 = Color3.fromRGB(28, 28, 36)
+    statHolder.BorderSizePixel = 0
+    local sCorner = Instance.new("UICorner", statHolder); sCorner.CornerRadius = UDim.new(1, 0)
+    local sStroke = Instance.new("UIStroke", statHolder)
+    sStroke.Color = Color3.fromRGB(55, 55, 68); sStroke.Thickness = 1
+
+    local statDot = Instance.new("Frame", statHolder)
+    statDot.Size = UDim2.new(0, 6, 0, 6)
+    statDot.Position = UDim2.new(0, 8, 0.5, -3)
+    statDot.BackgroundColor3 = T.acc
+    statDot.BorderSizePixel = 0
+    local dCorner = Instance.new("UICorner", statDot); dCorner.CornerRadius = UDim.new(1, 0)
+
+    local statTxt = Instance.new("TextLabel", statHolder)
+    statTxt.BackgroundTransparency = 1
+    statTxt.Position = UDim2.new(0, 18, 0, 0)
+    statTxt.Size = UDim2.new(1, -22, 1, 0)
+    statTxt.Font = Enum.Font.GothamBold
+    statTxt.TextSize = 11
+    statTxt.TextColor3 = Color3.fromRGB(235, 235, 245)
+    statTxt.TextXAlignment = Enum.TextXAlignment.Left
+    statTxt.TextYAlignment = Enum.TextYAlignment.Center
+    statTxt.Text = ""
+
+    tagBillboards[p] = {
+        gui = gui, bg = bg, stroke = stroke,
+        name = nameLbl, handle = handle,
+        stat = statTxt, statDot = statDot,
+        base = math.random() * 6.28,
+    }
     refreshTagBillboardFor(p)
 end
+
 
 local function rebuildTagBillboards()
     clearTagBillboards()
