@@ -1271,8 +1271,15 @@ local function buildBill(p)
     local bg = inst("Frame", gui, {
         Size = UDim2.new(1, 0, 0, 42), Position = UDim2.new(0, 0, 0, 4),
         BackgroundColor3 = T.bg, BackgroundTransparency = 0.1, BorderSizePixel = 0,
+        ClipsDescendants = true,
     })
     corner(bg, 21)
+    -- particle layer (sits behind text)
+    local fx = inst("Frame", bg, {
+        Name = "fx", Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1, ZIndex = 0,
+    })
+
     local st = stroke(bg, T.acc, 1.4, 0.3)
     inst("UIGradient", bg, {
         Rotation = 90,
