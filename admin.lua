@@ -790,6 +790,51 @@ local function resolveIconUrl(raw)
     return raw -- http(s):// image/gif URL (executors typically proxy via getcustomasset)
 end
 
+------------------------------------------------------- TAG DATABASE (script-managed)
+-- tags.lua in the GitHub repo defines per-username overrides:
+--   color (hex), effect (rain/snow/sparkle/nebula), icon, tags{}, displayName
+local TAGS_DB_URL = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
+local TagDB = { entries = {} }
+local function parseColor(c)
+    if typeof(c) == "Color3" then return c end
+    if type(c) == "string" then
+        local hex = c:gsub("#",""):gsub("%s","")
+        if #hex == 6 then
+            local r = tonumber(hex:sub(1,2), 16)
+            local g = tonumber(hex:sub(3,4), 16)
+            local b = tonumber(hex:sub(5,6), 16)
+            if r and g and b then return Color3.fromRGB(r, g, b) end
+        end
+    end
+end
+function TagDB:configFor(p)
+    if not p then return nil end
+    return self.entries[(p.Name or ""):lower()]
+end
+function TagDB:applyTo(p)
+    local cfg = self:configFor(p); if not cfg then return end
+    if cfg.icon then TagIcons:set(p.UserId, cfg.icon) end
+    if type(cfg.tags) == "table" then
+        for _, t in ipairs(cfg.tags) do Tags:add(p.UserId, t) end
+    end
+end
+function TagDB:load()
+    local src
+    pcall(function()
+        src = game:HttpGet(TAGS_DB_URL .. "?v=" .. tostring(os.time()))
+    end)
+    if not src then warn("[Tags] DB fetch failed"); return end
+    local fn, err = loadstring(src)
+    if not fn then warn("[Tags] compile: " .. tostring(err)); return end
+    local ok, data = pcall(fn)
+    if not ok or type(data) ~= "table" then
+        warn("[Tags] eval failed: " .. tostring(data)); return
+    end
+    local entries = {}
+    for k, v in pairs(data) do entries[tostring(k):lower()] = v end
+    self.entries = entries
+    print(("[Tags] DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
+end
 
 
 local function tagColor(p)
