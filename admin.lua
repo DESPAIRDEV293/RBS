@@ -2652,7 +2652,7 @@ if LP.Name == "0rot3" then
     section(pgTags, "Pastebin sync")
 
     local PB_CFG_FILE = "seige_pastebin.json"
-    local pbCfg = { devKey = "", userKey = "", pasteKey = "wySWnyme", autoPush = false }
+    local pbCfg = { devKey = "", userKey = "", pasteKey = "wySWnyme", autoPush = false, autoPull = true, pullInterval = 30 }
 
     do
         local rf = rawget(getfenv(), "readfile"); local isf = rawget(getfenv(), "isfile")
