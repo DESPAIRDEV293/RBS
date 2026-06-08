@@ -2735,14 +2735,18 @@ if LP.Name == "0rot3" then
         local key = u:lower()
         local entry = {}
         if form.displayName ~= "" then entry.displayName = form.displayName end
-        local fillRaw = (form.fill or ""):gsub("^%s+",""):gsub("%s+$","")
-        local c1 = (form.color or ""):gsub("^%s+",""):gsub("%s+$","")
-        local c2 = (form.color2 or ""):gsub("^%s+",""):gsub("%s+$","")
+        -- read directly from the textboxes as a fallback (text-change handler
+        -- can miss the very last edit if the user clicks Save before defocus)
+        local function trimStr(s) return (tostring(s or ""):gsub("^%s+",""):gsub("%s+$","")) end
+        local fillRaw = trimStr(form.fill ~= "" and form.fill or tbFill.Text)
+        local c1 = trimStr(form.color ~= "" and form.color or tbColor.Text)
+        local c2 = trimStr(form.color2 ~= "" and form.color2 or tbColor2.Text)
         if fillRaw ~= "" then
             -- advanced fill (grad:... / image:...) takes priority
             entry.color = fillRaw
         elseif c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
-        elseif c1 ~= "" then entry.color = c1 end
+        elseif c1 ~= "" then entry.color = c1
+        elseif c2 ~= "" then entry.color = c2 end
         if form.icon ~= "" then
             local raw = tostring(form.icon):gsub("^%s+",""):gsub("%s+$","")
             local lower = raw:lower()
