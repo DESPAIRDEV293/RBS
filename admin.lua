@@ -4019,6 +4019,131 @@ button(pgCmds, "Anti-AFK  —  toggle", function()
     end)
 end)
 
+-- ===== OPTIMIZE  ·  one-click game speed-up =====================
+_G.__SeigeOptimize = _G.__SeigeOptimize or { on = false, saved = nil }
+
+local function _seigeOptimizeApply(on)
+    local Lighting   = game:GetService("Lighting")
+    local Players    = game:GetService("Players")
+    local Terrain    = workspace:FindFirstChildOfClass("Terrain")
+    local UserSet    = (function() local ok,s = pcall(function() return settings():GetService("UserGameSettings") end); return ok and s or nil end)()
+
+    local O = _G.__SeigeOptimize
+    if on then
+        if not O.saved then
+            O.saved = {
+                qualityLevel        = (UserSet and UserSet.SavedQualityLevel) or nil,
+                globalShadows       = Lighting.GlobalShadows,
+                fogEnd              = Lighting.FogEnd,
+                fogStart            = Lighting.FogStart,
+                brightness          = Lighting.Brightness,
+                envSpec             = Lighting.EnvironmentSpecularScale,
+                envDif              = Lighting.EnvironmentDiffuseScale,
+                technology          = Lighting.Technology,
+                waterWaveSize       = Terrain and Terrain.WaterWaveSize,
+                waterReflectance    = Terrain and Terrain.WaterReflectance,
+                waterTransparency   = Terrain and Terrain.WaterTransparency,
+                waterWaveSpeed      = Terrain and Terrain.WaterWaveSpeed,
+                decoration          = Terrain and Terrain.Decoration,
+            }
+        end
+        pcall(function()
+            if UserSet then
+                UserSet.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+            end
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        end)
+        pcall(function() Lighting.GlobalShadows = false end)
+        pcall(function() Lighting.FogEnd = 1e9 end)
+        pcall(function() Lighting.Brightness = math.max(1, Lighting.Brightness) end)
+        pcall(function() Lighting.EnvironmentSpecularScale = 0 end)
+        pcall(function() Lighting.EnvironmentDiffuseScale = 0 end)
+        if Terrain then
+            pcall(function() Terrain.WaterWaveSize = 0 end)
+            pcall(function() Terrain.WaterReflectance = 0 end)
+            pcall(function() Terrain.WaterTransparency = 1 end)
+            pcall(function() Terrain.WaterWaveSpeed = 0 end)
+            pcall(function() Terrain.Decoration = false end)
+        end
+        -- strip cosmetic effects from existing parts
+        for _, d in ipairs(workspace:GetDescendants()) do
+            if d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Smoke")
+               or d:IsA("Fire") or d:IsA("Sparkles") or d:IsA("Explosion") then
+                pcall(function() d.Enabled = false end)
+            elseif d:IsA("PostEffect") then
+                pcall(function() d.Enabled = false end)
+            end
+        end
+        for _, pp in ipairs(Lighting:GetChildren()) do
+            if pp:IsA("PostEffect") then pcall(function() pp.Enabled = false end) end
+        end
+        -- block future particles/post-effects
+        if not O.conn then
+            O.conn = workspace.DescendantAdded:Connect(function(d)
+                if not _G.__SeigeOptimize.on then return end
+                if d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Smoke")
+                   or d:IsA("Fire") or d:IsA("Sparkles") then
+                    pcall(function() d.Enabled = false end)
+                end
+            end)
+        end
+        O.on = true
+    else
+        O.on = false
+        if O.conn then pcall(function() O.conn:Disconnect() end); O.conn = nil end
+        if O.saved then
+            local s = O.saved
+            pcall(function() if UserSet and s.qualityLevel then UserSet.SavedQualityLevel = s.qualityLevel end end)
+            pcall(function() Lighting.GlobalShadows = s.globalShadows end)
+            pcall(function() Lighting.FogEnd = s.fogEnd end)
+            pcall(function() Lighting.FogStart = s.fogStart end)
+            pcall(function() Lighting.Brightness = s.brightness end)
+            pcall(function() Lighting.EnvironmentSpecularScale = s.envSpec end)
+            pcall(function() Lighting.EnvironmentDiffuseScale = s.envDif end)
+            if Terrain then
+                pcall(function() Terrain.WaterWaveSize = s.waterWaveSize end)
+                pcall(function() Terrain.WaterReflectance = s.waterReflectance end)
+                pcall(function() Terrain.WaterTransparency = s.waterTransparency end)
+                pcall(function() Terrain.WaterWaveSpeed = s.waterWaveSpeed end)
+                pcall(function() Terrain.Decoration = s.decoration end)
+            end
+            O.saved = nil
+        end
+    end
+end
+
+local function _seigeOpenOptimize()
+    _openPanel("optimize", "Optimize  ·  game speed boost", 200, function(body)
+        inst("TextLabel", body, {
+            Size = UDim2.new(1, 0, 0, 32),
+            BackgroundTransparency = 1,
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+            TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "Strips shadows, fog, water FX, particles & post-effects. Drops quality to Level 1. Toggle off to restore.",
+        })
+        toggle(body, "Optimize active", _G.__SeigeOptimize.on, function(v)
+            _seigeOptimizeApply(v)
+            notify("Optimize " .. (v and "ON — game sped up" or "OFF — restored"), v and "good" or "warn")
+        end)
+        button(body, "Apply now (re-run)", function()
+            _seigeOptimizeApply(true)
+            notify("Optimization re-applied", "good")
+        end)
+        button(body, "Restore defaults", function()
+            _seigeOptimizeApply(false)
+            notify("Restored", "warn")
+        end)
+    end)
+end
+
+button(pgCmds, "Optimize  —  speed up the game", _seigeOpenOptimize)
+cmdHandlers["optimize"] = _seigeOpenOptimize
+cmdHandlers["unoptimize"] = function()
+    _seigeOptimizeApply(false); notify("Optimize OFF", "warn")
+end
+
+
+
 button(pgCmds, "Character  —  reset / refresh / click-TP", function()
     _openPanel("character", "Character", 170, function(body)
         button(body, "Reset character", function()
