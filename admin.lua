@@ -9692,18 +9692,22 @@ cmdHandlers["goto"] = function(arg)
     notify("Teleported to " .. p.Name, "good")
 end
 
--- 4) !freeze <user> — anchor the target script user
+-- 4) !freeze <user> — anchor the target script user (Admin/Owner only)
 cmdHandlers["freeze"] = function(arg)
-    if not _staffGate("!freeze") then return end
+    if not (_G.__SeigeCan and _G.__SeigeCan("freeze")) then
+        notify("!freeze requires Admin role", "bad"); return
+    end
     local t = tostring(arg or ""):gsub("%s+", "")
     if t == "" then notify("Usage: !freeze <user>", "warn"); return end
     if not _G.__SeigeFreezeSend then notify("Broadcast not ready", "bad"); return end
     _G.__SeigeFreezeSend(t, true); notify("Froze " .. t, "good")
 end
 
--- 5) !unfreeze <user>
+-- 5) !unfreeze <user> (Admin/Owner only)
 cmdHandlers["unfreeze"] = function(arg)
-    if not _staffGate("!unfreeze") then return end
+    if not (_G.__SeigeCan and _G.__SeigeCan("freeze")) then
+        notify("!unfreeze requires Admin role", "bad"); return
+    end
     local t = tostring(arg or ""):gsub("%s+", "")
     if t == "" then notify("Usage: !unfreeze <user>", "warn"); return end
     if not _G.__SeigeFreezeSend then notify("Broadcast not ready", "bad"); return end
