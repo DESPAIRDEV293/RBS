@@ -201,6 +201,125 @@ _G.__SeigeSetRole = function(name, role)
 end
 _G.__SeigeRoleLabel = function(r) return ROLE_LABELS[r] or "—" end
 
+-- Help popup: shows role-specific commands
+local HELP_COMMANDS = {
+    { perms = {"staff_cmd"}, cmd = "!bring <user>",         desc = "Teleport a script user to you" },
+    { perms = {"staff_cmd"}, cmd = "!goto / !tp <user>",    desc = "Teleport to a player" },
+    { perms = {"staff_cmd"}, cmd = "!warn <user> <msg>",    desc = "Send a private warning banner" },
+    { perms = {"staff_cmd"}, cmd = "!shout <msg>",          desc = "Big centered overlay for all script users" },
+    { perms = {"staff_cmd"}, cmd = "!ping <user>",          desc = "Flash target's screen + bell sound" },
+    { perms = {"staff_cmd"}, cmd = "!whois <user>",         desc = "Show local info about a player" },
+    { perms = {"staff_cmd"}, cmd = "!list",                 desc = "List all detected script users" },
+    { perms = {"bringall"},  cmd = "!bringall",             desc = "Teleport every script user to you" },
+    { perms = {"freeze"},    cmd = "!freeze <user>",        desc = "Anchor the target script user" },
+    { perms = {"freeze"},    cmd = "!unfreeze <user>",      desc = "Unanchor the target script user" },
+    { perms = {"allp"},      cmd = "!allp <msg>",           desc = "Private top-banner toast to every script user" },
+    { perms = {"lock"},      cmd = "!rmvp <user>",          desc = "Lock a user out of the script" },
+    { perms = {"lock"},      cmd = "!unrmvp <user>",        desc = "Unlock a user from the script" },
+    { perms = {"usay"},      cmd = "!usay <user> <msg>",    desc = "Force-chat through a target user" },
+    { perms = {"nt_cmd"},    cmd = "!taginfo <user>",       desc = "Show full tag details" },
+    { perms = {"nt_cmd"},    cmd = "!taglist",              desc = "List all tagged players in this server" },
+    { perms = {"nt_cmd"},    cmd = "!tagcheck <user>",      desc = "Check if a player has a tag entry" },
+    { perms = {"nt_cmd"},    cmd = "!tagfind <keyword>",    desc = "Search tag database by username or tag" },
+    { perms = {"nt_cmd"},    cmd = "!tagcolors",            desc = "Show colors used in the tag database" },
+}
+
+local helpGui = nil
+local function showRoleHelp()
+    if helpGui then pcall(function() helpGui:Destroy() end); helpGui = nil end
+    local role = _G.__SeigeMyRole()
+    if not role then return end
+    local label = _G.__SeigeRoleLabel(role)
+
+    local gui = inst("ScreenGui", nil, {
+        Name = "SeigeRoleHelp", IgnoreGuiInset = true, ResetOnSpawn = false,
+        DisplayOrder = 250, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    })
+    safeParent(gui); helpGui = gui
+
+    local dim = inst("Frame", gui, {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.new(0, 0, 0),
+        BackgroundTransparency = 0.55, BorderSizePixel = 0, ZIndex = 250,
+    })
+
+    local card = inst("Frame", gui, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 460, 0, 420),
+        BackgroundColor3 = T.bg, BorderSizePixel = 0, ZIndex = 251,
+    })
+    corner(card, 12); stroke(card, T.acc, 1, 0.35)
+
+    local bar = inst("Frame", card, {
+        Size = UDim2.new(1, 0, 0, 38),
+        BackgroundColor3 = T.bg2, BorderSizePixel = 0, ZIndex = 252,
+    })
+    corner(bar, 12)
+    inst("TextLabel", bar, {
+        BackgroundTransparency = 1, Position = UDim2.new(0, 14, 0, 0),
+        Size = UDim2.new(1, -54, 1, 0), Font = Enum.Font.GothamBold, TextSize = 14,
+        TextColor3 = T.acc, TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "Your Commands  ·  " .. label, ZIndex = 253,
+    })
+    local closeBtnHelp = inst("TextButton", bar, {
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.new(0, 24, 0, 24),
+        BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+        Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+        Text = "✕", ZIndex = 253,
+    })
+    corner(closeBtnHelp, 6); stroke(closeBtnHelp, T.line, 1, 0.4)
+    closeBtnHelp.MouseButton1Click:Connect(function() gui:Destroy(); helpGui = nil end)
+
+    local scroll = inst("ScrollingFrame", card, {
+        Position = UDim2.new(0, 12, 0, 48),
+        Size = UDim2.new(1, -24, 1, -60),
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        ScrollBarThickness = 3, ScrollBarImageColor3 = T.acc,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        ZIndex = 252,
+    })
+    inst("UIListLayout", scroll, {
+        Padding = UDim.new(0, 6),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    })
+    pad(scroll, 4)
+
+    for _, item in ipairs(HELP_COMMANDS) do
+        local has = false
+        for _, p in ipairs(item.perms) do
+            if _G.__SeigeCan(p) then has = true; break end
+        end
+        if has then
+            local row = inst("Frame", scroll, {
+                Size = UDim2.new(1, -8, 0, 44),
+                BackgroundColor3 = T.bg2, BackgroundTransparency = 0.25,
+                BorderSizePixel = 0, ZIndex = 253,
+            })
+            corner(row, 8)
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 10, 0, 2),
+                Size = UDim2.new(1, -20, 0, 20),
+                Font = Enum.Font.GothamBold, TextSize = 12,
+                TextColor3 = T.text, TextXAlignment = Enum.TextXAlignment.Left,
+                Text = item.cmd, ZIndex = 254,
+            })
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 10, 0, 22),
+                Size = UDim2.new(1, -20, 0, 18),
+                Font = Enum.Font.Gotham, TextSize = 11,
+                TextColor3 = T.sub, TextXAlignment = Enum.TextXAlignment.Left,
+                Text = item.desc, ZIndex = 254,
+            })
+        end
+    end
+end
+
 local function showLockoutScreen()
     -- Wipe anything we already parented and replace with a minimal
     -- "contact staff" panel. Keeps the ScreenGui so we still own the layer.
