@@ -10596,14 +10596,14 @@ end
 cmdHandlers["list"] = function()
     if not _staffGate("!list") then return end
     local reg = _G.__SeigeScriptUsers or {}
-    local names = {}
+    local rows = {}
     for _, info in pairs(reg) do
         local plr = Players:GetPlayerByUserId(info.userId)
-        if plr then names[#names+1] = "@" .. plr.Name end
+        if plr then rows[#rows+1] = { text = "@" .. plr.Name, right = "uid " .. plr.UserId } end
     end
-    table.sort(names)
-    if #names == 0 then notify("No script users detected in this server", "warn")
-    else notify(("%d script user%s: %s"):format(#names, #names==1 and "" or "s", table.concat(names, ", ")), "good") end
+    table.sort(rows, function(a, b) return a.text < b.text end)
+    _openResultPanel("list", ("Script users · %d in server"):format(#rows), rows,
+        { empty = "No script users detected in this server.", height = 340 })
 end
 
 -- =====================================================================
