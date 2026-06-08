@@ -2613,20 +2613,23 @@ local function buildBill(p)
     corner(bg, 23)
 
     -- Tag special aura: bundled outline effect that wraps the bubble.
-    -- Lives INSIDE bg so the rounded UICorner + ClipsDescendants auto-crops
-    -- the square PNG to the pill shape. Sits behind text/avatar (ZIndex=2)
-    -- but its glowing edge presses against the bubble outline, overlapping it.
-    local aura = inst("ImageLabel", bg, {
+    -- Lives in `gui` (parent of bg) so it can extend beyond the bubble and
+    -- overlap the outline. We round it with a UICorner so the square PNG
+    -- crops to the pill shape (ClipsDescendants on bg does NOT respect
+    -- UICorner, which is why earlier attempts looked square).
+    local aura = inst("ImageLabel", gui, {
         Name = "specialAura",
         BackgroundTransparency = 1,
         Image = "",
         ImageTransparency = 0,
         ScaleType = Enum.ScaleType.Stretch,
-        Size = UDim2.new(1, 8, 1, 8),
-        Position = UDim2.new(0, -4, 0, -4),
+        Size = UDim2.new(1, 16, 0, 56),
+        Position = UDim2.new(0, -8, 0, 1),
         Visible = false,
-        ZIndex = 2,
+        ZIndex = 0,
     })
+    corner(aura, 26)
+
 
     -- particle layer (sits above bg/image, below text/avatar)
     local fx = inst("Frame", bg, {
