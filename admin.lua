@@ -5783,6 +5783,7 @@ do
         })
         inst("UIListLayout", body, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
         pcall(builder, body)
+        _animOpen(win)
     end
 end
 
