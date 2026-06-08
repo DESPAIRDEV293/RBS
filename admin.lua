@@ -2823,25 +2823,27 @@ local function buildBill(p)
     })
     corner(bg, 23)
 
-    -- Tag special aura: bundled outline effect that wraps the bubble.
-    -- Lives in `gui` (parent of bg) so it can extend beyond the bubble and
-    -- overlap the outline. We round it with a UICorner so the square PNG
-    -- crops to the pill shape (ClipsDescendants on bg does NOT respect
-    -- UICorner, which is why earlier attempts looked square).
-    local aura = inst("ImageLabel", gui, {
-        Name = "specialAura",
-        BackgroundTransparency = 1,
-        Image = "",
-        ImageTransparency = 0,
-        ScaleType = Enum.ScaleType.Stretch,
-        Size = UDim2.new(1, 16, 0, 56),
-        Position = UDim2.new(0, -8, 0, 1),
-        Visible = false,
-        -- Above bg (ZIndex 1) and its UIStroke so the aura glow visibly
-        -- overlaps the bubble outline, but below avatar/text (ZIndex 10+).
-        ZIndex = 8,
+    -- Tag special aura: drawn as a UIStroke around the rounded pill (`bg`)
+    -- so it ALWAYS wraps the bubble's shape and never renders as a square.
+    -- A UIGradient on the stroke lets specials cycle colors along the border.
+    -- The old ImageLabel approach rendered square because Roblox ImageLabels
+    -- can't honor a UICorner clip across a stretched PNG.
+    local specialStroke = inst("UIStroke", bg, {
+        Color = Color3.fromRGB(255, 255, 255),
+        Thickness = 0,
+        Transparency = 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+        LineJoinMode = Enum.LineJoinMode.Round,
     })
-    corner(aura, 26)
+    local specialGrad = inst("UIGradient", specialStroke, {
+        Color = ColorSequence.new(Color3.fromRGB(255, 255, 255)),
+        Rotation = 0,
+    })
+    -- Legacy image aura: kept hidden so older references stay non-nil.
+    local aura = inst("ImageLabel", gui, {
+        Name = "specialAura", BackgroundTransparency = 1, Image = "",
+        Size = UDim2.new(1, 0, 1, 0), Visible = false, ZIndex = 0,
+    })
 
     -- Debug overlay: shows the active special name + loop state when
     -- _G.__SeigeTagDebug is true. Toggled from the Tags panel.
