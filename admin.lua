@@ -5302,7 +5302,19 @@ cmdHandlers["rj"] = function()
     pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
 end
 cmdHandlers["tprj"] = function()
-    notify("Teleport rejoin (same server)...", "good")
+    local h = hrp()
+    if h then
+        local c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12 = h.CFrame:GetComponents()
+        local restore = string.format(
+            "task.spawn(function() local p=game:GetService('Players').LocalPlayer local cf=CFrame.new(%.4f,%.4f,%.4f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f) local function apply(c) local r=c:WaitForChild('HumanoidRootPart',10) if r then task.wait(0.4) for i=1,8 do pcall(function() r.CFrame=cf end) task.wait(0.15) end end end local c=p.Character or p.CharacterAdded:Wait() apply(c) p.CharacterAdded:Connect(apply) end)",
+            c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12)
+        local q = (syn and syn.queue_on_teleport)
+            or rawget(getfenv(), "queue_on_teleport")
+            or (fluxus and fluxus.queue_on_teleport)
+            or (getgenv and getgenv().queue_on_teleport)
+        if q then pcall(q, restore) else notify("Your executor lacks queue_on_teleport — position won't restore", "warn") end
+    end
+    notify("Teleport rejoin (restoring position)...", "good")
     local ok = pcall(function()
         TeleportSrv:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
     end)
