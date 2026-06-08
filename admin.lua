@@ -1993,6 +1993,19 @@ local function refreshBill(p)
         e.glow.ImageTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
     end
 
+    -- Sync tag text (display name + @handle + chip text) to the user's
+    -- configured tag color. If they have no custom color, keep defaults.
+    local hasCustomColor = cfg and cfg.color and cfg.color ~= ""
+    if e.name then
+        e.name.TextColor3 = hasCustomColor and chipColor or T.text
+    end
+    if e.handle then
+        e.handle.TextColor3 = hasCustomColor and chipColor or T.sub
+    end
+    if e.stat then
+        e.stat.TextColor3 = hasCustomColor and chipColor or T.text
+    end
+
     -- Metal sweep highlight: default ON, disable when cfg.sweep == "off"
     local sweepOn = not (cfg and tostring(cfg.sweep or ""):lower() == "off")
     if e.sweep and sweepOn ~= e.sweepOn then
