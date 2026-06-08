@@ -1403,6 +1403,23 @@ local function hrp()   local c = char(); return c and c:FindFirstChild("Humanoid
 local function pchar(p) return p and p.Character end
 local function phrp(p)  local c = pchar(p); return c and c:FindFirstChild("HumanoidRootPart") end
 
+local function applyInvisState(on)
+    local c = LP.Character
+    if not c then return end
+    _G.__InvisOn = on
+    for _, d in ipairs(c:GetDescendants()) do
+        if d:IsA("BasePart") then
+            pcall(function() d.LocalTransparencyModifier = on and 1 or 0 end)
+        elseif d:IsA("Decal") or d:IsA("Texture") then
+            pcall(function() d.Transparency = on and 1 or 0 end)
+        end
+    end
+end
+bind(LP.CharacterAdded:Connect(function(c)
+    task.wait(0.3)
+    if _G.__InvisOn then applyInvisState(true) end
+end))
+
 
 local selected
 local refreshPlayerList -- forward
