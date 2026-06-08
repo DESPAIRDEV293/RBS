@@ -1894,11 +1894,21 @@ if LP.Name == "0rot3" then
         editingKey = key
         tbUser.Text     = key or ""
         tbDisplay.Text  = (e and e.displayName) or ""
-        tbColor.Text    = (e and e.color) or ""
+        -- split "color" / "color/color2" back into the two fields
+        local rawColor = (e and e.color) or ""
+        local c1str, c2str = rawColor:match("([^/]+)/([^/]+)")
+        if c1str and c2str then
+            tbColor.Text  = (c1str:gsub("^%s+",""):gsub("%s+$",""))
+            tbColor2.Text = (c2str:gsub("^%s+",""):gsub("%s+$",""))
+        else
+            tbColor.Text  = rawColor
+            tbColor2.Text = ""
+        end
         local iconRaw = (e and e.icon) or ""
         iconRaw = tostring(iconRaw):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
         tbIcon.Text     = iconRaw
         tbTags.Text     = (e and e.tags and table.concat(e.tags, ",")) or ""
+        tbCustom.Text   = (e and e.customText) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
     end
