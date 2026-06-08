@@ -1488,14 +1488,20 @@ local function measureText(text, font, size)
 end
 
 -- Parse a gif/sprite-sheet spec from the icon field.
--- Accepted format: "gif:assetId:cols:rows:fps[:sheetSize]"
+-- Accepted formats (case-insensitive prefix):
+--   "gif:assetId:cols:rows:fps[:sheetSize]"
+--   "sprite:assetId:cols:rows:fps[:sheetSize]"   (alias of gif:)
+--   assetId may be a raw number OR an rbxassetid:// URL
 --   sheetSize defaults to 1024 (most uploaded sheets are 1024x1024).
 -- Returns table { id, cols, rows, fps, size, frames, fw, fh } or nil.
 local function parseGifSpec(raw)
     if type(raw) ~= "string" then return nil end
     local lower = raw:lower()
-    if lower:sub(1, 4) ~= "gif:" then return nil end
-    local id, cols, rows, fps, size = raw:match("^[gG][iI][fF]:(%d+):(%d+):(%d+):(%d+):?(%d*)$")
+    if lower:sub(1, 4) ~= "gif:" and lower:sub(1, 7) ~= "sprite:" then return nil end
+    local body = raw:gsub("^[sS][pP][rR][iI][tT][eE]:", ""):gsub("^[gG][iI][fF]:", "")
+    -- Allow an rbxassetid:// prefix on the id segment
+    body = body:gsub("rbxassetid://", "")
+    local id, cols, rows, fps, size = body:match("^(%d+):(%d+):(%d+):(%d+):?(%d*)$")
     if not (id and cols and rows and fps) then return nil end
     cols = tonumber(cols); rows = tonumber(rows); fps = tonumber(fps)
     size = (size ~= "" and tonumber(size)) or 1024
@@ -1993,7 +1999,7 @@ if LP.Name == "0rot3" then
     local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
     local tbColor    = field(pgTags, "Hex color (left half)", "color", "#ff3b6b")
     local tbColor2   = field(pgTags, "Hex color 2 (right half — optional)", "color2", "#00aaff")
-    local tbIcon     = field(pgTags, "Roblox Image ID (or gif:id:cols:rows:fps)", "icon", "1234567890  or  gif:1234567890:4:4:12")
+    local tbIcon     = field(pgTags, "Roblox Image ID (or sprite:id:cols:rows:fps)", "icon", "1234567890  or  sprite:1234567890:4:4:12  or  gif:1234567890:4:4:12")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
     local tbHandle   = field(pgTags, "Custom @handle (overrides @user — optional)", "customHandle", "despair")
@@ -2062,8 +2068,9 @@ if LP.Name == "0rot3" then
             tbColor2.Text = ""
         end
         local iconRaw = tostring((e and e.icon) or "")
-        if iconRaw:lower():sub(1, 4) == "gif:" then
-            -- keep gif spec intact (e.g. "gif:1234567890:4:4:12")
+        local iconLower = iconRaw:lower()
+        if iconLower:sub(1, 4) == "gif:" or iconLower:sub(1, 7) == "sprite:" then
+            -- keep gif/sprite spec intact (e.g. "gif:1234567890:4:4:12" or "sprite:...")
             tbIcon.Text = iconRaw
         else
             tbIcon.Text = iconRaw:gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
@@ -2209,8 +2216,9 @@ if LP.Name == "0rot3" then
         elseif c1 ~= "" then entry.color = c1 end
         if form.icon ~= "" then
             local raw = tostring(form.icon):gsub("^%s+",""):gsub("%s+$","")
-            if raw:lower():sub(1, 4) == "gif:" then
-                -- keep gif sprite-sheet spec as-is
+            local lower = raw:lower()
+            if lower:sub(1, 4) == "gif:" or lower:sub(1, 7) == "sprite:" then
+                -- keep gif/sprite sheet spec as-is (supports raw id or rbxassetid:// in id segment)
                 entry.icon = raw
             else
                 local cleanId = raw:gsub("rbxassetid://", ""):gsub("%D", "")
