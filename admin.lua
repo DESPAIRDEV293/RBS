@@ -4674,6 +4674,144 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
             refreshKillUI()
         end)
 
+        ------------------------------------------------------------------
+        -- AUDIT LOG · live feed of role-gated UI opens, toggles and
+        -- command attempts on this client. Rolling buffer (250 entries).
+        ------------------------------------------------------------------
+        section(pgAdmin, "Audit log")
+        label(pgAdmin, "Live record of role-gated UI opens, toggles and command attempts (player · role · time).")
+
+        local auditCard = inst("Frame", pgAdmin, {
+            Size = UDim2.new(1, -8, 0, 220),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.25,
+            BorderSizePixel = 0,
+        })
+        corner(auditCard, 8); stroke(auditCard, T.acc, 1, 0.35)
+        inst("UIPadding", auditCard, {
+            PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10),
+            PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
+        })
+
+        local auditHeader = inst("Frame", auditCard, {
+            Size = UDim2.new(1, 0, 0, 26),
+            BackgroundTransparency = 1, BorderSizePixel = 0,
+        })
+        local auditCount = inst("TextLabel", auditHeader, {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, -160, 1, 0),
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.acc,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "0 entries",
+        })
+        local auditRefresh = inst("TextButton", auditHeader, {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -82, 0.5, 0), Size = UDim2.new(0, 74, 0, 24),
+            BackgroundColor3 = T.bg3, BackgroundTransparency = 0.1,
+            AutoButtonColor = false, BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
+            Text = "Refresh",
+        })
+        corner(auditRefresh, 6); stroke(auditRefresh, T.line, 1, 0.4)
+        local auditClear = inst("TextButton", auditHeader, {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.new(0, 74, 0, 24),
+            BackgroundColor3 = T.bad, BackgroundTransparency = 0.15,
+            AutoButtonColor = false, BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
+            Text = "Clear",
+        })
+        corner(auditClear, 6); stroke(auditClear, T.line, 1, 0.4)
+
+        local auditScroll = inst("ScrollingFrame", auditCard, {
+            Position = UDim2.new(0, 0, 0, 32),
+            Size = UDim2.new(1, 0, 1, -32),
+            BackgroundColor3 = T.bg, BackgroundTransparency = 0.4,
+            BorderSizePixel = 0,
+            ScrollBarThickness = 3, ScrollBarImageColor3 = T.acc,
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+        })
+        corner(auditScroll, 6)
+        inst("UIListLayout", auditScroll, {
+            Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder,
+        })
+        inst("UIPadding", auditScroll, {
+            PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+            PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+        })
+
+        local function _fmtTime(t)
+            local d = os.time() - (t or 0)
+            if d < 5 then return "now"
+            elseif d < 60 then return d .. "s ago"
+            elseif d < 3600 then return math.floor(d/60) .. "m ago"
+            else return math.floor(d/3600) .. "h ago" end
+        end
+
+        local function rebuildAudit()
+            for _, c in ipairs(auditScroll:GetChildren()) do
+                if c:IsA("Frame") then c:Destroy() end
+            end
+            local log = _G.__SeigeAuditLog or {}
+            auditCount.Text = #log .. " entr" .. (#log == 1 and "y" or "ies")
+            if #log == 0 then
+                inst("TextLabel", auditScroll, {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 24),
+                    Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Text = "No events yet.",
+                })
+                return
+            end
+            -- Show newest first
+            for i = #log, 1, -1 do
+                local e = log[i]
+                local row = inst("Frame", auditScroll, {
+                    Size = UDim2.new(1, 0, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundColor3 = e.allowed and T.bg2 or T.bad,
+                    BackgroundTransparency = e.allowed and 0.45 or 0.7,
+                    BorderSizePixel = 0,
+                    LayoutOrder = (#log - i) + 1,
+                })
+                corner(row, 4)
+                inst("UIPadding", row, {
+                    PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4),
+                    PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+                })
+                inst("TextLabel", row, {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 14),
+                    Font = Enum.Font.GothamBold, TextSize = 11,
+                    TextColor3 = e.allowed and T.acc or T.bad,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Text = string.format("%s  ·  %s  ·  %s%s",
+                        e.player or "?", e.role or "?", _fmtTime(e.t),
+                        e.allowed and "" or "  ·  BLOCKED"),
+                })
+                inst("TextLabel", row, {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 0, 0, 16),
+                    Size = UDim2.new(1, 0, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.text,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextWrapped = true,
+                    Text = (e.action or "") .. (e.detail ~= "" and ("  —  " .. e.detail) or ""),
+                })
+            end
+        end
+        rebuildAudit()
+        if _G.__SeigeOnAudit then _G.__SeigeOnAudit(function() rebuildAudit() end) end
+        auditRefresh.MouseButton1Click:Connect(rebuildAudit)
+        auditClear.MouseButton1Click:Connect(function()
+            if _G.__SeigeClearAudit then _G.__SeigeClearAudit() end
+            rebuildAudit()
+            notify("Audit log cleared", "good")
+        end)
+
         section(pgAdmin, "Roles & permissions")
         label(pgAdmin, "Click any staff card to manage them. Owner (0rot3) is hardcoded and cannot be changed.")
 
