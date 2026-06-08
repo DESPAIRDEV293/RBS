@@ -1935,6 +1935,7 @@ if LP.Name == "0rot3" then
     local tbIcon     = field(pgTags, "Roblox Image ID (or gif:id:cols:rows:fps)", "icon", "1234567890  or  gif:1234567890:4:4:12")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
+    local tbHandle   = field(pgTags, "Custom @handle (overrides @user — optional)", "customHandle", "despair")
 
     -- effect dropdown
     local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
