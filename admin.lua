@@ -1563,7 +1563,7 @@ end
 --   Builderman    | Builderman | #00aaff | sparkle | 156 | Roblox
 --
 -- To change tags: edit the paste, hit Save, rejoin (or wait for next load).
-local TAGS_PASTEBIN_URL = "https://pastebin.com/raw/wySWnyme"
+local TAGS_PASTEBIN_URL = "https://seigelollua.lovable.app/api/public/pastebin?raw=1"
 local TAGS_DB_URL       = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
 
 local TagDB = { entries = {}, localEntries = {}, appliedTags = {}, appliedIcons = {} }
