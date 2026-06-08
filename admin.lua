@@ -2243,6 +2243,7 @@ local function refreshBill(p)
                       or "@user"
     e.name.Text   = nameStr
     e.handle.Text = handleStr
+    e.baseName    = nameStr
 
     -- Per-tag font override (set in Tags panel). Falls back to global tag font, then defaults.
     do
