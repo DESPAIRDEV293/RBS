@@ -3107,7 +3107,9 @@ button(pgServer, "Copy JobId", function()
 end)
 
 ------------------------------------------------------- CMDS TAB
+section(pgCmds, "Command bar (F6)  ·  !rj  !tprj")
 section(pgCmds, "Rejoin")
+
 button(pgCmds, "Rejoin (same server)", function()
     local ok, err = pcall(function()
         TeleportSrv:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
