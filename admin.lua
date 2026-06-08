@@ -1740,7 +1740,7 @@ local function parsePastebin(src)
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
                 if parts[11] and parts[11] ~= "" then entry.font = parts[11] end
                 if parts[12] and parts[12] ~= "" then entry.sweep = parts[12]:lower() end
-                -- Old tag-special field intentionally ignored/stripped so saved
+                -- Old unused 13th field intentionally ignored/stripped so saved
                 -- values cannot bring back the faint square aura behind tags.
                 entries[user:lower()] = entry
                 count = count + 1
@@ -2286,15 +2286,6 @@ local function parseGifSpec(raw)
         fh = math.floor(size / rows),
     }
 end
-
--- ===== Tag special compatibility hooks (no-op) =====
--- Tag specials were removed completely because their aura layer could render
--- as a faint square/box behind tags.
-function _G.__SeigeStartSpecialAnim() end
-function _G.__SeigeStopSpecialAnim() end
-function _G.__SeigeSetTagDebug() _G.__SeigeTagDebug = false end
-
-
 
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
