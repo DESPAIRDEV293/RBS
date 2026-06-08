@@ -1742,10 +1742,10 @@ local EFFECT_SPAWN  = { rain = spawnRain, snow = spawnSnow, sparkle = spawnSpark
 
 
 -- Stash original Humanoid display settings so we can restore them when a bubble goes away
-local hideRobloxName, restoreRobloxName
+local NameHider = {}
 do
     local origNameDisp = setmetatable({}, { __mode = "k" })
-    hideRobloxName = function(p)
+    function NameHider.hide(p)
         local ch = pchar(p); if not ch then return end
         local h = ch:FindFirstChildOfClass("Humanoid"); if not h then return end
         if origNameDisp[h] == nil then
@@ -1761,7 +1761,7 @@ do
             h.HealthDisplayDistance = 0
         end)
     end
-    restoreRobloxName = function(p)
+    function NameHider.restore(p)
         local ch = pchar(p); if not ch then return end
         local h = ch:FindFirstChildOfClass("Humanoid"); if not h then return end
         local o = origNameDisp[h]; if not o then return end
