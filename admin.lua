@@ -4723,6 +4723,23 @@ local function applyBg()
     Backdrop.ImageTransparency = bgState.trans
 end
 
+-- Per-panel background image (applied to every floating panel's __SeigeBgImg)
+local panelBgState = { image = "", trans = 0.5 }
+local function applyPanelBg()
+    local url = resolveBgUrl(panelBgState.image)
+    local panelsTbl = rawget(_G, "__SeigePanels")
+    if panelsTbl then
+        for _, p in pairs(panelsTbl) do
+            local img = p.frame and p.frame:FindFirstChild("__SeigeBgImg")
+            if img then
+                img.Image = url
+                img.ImageTransparency = (url == "") and 1 or panelBgState.trans
+            end
+        end
+    end
+end
+_G.__SeigeApplyPanelBg = applyPanelBg
+
 local saveCfg, loadCfg
 saveCfg = function()
     local data = { theme = {}, bg = bgState, execEnabled = execEnabled }
