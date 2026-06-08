@@ -2753,9 +2753,31 @@ local function buildBill(p)
         Size = UDim2.new(1, 16, 0, 56),
         Position = UDim2.new(0, -8, 0, 1),
         Visible = false,
-        ZIndex = 0,
+        -- Above bg (ZIndex 1) and its UIStroke so the aura glow visibly
+        -- overlaps the bubble outline, but below avatar/text (ZIndex 10+).
+        ZIndex = 8,
     })
     corner(aura, 26)
+
+    -- Debug overlay: shows the active special name + loop state when
+    -- _G.__SeigeTagDebug is true. Toggled from the Tags panel.
+    local debugLbl = inst("TextLabel", gui, {
+        Name = "specialDebug",
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 0.35,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0.5, 1),
+        Position = UDim2.new(0.5, 0, 0, 2),
+        Size = UDim2.new(0, 180, 0, 16),
+        Font = Enum.Font.Code,
+        TextSize = 11,
+        TextColor3 = Color3.fromRGB(180, 255, 180),
+        Text = "special: none",
+        Visible = false,
+        ZIndex = 120,
+    })
+    corner(debugLbl, 4)
+
 
 
     -- particle layer (sits above bg/image, below text/avatar)
