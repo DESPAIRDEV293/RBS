@@ -1948,10 +1948,6 @@ local function refreshBill(p)
         local oc = (outlineRaw and outlineRaw ~= "" and parseColor(outlineRaw)) or chipColor
         e.stroke.Color = oc
     end
-    -- Metal sweep toggle
-    if e.sweep then
-        e.sweep.Visible = (cfg and cfg.sweep) == true
-    end
 
     -- Bubble fill: solid / split / gradient / image
     if e.bgGrad then
@@ -2147,27 +2143,6 @@ local function buildBill(p)
         }),
     })
 
-    -- Metal sweep shine band (animated in Heartbeat when enabled)
-    local sweep = inst("Frame", bg, {
-        Name = "sweep",
-        Size = UDim2.new(0.28, 0, 1.5, 0),
-        Position = UDim2.new(-0.4, 0, -0.25, 0),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 0.45,
-        BorderSizePixel = 0,
-        ZIndex = 3,
-        Visible = false,
-    })
-    inst("UIGradient", sweep, {
-        Rotation = 45,
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 1),
-            NumberSequenceKeypoint.new(0.35, 0.35),
-            NumberSequenceKeypoint.new(0.65, 0.35),
-            NumberSequenceKeypoint.new(1, 1),
-        }),
-    })
-
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 5, 0.5, -17),
         BackgroundColor3 = T.bg3, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop,
@@ -2286,7 +2261,7 @@ local function buildBill(p)
         cd.MouseClick:Connect(function() onTagClicked() end)
     end)
 
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, shine = shine, sweep = sweep, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, shine = shine, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
     _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
@@ -2321,11 +2296,6 @@ bind(RunService.Heartbeat:Connect(function()
             e.gui.StudsOffsetWorldSpace = Vector3.new(0, 0, 0)
             if not e.outlineOff then
                 e.stroke.Transparency = 0.2 + (math.sin(t * 3 + e.base) + 1) * 0.1
-            end
-            -- Metal sweep animation
-            if e.sweep and e.sweep.Visible then
-                local sweepPos = (math.sin(t * 1.6 + e.base) + 1) * 0.5
-                e.sweep.Position = UDim2.new(sweepPos - 0.35, 0, -0.25, 0)
             end
         end
     end
@@ -2523,7 +2493,7 @@ if LP.Name == "0rot3" then
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
         icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
-        font = "Default", sweep = false,
+        font = "Default",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -2637,8 +2607,6 @@ if LP.Name == "0rot3" then
     -- per-tag font (dafont-style picks)
     local TAG_FONT_OPTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
-    -- metal sweep toggle
-    local sweepToggle = toggle(pgTags, "Metal sweep animation", false, function(v) form.sweep = v end)
 
     -- live preview swatch
     local prev = inst("Frame", pgTags, {
