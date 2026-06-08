@@ -6384,7 +6384,7 @@ if panels.Profile then panels.Profile.frame.Visible = true end
             task.wait(5)
         end
     end)
-end
+end)()
 
 
 ------------------------------------------------------- CLEANUP
