@@ -857,7 +857,7 @@ end
 --
 --   - Only `username` is required. Leave any field blank to skip it (keep the |).
 --   - effect: rain | snow | sparkle | nebula   (or blank for none)
---   - icon:   a roblox asset id, rbxthumb://, rbxassetid://, or http(s):// URL
+--   - icon:   Roblox image ID (raw number, e.g. 1234567890)
 --   - Lines starting with # or // are comments. Blank lines are ignored.
 --
 -- Example paste:
@@ -1802,7 +1802,7 @@ if LP.Name == "DESPAIRDEV293" then
     local tbUser     = field(pgTags, "Username (required)", "username", "DESPAIRDEV293")
     local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
     local tbColor    = field(pgTags, "Hex color", "color", "#ff3b6b")
-    local tbIcon     = field(pgTags, "Icon URL / asset id", "icon", "rbxassetid://123 or https://...")
+    local tbIcon     = field(pgTags, "Roblox Image ID", "icon", "1234567890")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
 
     -- effect dropdown
@@ -1845,7 +1845,9 @@ if LP.Name == "DESPAIRDEV293" then
         tbUser.Text     = key or ""
         tbDisplay.Text  = (e and e.displayName) or ""
         tbColor.Text    = (e and e.color) or ""
-        tbIcon.Text     = (e and e.icon) or ""
+        local iconRaw = (e and e.icon) or ""
+        iconRaw = tostring(iconRaw):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
+        tbIcon.Text     = iconRaw
         tbTags.Text     = (e and e.tags and table.concat(e.tags, ",")) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
@@ -1970,7 +1972,10 @@ if LP.Name == "DESPAIRDEV293" then
         local entry = {}
         if form.displayName ~= "" then entry.displayName = form.displayName end
         if form.color ~= "" then entry.color = form.color end
-        if form.icon ~= "" then entry.icon = form.icon end
+        if form.icon ~= "" then
+            local cleanId = tostring(form.icon):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
+            if cleanId ~= "" then entry.icon = cleanId end
+        end
         if form.effect and form.effect ~= "none" then entry.effect = form.effect end
         if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
         if form.tags ~= "" then
