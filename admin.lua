@@ -3480,6 +3480,20 @@ button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
 button(pgCmds, "!head <player>",        function() _openCmd("!head ") end)
 button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
 
+section(pgCmds, "Extras")
+button(pgCmds, "!esp  —  highlight all players",         function() _runCmd("!esp") end)
+button(pgCmds, "!fullbright  —  flat max lighting",      function() _runCmd("!fullbright") end)
+button(pgCmds, "!day  /  !night",                        function() _openCmd("!day") end)
+button(pgCmds, "!time <0-24>",                           function() _openCmd("!time ") end)
+button(pgCmds, "!invis  —  hide your character",         function() _runCmd("!invis") end)
+button(pgCmds, "!ghost  —  transparent + noclip",        function() _runCmd("!ghost") end)
+button(pgCmds, "!size <n>",                              function() _openCmd("!size ") end)
+button(pgCmds, "!hatspin  —  fling spinning accessories",function() _runCmd("!hatspin") end)
+button(pgCmds, "!freecam  —  WASD/EQ camera",            function() _runCmd("!freecam") end)
+button(pgCmds, "!hop  —  random server hop",             function() _runCmd("!hop") end)
+button(pgCmds, "!say <message>",                         function() _openCmd("!say ") end)
+
+
 section(pgCmds, "Command bar (F6)  ·  !rj  !tprj")
 section(pgCmds, "Rejoin")
 
