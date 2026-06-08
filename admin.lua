@@ -3671,46 +3671,37 @@ button(pgCmds, "!say <message>",                         function() _openCmd("!s
 button(pgCmds, "!baseplate  —  extend the map",          function() _runCmd("!baseplate") end)
 
 button(pgCmds, "Voice  —  anti-ban + mute", function()
-    _openPanel("voice", "Voice  ·  anti-ban + mic", 230, function(body)
-        local function getVoice()
-            local s
-            pcall(function() s = game:FindService("VoiceChatInternal") end)
-            if not s then pcall(function() s = game:GetService("VoiceChatService") end) end
-            return s
-        end
+    _openPanel("voice", "Voice  ·  anti-ban + mic", 260, function(body)
+        local V = _G.__SeigeVoice
+        if not V then notify("Voice helper not ready", "warn"); return end
         _G.__SeigeAntiVC = _G.__SeigeAntiVC or { on = false, interval = 25 }
+
+        local statusLbl = inst("TextLabel", body, {
+            BackgroundTransparency = 1, Size = UDim2.new(1, -8, 0, 16),
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+            TextXAlignment = Enum.TextXAlignment.Left, Text = "  " .. V.summary(),
+        })
+        local function refresh() statusLbl.Text = "  " .. V.summary() end
 
         toggle(body, "Anti voice-chat ban (auto-cycle)", _G.__SeigeAntiVC.on, function(s)
             if s == _G.__SeigeAntiVC.on then return end
-            _runCmd("!antivc")
+            _runCmd("!antivc"); task.wait(0.1); refresh()
         end)
         slider(body, "Cycle interval (sec)", 8, 90, _G.__SeigeAntiVC.interval or 25, function(v)
             _G.__SeigeAntiVC.interval = v
         end)
         button(body, "Cycle voice now (leave + rejoin)", function()
-            if _G.__SeigeCycleVoice then _G.__SeigeCycleVoice() else notify("Voice helper not ready", "warn") end
+            V.cycle(); refresh()
         end)
-        toggle(body, "Force mute mic", false, function(s)
-            pcall(function() if LP and LP.SetMuted then LP:SetMuted(s) end end)
+        toggle(body, "Force mute mic", V.isMuted(), function(s)
+            V.setMuted(s); refresh()
             notify(s and "Mic muted" or "Mic live", "good")
         end)
         button(body, "Disconnect voice (leave channel)", function()
-            local svc = getVoice(); if not svc then notify("No voice service", "bad"); return end
-            pcall(function()
-                for _, m in ipairs({ "LeaveChannel", "leaveChannel", "Leave" }) do
-                    if typeof(svc[m]) == "function" then svc[m](svc); break end
-                end
-            end)
-            notify("Voice left", "good")
+            V.leave(); refresh(); notify("Voice left", "good")
         end)
         button(body, "Reconnect voice (rejoin channel)", function()
-            local svc = getVoice(); if not svc then notify("No voice service", "bad"); return end
-            pcall(function()
-                for _, m in ipairs({ "JoinChannel", "joinChannel", "Join" }) do
-                    if typeof(svc[m]) == "function" then svc[m](svc); break end
-                end
-            end)
-            notify("Voice rejoined", "good")
+            V.join(); refresh(); notify("Voice rejoined", "good")
         end)
     end)
 end)
@@ -6383,48 +6374,111 @@ end
 end)()
 
 
--- !antivc — anti voice-chat ban: cycle local voice channel undetected
+-- ===== Voice helper (uses real Roblox VoiceChat APIs) =====
+-- Exposes _G.__SeigeVoice with: isAvailable, isMuted, setMuted, leave, join,
+-- cycle, summary. Used by both the Voice popout and the !antivc command.
 do
-    local function getVoice()
-        local svc
-        pcall(function() svc = game:FindService("VoiceChatInternal") end)
-        if not svc then pcall(function() svc = game:GetService("VoiceChatService") end) end
-        return svc
+    local function tryCall(obj, methods, ...)
+        if not obj then return false end
+        for _, m in ipairs(methods) do
+            local fn = nil
+            pcall(function() fn = obj[m] end)
+            if typeof(fn) == "function" then
+                local ok = pcall(fn, obj, ...)
+                if ok then return true, m end
+            end
+        end
+        return false
     end
-    local function cycleVoice()
-        local svc = getVoice()
-        if not svc then return false end
-        pcall(function()
-            for _, m in ipairs({ "LeaveChannel", "leaveChannel", "Leave" }) do
-                if typeof(svc[m]) == "function" then svc[m](svc); break end
-            end
-        end)
-        pcall(function()
-            local lp = LP
-            if lp and typeof(lp.SetMuted) == "function" then lp:SetMuted(true) end
-        end)
-        task.wait(0.35 + math.random() * 0.6)
-        pcall(function()
-            for _, m in ipairs({ "JoinChannel", "joinChannel", "Join" }) do
-                if typeof(svc[m]) == "function" then svc[m](svc); break end
-            end
-        end)
-        task.wait(0.2)
-        pcall(function()
-            local lp = LP
-            if lp and typeof(lp.SetMuted) == "function" then lp:SetMuted(false) end
-        end)
+    local function svcInternal()
+        local s
+        pcall(function() s = game:FindService("VoiceChatInternal") end)
+        if not s then pcall(function() s = game:GetService("VoiceChatInternal") end) end
+        return s
+    end
+    local function svcPublic()
+        local s
+        pcall(function() s = game:GetService("VoiceChatService") end)
+        return s
+    end
+    local V = {}
+    function V.isAvailable()
+        return svcInternal() ~= nil or svcPublic() ~= nil
+    end
+    function V.isPublishing()
+        local s = svcInternal(); if not s then return nil end
+        local ok, v = pcall(function() return s:IsPublishing() end)
+        if ok then return v end
+        return nil
+    end
+    function V.isSubscribed()
+        local s = svcInternal(); if not s then return nil end
+        local ok, v = pcall(function() return s:IsSubscribed() end)
+        if ok then return v end
+        return nil
+    end
+    function V.isMuted()
+        local p = V.isPublishing()
+        if p == nil then return _G.__SeigeMicMuted == true end
+        return p == false
+    end
+    -- Mic mute: Publish/Unpublish on VoiceChatInternal (controls transmit).
+    function V.setMuted(on)
+        _G.__SeigeMicMuted = on and true or false
+        local s = svcInternal()
+        if on then
+            tryCall(s, { "Unpublish", "PublishPaused" }, true)
+        else
+            tryCall(s, { "Publish" })
+        end
+        -- Fallback: nudge the public service if available (older clients)
+        local pub = svcPublic()
+        if pub then pcall(function() if on then pub:joinVoice() end end) end
+    end
+    -- Leave channel: unsubscribe from everyone + unpublish own mic
+    function V.leave()
+        local s = svcInternal()
+        tryCall(s, { "UnsubscribeAll" })
+        tryCall(s, { "Unpublish" })
+        -- Public-service fallback
+        local pub = svcPublic()
+        tryCall(pub, { "leaveChannel", "LeaveChannel" })
+    end
+    -- Rejoin: subscribe to everyone + republish mic (unless force-muted)
+    function V.join()
+        local s = svcInternal()
+        tryCall(s, { "SubscribeAll" })
+        if not _G.__SeigeMicMuted then
+            tryCall(s, { "Publish" })
+        end
+        local pub = svcPublic()
+        tryCall(pub, { "joinVoice", "JoinChannel" })
+    end
+    -- One full leave→rejoin cycle with jitter; this is the "anti-ban" core.
+    function V.cycle()
+        if not V.isAvailable() then return false end
+        V.leave()
+        task.wait(0.35 + math.random() * 0.5)
+        V.join()
         return true
     end
-    _G.__SeigeCycleVoice = cycleVoice
+    function V.summary()
+        if not V.isAvailable() then return "Voice service not available in this game" end
+        local mic = V.isMuted() and "MUTED" or "LIVE"
+        local sub = V.isSubscribed()
+        local subTxt = sub == nil and "?" or (sub and "ON" or "OFF")
+        return string.format("Mic: %s   ·   Listening: %s", mic, subTxt)
+    end
+    _G.__SeigeVoice      = V
+    _G.__SeigeCycleVoice = V.cycle
+
     cmdHandlers["antivc"] = function()
         _G.__SeigeAntiVC = _G.__SeigeAntiVC or { on = false, interval = 25 }
         if _G.__SeigeAntiVC.on then
             _G.__SeigeAntiVC.on = false
             notify("AntiVC OFF", "warn"); return
         end
-        local svc = getVoice()
-        if not svc then notify("VoiceChat service unavailable", "bad"); return end
+        if not V.isAvailable() then notify("Voice service not in this game", "bad"); return end
         _G.__SeigeAntiVC.on = true
         notify("AntiVC ON — recycling voice (undetected)", "good")
         task.spawn(function()
@@ -6432,7 +6486,7 @@ do
                 local base = tonumber(_G.__SeigeAntiVC.interval) or 25
                 task.wait(math.max(4, base) + math.random() * 4)
                 if not (_G.__SeigeAntiVC and _G.__SeigeAntiVC.on) then break end
-                cycleVoice()
+                V.cycle()
             end
         end)
     end
@@ -6441,6 +6495,10 @@ do
         if _G.__SeigeAntiVC then _G.__SeigeAntiVC.on = false end
         notify("AntiVC OFF", "warn")
     end
+    cmdHandlers["mute"]   = function() V.setMuted(true);  notify("Mic muted", "good") end
+    cmdHandlers["unmute"] = function() V.setMuted(false); notify("Mic live",  "good") end
+    cmdHandlers["vcleave"] = function() V.leave(); notify("Voice left", "good") end
+    cmdHandlers["vcjoin"]  = function() V.join();  notify("Voice rejoined", "good") end
 end
 
 
