@@ -3796,12 +3796,46 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
   end -- end owner-only Tags manager
 
     ------------------------------------------------------------------
-    -- ADMIN PANEL  ·  visible only to 0rot3
-    -- Lists detected script users in this server (same-server only — Roblox
-    -- client scripts can't see other servers or IPs without a backend) and
-    -- exposes admin-only commands like !allp.
+    -- ADMIN PANEL  ·  visible to OWNER (0rot3) and any user with a role
+    -- Roles: admin (full commands), staff (allp only), nt (view only).
+    -- The owner manages role assignments in the "Roles & Permissions" section.
     ------------------------------------------------------------------
-    local pgAdmin = makeTab("Admin", "★", "Admin-only · script users in this server, broadcast commands")
+    local _myRole = _G.__SeigeMyRole() or "nt"
+    local _isOwner = LP.Name == OWNER_NAME
+    local pgAdmin = makeTab("Admin", "★",
+        "Role: " .. (_G.__SeigeRoleLabel(_myRole) or "—") ..
+        " · script users in this server" ..
+        (_isOwner and ", role management, broadcast commands" or ""))
+
+    -- Banner showing current role + permission summary
+    do
+        local roleBanner = inst("Frame", pgAdmin, {
+            Size = UDim2.new(1, -8, 0, 50),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.2,
+            BorderSizePixel = 0,
+        })
+        corner(roleBanner, 8); stroke(roleBanner, T.acc, 1, 0.4)
+        inst("TextLabel", roleBanner, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 12, 0, 6), Size = UDim2.new(1, -24, 0, 18),
+            Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = T.acc,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "Your role: " .. (_G.__SeigeRoleLabel(_myRole) or "—"),
+        })
+        local perms = {}
+        if _G.__SeigeCan("manage_roles") then perms[#perms+1] = "manage roles" end
+        if _G.__SeigeCan("allp")  then perms[#perms+1] = "!allp" end
+        if _G.__SeigeCan("lock")  then perms[#perms+1] = "!rmvp / !unrmvp" end
+        if _G.__SeigeCan("usay")  then perms[#perms+1] = "!usay" end
+        if #perms == 0 then perms[#perms+1] = "view only" end
+        inst("TextLabel", roleBanner, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 12, 0, 26), Size = UDim2.new(1, -24, 0, 18),
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "Permissions: " .. table.concat(perms, " · "),
+        })
+    end
 
     section(pgAdmin, "Script users in this server")
     label(pgAdmin, "Detected via chat heartbeat. Roblox doesn't expose IPs to client scripts — that requires a backend.")
