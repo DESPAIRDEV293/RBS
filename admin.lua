@@ -1126,16 +1126,17 @@ local function tagColor(p)
 end
 
 ------------------------------------------------------- TABS
-local pgPlayers = makeTab("Players", "◉")
-local pgSelf    = makeTab("Self",    "✦")
-local pgVisuals = makeTab("Visuals", "◐")
-local pgWorld   = makeTab("World",   "◊")
+local pgProfile = makeTab("Profile", "◈", "Your account, recent games and friends")
+local pgPlayers = makeTab("Players", "◉", "Server roster and player tools")
+local pgSelf    = makeTab("Self",    "✦", "Character, speed, flight, jump")
+local pgVisuals = makeTab("Visuals", "◐", "ESP, lighting and fullbright")
+local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
 -- Tags tab removed — now managed via the script database (tags.lua)
-local pgAim     = makeTab("Aim",     "✚")
+local pgAim     = makeTab("Aim",     "✚", "Aim assist and silent aim")
 
-local pgServer  = makeTab("Server",  "≡")
-local pgCmds    = makeTab("Cmds",    "⌘")
-local pgConfig  = makeTab("Config",  "⚙")
+local pgServer  = makeTab("Server",  "≡", "Server hop and rejoin")
+local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands and rejoin")
+local pgConfig  = makeTab("Config",  "⚙", "Settings and keybinds")
 
 ------------------------------------------------------- HELPERS
 local function char()  return LP.Character end
