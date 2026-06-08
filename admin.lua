@@ -4334,36 +4334,66 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
         if allowed then
             _myCmdCount = _myCmdCount + 1
             local row = inst("Frame", cmdsList, {
-                Size = UDim2.new(1, 0, 0, 56),
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
                 BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35,
                 BorderSizePixel = 0,
             })
             corner(row, 6); stroke(row, T.line, 1, 0.5)
-            inst("TextLabel", row, {
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0, 6), Size = UDim2.new(1, -110, 0, 18),
-                Font = Enum.Font.Code, TextSize = 13, TextColor3 = T.acc,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                Text = item.cmd,
+            inst("UIPadding", row, {
+                PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10),
+                PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
             })
-            inst("TextLabel", row, {
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0, 26), Size = UDim2.new(1, -110, 0, 24),
-                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                TextWrapped = true,
-                Text = item.desc or "",
-            })
+
+            -- Right side: action button (fixed width, vertically centered)
             local hasArgs = item.cmd:find("<") ~= nil
+            local BTN_W = 96
             local btn = inst("TextButton", row, {
-                Size = UDim2.new(0, 92, 0, 30),
-                Position = UDim2.new(1, -100, 0.5, -15),
+                Size = UDim2.new(0, BTN_W, 0, 30),
+                Position = UDim2.new(1, -BTN_W, 0.5, -15),
+                AnchorPoint = Vector2.new(0, 0),
                 BackgroundColor3 = T.acc, BackgroundTransparency = 0.05,
                 BorderSizePixel = 0, AutoButtonColor = true,
                 Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.bg,
                 Text = hasArgs and "Fill ▸" or "Run ▸",
             })
             corner(btn, 6)
+
+            -- Left side: vertical text column that wraps and won't touch the button
+            local textCol = inst("Frame", row, {
+                Size = UDim2.new(1, -(BTN_W + 14), 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+            })
+            inst("UIListLayout", textCol, {
+                Padding = UDim.new(0, 4),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            })
+            inst("TextLabel", textCol, {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                Font = Enum.Font.Code, TextSize = 13, TextColor3 = T.acc,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextYAlignment = Enum.TextYAlignment.Top,
+                TextWrapped = true,
+                Text = item.cmd,
+                LayoutOrder = 1,
+            })
+            inst("TextLabel", textCol, {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 0),
+                AutomaticSize = Enum.AutomaticSize.Y,
+                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextYAlignment = Enum.TextYAlignment.Top,
+                TextWrapped = true,
+                Text = item.desc or "",
+                LayoutOrder = 2,
+            })
+
             btn.MouseButton1Click:Connect(function()
                 local base = item.cmd:match("^(%S+)") or item.cmd
                 if hasArgs then
