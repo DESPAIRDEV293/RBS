@@ -2420,7 +2420,7 @@ local function __SeigeStartSpecialAnim_OLD_DISABLED(e, key)
     if not e or not e.specialStroke then return end
     e.specialAnimToken = (e.specialAnimToken or 0) + 1
     _resetAura(e)
-    local fn = SPECIAL_ANIMS[key]
+    local fn = SPECIAL_ANIMS_DISABLED[key]
     if not fn then
         _setDebug(e, "special: " .. tostring(key) .. " · no anim", Color3.fromRGB(255, 200, 120))
         return
