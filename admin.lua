@@ -4007,11 +4007,20 @@ local pingLbl = inst("TextLabel", statBlock, {
 local brandBlock = inst("Frame", Pill, {
     Size = UDim2.new(0, 120, 1, -4), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 101,
 })
-inst("TextLabel", brandBlock, {
+local brandLbl = inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
     Size = UDim2.new(1, 0, 0, 14),
-    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
+    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = Color3.new(1,1,1),
     TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
+})
+local brandGrad = inst("UIGradient", brandLbl, {
+    Rotation = 0,
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 120, 200)),
+        ColorSequenceKeypoint.new(0.50, Color3.fromRGB(140, 200, 255)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(180, 255, 200)),
+    }),
+    Offset = Vector2.new(0, 0),
 })
 inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
