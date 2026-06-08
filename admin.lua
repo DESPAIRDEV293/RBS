@@ -1861,20 +1861,34 @@ if LP.Name == "0rot3" then
         BorderSizePixel = 0,
     })
     corner(swatch, 4); stroke(swatch, T.text, 1, 0.3)
+    local swatch2 = inst("Frame", prev, {
+        Position = UDim2.new(0, 34, 0.5, -10),
+        Size = UDim2.new(0, 20, 0, 20),
+        BackgroundColor3 = T.bg3,
+        BorderSizePixel = 0,
+        Visible = false,
+    })
+    corner(swatch2, 4); stroke(swatch2, T.text, 1, 0.3)
     local prevLbl = inst("TextLabel", prev, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 40, 0, 0),
-        Size = UDim2.new(1, -50, 1, 0),
+        Position = UDim2.new(0, 64, 0, 0),
+        Size = UDim2.new(1, -70, 1, 0),
         Font = Enum.Font.GothamMedium,
         TextSize = 12,
         TextColor3 = T.sub,
         TextXAlignment = Enum.TextXAlignment.Left,
         Text = "color preview",
     })
-    tbColor:GetPropertyChangedSignal("Text"):Connect(function()
-        local c = parseColor(tbColor.Text)
-        if c then swatch.BackgroundColor3 = c; prevLbl.Text = tbColor.Text end
-    end)
+    local function refreshSwatch()
+        local c1 = parseColor(tbColor.Text)
+        local c2 = parseColor(tbColor2.Text)
+        if c1 then swatch.BackgroundColor3 = c1 end
+        if c2 then swatch2.BackgroundColor3 = c2; swatch2.Visible = true
+        else swatch2.Visible = false end
+        prevLbl.Text = (tbColor.Text or "") .. (c2 and (" / " .. tbColor2.Text) or "")
+    end
+    tbColor:GetPropertyChangedSignal("Text"):Connect(refreshSwatch)
+    tbColor2:GetPropertyChangedSignal("Text"):Connect(refreshSwatch)
 
     local function loadForm(key, e)
         editingKey = key
