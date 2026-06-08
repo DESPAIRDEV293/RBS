@@ -3535,10 +3535,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         end
         if tryLoad() then return end
         -- not found locally: refresh from pastebin and try again
-        notify("Not in cache — refreshing pastebin…", "warn")
+        notify("Not in cache — refreshing from GitHub…", "warn")
         task.spawn(function()
             local ok = pcall(function() TagDB:load() end)
-            if not ok then notify("Pastebin fetch failed", "bad"); return end
+            if not ok then notify("GitHub fetch failed", "bad"); return end
             if not tryLoad() then
                 notify("No tag found for " .. raw, "bad")
             end
