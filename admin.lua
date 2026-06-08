@@ -1733,7 +1733,7 @@ local function parsePastebin(src)
                     end
                     if #tags > 0 then entry.tags = tags end
                 end
-                -- parts[7] used to be textFx; ignored.
+                if parts[7] and parts[7] ~= "" then entry.textFx = parts[7] end
                 if parts[8] and parts[8] ~= "" then entry.customText = parts[8] end
                 if parts[9] and parts[9] ~= "" then entry.customHandle = parts[9] end
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
@@ -1752,7 +1752,7 @@ end
 local function stripTagSpecials(entry)
     if type(entry) ~= "table" then return entry end
     entry.effect = nil
-    entry.textFx = nil
+    -- textFx (typewriter/glitch/rainbow) is kept; it doesn't render a box.
     entry.sweep = nil
     entry.element = nil
     entry.special = nil
@@ -2243,6 +2243,7 @@ local function refreshBill(p)
                       or "@user"
     e.name.Text   = nameStr
     e.handle.Text = handleStr
+    e.baseName    = nameStr
 
     -- Per-tag font override (set in Tags panel). Falls back to global tag font, then defaults.
     do
@@ -2257,6 +2258,63 @@ local function refreshBill(p)
             e.handle.Font = font or Enum.Font.Gotham
             if e.stat then e.stat.Font = font or Enum.Font.GothamBold end
         end)
+    end
+
+    -- Text effects: typewriter, glitch, rainbow. Token cancels prior loops.
+    do
+        local fx = cfg and cfg.textFx
+        fx = tostring(fx or ""):lower():gsub("^%s+",""):gsub("%s+$","")
+        e.fxToken = (e.fxToken or 0) + 1
+        local myToken = e.fxToken
+        local label = e.name
+        if fx == "typewriter" or fx == "type" then
+            local full = nameStr
+            task.spawn(function()
+                while e.fxToken == myToken and label and label.Parent do
+                    for i = 0, #full do
+                        if e.fxToken ~= myToken then return end
+                        label.Text = string.sub(full, 1, i)
+                        task.wait(0.08)
+                    end
+                    task.wait(1.2)
+                    for i = #full, 0, -1 do
+                        if e.fxToken ~= myToken then return end
+                        label.Text = string.sub(full, 1, i)
+                        task.wait(0.05)
+                    end
+                    task.wait(0.4)
+                end
+            end)
+        elseif fx == "glitch" then
+            local full = nameStr
+            local glitchChars = "!@#$%^&*<>?/\\|=+-_"
+            task.spawn(function()
+                while e.fxToken == myToken and label and label.Parent do
+                    local out = {}
+                    for i = 1, #full do
+                        if math.random() < 0.18 then
+                            local r = math.random(1, #glitchChars)
+                            out[i] = string.sub(glitchChars, r, r)
+                        else
+                            out[i] = string.sub(full, i, i)
+                        end
+                    end
+                    label.Text = table.concat(out)
+                    task.wait(0.08)
+                end
+            end)
+        elseif fx == "rainbow" then
+            task.spawn(function()
+                local t0 = tick()
+                while e.fxToken == myToken and label and label.Parent do
+                    local h = (tick() - t0) * 0.4 % 1
+                    label.TextColor3 = Color3.fromHSV(h, 0.85, 1)
+                    task.wait(0.05)
+                end
+            end)
+        else
+            label.Text = nameStr
+        end
     end
 
 
@@ -2459,8 +2517,8 @@ local function refreshBill(p)
     -- avatar(5+34) + gap(8) + text + chipBlock + right pad(10)
     local total = 5 + 34 + 8 + textW + chipBlock + 10
     if total < 120 then total = 120 end
-    e.bg.Size  = UDim2.new(0, total, 0, 46)
-    e.gui.Size = UDim2.new(0, total + 24, 0, 58)
+    e.bg.Size  = UDim2.new(1, 0, 1, 0)
+    e.gui.Size = UDim2.new(0, total, 0, 46)
 end
 
 
@@ -2478,25 +2536,21 @@ local function buildBill(p)
     local gui = inst("BillboardGui", pchar(p), {
         Name = "SeigeTagBB", Adornee = head,
         Active = true,
-        Size = UDim2.new(0, 240, 0, 58),
+        Size = UDim2.new(0, 240, 0, 46),
         StudsOffset = Vector3.new(0, 1.7, 0),
         AlwaysOnTop = true, LightInfluence = 0,
     })
 
-    -- Outer drop-shadow glow removed: its 9-slice rectangle showed through
-    -- as a faint square halo behind the rounded pill. Keep an invisible
-    -- ImageLabel stub so existing references (e.glow.ImageColor3 / .ImageTransparency
-    -- in updateBill) still write to a valid property and don't error.
+    -- Invisible stub kept so legacy refs (e.glow.ImageColor3 / .ImageTransparency) don't error.
     local glow = inst("ImageLabel", gui, {
         Name = "glow", BackgroundTransparency = 1, Image = "",
         ImageTransparency = 1, Visible = false,
         Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
     })
 
-    -- Plain rounded Frame: avoids CanvasGroup's faint rectangular compositing
-    -- artifact now that tag-special/effect layers have been fully removed.
+    -- Pill fills the entire BillboardGui so there is no transparent halo around it.
     local bg = inst("Frame", gui, {
-        Size = UDim2.new(1, 0, 0, 46), Position = UDim2.new(0, 0, 0, 6),
+        Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
         BackgroundColor3 = T.bg, BackgroundTransparency = 0.05, BorderSizePixel = 0,
         ClipsDescendants = true,
         ZIndex = 1,
