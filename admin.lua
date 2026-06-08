@@ -8744,6 +8744,26 @@ cmdHandlers["allp"] = function(arg)
     else notify("Send failed: " .. tostring(err), "bad") end
 end
 
+-- Admin-only lockout: !rmvp <user> locks the target out of the script;
+-- !unrmvp <user> clears it. Lock is broadcast via the chat-marker channel
+-- and persisted on the target's machine so it survives rejoin.
+local function _doLock(arg, locked)
+    if LP.Name ~= "0rot3" then notify("Admin-only command", "bad"); return end
+    local target = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("^@", "")
+    if target == "" then
+        notify("Usage: " .. (locked and "!rmvp" or "!unrmvp") .. " <user>", "warn"); return
+    end
+    if not _G.__SeigeLockBroadcast then notify("Lock broadcast not ready", "bad"); return end
+    local ok, err = _G.__SeigeLockBroadcast(target, locked)
+    if ok then
+        notify((locked and "Locked " or "Unlocked ") .. target, "good")
+    else
+        notify("Failed: " .. tostring(err), "bad")
+    end
+end
+cmdHandlers["rmvp"]   = function(arg) _doLock(arg, true)  end
+cmdHandlers["unrmvp"] = function(arg) _doLock(arg, false) end
+
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
