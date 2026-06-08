@@ -3296,8 +3296,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 if cleanId ~= "" then entry.icon = cleanId end
             end
         end
-        if form.effect and form.effect ~= "none" then entry.effect = form.effect end
-        if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
         local ct = pick(form.customText, tbCustom.Text)
         if ct ~= "" then entry.customText = ct end
         local ch = pick(form.customHandle, tbHandle.Text)
@@ -3311,7 +3309,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if form.font and form.font ~= "" and form.font ~= "Default" then
             entry.font = form.font
         end
-        if form.sweep == "off" then entry.sweep = "off" end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
@@ -3422,15 +3419,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 k,
                 e.displayName or "",
                 e.color or "",
-                e.effect or "",
+                "",
                 e.icon or "",
                 tagsStr,
-                e.textFx or "",
+                "",
                 e.customText or "",
                 e.customHandle or "",
                 e.outline or "",
                 e.font or "",
-                e.sweep or "",
+                "",
                 "",
             }
             -- Trim trailing empty fields so each row stays compact like the
