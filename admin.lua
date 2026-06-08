@@ -6416,18 +6416,21 @@ do
         end)
         return true
     end
+    _G.__SeigeCycleVoice = cycleVoice
     cmdHandlers["antivc"] = function()
-        if _G.__SeigeAntiVC and _G.__SeigeAntiVC.on then
+        _G.__SeigeAntiVC = _G.__SeigeAntiVC or { on = false, interval = 25 }
+        if _G.__SeigeAntiVC.on then
             _G.__SeigeAntiVC.on = false
             notify("AntiVC OFF", "warn"); return
         end
         local svc = getVoice()
         if not svc then notify("VoiceChat service unavailable", "bad"); return end
-        _G.__SeigeAntiVC = { on = true }
+        _G.__SeigeAntiVC.on = true
         notify("AntiVC ON — recycling voice (undetected)", "good")
         task.spawn(function()
             while _G.__SeigeAntiVC and _G.__SeigeAntiVC.on do
-                task.wait(20 + math.random() * 10) -- jittered interval
+                local base = tonumber(_G.__SeigeAntiVC.interval) or 25
+                task.wait(math.max(4, base) + math.random() * 4)
                 if not (_G.__SeigeAntiVC and _G.__SeigeAntiVC.on) then break end
                 cycleVoice()
             end
