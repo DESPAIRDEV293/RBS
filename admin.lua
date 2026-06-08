@@ -271,6 +271,19 @@ local glow = inst("ImageLabel", Win, {
     ZIndex = 0,
 })
 
+-- Custom background (image / gif via spritesheet) -- lives behind glass
+local Backdrop = inst("ImageLabel", Win, {
+    Name = "Backdrop",
+    BackgroundTransparency = 1,
+    Image = "",
+    ImageTransparency = 0.4,
+    ScaleType = Enum.ScaleType.Crop,
+    Size = UDim2.new(1, 0, 1, 0),
+    Position = UDim2.new(0, 0, 0, 0),
+    ZIndex = 0,
+})
+corner(Backdrop, 14)
+
 -- Title bar (drag region)
 local Top = inst("Frame", Win, {
     Size = UDim2.new(1, 0, 0, 44),
@@ -1155,7 +1168,8 @@ local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
 local pgAim     = makeTab("Aim",     "✚", "Aim assist and silent aim")
 
 local pgServer  = makeTab("Server",  "≡", "Server hop and rejoin")
-local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands and rejoin")
+local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands, executor and rejoin")
+local pgThemes  = makeTab("Themes",  "✿", "Customize colors and background")
 local pgConfig  = makeTab("Config",  "⚙", "Settings and keybinds")
 
 ------------------------------------------------------- HELPERS
@@ -2709,6 +2723,313 @@ end)
 button(pgCmds, "Copy PlaceId", function()
     if setclipboard then setclipboard(tostring(game.PlaceId)); notify("PlaceId copied", "good")
     else notify("setclipboard unavailable", "bad") end
+end)
+
+------------------------------------------------------- EXECUTOR BAR (Cmds)
+section(pgCmds, "Executor")
+
+local execFrame = inst("Frame", pgCmds, {
+    Size = UDim2.new(1, -8, 0, 130),
+    BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3, BorderSizePixel = 0,
+    Visible = false,
+})
+corner(execFrame, 8); stroke(execFrame, T.line, 1, 0.5)
+
+local execBox = inst("TextBox", execFrame, {
+    Position = UDim2.new(0, 8, 0, 8),
+    Size = UDim2.new(1, -16, 1, -48),
+    BackgroundColor3 = T.bg, BackgroundTransparency = 0.15, BorderSizePixel = 0,
+    Font = Enum.Font.Code, TextSize = 12,
+    TextColor3 = T.text, PlaceholderColor3 = T.dim,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+    ClearTextOnFocus = false, MultiLine = true,
+    PlaceholderText = "-- Lua code, e.g.  print('hi')",
+    Text = "",
+})
+corner(execBox, 6); stroke(execBox, T.line, 1, 0.5)
+inst("UIPadding", execBox, {
+    PaddingLeft = UDim.new(0,8), PaddingRight = UDim.new(0,8),
+    PaddingTop = UDim.new(0,6), PaddingBottom = UDim.new(0,6),
+})
+
+local function runExec()
+    local src = execBox.Text
+    if src == "" then return end
+    local ls = rawget(getfenv(), "loadstring") or loadstring
+    if not ls then notify("loadstring unavailable", "bad"); return end
+    local fn, err = ls(src)
+    if not fn then notify("Compile: " .. tostring(err), "bad"); return end
+    local ok, perr = pcall(fn)
+    if ok then notify("Executed", "good")
+    else notify("Runtime: " .. tostring(perr), "bad") end
+end
+
+local execRun = inst("TextButton", execFrame, {
+    AnchorPoint = Vector2.new(1, 1),
+    Position = UDim2.new(1, -8, 1, -8),
+    Size = UDim2.new(0, 90, 0, 28),
+    BackgroundColor3 = T.acc, BackgroundTransparency = 0.1, BorderSizePixel = 0,
+    AutoButtonColor = false,
+    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+    Text = "Execute",
+})
+corner(execRun, 6); stroke(execRun, T.line, 1, 0.5)
+execRun.MouseButton1Click:Connect(runExec)
+
+local execClear = inst("TextButton", execFrame, {
+    AnchorPoint = Vector2.new(0, 1),
+    Position = UDim2.new(0, 8, 1, -8),
+    Size = UDim2.new(0, 70, 0, 28),
+    BackgroundColor3 = T.bg3, BackgroundTransparency = 0.15, BorderSizePixel = 0,
+    AutoButtonColor = false,
+    Font = Enum.Font.GothamSemibold, TextSize = 12, TextColor3 = T.text,
+    Text = "Clear",
+})
+corner(execClear, 6); stroke(execClear, T.line, 1, 0.5)
+execClear.MouseButton1Click:Connect(function() execBox.Text = "" end)
+
+local execPaste = inst("TextButton", execFrame, {
+    AnchorPoint = Vector2.new(0, 1),
+    Position = UDim2.new(0, 82, 1, -8),
+    Size = UDim2.new(0, 70, 0, 28),
+    BackgroundColor3 = T.bg3, BackgroundTransparency = 0.15, BorderSizePixel = 0,
+    AutoButtonColor = false,
+    Font = Enum.Font.GothamSemibold, TextSize = 12, TextColor3 = T.text,
+    Text = "Paste",
+})
+corner(execPaste, 6); stroke(execPaste, T.line, 1, 0.5)
+execPaste.MouseButton1Click:Connect(function()
+    local gc = rawget(getfenv(), "getclipboard") or rawget(getfenv(), "Clipboard")
+    if type(gc) == "function" then
+        local ok, s = pcall(gc); if ok and s then execBox.Text = s; notify("Pasted", "good") end
+    else notify("getclipboard unavailable", "warn") end
+end)
+
+local execEnabled = false
+toggle(pgCmds, "Show execution bar", false, function(v)
+    execEnabled = v
+    execFrame.Visible = v
+    if _G.__AdminSaveCfg then _G.__AdminSaveCfg() end
+end)
+-- Reorder so executor frame appears under the toggle visually:
+execFrame.LayoutOrder = 99
+
+------------------------------------------------------- THEMES TAB
+local THEME_FILE = "seige_admin_theme.json"
+
+local function hexToColor(h)
+    if type(h) ~= "string" then return nil end
+    h = h:gsub("#", ""):gsub("%s", "")
+    if #h ~= 6 then return nil end
+    local r = tonumber(h:sub(1,2),16); local g = tonumber(h:sub(3,4),16); local b = tonumber(h:sub(5,6),16)
+    if not (r and g and b) then return nil end
+    return Color3.fromRGB(r,g,b)
+end
+local function cToHex(c)
+    return string.format("#%02X%02X%02X",
+        math.floor(c.R*255+0.5), math.floor(c.G*255+0.5), math.floor(c.B*255+0.5))
+end
+
+-- Walk all UI and remap any color that matches an old role color to the new one.
+local function applyTheme(newT)
+    local oldT = {}
+    for k,v in pairs(T) do oldT[k] = v end
+    for k,v in pairs(newT) do if typeof(v) == "Color3" then T[k] = v end end
+    for _, d in ipairs(Root:GetDescendants()) do
+        for k, oc in pairs(oldT) do
+            local nc = T[k]
+            if nc and oc ~= nc then
+                pcall(function() if d.BackgroundColor3 == oc then d.BackgroundColor3 = nc end end)
+                pcall(function() if d.TextColor3 == oc then d.TextColor3 = nc end end)
+                pcall(function() if d.ImageColor3 == oc then d.ImageColor3 = nc end end)
+                pcall(function() if d.PlaceholderColor3 == oc then d.PlaceholderColor3 = nc end end)
+                pcall(function() if d.ScrollBarImageColor3 == oc then d.ScrollBarImageColor3 = nc end end)
+                if d:IsA("UIStroke") and d.Color == oc then d.Color = nc end
+            end
+        end
+    end
+end
+
+local bgState = { image = "", trans = 0.4 }
+local function resolveBgUrl(s)
+    if not s or s == "" then return "" end
+    s = tostring(s):gsub("^%s+",""):gsub("%s+$","")
+    if tonumber(s) then return "rbxassetid://" .. s end
+    if s:match("^rbxassetid://") or s:match("^rbxthumb://") or s:match("^https?://") or s:match("^rbxasset://") then
+        return s
+    end
+    local gca = rawget(getfenv(), "getcustomasset") or rawget(getfenv(), "getsynasset")
+    if type(gca) == "function" then
+        local ok, v = pcall(gca, s); if ok and v then return v end
+    end
+    return s
+end
+local function applyBg()
+    Backdrop.Image = resolveBgUrl(bgState.image)
+    Backdrop.ImageTransparency = bgState.trans
+end
+
+local saveCfg, loadCfg
+saveCfg = function()
+    local data = { theme = {}, bg = bgState, execEnabled = execEnabled }
+    for k,v in pairs(T) do
+        if typeof(v) == "Color3" then data.theme[k] = cToHex(v) end
+    end
+    local wf = rawget(getfenv(), "writefile")
+    if wf then pcall(wf, THEME_FILE, HttpService:JSONEncode(data)) end
+end
+_G.__AdminSaveCfg = saveCfg
+
+loadCfg = function()
+    local rf = rawget(getfenv(), "readfile")
+    local isf = rawget(getfenv(), "isfile")
+    if not (rf and isf and isf(THEME_FILE)) then return end
+    local ok, data = pcall(function() return HttpService:JSONDecode(rf(THEME_FILE)) end)
+    if not ok or type(data) ~= "table" then return end
+    if type(data.theme) == "table" then
+        local newT = {}
+        for k, hex in pairs(data.theme) do
+            local c = hexToColor(hex); if c then newT[k] = c end
+        end
+        applyTheme(newT)
+    end
+    if type(data.bg) == "table" then
+        bgState.image = data.bg.image or ""
+        bgState.trans = tonumber(data.bg.trans) or 0.4
+        applyBg()
+    end
+end
+
+section(pgThemes, "Background")
+local bgImgBox = textbox(pgThemes, "Image / GIF asset id or URL (rbxassetid://, http://...)", function(v)
+    bgState.image = v; applyBg(); saveCfg()
+    notify("Background updated", "good")
+end)
+slider(pgThemes, "Background opacity", 0, 1, 0.4, function(v)
+    bgState.trans = 1 - v  -- slider 0=invisible, 1=fully visible
+    applyBg(); saveCfg()
+end)
+button(pgThemes, "Clear background", function()
+    bgState.image = ""; applyBg(); saveCfg(); notify("Background cleared", "good")
+end)
+label(pgThemes, "Tip: paste an asset id (numbers only) or full URL. GIFs require an animated asset.")
+
+section(pgThemes, "Presets")
+local PRESETS = {
+    ["Midnight (default)"] = {
+        bg=Color3.fromRGB(12,13,18), bg2=Color3.fromRGB(20,22,30), bg3=Color3.fromRGB(32,36,48),
+        line=Color3.fromRGB(60,66,82), text=Color3.fromRGB(240,242,248),
+        sub=Color3.fromRGB(140,148,168), dim=Color3.fromRGB(90,96,112),
+        acc=Color3.fromRGB(120,150,255), acc2=Color3.fromRGB(80,110,240),
+    },
+    ["Crimson"] = {
+        bg=Color3.fromRGB(18,10,12), bg2=Color3.fromRGB(30,16,20), bg3=Color3.fromRGB(50,26,32),
+        line=Color3.fromRGB(90,40,52), text=Color3.fromRGB(248,240,242),
+        sub=Color3.fromRGB(180,140,150), dim=Color3.fromRGB(110,70,80),
+        acc=Color3.fromRGB(240,80,110), acc2=Color3.fromRGB(200,40,80),
+    },
+    ["Emerald"] = {
+        bg=Color3.fromRGB(10,18,14), bg2=Color3.fromRGB(16,30,22), bg3=Color3.fromRGB(26,50,36),
+        line=Color3.fromRGB(40,90,60), text=Color3.fromRGB(240,248,244),
+        sub=Color3.fromRGB(140,180,158), dim=Color3.fromRGB(70,110,84),
+        acc=Color3.fromRGB(80,220,140), acc2=Color3.fromRGB(40,180,110),
+    },
+    ["Amethyst"] = {
+        bg=Color3.fromRGB(16,12,22), bg2=Color3.fromRGB(26,20,38), bg3=Color3.fromRGB(44,32,64),
+        line=Color3.fromRGB(80,60,120), text=Color3.fromRGB(244,240,250),
+        sub=Color3.fromRGB(170,150,200), dim=Color3.fromRGB(100,84,140),
+        acc=Color3.fromRGB(180,120,255), acc2=Color3.fromRGB(140,80,230),
+    },
+    ["Sunset"] = {
+        bg=Color3.fromRGB(22,14,10), bg2=Color3.fromRGB(36,22,16), bg3=Color3.fromRGB(60,36,24),
+        line=Color3.fromRGB(120,70,40), text=Color3.fromRGB(250,244,238),
+        sub=Color3.fromRGB(200,160,130), dim=Color3.fromRGB(130,90,60),
+        acc=Color3.fromRGB(255,160,80), acc2=Color3.fromRGB(230,110,60),
+    },
+    ["Mono Light"] = {
+        bg=Color3.fromRGB(238,238,242), bg2=Color3.fromRGB(220,222,228), bg3=Color3.fromRGB(200,204,212),
+        line=Color3.fromRGB(160,164,176), text=Color3.fromRGB(20,22,28),
+        sub=Color3.fromRGB(90,96,110), dim=Color3.fromRGB(140,144,156),
+        acc=Color3.fromRGB(60,90,200), acc2=Color3.fromRGB(40,70,180),
+    },
+}
+local function applyPreset(name)
+    local p = PRESETS[name]; if not p then return end
+    applyTheme(p); saveCfg(); notify("Theme: " .. name, "good")
+end
+for name,_ in pairs(PRESETS) do
+    button(pgThemes, name, function() applyPreset(name) end)
+end
+
+section(pgThemes, "Custom colors")
+local ROLE_ORDER = { "bg","bg2","bg3","line","text","sub","dim","acc","acc2","good","warn","bad" }
+local roleRows = {}
+local function makeRoleRow(role)
+    local row = inst("Frame", pgThemes, {
+        Size = UDim2.new(1, -8, 0, 34),
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3, BorderSizePixel = 0,
+    })
+    corner(row, 8); stroke(row, T.line, 1, 0.5)
+    local lbl = inst("TextLabel", row, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 10, 0, 0), Size = UDim2.new(0, 60, 1, 0),
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = role,
+    })
+    local sw = inst("Frame", row, {
+        Position = UDim2.new(0, 76, 0.5, -10), Size = UDim2.new(0, 22, 0, 20),
+        BackgroundColor3 = T[role] or T.acc, BorderSizePixel = 0,
+    })
+    corner(sw, 4); stroke(sw, T.line, 1, 0.4)
+    local box = inst("TextBox", row, {
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.2, BorderSizePixel = 0,
+        Position = UDim2.new(0, 106, 0.5, -11), Size = UDim2.new(0, 100, 0, 22),
+        Font = Enum.Font.Code, TextSize = 12, TextColor3 = T.text,
+        Text = cToHex(T[role] or T.acc), ClearTextOnFocus = false,
+        TextXAlignment = Enum.TextXAlignment.Center,
+    })
+    corner(box, 6); stroke(box, T.line, 1, 0.4)
+    local apply = inst("TextButton", row, {
+        Position = UDim2.new(0, 214, 0.5, -11), Size = UDim2.new(0, 60, 0, 22),
+        BackgroundColor3 = T.acc, BackgroundTransparency = 0.15, BorderSizePixel = 0,
+        AutoButtonColor = false, Font = Enum.Font.GothamBold, TextSize = 11,
+        TextColor3 = T.text, Text = "Apply",
+    })
+    corner(apply, 6); stroke(apply, T.line, 1, 0.4)
+    local function doApply()
+        local c = hexToColor(box.Text)
+        if not c then notify("Invalid hex: " .. box.Text, "bad"); return end
+        applyTheme({ [role] = c }); sw.BackgroundColor3 = T[role]; saveCfg()
+    end
+    apply.MouseButton1Click:Connect(doApply)
+    box.FocusLost:Connect(function(enter) if enter then doApply() end end)
+    roleRows[role] = { box = box, sw = sw }
+end
+for _, r in ipairs(ROLE_ORDER) do makeRoleRow(r) end
+
+button(pgThemes, "Reset to default", function()
+    applyPreset("Midnight (default)")
+    bgState.image = ""; bgState.trans = 0.4; applyBg(); saveCfg()
+    for _, r in ipairs(ROLE_ORDER) do
+        if roleRows[r] then
+            roleRows[r].box.Text = cToHex(T[r] or T.acc)
+            roleRows[r].sw.BackgroundColor3 = T[r] or T.acc
+        end
+    end
+end)
+
+-- Restore saved theme/background/exec preferences after all UI exists.
+task.spawn(function()
+    pcall(loadCfg)
+    -- refresh hex inputs after load
+    for _, r in ipairs(ROLE_ORDER) do
+        if roleRows[r] then
+            roleRows[r].box.Text = cToHex(T[r] or T.acc)
+            roleRows[r].sw.BackgroundColor3 = T[r] or T.acc
+        end
+    end
+    if bgState.image ~= "" then bgImgBox.Text = bgState.image end
 end)
 
 ------------------------------------------------------- CONFIG TAB
