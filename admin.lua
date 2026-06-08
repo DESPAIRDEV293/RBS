@@ -1002,6 +1002,57 @@ local function parseColorPair(c)
     if a and b then return parseColor(a), parseColor(b) end
     return parseColor(c), nil
 end
+
+-- Bubble fill parser. Returns a table describing how to paint the bubble.
+-- Supported syntax (stored in entry.color):
+--   "#ff3b6b"                       solid
+--   "#ff3b6b/#00aaff"               split (half/half)
+--   "grad:#a,#b,#c@90"              linear gradient w/ N stops, optional @angle
+--   "image:1234567890"              image fill (asset id or full url)
+local function parseFill(s)
+    if type(s) ~= "string" or s == "" then return nil end
+    local low = s:lower()
+    if low:sub(1,9) == "gradient:" or low:sub(1,5) == "grad:" then
+        local body = s:gsub("^[Gg][Rr][Aa][Dd][Ii][Ee][Nn][Tt]:", "")
+        body = body:gsub("^[Gg][Rr][Aa][Dd]:", "")
+        local angle = 90
+        local at = body:find("@")
+        if at then
+            angle = tonumber(body:sub(at + 1)) or 90
+            body = body:sub(1, at - 1)
+        end
+        local stops = {}
+        for chunk in (body .. ","):gmatch("([^,]*),") do
+            chunk = chunk:gsub("^%s+", ""):gsub("%s+$", "")
+            if chunk ~= "" then
+                local c = parseColor(chunk)
+                if c then stops[#stops + 1] = c end
+            end
+        end
+        if #stops >= 2 then return { kind = "gradient", stops = stops, rotation = angle } end
+        if #stops == 1 then return { kind = "solid", c = stops[1] } end
+        return nil
+    elseif low:sub(1,6) == "image:" or low:sub(1,4) == "img:" then
+        local rest = s:gsub("^[Ii][Mm][Aa][Gg][Ee]:", ""):gsub("^[Ii][Mm][Gg]:", "")
+        rest = rest:gsub("^%s+", ""):gsub("%s+$", "")
+        if rest == "" then return nil end
+        local url = rest
+        if tonumber(url) then
+            url = "rbxassetid://" .. url
+        elseif not (url:match("^rbx") or url:match("^https?://")) then
+            local gca = rawget(getfenv(), "getcustomasset") or rawget(getfenv(), "getsynasset")
+            if type(gca) == "function" then
+                local ok, v = pcall(gca, rest); if ok and v then url = v end
+            end
+        end
+        return { kind = "image", url = url }
+    else
+        local c1, c2 = parseColorPair(s)
+        if c1 and c2 then return { kind = "split", c1 = c1, c2 = c2 } end
+        if c1 then return { kind = "solid", c = c1 } end
+        return nil
+    end
+end
 function TagDB:configFor(p)
     if not p then return nil end
     return self.entries[(p.Name or ""):lower()]
