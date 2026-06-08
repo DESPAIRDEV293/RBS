@@ -1740,7 +1740,8 @@ local function parsePastebin(src)
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
                 if parts[11] and parts[11] ~= "" then entry.font = parts[11] end
                 if parts[12] and parts[12] ~= "" then entry.sweep = parts[12]:lower() end
-                if parts[13] and parts[13] ~= "" then entry.element = parts[13]:lower() end
+                -- Old unused 13th field intentionally ignored/stripped so saved
+                -- values cannot bring back the faint square aura behind tags.
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -2139,22 +2140,6 @@ end)
 local floatOn = false
 local tagBills = {}
 
--- ===== Tag specials (bundled outline-aura presets) =====
--- Each named special is a PNG bundled in the repo. The tag editor lets users
--- pick a special from a dropdown; it renders as a glowing image AROUND the
--- tag bubble outline (it does NOT replace the bubble's back-plate).
-local TAG_ELEMENT_NAMES = { "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
-local TAG_SPECIAL_BASE = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tagspecials/"
-local TAG_SPECIAL_URLS = {}
-for _, n in ipairs(TAG_ELEMENT_NAMES) do
-    TAG_SPECIAL_URLS[n] = TAG_SPECIAL_BASE .. n .. ".png"
-end
--- Kept for backward compat with old saved configs that referenced this table.
-local tagElements = {}
-for _, n in ipairs(TAG_ELEMENT_NAMES) do tagElements[n] = "" end
-_G.__SeigeTagElements = tagElements
-_G.__SeigeTagSpecials = TAG_SPECIAL_URLS
-
 -- ===== Particle effects (rain / snow / sparkle / nebula) =====
 local lastSpawn = setmetatable({}, { __mode = "k" })
 local NEBULA_COLORS = {
@@ -2301,163 +2286,6 @@ local function parseGifSpec(raw)
         fh = math.floor(size / rows),
     }
 end
-
--- ===== Tag special animations =====
--- Each named special drives the `specialStroke` (UIStroke on the rounded
--- pill bg) so the effect always wraps the bubble shape and never appears
--- as a square. Loops are token-guarded so re-applying or removing the
--- special cancels the previous coroutine cleanly.
-local function _animLoop(e, token, runFrame)
-    if _G.__SeigeReducedMotion then
-        return
-    end
-    task.spawn(function()
-        local t0 = os.clock()
-        while e.specialStroke and e.specialStroke.Parent and e.specialAnimToken == token do
-            local t = os.clock() - t0
-            local ok = pcall(runFrame, t)
-            if not ok then break end
-            RunService.Heartbeat:Wait()
-        end
-    end)
-end
-
-local function _setStroke(e, color, thickness, transparency)
-    if not e.specialStroke then return end
-    if color then e.specialStroke.Color = color end
-    if thickness then e.specialStroke.Thickness = thickness end
-    if transparency then e.specialStroke.Transparency = transparency end
-end
-
-local function _resetAura(e)
-    if e.specialStroke then
-        e.specialStroke.Thickness = 0
-        e.specialStroke.Transparency = 1
-        e.specialStroke.Color = Color3.fromRGB(255, 255, 255)
-    end
-    if e.specialGrad then
-        e.specialGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
-        e.specialGrad.Rotation = 0
-    end
-end
-
-local SPECIAL_ANIMS = {
-    abyss = function(e, t)
-        local k = (math.sin(t * 1.4) + 1) * 0.5
-        _setStroke(e, Color3.fromRGB(120 + k * 40, 140 + k * 40, 220), 2.5 + k * 1.5, 0.05 + (1 - k) * 0.35)
-    end,
-    aurora = function(e, t)
-        -- color cycling along the border via UIGradient
-        local h1 = (t * 0.08) % 1
-        local h2 = (h1 + 0.33) % 1
-        local h3 = (h1 + 0.66) % 1
-        e.specialGrad.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0,   Color3.fromHSV(h1, 0.6, 1)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromHSV(h2, 0.6, 1)),
-            ColorSequenceKeypoint.new(1,   Color3.fromHSV(h3, 0.6, 1)),
-        })
-        e.specialGrad.Rotation = (t * 30) % 360
-        _setStroke(e, Color3.fromRGB(255, 255, 255), 3, 0.1 + math.sin(t * 2) * 0.1)
-    end,
-    celestial = function(e, t)
-        local k = (math.sin(t * 3.2) + 1) * 0.5
-        _setStroke(e, Color3.fromRGB(220 + k * 35, 230 + k * 25, 255), 2 + k * 2, 0.05 + (1 - k) * 0.3)
-    end,
-    crimson = function(e, t)
-        local phase = (t * 1.1) % 1
-        local pulse
-        if phase < 0.15 then pulse = phase / 0.15
-        elseif phase < 0.30 then pulse = 1 - (phase - 0.15) / 0.15
-        elseif phase < 0.45 then pulse = (phase - 0.30) / 0.15
-        elseif phase < 0.60 then pulse = 1 - (phase - 0.45) / 0.15
-        else pulse = 0 end
-        _setStroke(e, Color3.fromRGB(255, 60 + pulse * 60, 80 + pulse * 40), 2 + pulse * 3, 0.1 + (1 - pulse) * 0.45)
-    end,
-    ember = function(e, t)
-        local flick = math.noise(t * 6, 0, 0)
-        _setStroke(e, Color3.fromRGB(255, 130 + flick * 60, 40 + flick * 30), 2.5 + (flick + 0.5) * 1.5, 0.15 + (0.5 - flick) * 0.3)
-    end,
-    neon = function(e, t)
-        local s = math.sin(t * 4.5)
-        _setStroke(e, Color3.fromHSV(((t * 0.5) % 1), 1, 1), s > 0 and 4 or 1.5, s > 0 and 0 or 0.55)
-    end,
-    obsidian = function(e, t)
-        local k = (math.sin(t * 1.0) + 1) * 0.5
-        _setStroke(e, Color3.fromRGB(70 + k * 40, 70 + k * 40, 90 + k * 40), 2 + k * 2, 0.2 + (1 - k) * 0.35)
-    end,
-    shadow = function(e, t)
-        local k = (math.sin(t * 1.6) + 1) * 0.5
-        _setStroke(e, Color3.fromRGB(40 + k * 30, 40 + k * 30, 50 + k * 30), 2 + k * 3, 0.25 + (1 - k) * 0.5)
-    end,
-    solar = function(e, t)
-        local k = (math.sin(t * 2.4) + 1) * 0.5
-        _setStroke(e, Color3.fromRGB(255, 200 + k * 50, 80 + k * 60), 2.5 + k * 2, 0.05 + (1 - k) * 0.3)
-        if e.specialGrad then e.specialGrad.Rotation = (t * 60) % 360 end
-    end,
-    void = function(e, t)
-        local k = (math.sin(t * 0.9) + 1) * 0.5
-        _setStroke(e, Color3.fromRGB(140 - k * 40, 80 - k * 30, 180 - k * 30), 2 + k * 2.5, 0.15 + (1 - k) * 0.5)
-        if e.specialGrad then e.specialGrad.Rotation = -((t * 24) % 360) end
-    end,
-}
-
-local function _setDebug(e, text, color)
-    if not e or not e.debugLbl then return end
-    e.debugLbl.Text = text
-    if color then e.debugLbl.TextColor3 = color end
-    e.debugLbl.Visible = _G.__SeigeTagDebug == true
-end
-
-function _G.__SeigeStartSpecialAnim(e, key)
-    if not e or not e.specialStroke then return end
-    e.specialAnimToken = (e.specialAnimToken or 0) + 1
-    _resetAura(e)
-    local fn = SPECIAL_ANIMS[key]
-    if not fn then
-        _setDebug(e, "special: " .. tostring(key) .. " · no anim", Color3.fromRGB(255, 200, 120))
-        return
-    end
-    _setDebug(e, "special: " .. key .. " · running", Color3.fromRGB(180, 255, 180))
-    local myToken = e.specialAnimToken
-    _animLoop(e, myToken, function(t) fn(e, t) end)
-    task.spawn(function()
-        while e.specialAnimToken == myToken do RunService.Heartbeat:Wait() end
-        if e.specialKey == nil then
-            _setDebug(e, "special: none", Color3.fromRGB(180, 180, 180))
-        end
-    end)
-end
-
-function _G.__SeigeStopSpecialAnim(e)
-    if not e then return end
-    e.specialAnimToken = (e.specialAnimToken or 0) + 1
-    _resetAura(e)
-    _setDebug(e, "special: none · cancelled", Color3.fromRGB(255, 160, 160))
-    task.delay(1.2, function()
-        if e and e.specialKey == nil then
-            _setDebug(e, "special: none", Color3.fromRGB(180, 180, 180))
-        end
-    end)
-end
-
--- Flip the debug overlay on/off across every live bubble.
-function _G.__SeigeSetTagDebug(on)
-    _G.__SeigeTagDebug = on and true or false
-    local bills = _G.__SeigeTagBills
-    if not bills then return end
-    for _, e in pairs(bills) do
-        if e and e.debugLbl then
-            if _G.__SeigeTagDebug then
-                if (e.debugLbl.Text or "") == "" then e.debugLbl.Text = "special: none" end
-                e.debugLbl.Visible = true
-            else
-                e.debugLbl.Visible = false
-            end
-        end
-    end
-end
-
-
 
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
@@ -2702,27 +2530,6 @@ local function refreshBill(p)
         end
     end
 
-    -- Tag special (outline aura): drives a UIStroke on the rounded pill
-    -- so the effect always wraps the bubble shape and never appears square.
-    if e.specialStroke then
-        local elName = cfg and cfg.element
-        local key = (elName and tostring(elName):lower()) or nil
-        if key and key ~= "" and key ~= "none" and SPECIAL_ANIMS and SPECIAL_ANIMS[key] then
-            if e.specialKey ~= key then
-                e.specialKey = key
-                if _G.__SeigeStartSpecialAnim then _G.__SeigeStartSpecialAnim(e, key) end
-            end
-        else
-            if e.specialKey ~= nil and _G.__SeigeStopSpecialAnim then
-                _G.__SeigeStopSpecialAnim(e)
-            end
-            e.specialKey = nil
-        end
-    end
-
-
-
-
     -- Effect change
     local newEffect = cfg and cfg.effect
     if newEffect ~= e.effect then
@@ -2761,7 +2568,6 @@ local function refreshBill(p)
     local total = 5 + 34 + 8 + textW + chipBlock + 10
     if total < 120 then total = 120 end
     e.bg.Size  = UDim2.new(0, total, 0, 46)
-    if e.specialBorder then e.specialBorder.Size = UDim2.new(0, total, 0, 46) end
     e.gui.Size = UDim2.new(0, total + 24, 0, 58)
 end
 
@@ -2806,59 +2612,6 @@ local function buildBill(p)
         ZIndex = 1,
     })
     corner(bg, 23)
-
-    -- Tag special aura: drawn as a UIStroke around a transparent Frame that
-    -- exactly overlays `bg`. UIStroke does NOT render reliably on a
-    -- CanvasGroup (which bg is, so descendants can be UICorner-clipped), so
-    -- we host the stroke on a sibling Frame instead. The frame is transparent
-    -- and only the stroke is visible — guaranteed to wrap the pill shape and
-    -- never appear square.
-    local specialBorder = inst("Frame", gui, {
-        Name = "specialBorder",
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 46),
-        Position = UDim2.new(0, 0, 0, 6),
-        ZIndex = 2,
-    })
-    corner(specialBorder, 23)
-    local specialStroke = inst("UIStroke", specialBorder, {
-        Color = Color3.fromRGB(255, 255, 255),
-        Thickness = 0,
-        Transparency = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-        LineJoinMode = Enum.LineJoinMode.Round,
-    })
-    local specialGrad = inst("UIGradient", specialStroke, {
-        Color = ColorSequence.new(Color3.fromRGB(255, 255, 255)),
-        Rotation = 0,
-    })
-    -- Legacy image aura: kept hidden so older references stay non-nil.
-    local aura = inst("ImageLabel", gui, {
-        Name = "specialAura", BackgroundTransparency = 1, Image = "",
-        Size = UDim2.new(1, 0, 1, 0), Visible = false, ZIndex = 0,
-    })
-
-    -- Debug overlay: shows the active special name + loop state when
-    -- _G.__SeigeTagDebug is true. Toggled from the Tags panel.
-    local debugLbl = inst("TextLabel", gui, {
-        Name = "specialDebug",
-        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-        BackgroundTransparency = 0.35,
-        BorderSizePixel = 0,
-        AnchorPoint = Vector2.new(0.5, 1),
-        Position = UDim2.new(0.5, 0, 0, 2),
-        Size = UDim2.new(0, 180, 0, 16),
-        Font = Enum.Font.Code,
-        TextSize = 11,
-        TextColor3 = Color3.fromRGB(180, 255, 180),
-        Text = "special: none",
-        Visible = false,
-        ZIndex = 120,
-    })
-    corner(debugLbl, 4)
-
-
 
     -- particle layer (sits above bg/image, below text/avatar)
     local fx = inst("Frame", bg, {
@@ -3065,7 +2818,7 @@ local function buildBill(p)
         cd.MouseClick:Connect(function() onTagClicked() end)
     end)
 
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, aura = aura, specialBorder = specialBorder, specialStroke = specialStroke, specialGrad = specialGrad, debugLbl = debugLbl, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil, specialKey = nil }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
     _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
@@ -3324,7 +3077,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
         icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
-        font = "Default", sweep = "on", element = "none",
+        font = "Default", sweep = "on",
         textColor = "", textOutline = "",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
@@ -3460,13 +3213,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- metal sweep animation has been removed; keep a no-op shim so the rest
     -- of the panel (which references sweepDD.set) doesn't error.
     local sweepDD = { set = function() end }
-    -- per-tag tag special (outline aura effect around the bubble). "none" = no aura.
-    local ELEMENT_OPTS = { "none", "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
-    local elementDD = dropdown(pgTags, "Tag special (outline effect)", ELEMENT_OPTS, function(v) form.element = v end)
-
-    -- Give the Tag panel's dropdowns more room: longer labels (e.g. "Tag
-    -- special (outline effect)") and longer option values (e.g. "celestial",
-    -- "obsidian") were getting clipped at the default 140px button width.
+    -- Give the Tag panel's dropdowns more room; longer option values were
+    -- getting clipped at the default 140px button width.
     -- The dropdown helper returns a controller (not the Frame), so walk
     -- pgTags' children and resize any frame that matches the dropdown shape
     -- (a TextButton anchored to the right edge).
@@ -3584,9 +3332,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         fontDD.set((e and e.font) or "Default")
         sweepDD.set((e and e.sweep) or "on")
         form.sweep = (e and e.sweep) or "on"
-        local el = (e and e.element) or "none"
-        elementDD.set(el)
-        form.element = el
     end
 
     local function clearForm() loadForm(nil, nil) end
@@ -3608,18 +3353,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             end
         end
     end
-
-    -- Tag specials: bundled outline-aura presets. Users pick one from the
-    -- "Tag special" dropdown above; the script renders the matching bundled
-    -- PNG around the bubble. No asset IDs to fill in anymore.
-    section(pgTags, "Tag specials")
-    label(pgTags, "Pick a tag special above (abyss, aurora, celestial, crimson, ember, neon, obsidian, shadow, solar, void). Each renders a glowing effect around the tag outline.")
-
-    -- Debug overlay: shows the active special and whether its animation
-    -- loop is running or cancelled, floated above every tag bubble.
-    toggle(pgTags, "Show tag-special debug overlay", false, function(v)
-        if _G.__SeigeSetTagDebug then _G.__SeigeSetTagDebug(v) end
-    end)
 
     -- list of current entries
     local listSec = section(pgTags, "Current tags")
@@ -3841,9 +3574,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             entry.font = form.font
         end
         if form.sweep == "off" then entry.sweep = "off" end
-        if form.element and form.element ~= "" and form.element ~= "none" then
-            entry.element = form.element
-        end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
@@ -3963,7 +3693,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 e.outline or "",
                 e.font or "",
                 e.sweep or "",
-                e.element or "",
+                "",
             }
             -- Trim trailing empty fields so each row stays compact like the
             -- legacy entries (e.g. eyk_a). The loader pads missing tail fields
@@ -4190,7 +3920,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
   ------------------------------------------------------------------
   -- NT TEAM TAGS  ·  limited Tags tab for users with role == "nt"
   -- They can ONLY edit: tag name(s), color (hex), and image (icon).
-  -- No effects, no fonts, no animation/element specials, no pastebin
+  -- No effects, no fonts, no animations, no pastebin
   -- sync, no export. Owner/Admin/Staff still see the full editor above.
   ------------------------------------------------------------------
   if _G.__SeigeMyRole() == "nt" then
@@ -4249,7 +3979,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
         -- Start from existing entry so we preserve fields NT can't edit
-        -- (effects, fonts, element, customText, displayName, outline, etc.).
+        -- (effects, fonts, customText, displayName, outline, etc.).
         local existing = TagDB.entries[key] or {}
         local entry = {}
         for k, v in pairs(existing) do entry[k] = v end
@@ -4385,7 +4115,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             e.outline or "",
             e.font or "",
             e.sweep or "",
-            e.element or "",
+            "",
         }
         while #fields > 1 and (fields[#fields] == nil or fields[#fields] == "") do
             fields[#fields] = nil
@@ -4769,7 +4499,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             if entry then
                 local parts = {}
                 if entry.tags and #entry.tags > 0 then for _, t in ipairs(entry.tags) do parts[#parts+1] = t end end
-                if entry.element and entry.element ~= "none" and entry.element ~= "" then parts[#parts+1] = "✦" .. entry.element end
                 tagText = (#parts > 0) and table.concat(parts, " · ") or "tagged"
             end
             inst("TextLabel", row, {
@@ -7057,7 +6786,7 @@ _G.__SeigeApplyIconImages = applyIconImages
 
 
 saveCfg = function()
-    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled, tagElements = tagElements }
+    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled }
     for k,v in pairs(T) do
         if typeof(v) == "Color3" then data.theme[k] = cToHex(v) end
     end
@@ -7091,13 +6820,6 @@ loadCfg = function()
         panelBgState.icons = (type(data.panelBg.icons) == "table") and data.panelBg.icons or {}
         applyPanelBg()
         pcall(applyIconImages)
-    end
-    if type(data.tagElements) == "table" then
-        for k, v in pairs(data.tagElements) do
-            if type(k) == "string" and type(v) == "string" then
-                tagElements[k:lower()] = v
-            end
-        end
     end
 end
 
