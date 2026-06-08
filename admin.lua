@@ -2959,7 +2959,7 @@ local function findTarget()
     local myH = hrp(); if not myH then return end
     local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP and shouldEsp(p) then
+        if p ~= LP and shouldTarget(p) then
             local h = pchar(p) and pchar(p):FindFirstChild("Head")
             if h then
                 local sp, on = cam:WorldToViewportPoint(h.Position)
