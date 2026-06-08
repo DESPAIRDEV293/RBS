@@ -3920,9 +3920,26 @@ inst("UIListLayout", Pill, {
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
 
--- Status (FPS + PING stacked)
+-- Brand (name + username) — FIRST
+local brandBlock = inst("Frame", Pill, {
+    Size = UDim2.new(0, 120, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
+})
+inst("TextLabel", brandBlock, {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
+    Size = UDim2.new(1, 0, 0, 14),
+    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
+})
+inst("TextLabel", brandBlock, {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
+    Size = UDim2.new(1, 0, 0, 12),
+    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "@" .. LP.Name, ZIndex = 101,
+})
+
+-- Status (FPS + PING stacked) — AFTER brand
 local statBlock = inst("Frame", Pill, {
-    Size = UDim2.new(0, 90, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
+    Size = UDim2.new(0, 90, 1, -4), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 101,
 })
 local fpsLbl = inst("TextLabel", statBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 3),
@@ -3935,17 +3952,6 @@ local pingLbl = inst("TextLabel", statBlock, {
     Size = UDim2.new(1, 0, 0, 14),
     Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.good,
     TextXAlignment = Enum.TextXAlignment.Left, Text = "● PING --", ZIndex = 101,
-})
-
--- Brand (name + username)
-local brandBlock = inst("Frame", Pill, {
-    Size = UDim2.new(0, 120, 1, -4), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 101,
-})
-inst("TextLabel", brandBlock, {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
-    Size = UDim2.new(1, 0, 0, 14),
-    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
 })
 inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
