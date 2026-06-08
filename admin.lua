@@ -859,7 +859,10 @@ end
 --   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
 --               to split the bubble in half (left/right), e.g. #ff3b6b/#00aaff
 --   - effect: rain | snow | sparkle | nebula   (or blank for none)
---   - icon:   Roblox image ID (raw number, e.g. 1234567890)
+--   - icon:   Roblox image ID (raw number, e.g. 1234567890), OR an animated
+--             sprite-sheet spec "gif:assetId:cols:rows:fps[:sheetSize]"
+--             e.g. gif:1234567890:4:4:12   (16-frame 4x4 sheet at 12 fps;
+--             sheetSize defaults to 1024)
 --   - textFx: glitch | type | explode   (or blank for none)
 --   - customText: optional override for the right-side chip text (owner-only feature)
 --   - Lines starting with # or // are comments. Blank lines are ignored.
@@ -1436,6 +1439,27 @@ local function measureText(text, font, size)
     return #(text or "") * size * 0.55
 end
 
+-- Parse a gif/sprite-sheet spec from the icon field.
+-- Accepted format: "gif:assetId:cols:rows:fps[:sheetSize]"
+--   sheetSize defaults to 1024 (most uploaded sheets are 1024x1024).
+-- Returns table { id, cols, rows, fps, size, frames, fw, fh } or nil.
+local function parseGifSpec(raw)
+    if type(raw) ~= "string" then return nil end
+    local lower = raw:lower()
+    if lower:sub(1, 4) ~= "gif:" then return nil end
+    local id, cols, rows, fps, size = raw:match("^[gG][iI][fF]:(%d+):(%d+):(%d+):(%d+):?(%d*)$")
+    if not (id and cols and rows and fps) then return nil end
+    cols = tonumber(cols); rows = tonumber(rows); fps = tonumber(fps)
+    size = (size ~= "" and tonumber(size)) or 1024
+    if cols < 1 or rows < 1 or fps < 1 then return nil end
+    return {
+        id = id, cols = cols, rows = rows, fps = fps, size = size,
+        frames = cols * rows,
+        fw = math.floor(size / cols),
+        fh = math.floor(size / rows),
+    }
+end
+
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
@@ -1446,18 +1470,53 @@ local function refreshBill(p)
     -- Custom icon override (DB or per-player). Force a refresh by clearing first.
     local customIcon = TagIcons:get(p.UserId) or (cfg and cfg.icon)
     if e.av then
-        local target
-        if customIcon then
-            target = resolveIconUrl(customIcon)
+        local gifSpec = parseGifSpec(customIcon)
+        if gifSpec then
+            -- start (or restart) sprite-sheet animation
+            local key = "gif:" .. gifSpec.id .. ":" .. gifSpec.cols .. "x" .. gifSpec.rows .. "@" .. gifSpec.fps .. ":" .. gifSpec.size
+            if e.gifKey ~= key then
+                e.gifKey = key
+                e.gifToken = (e.gifToken or 0) + 1
+                local myToken = e.gifToken
+                local img = "rbxassetid://" .. gifSpec.id
+                pcall(function() e.av.Image = "" end)
+                pcall(function() e.av.Image = img end)
+                e.av.ImageTransparency = 0
+                e.av.ScaleType = Enum.ScaleType.Crop
+                e.av.ImageRectSize = Vector2.new(gifSpec.fw, gifSpec.fh)
+                task.spawn(function()
+                    local frame = 0
+                    local delayTime = 1 / gifSpec.fps
+                    while e.gifToken == myToken and e.av and e.av.Parent do
+                        local col = frame % gifSpec.cols
+                        local row = math.floor(frame / gifSpec.cols) % gifSpec.rows
+                        e.av.ImageRectOffset = Vector2.new(col * gifSpec.fw, row * gifSpec.fh)
+                        frame = (frame + 1) % gifSpec.frames
+                        task.wait(delayTime)
+                    end
+                end)
+            end
         else
-            pcall(function()
-                target = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-            end)
-        end
-        if target and target ~= "" and e.av.Image ~= target then
-            pcall(function() e.av.Image = "" end)
-            pcall(function() e.av.Image = target end)
-            e.av.ImageTransparency = 0
+            -- static image path — cancel any running gif loop and reset rect
+            if e.gifKey then
+                e.gifKey = nil
+                e.gifToken = (e.gifToken or 0) + 1
+                e.av.ImageRectOffset = Vector2.new(0, 0)
+                e.av.ImageRectSize = Vector2.new(0, 0)
+            end
+            local target
+            if customIcon then
+                target = resolveIconUrl(customIcon)
+            else
+                pcall(function()
+                    target = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+                end)
+            end
+            if target and target ~= "" and e.av.Image ~= target then
+                pcall(function() e.av.Image = "" end)
+                pcall(function() e.av.Image = target end)
+                e.av.ImageTransparency = 0
+            end
         end
     end
 
@@ -1552,7 +1611,7 @@ local function buildBill(p)
 
     local gui = inst("BillboardGui", pchar(p), {
         Name = "SeigeTagBB", Adornee = head,
-
+        Active = true,
         Size = UDim2.new(0, 240, 0, 50),
         StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0),
         AlwaysOnTop = true, LightInfluence = 0,
@@ -1606,7 +1665,30 @@ local function buildBill(p)
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
     })
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, base = math.random() * 6.28, effect = nil, fxToken = 0 }
+    -- invisible click overlay covering the whole bubble → teleport to target player
+    local clickBtn = inst("TextButton", bg, {
+        Name = "tpClick",
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "",
+        AutoButtonColor = false,
+        Active = true,
+        ZIndex = 50,
+    })
+    clickBtn.MouseButton1Click:Connect(function()
+        if p == LP then return end
+        local targetHrp = phrp(p)
+        local myHrp = hrp()
+        if not (targetHrp and myHrp) then
+            notify("Can't teleport — target/you not spawned", "warn"); return
+        end
+        local cf = targetHrp.CFrame
+        pcall(function()
+            myHrp.CFrame = cf * CFrame.new(0, 0, 3)
+        end)
+        notify("Teleported to " .. p.DisplayName, "good")
+    end)
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
     refreshBill(p)
 end
 local function rebuildBills()
@@ -1837,7 +1919,7 @@ if LP.Name == "0rot3" then
     local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
     local tbColor    = field(pgTags, "Hex color (left half)", "color", "#ff3b6b")
     local tbColor2   = field(pgTags, "Hex color 2 (right half — optional)", "color2", "#00aaff")
-    local tbIcon     = field(pgTags, "Roblox Image ID", "icon", "1234567890")
+    local tbIcon     = field(pgTags, "Roblox Image ID (or gif:id:cols:rows:fps)", "icon", "1234567890  or  gif:1234567890:4:4:12")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
 
@@ -1904,9 +1986,13 @@ if LP.Name == "0rot3" then
             tbColor.Text  = rawColor
             tbColor2.Text = ""
         end
-        local iconRaw = (e and e.icon) or ""
-        iconRaw = tostring(iconRaw):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
-        tbIcon.Text     = iconRaw
+        local iconRaw = tostring((e and e.icon) or "")
+        if iconRaw:lower():sub(1, 4) == "gif:" then
+            -- keep gif spec intact (e.g. "gif:1234567890:4:4:12")
+            tbIcon.Text = iconRaw
+        else
+            tbIcon.Text = iconRaw:gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
+        end
         tbTags.Text     = (e and e.tags and table.concat(e.tags, ",")) or ""
         tbCustom.Text   = (e and e.customText) or ""
         effDD.set(e and e.effect or "none")
@@ -2036,8 +2122,14 @@ if LP.Name == "0rot3" then
         if c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
         elseif c1 ~= "" then entry.color = c1 end
         if form.icon ~= "" then
-            local cleanId = tostring(form.icon):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
-            if cleanId ~= "" then entry.icon = cleanId end
+            local raw = tostring(form.icon):gsub("^%s+",""):gsub("%s+$","")
+            if raw:lower():sub(1, 4) == "gif:" then
+                -- keep gif sprite-sheet spec as-is
+                entry.icon = raw
+            else
+                local cleanId = raw:gsub("rbxassetid://", ""):gsub("%D", "")
+                if cleanId ~= "" then entry.icon = cleanId end
+            end
         end
         if form.effect and form.effect ~= "none" then entry.effect = form.effect end
         if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
