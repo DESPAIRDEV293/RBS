@@ -1785,7 +1785,7 @@ function TagDB:loadLocal()
     if not okDec or type(data) ~= "table" then return nil end
     local out = {}
     for k, v in pairs(data) do
-        if type(v) == "table" then out[tostring(k):lower()] = v end
+        if type(v) == "table" then out[tostring(k):lower()] = stripTagSpecials(v) end
     end
     return out
 end
@@ -1846,7 +1846,7 @@ function TagDB:load()
         warn("[Tags] eval failed: " .. tostring(data)); self.entries = {}; self:mergeLocal(); return
     end
     local entries = {}
-    for k, v in pairs(data) do entries[tostring(k):lower()] = v end
+    for k, v in pairs(data) do entries[tostring(k):lower()] = stripTagSpecials(v) end
     self.entries = entries
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
     self:mergeLocal()
