@@ -6568,7 +6568,7 @@ end)()
     cmdHandlers["unmute"] = function() V.setMuted(false); notify("Mic live",  "good") end
     cmdHandlers["vcleave"] = function() V.leave(); notify("Voice left", "good") end
     cmdHandlers["vcjoin"]  = function() V.join();  notify("Voice rejoined", "good") end
-end
+end)()
 
 
 cmdHandlers["save"] = function()
