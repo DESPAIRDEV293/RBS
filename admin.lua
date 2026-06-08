@@ -9621,6 +9621,8 @@ end)()
         return true
     end
 
+    local showAllpBanner  -- forward decl (used by staff WARN handler below)
+
     ------------------------------------------------------------------
     -- STAFF COMMANDS  ·  10 commands available to staff/admin/owner.
     -- These piggy-back on the same chat-marker broadcast channel as
@@ -9791,7 +9793,7 @@ end)()
         return false
     end
 
-    local function showAllpBanner(senderName, msg)
+    showAllpBanner = function(senderName, msg)
         local banner = inst("Frame", Root, {
             AnchorPoint = Vector2.new(0.5, 0),
             Position = UDim2.new(0.5, 0, 0, -120),
