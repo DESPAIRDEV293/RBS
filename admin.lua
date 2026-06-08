@@ -4830,6 +4830,15 @@ local function setCmdBar(v, pinned)
     end
 end
 _G.__AdminToggleCmdBar = function(v) setCmdBar(v, true) end
+_G.__AdminRunCmd = function(s) runBarCmd(s) end
+_G.__AdminOpenCmd = function(prefill)
+    setCmdBar(true, true)
+    task.defer(function()
+        cmdBox.Text = prefill or ""
+        pcall(function() cmdBox.CursorPosition = #cmdBox.Text + 1 end)
+        pcall(function() cmdBox:CaptureFocus() end)
+    end)
+end
 
 bind(UIS.InputBegan:Connect(function(i, gp)
     if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
