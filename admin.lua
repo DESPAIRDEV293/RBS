@@ -185,6 +185,7 @@ end
 -- exempt. The flag is mirrored via chat broadcast (see KILL_MARK below) so
 -- a single owner toggle propagates to every script user in the server.
 _G.__SeigeKilled = _G.__SeigeKilled == true
+_G.__SeigeReducedMotion = _G.__SeigeReducedMotion == true
 local function _isOwnerLocal() return LP and LP.Name == OWNER_NAME end
 
 _G.__SeigeCan = function(action)
@@ -1043,6 +1044,16 @@ local function _animPageSwap(page, show)
     if not page then return end
     local sc = page:FindFirstChildOfClass("UIScale")
         or inst("UIScale", page, { Scale = 1 })
+    if _G.__SeigeReducedMotion then
+        if show then
+            page.Visible = true
+            sc.Scale = 1
+        else
+            page.Visible = false
+            sc.Scale = 1
+        end
+        return
+    end
     if show then
         page.Visible = true
         sc.Scale = 0.96
@@ -1061,12 +1072,21 @@ local function setTab(name)
     local e = tabs[name]; if not e then return end
     for n, x in pairs(tabs) do
         if n ~= name then
-            tween(x.btn, 0.12, { BackgroundTransparency = 1 })
+            if _G.__SeigeReducedMotion then
+                x.btn.BackgroundTransparency = 1
+            else
+                tween(x.btn, 0.12, { BackgroundTransparency = 1 })
+            end
             x.ico.TextColor3 = T.sub
             if x.page.Visible then _animPageSwap(x.page, false) end
         end
     end
-    tween(e.btn, 0.12, { BackgroundTransparency = 0.15, BackgroundColor3 = T.acc })
+    if _G.__SeigeReducedMotion then
+        e.btn.BackgroundTransparency = 0.15
+        e.btn.BackgroundColor3 = T.acc
+    else
+        tween(e.btn, 0.12, { BackgroundTransparency = 0.15, BackgroundColor3 = T.acc })
+    end
     e.ico.TextColor3 = T.text
     _animPageSwap(e.page, true)
     HeaderTitle.Text = e.title or name
@@ -2288,6 +2308,9 @@ end
 -- Loops are token-guarded so re-applying or removing the special cancels
 -- the previous coroutine cleanly.
 local function _animLoop(e, token, runFrame)
+    if _G.__SeigeReducedMotion then
+        return
+    end
     task.spawn(function()
         local t0 = os.clock()
         while e.aura and e.aura.Parent and e.specialAnimToken == token do
@@ -5711,6 +5734,10 @@ do
     local function _animOpen(win)
         local scaleObj = win:FindFirstChildOfClass("UIScale")
             or inst("UIScale", win, { Scale = 0.85 })
+        if _G.__SeigeReducedMotion then
+            scaleObj.Scale = 1
+            return
+        end
         scaleObj.Scale = 0.85
         local prevBT = win.BackgroundTransparency
         win.BackgroundTransparency = 1
@@ -5720,6 +5747,11 @@ do
             { Scale = 1 }):Play()
     end
     local function _animClose(gui, win, onDone)
+        if _G.__SeigeReducedMotion then
+            if gui and gui.Parent then gui:Destroy() end
+            if onDone then onDone() end
+            return
+        end
         local scaleObj = win:FindFirstChildOfClass("UIScale")
             or inst("UIScale", win, { Scale = 1 })
         TweenService:Create(scaleObj, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
@@ -7657,6 +7689,10 @@ end))
 slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
     local s = Win:FindFirstChildOfClass("UIScale") or inst("UIScale", Win, { Scale = 1 })
     s.Scale = v
+end)
+
+toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, function(v)
+    _G.__SeigeReducedMotion = v
 end)
 
 section(pgShaders, "World Image (Skybox)")
