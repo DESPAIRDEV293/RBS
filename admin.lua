@@ -3394,12 +3394,33 @@ button(pgCmds, "Character  —  reset / refresh / click-TP", function()
     end)
 end)
 
-button(pgCmds, "Reanim  —  swap body & play animations", function()
-    _openPanel("reanim", "Reanim  ·  character swap + animations", 230, function(body)
-        button(body, "Start reanim (swap to puppet body)", function() _runCmd("!reanim") end)
-        button(body, "Stop reanim (respawn)", function() _runCmd("!unreanim") end)
-        textbox(body, "Animation/KFS asset id  (optional: id speed)", function(v)
-            _runCmd("!reanim " .. v)
+button(pgCmds, "Reanim  —  animations + keyframe data", function()
+    _openPanel("reanim", "Reanim  ·  asset id / url / pasted keyframes", 410, function(body)
+        button(body, "Start reanim (free humanoid)", function() _runCmd("!reanim") end)
+        button(body, "Stop reanim", function() _runCmd("!unreanim") end)
+        textbox(body, "Animation/KFS asset id  (id [speed])", function(v) _runCmd("!reanim " .. v) end)
+        textbox(body, "Load keyframe txt/json from URL (url [speed])", function(v) _runCmd("!reanimurl " .. v) end)
+
+        -- Paste box for raw JSON or Lua-table keyframe data
+        local pasteFrame = inst("Frame", body, {
+            Size = UDim2.new(1, -8, 0, 150),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3, BorderSizePixel = 0,
+        })
+        corner(pasteFrame, 8); stroke(pasteFrame, T.line, 1, 0.5)
+        local pasteBox = inst("TextBox", pasteFrame, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 8, 0, 6),
+            Size = UDim2.new(1, -16, 1, -12),
+            PlaceholderText = "Paste keyframe data here (JSON or Lua table)…",
+            PlaceholderColor3 = T.dim,
+            Font = Enum.Font.Code, TextSize = 11, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+            TextWrapped = true, MultiLine = true, ClearTextOnFocus = false, Text = "",
+        })
+        button(body, "Play pasted keyframes", function()
+            local txt = pasteBox.Text or ""
+            if txt:gsub("%s","") == "" then notify("Paste some data first", "warn"); return end
+            if _G.__PlayReanimText then _G.__PlayReanimText(txt, 1) end
         end)
         button(body, "Stop all playing tracks", function() _runCmd("!stopanim") end)
     end)
@@ -5619,6 +5640,166 @@ local function playAnimId(arg)
     end
     notify("Play failed: " .. tostring(track), "bad")
 end
+
+;(function()  -- scope new keyframe-data locals to a separate function (Lua main chunk has a 200-locals cap)
+
+-- ================================================================
+-- Parse raw keyframe data (JSON or Lua table) and play it as an animation.
+-- Accepted JSON shape:
+--   { "loop": true, "priority": "Action", "keyframes": [
+--       { "time": 0,
+--         "poses": {
+--           "Torso":      { "cf": [x,y,z,r00,...,r22], "ease": "Linear", "style": "Sine" },
+--           "Left Arm":   { "cf": [...], "weight": 1, "easeDirection": "In" }
+--         }
+--       },
+--       { "time": 0.5, "poses": { ... } }
+--     ]
+--   }
+-- Accepted Lua shape (returned from `loadstring(data)()`):
+--   { Loop = true, Priority = "Action", Frames = { { Time=0, Poses={...} } } }
+-- Or Roblox Animation Editor export tables (table.insert(Frames, {...})).
+-- ================================================================
+
+local HS = game:GetService("HttpService")
+
+local EASE_STYLE = {
+    Linear = Enum.PoseEasingStyle.Linear,
+    Constant = Enum.PoseEasingStyle.Constant,
+    Elastic = Enum.PoseEasingStyle.Elastic,
+    Cubic = Enum.PoseEasingStyle.Cubic,
+    Bounce = Enum.PoseEasingStyle.Bounce,
+    Sine = Enum.PoseEasingStyle.Linear, -- not a valid pose style, alias
+}
+local EASE_DIR = {
+    In = Enum.PoseEasingDirection.In,
+    Out = Enum.PoseEasingDirection.Out,
+    InOut = Enum.PoseEasingDirection.InOut,
+}
+
+-- Recursively build Pose hierarchy onto a parent (Keyframe or Pose)
+local function buildPoses(parent, posesTbl, char)
+    if type(posesTbl) ~= "table" then return end
+    -- posesTbl can be either a dict (name -> data) or a list of {Name=..., ...}
+    local items = {}
+    if posesTbl[1] then
+        for _, v in ipairs(posesTbl) do items[#items+1] = { name = v.Name or v.name, data = v } end
+    else
+        for k, v in pairs(posesTbl) do items[#items+1] = { name = k, data = v } end
+    end
+    for _, it in ipairs(items) do
+        local data = it.data
+        local pose = Instance.new("Pose")
+        pose.Name = it.name
+        local cf = data.cf or data.CFrame or data.CF
+        if type(cf) == "table" and #cf >= 12 then
+            pose.CFrame = CFrame.new(unpack(cf, 1, 12))
+        elseif type(cf) == "table" and #cf == 7 then
+            -- pos + quaternion
+            pose.CFrame = CFrame.new(cf[1], cf[2], cf[3]) * CFrame.fromEulerAnglesXYZ(cf[5], cf[6], cf[7])
+        end
+        pose.Weight = tonumber(data.weight or data.Weight) or 1
+        local es = data.style or data.Style or data.ease or data.Ease
+        if es and EASE_STYLE[es] then pose.EasingStyle = EASE_STYLE[es] end
+        local ed = data.easeDirection or data.EasingDirection
+        if ed and EASE_DIR[ed] then pose.EasingDirection = EASE_DIR[ed] end
+        pose.Parent = parent
+        if data.poses or data.Poses or data.Children then
+            buildPoses(pose, data.poses or data.Poses or data.Children, char)
+        end
+    end
+end
+
+-- Build a KeyframeSequence from a parsed data table
+local function buildKeyframeSequence(data)
+    local ks = Instance.new("KeyframeSequence")
+    ks.Loop     = data.loop or data.Loop or false
+    ks.Priority = Enum.AnimationPriority[data.priority or data.Priority or "Action"] or Enum.AnimationPriority.Action
+    local frames = data.keyframes or data.Keyframes or data.Frames or data.frames or {}
+    for _, fr in ipairs(frames) do
+        local kf = Instance.new("Keyframe")
+        kf.Time = tonumber(fr.time or fr.Time) or 0
+        kf.Name = fr.name or fr.Name or ("Keyframe_" .. kf.Time)
+        local poses = fr.poses or fr.Poses
+        if poses then
+            -- If the format puts a single root pose (e.g. "HumanoidRootPart") at top,
+            -- parent it directly; otherwise wrap under a root pose.
+            local hasRoot = poses["HumanoidRootPart"] or poses.HumanoidRootPart
+            if hasRoot then
+                buildPoses(kf, poses, LP.Character)
+            else
+                local root = Instance.new("Pose")
+                root.Name = "HumanoidRootPart"
+                root.Weight = 0
+                root.Parent = kf
+                buildPoses(root, poses, LP.Character)
+            end
+        end
+        kf.Parent = ks
+    end
+    return ks
+end
+
+local function parseAnimData(raw)
+    if type(raw) ~= "string" or raw == "" then return nil, "empty" end
+    -- 1) JSON
+    local ok, j = pcall(function() return HS:JSONDecode(raw) end)
+    if ok and type(j) == "table" then return j end
+    -- 2) Lua expression that returns a table
+    local fn, err = loadstring("return " .. raw)
+    if fn then
+        local ok2, t = pcall(fn)
+        if ok2 and type(t) == "table" then return t end
+    end
+    -- 3) Lua statement block that defines `Frames`
+    local fn2, err2 = loadstring(raw .. "\nreturn { Frames = Frames or frames, Loop = Loop, Priority = Priority }")
+    if fn2 then
+        local ok3, t = pcall(fn2)
+        if ok3 and type(t) == "table" and t.Frames then return t end
+    end
+    return nil, "parse failed (" .. tostring(err or err2) .. ")"
+end
+
+local function playKeyframeData(raw, speed)
+    speed = tonumber(speed) or 1
+    local data, perr = parseAnimData(raw)
+    if not data then notify("Anim parse error: " .. tostring(perr), "bad"); return end
+    if not _G.__ReanimActive then startReanim() end
+    local hum = getHum(); if not hum then notify("No humanoid", "bad"); return end
+    local ks = buildKeyframeSequence(data)
+    local okReg, hash = pcall(function()
+        return game:GetService("KeyframeSequenceProvider"):RegisterKeyframeSequence(ks)
+    end)
+    if not okReg or not hash then notify("Register KFS failed: " .. tostring(hash), "bad"); return end
+    local anim = Instance.new("Animation"); anim.AnimationId = hash
+    local animator = hum:FindFirstChildOfClass("Animator")
+    local track = animator and animator:LoadAnimation(anim) or hum:LoadAnimation(anim)
+    track.Priority = Enum.AnimationPriority.Action4 or Enum.AnimationPriority.Action
+    track.Looped = ks.Loop
+    track:Play(0); track:AdjustSpeed(speed)
+    table.insert(_G.__ReanimTracks, track)
+    notify("Playing custom keyframes  ·  " .. #ks:GetChildren() .. " frame(s)", "good")
+end
+
+-- !reanim url <link> [speed]   → HttpGet raw txt/json and play
+cmdHandlers["reanimurl"] = function(arg)
+    arg = (arg or ""):gsub("^%s+",""):gsub("%s+$","")
+    local url, sp = arg:match("^(%S+)%s*(.*)$")
+    if not url then notify("Usage: !reanimurl <link> [speed]", "warn"); return end
+    notify("Fetching " .. url, "good")
+    task.spawn(function()
+        local ok, raw = pcall(function() return game:HttpGet(url, true) end)
+        if not ok then ok, raw = pcall(function() return game:HttpGet(url) end) end
+        if not ok or type(raw) ~= "string" then notify("Fetch failed", "bad"); return end
+        playKeyframeData(raw, tonumber(sp))
+    end)
+end
+
+-- !reanimdata <raw>            → parse + play raw json/lua text (used by paste UI)
+cmdHandlers["reanimdata"] = function(arg) playKeyframeData(arg or "", 1) end
+
+_G.__PlayReanimText = playKeyframeData -- expose to the popout's "Play" button
+end)()  -- end keyframe-data scope
 
 cmdHandlers["reanim"] = function(arg)
     arg = (arg or ""):gsub("^%s+",""):gsub("%s+$","")
