@@ -2730,51 +2730,52 @@ if LP.Name == "0rot3" then
     section(pgTags, "Actions")
 
     button(pgTags, "Save / Update entry", function()
-        local u = (form.username or ""):gsub("^%s+",""):gsub("%s+$","")
+        -- read directly from the textboxes as the primary source — text-change
+        -- handlers can miss the very last edit if the user clicks Save before
+        -- defocus, which would drop fields from the export.
+        local function trimStr(s) return (tostring(s or ""):gsub("^%s+",""):gsub("%s+$","")) end
+        local function pick(formVal, tbText) return trimStr(formVal ~= "" and formVal or tbText) end
+        local u = pick(form.username, tbUser.Text)
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
         local entry = {}
-        if form.displayName ~= "" then entry.displayName = form.displayName end
-        -- read directly from the textboxes as a fallback (text-change handler
-        -- can miss the very last edit if the user clicks Save before defocus)
-        local function trimStr(s) return (tostring(s or ""):gsub("^%s+",""):gsub("%s+$","")) end
-        local fillRaw = trimStr(form.fill ~= "" and form.fill or tbFill.Text)
-        local c1 = trimStr(form.color ~= "" and form.color or tbColor.Text)
-        local c2 = trimStr(form.color2 ~= "" and form.color2 or tbColor2.Text)
+        local dn = pick(form.displayName, tbDisplay.Text)
+        if dn ~= "" then entry.displayName = dn end
+        local fillRaw = pick(form.fill, tbFill.Text)
+        local c1 = pick(form.color, tbColor.Text)
+        local c2 = pick(form.color2, tbColor2.Text)
         if fillRaw ~= "" then
-            -- advanced fill (grad:... / image:...) takes priority
+            -- advanced fill (grad:... / image:...) takes priority and is saved verbatim
             entry.color = fillRaw
-        elseif c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
+        elseif c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2  -- split bubble (two hex)
         elseif c1 ~= "" then entry.color = c1
         elseif c2 ~= "" then entry.color = c2 end
-        if form.icon ~= "" then
-            local raw = tostring(form.icon):gsub("^%s+",""):gsub("%s+$","")
-            local lower = raw:lower()
+        local iconRaw = pick(form.icon, tbIcon.Text)
+        if iconRaw ~= "" then
+            local lower = iconRaw:lower()
             if lower:sub(1, 4) == "gif:" or lower:sub(1, 7) == "sprite:" then
-                -- keep gif/sprite sheet spec as-is (supports raw id or rbxassetid:// in id segment)
-                entry.icon = raw
+                entry.icon = iconRaw
             else
-                local cleanId = raw:gsub("rbxassetid://", ""):gsub("%D", "")
+                local cleanId = iconRaw:gsub("rbxassetid://", ""):gsub("%D", "")
                 if cleanId ~= "" then entry.icon = cleanId end
             end
         end
         if form.effect and form.effect ~= "none" then entry.effect = form.effect end
         if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
-        if form.customText and form.customText ~= "" then entry.customText = form.customText end
-        if form.customHandle and form.customHandle ~= "" then
-            entry.customHandle = (form.customHandle:gsub("^@",""):gsub("^%s+",""):gsub("%s+$",""))
-        end
-        if form.outline and form.outline ~= "" then
-            entry.outline = (form.outline:gsub("^%s+",""):gsub("%s+$",""))
-        end
+        local ct = pick(form.customText, tbCustom.Text)
+        if ct ~= "" then entry.customText = ct end
+        local ch = pick(form.customHandle, tbHandle.Text)
+        if ch ~= "" then entry.customHandle = (ch:gsub("^@","")) end
+        local ol = pick(form.outline, tbOutline.Text)
+        if ol ~= "" then entry.outline = ol end
         if form.font and form.font ~= "" and form.font ~= "Default" then
             entry.font = form.font
         end
-        if form.tags ~= "" then
+        local tagsRaw = pick(form.tags, tbTags.Text)
+        if tagsRaw ~= "" then
             local list = {}
-            for t in (form.tags .. ","):gmatch("([^,]*),") do
-                t = t:gsub("^%s+",""):gsub("%s+$","")
-                if t ~= "" then list[#list+1] = t end
+            for t in (tagsRaw .. ","):gmatch("([^,]*),") do
+                t = trimStr(t); if t ~= "" then list[#list+1] = t end
             end
             if #list > 0 then entry.tags = list end
         end
