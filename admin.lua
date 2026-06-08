@@ -2563,6 +2563,7 @@ if LP.Name == "0rot3" then
         tbOutline.Text  = (e and e.outline) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
+        fontDD.set((e and e.font) or "Default")
     end
 
     local function clearForm() loadForm(nil, nil) end
