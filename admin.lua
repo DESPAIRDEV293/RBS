@@ -6075,12 +6075,6 @@ cmdHandlers["say"] = function(arg)
     end
 end
 
-cmdHandlers["pos"] = function()
-    local h = hrp(); if not h then notify("No character", "bad"); return end
-    local p = h.Position
-    notify(string.format("Pos %.1f, %.1f, %.1f", p.X, p.Y, p.Z), "good")
-end
-
 cmdHandlers["save"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
     _G.__SavedCF = h.CFrame; notify("Position saved", "good")
@@ -6095,7 +6089,7 @@ cmdHandlers["info"] = function()
 end
 
 cmdHandlers["help"] = function()
-    notify("!rj !tprj !r !reset !ws !jp !jump !heal !god !ungod !noclip !clip !fly !unfly !goto !tp !to !spectate !unspectate !fling !pos !save !load !sit !face !head !bang !unbang !info", "good")
+    if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() else notify("Help panel not ready", "warn") end
 end
 
 
