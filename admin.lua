@@ -3667,6 +3667,7 @@ button(pgCmds, "!hatspin  —  fling spinning accessories",function() _runCmd("!
 button(pgCmds, "!freecam  —  WASD/EQ camera",            function() _runCmd("!freecam") end)
 button(pgCmds, "!hop  —  random server hop",             function() _runCmd("!hop") end)
 button(pgCmds, "!say <message>",                         function() _openCmd("!say ") end)
+button(pgCmds, "!baseplate  —  extend the map",          function() _runCmd("!baseplate") end)
 
 
 section(pgCmds, "Command bar (F6)  ·  !rj  !tprj")
