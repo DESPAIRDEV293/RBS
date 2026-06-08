@@ -2647,6 +2647,245 @@ if LP.Name == "0rot3" then
         exportBox.Text = buildExport()
     end)
 
+    ------------------------------------------------------------------
+    -- PASTEBIN SYNC  ·  push in-game edits to the actual pastebin URL
+    ------------------------------------------------------------------
+    section(pgTags, "Pastebin sync")
+
+    local PB_CFG_FILE = "seige_pastebin.json"
+    local pbCfg = { devKey = "", userKey = "", pasteKey = "wySWnyme", autoPush = false }
+
+    do
+        local rf = rawget(getfenv(), "readfile"); local isf = rawget(getfenv(), "isfile")
+        if rf and isf and isf(PB_CFG_FILE) then
+            local ok, data = pcall(function() return HttpService:JSONDecode(rf(PB_CFG_FILE)) end)
+            if ok and type(data) == "table" then
+                for k, v in pairs(data) do pbCfg[k] = v end
+            end
+        end
+    end
+
+    local function savePbCfg()
+        local wf = rawget(getfenv(), "writefile")
+        if wf then pcall(wf, PB_CFG_FILE, HttpService:JSONEncode(pbCfg)) end
+    end
+
+    -- URL-encode a string for application/x-www-form-urlencoded
+    local function urlEncode(s)
+        s = tostring(s or "")
+        s = s:gsub("\n", "\r\n")
+        s = s:gsub("([^%w%-%.%_%~])", function(c)
+            return string.format("%%%02X", string.byte(c))
+        end)
+        return s
+    end
+
+    -- Pick whichever HTTP-with-POST function the executor exposes
+    local function httpPost(url, body, headers)
+        local req = rawget(getfenv(), "request")
+            or rawget(getfenv(), "http_request")
+            or (rawget(getfenv(), "syn") and syn.request)
+            or (rawget(getfenv(), "http") and http.request)
+            or (rawget(getfenv(), "fluxus") and fluxus.request)
+        if not req then return nil, "no executor http request function" end
+        local ok, res = pcall(req, {
+            Url = url, Method = "POST", Body = body,
+            Headers = headers or { ["Content-Type"] = "application/x-www-form-urlencoded" },
+        })
+        if not ok then return nil, tostring(res) end
+        return res, nil
+    end
+
+    -- Build form body (table -> "k=v&k=v")
+    local function form(params)
+        local parts = {}
+        for k, v in pairs(params) do
+            parts[#parts + 1] = urlEncode(k) .. "=" .. urlEncode(v)
+        end
+        return table.concat(parts, "&")
+    end
+
+    -- Send the current entries to pastebin.
+    --   silent=true → only notify on failure
+    -- Returns: ok, url_or_error
+    local function pushToPastebin(silent)
+        if pbCfg.devKey == "" then
+            if not silent then notify("Set your Pastebin dev API key first", "bad") end
+            return false, "missing dev key"
+        end
+        local body = buildExport()
+        -- EDIT path: keeps the same URL so script users get changes automatically
+        if pbCfg.userKey ~= "" and pbCfg.pasteKey ~= "" then
+            local res, err = httpPost("https://pastebin.com/api/api_post.php", form({
+                api_dev_key      = pbCfg.devKey,
+                api_user_key     = pbCfg.userKey,
+                api_paste_key    = pbCfg.pasteKey,
+                api_option       = "edit",
+                api_paste_code   = body,
+                api_paste_name   = "seige_tags",
+                api_paste_format = "text",
+                api_paste_private= "1",
+                api_paste_expire_date = "N",
+            }))
+            if not res then
+                if not silent then notify("Pastebin edit failed: " .. tostring(err), "bad") end
+                return false, err
+            end
+            local txt = tostring(res.Body or "")
+            if txt:sub(1, 15) == "Bad API request" then
+                if not silent then notify("Pastebin: " .. txt, "bad") end
+                return false, txt
+            end
+            if not silent then notify("Pushed to pastebin (edited paste " .. pbCfg.pasteKey .. ")", "good") end
+            return true, "https://pastebin.com/raw/" .. pbCfg.pasteKey
+        end
+        -- CREATE path: makes a new unlisted paste; URL changes each time
+        local res, err = httpPost("https://pastebin.com/api/api_post.php", form({
+            api_dev_key      = pbCfg.devKey,
+            api_option       = "paste",
+            api_paste_code   = body,
+            api_paste_name   = "seige_tags",
+            api_paste_format = "text",
+            api_paste_private= "1",  -- unlisted
+            api_paste_expire_date = "N",
+        }))
+        if not res then
+            if not silent then notify("Pastebin push failed: " .. tostring(err), "bad") end
+            return false, err
+        end
+        local txt = tostring(res.Body or "")
+        if not txt:match("^https?://") then
+            if not silent then notify("Pastebin: " .. txt, "bad") end
+            return false, txt
+        end
+        local id = txt:match("pastebin%.com/([%w]+)") or ""
+        local raw = id ~= "" and ("https://pastebin.com/raw/" .. id) or txt
+        local clip = rawget(getfenv(), "setclipboard")
+        if clip then pcall(clip, raw) end
+        if not silent then
+            notify("Created paste: " .. raw .. " (copied)", "good")
+        end
+        return true, raw
+    end
+
+    -- credential fields
+    local function pbField(lbl, key, placeholder)
+        local f = inst("Frame", pgTags, {
+            Size = UDim2.new(1, -8, 0, 48),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3, BorderSizePixel = 0,
+        })
+        corner(f, 8); stroke(f, T.line, 1, 0.5)
+        inst("TextLabel", f, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 4),
+            Size = UDim2.new(1, -20, 0, 14),
+            Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.dim,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = string.upper(lbl),
+        })
+        local tb = inst("TextBox", f, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 20),
+            Size = UDim2.new(1, -20, 0, 22),
+            PlaceholderText = placeholder or "",
+            PlaceholderColor3 = T.dim,
+            Font = Enum.Font.Code, TextSize = 12,
+            TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = tostring(pbCfg[key] or ""),
+            ClearTextOnFocus = false,
+        })
+        tb:GetPropertyChangedSignal("Text"):Connect(function()
+            pbCfg[key] = tb.Text
+        end)
+        tb.FocusLost:Connect(function() savePbCfg() end)
+        return tb
+    end
+
+    pbField("Pastebin API dev key (required)",   "devKey",   "paste your api_dev_key here")
+    pbField("Pastebin API user key (for edit)",  "userKey",  "optional — needed to edit existing paste")
+    pbField("Paste key to edit (URL slug)",      "pasteKey", "wySWnyme")
+
+    toggle(pgTags, "Auto-push to pastebin on every save", pbCfg.autoPush, function(v)
+        pbCfg.autoPush = v; savePbCfg()
+    end)
+
+    button(pgTags, "Push to pastebin now", function()
+        task.spawn(function() pushToPastebin(false) end)
+    end)
+
+    button(pgTags, "Get user key from username/password (one-time)", function()
+        if pbCfg.devKey == "" then notify("Set dev key first", "bad"); return end
+        local user = rawget(getfenv(), "Lighting") -- placeholder; we collect via simple prompt
+        -- Inline credential prompt
+        local up = inst("Frame", Root, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 320, 0, 160),
+            BackgroundColor3 = T.bg2, BorderSizePixel = 0, ZIndex = 200,
+        })
+        corner(up, 10); stroke(up, T.line, 1, 0.4)
+        inst("TextLabel", up, {
+            BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 8),
+            Size = UDim2.new(1, -24, 0, 18), Font = Enum.Font.GothamBold, TextSize = 12,
+            TextColor3 = T.text, TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "Pastebin login (one-time)", ZIndex = 201,
+        })
+        local function mkBox(y, ph)
+            local b = inst("TextBox", up, {
+                BackgroundColor3 = T.bg, BackgroundTransparency = 0.1, BorderSizePixel = 0,
+                Position = UDim2.new(0, 12, 0, y), Size = UDim2.new(1, -24, 0, 26),
+                Font = Enum.Font.Code, TextSize = 12, TextColor3 = T.text,
+                PlaceholderText = ph, PlaceholderColor3 = T.dim,
+                ClearTextOnFocus = false, Text = "", ZIndex = 201,
+            })
+            corner(b, 6); stroke(b, T.line, 1, 0.4)
+            return b
+        end
+        local uBox = mkBox(32, "pastebin username")
+        local pBox = mkBox(64, "pastebin password")
+        local function close() up:Destroy() end
+        local cancel = inst("TextButton", up, {
+            Position = UDim2.new(0, 12, 1, -34), Size = UDim2.new(0, 90, 0, 26),
+            BackgroundColor3 = T.bg3, BorderSizePixel = 0, AutoButtonColor = false,
+            Font = Enum.Font.GothamSemibold, TextSize = 12, TextColor3 = T.text,
+            Text = "Cancel", ZIndex = 201,
+        })
+        corner(cancel, 6); cancel.MouseButton1Click:Connect(close)
+        local ok = inst("TextButton", up, {
+            AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 1, -34),
+            Size = UDim2.new(0, 90, 0, 26),
+            BackgroundColor3 = T.acc, BorderSizePixel = 0, AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+            Text = "Login", ZIndex = 201,
+        })
+        corner(ok, 6)
+        ok.MouseButton1Click:Connect(function()
+            local un, pw = uBox.Text, pBox.Text
+            close()
+            task.spawn(function()
+                local res, err = httpPost("https://pastebin.com/api/api_login.php", form({
+                    api_dev_key       = pbCfg.devKey,
+                    api_user_name     = un,
+                    api_user_password = pw,
+                }))
+                if not res then notify("Login failed: " .. tostring(err), "bad"); return end
+                local body = tostring(res.Body or "")
+                if body:sub(1, 15) == "Bad API request" then
+                    notify("Pastebin: " .. body, "bad"); return
+                end
+                pbCfg.userKey = body; savePbCfg()
+                notify("User key saved", "good")
+            end)
+        end)
+    end)
+
+    label(pgTags, "Tip: with both user key + paste key, edits update the SAME URL in place.")
+    label(pgTags, "Without them, each push creates a new unlisted paste (URL is copied to clipboard).")
+
+    -- Expose for the Save button to auto-push
+    _G.__SeigePbPush = function() if pbCfg.autoPush then pushToPastebin(true) end end
+
     rebuildList()
 end
 
