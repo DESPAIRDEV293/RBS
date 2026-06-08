@@ -1221,6 +1221,7 @@ local pgAim     = makeTab("Aim",     "✚", "Aim assist and silent aim")
 local pgServer  = makeTab("Server",  "≡", "Server hop and rejoin")
 local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands, executor and rejoin")
 local pgThemes  = makeTab("Themes",  "✿", "Customize colors and background")
+local pgShaders = makeTab("Shaders", "✷", "Real post-processing: bloom, blur, DOF, color")
 local pgConfig  = makeTab("Config",  "⚙", "Settings and keybinds")
 
 ------------------------------------------------------- HELPERS
