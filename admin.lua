@@ -3107,7 +3107,9 @@ button(pgServer, "Copy JobId", function()
 end)
 
 ------------------------------------------------------- CMDS TAB
+section(pgCmds, "Command bar (F6)  ·  !rj  !tprj")
 section(pgCmds, "Rejoin")
+
 button(pgCmds, "Rejoin (same server)", function()
     local ok, err = pcall(function()
         TeleportSrv:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
@@ -4440,8 +4442,82 @@ bind(UIS.InputBegan:Connect(function(i, gp)
     end
 end))
 
+-- F6 command bar (executes !commands like !rj, !tprj)
+local cmdBarGui = inst("ScreenGui", Root, {
+    Name = "CmdBar", IgnoreGuiInset = true, ResetOnSpawn = false,
+    ZIndex = 200,
+})
+local cmdBar = inst("Frame", cmdBarGui, {
+    AnchorPoint = Vector2.new(0.5, 1),
+    Position = UDim2.new(0.5, 0, 1, -24),
+    Size = UDim2.new(0, 520, 0, 40),
+    BackgroundColor3 = T.bg2, BackgroundTransparency = 0.1, BorderSizePixel = 0,
+    Visible = false, ZIndex = 200,
+})
+corner(cmdBar, 10); stroke(cmdBar, T.line, 1, 0.4)
+local cmdPrefix = inst("TextLabel", cmdBar, {
+    Position = UDim2.new(0, 12, 0, 0), Size = UDim2.new(0, 18, 1, 0),
+    BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16,
+    TextColor3 = T.acc, Text = ">", ZIndex = 201,
+})
+local cmdBox = inst("TextBox", cmdBar, {
+    Position = UDim2.new(0, 34, 0, 0), Size = UDim2.new(1, -44, 1, 0),
+    BackgroundTransparency = 1, BorderSizePixel = 0,
+    Font = Enum.Font.Code, TextSize = 14, TextColor3 = T.text, PlaceholderColor3 = T.dim,
+    TextXAlignment = Enum.TextXAlignment.Left, ClearTextOnFocus = false,
+    PlaceholderText = "Type a command (!rj, !tprj) and press Enter",
+    Text = "", ZIndex = 201,
+})
+
+local cmdHandlers = {}
+cmdHandlers["rj"] = function()
+    notify("Rejoining...", "good")
+    pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
+end
+cmdHandlers["tprj"] = function()
+    notify("Teleport rejoin (same server)...", "good")
+    local ok = pcall(function()
+        TeleportSrv:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
+    end)
+    if not ok then
+        pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
+        notify("Falling back to normal rejoin", "warn")
+    end
+end
+
+local function runBarCmd(raw)
+    if not raw or raw == "" then return end
+    local s = raw:gsub("^%s+", ""):gsub("%s+$", "")
+    s = s:gsub("^!", "")
+    local cmd, arg = s:match("^(%S+)%s*(.*)$")
+    if not cmd then return end
+    cmd = cmd:lower()
+    local h = cmdHandlers[cmd]
+    if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
+end
+
+cmdBox.FocusLost:Connect(function(enter)
+    local t = cmdBox.Text
+    cmdBox.Text = ""
+    cmdBar.Visible = false
+    if enter then runBarCmd(t) end
+end)
+
+bind(UIS.InputBegan:Connect(function(i, gp)
+    if gp then return end
+    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.F6 then
+        cmdBar.Visible = not cmdBar.Visible
+        if cmdBar.Visible then
+            cmdBox:CaptureFocus()
+        else
+            cmdBox.Text = ""
+        end
+    end
+end))
+
 -- Open Profile by default
 if panels.Profile then panels.Profile.frame.Visible = true end
+
 
 
 
@@ -4460,5 +4536,6 @@ end
 
 ------------------------------------------------------- READY
 notify("seige.lol loaded · " .. ADMIN_BUILD, "good")
-notify("Press F2 to toggle UI", "good")
+notify("Press F2 to toggle UI · F6 for command bar", "good")
 print("[seige.lol] Ready")
+
