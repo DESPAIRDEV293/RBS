@@ -865,7 +865,7 @@ end
 --   Builderman    | Builderman | #00aaff | sparkle | 156 | Roblox
 --
 -- To change tags: edit the paste, hit Save, rejoin (or wait for next load).
-local TAGS_PASTEBIN_URL = "" -- e.g. "https://pastebin.com/raw/XXXXXXXX"
+local TAGS_PASTEBIN_URL = "https://pastebin.com/raw/wySWnyme"
 local TAGS_DB_URL       = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
 
 local TagDB = { entries = {} }
