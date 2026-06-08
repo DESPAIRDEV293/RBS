@@ -1743,6 +1743,352 @@ task.spawn(function()
 end)
 
 
+------------------------------------------------------- TAGS MANAGER (owner-only)
+-- In-game GUI to add/edit/remove tag entries without touching code or pastebin.
+-- Changes apply LIVE to everyone in the server. Export button copies a
+-- pastebin-formatted text block to your clipboard so you can save permanently.
+if LP.Name == "DESPAIRDEV293" then
+    local EFFECT_OPTS = { "none", "rain", "snow", "sparkle", "nebula" }
+    local TEXTFX_OPTS = { "none", "glitch", "type", "explode" }
+
+    local pgTags = makeTab("Tags", "✎")
+
+    -- form values
+    local form = {
+        username = "", displayName = "", color = "",
+        icon = "", effect = "none", textFx = "none", tags = "",
+    }
+    local editingKey = nil  -- if set, "Save" updates this key instead of creating
+
+    section(pgTags, "Tag editor")
+
+    local function field(parent, lbl, key, placeholder)
+        local f = inst("Frame", parent, {
+            Size = UDim2.new(1, -8, 0, 48),
+            BackgroundColor3 = T.bg2,
+            BackgroundTransparency = 0.3,
+            BorderSizePixel = 0,
+        })
+        corner(f, 8); stroke(f, T.line, 1, 0.5)
+        inst("TextLabel", f, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 4),
+            Size = UDim2.new(1, -20, 0, 14),
+            Font = Enum.Font.GothamBold,
+            TextSize = 10,
+            TextColor3 = T.dim,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = string.upper(lbl),
+        })
+        local tb = inst("TextBox", f, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 20),
+            Size = UDim2.new(1, -20, 0, 22),
+            PlaceholderText = placeholder or "",
+            PlaceholderColor3 = T.dim,
+            Font = Enum.Font.Gotham,
+            TextSize = 12,
+            TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "",
+            ClearTextOnFocus = false,
+        })
+        tb:GetPropertyChangedSignal("Text"):Connect(function()
+            form[key] = tb.Text
+        end)
+        return tb
+    end
+
+    local tbUser     = field(pgTags, "Username (required)", "username", "DESPAIRDEV293")
+    local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
+    local tbColor    = field(pgTags, "Hex color", "color", "#ff3b6b")
+    local tbIcon     = field(pgTags, "Icon URL / asset id", "icon", "rbxassetid://123 or https://...")
+    local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
+
+    -- effect dropdown
+    local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
+    -- text animation dropdown
+    local txDD  = dropdown(pgTags, "Text animation", TEXTFX_OPTS, function(v) form.textFx = v end)
+
+    -- live preview swatch
+    local prev = inst("Frame", pgTags, {
+        Size = UDim2.new(1, -8, 0, 36),
+        BackgroundColor3 = T.bg2,
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+    })
+    corner(prev, 8); stroke(prev, T.line, 1, 0.5)
+    local swatch = inst("Frame", prev, {
+        Position = UDim2.new(0, 10, 0.5, -10),
+        Size = UDim2.new(0, 20, 0, 20),
+        BackgroundColor3 = T.acc,
+        BorderSizePixel = 0,
+    })
+    corner(swatch, 4); stroke(swatch, T.text, 1, 0.3)
+    local prevLbl = inst("TextLabel", prev, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 40, 0, 0),
+        Size = UDim2.new(1, -50, 1, 0),
+        Font = Enum.Font.GothamMedium,
+        TextSize = 12,
+        TextColor3 = T.sub,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "color preview",
+    })
+    tbColor:GetPropertyChangedSignal("Text"):Connect(function()
+        local c = parseColor(tbColor.Text)
+        if c then swatch.BackgroundColor3 = c; prevLbl.Text = tbColor.Text end
+    end)
+
+    local function loadForm(key, e)
+        editingKey = key
+        tbUser.Text     = key or ""
+        tbDisplay.Text  = (e and e.displayName) or ""
+        tbColor.Text    = (e and e.color) or ""
+        tbIcon.Text     = (e and e.icon) or ""
+        tbTags.Text     = (e and e.tags and table.concat(e.tags, ",")) or ""
+        effDD.set(e and e.effect or "none")
+        txDD.set(e and e.textFx or "none")
+    end
+
+    local function clearForm() loadForm(nil, nil) end
+
+    local function applyToMatchingPlayer(user)
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name:lower() == user:lower() then
+                TagDB:applyTo(p)
+                pcall(refreshBill, p)
+            end
+        end
+    end
+
+    -- list of current entries
+    local listSec = section(pgTags, "Current tags")
+    local listFrame = inst("Frame", pgTags, {
+        Size = UDim2.new(1, -8, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+    })
+    inst("UIListLayout", listFrame, {
+        Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    })
+
+    local function rebuildList()
+        for _, c in ipairs(listFrame:GetChildren()) do
+            if not c:IsA("UIListLayout") then c:Destroy() end
+        end
+        local keys = {}
+        for k in pairs(TagDB.entries) do keys[#keys+1] = k end
+        table.sort(keys)
+        for _, k in ipairs(keys) do
+            local e = TagDB.entries[k]
+            local row = inst("Frame", listFrame, {
+                Size = UDim2.new(1, 0, 0, 30),
+                BackgroundColor3 = T.bg2,
+                BackgroundTransparency = 0.3,
+                BorderSizePixel = 0,
+            })
+            corner(row, 6); stroke(row, T.line, 1, 0.5)
+            local dot = inst("Frame", row, {
+                Position = UDim2.new(0, 8, 0.5, -5),
+                Size = UDim2.new(0, 10, 0, 10),
+                BackgroundColor3 = parseColor(e.color or "") or T.acc,
+                BorderSizePixel = 0,
+            })
+            corner(dot, 5)
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 26, 0, 0),
+                Size = UDim2.new(1, -130, 1, 0),
+                Font = Enum.Font.GothamMedium,
+                TextSize = 12,
+                TextColor3 = T.text,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = (e.displayName and (e.displayName .. " (" .. k .. ")")) or k,
+            })
+            local bEdit = inst("TextButton", row, {
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -58, 0.5, 0),
+                Size = UDim2.new(0, 48, 0, 22),
+                BackgroundColor3 = T.bg3,
+                AutoButtonColor = false,
+                Text = "edit",
+                Font = Enum.Font.GothamSemibold,
+                TextSize = 11,
+                TextColor3 = T.text,
+            })
+            corner(bEdit, 6); stroke(bEdit, T.line, 1, 0.4)
+            local bDel = inst("TextButton", row, {
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -6, 0.5, 0),
+                Size = UDim2.new(0, 48, 0, 22),
+                BackgroundColor3 = T.bg3,
+                AutoButtonColor = false,
+                Text = "del",
+                Font = Enum.Font.GothamSemibold,
+                TextSize = 11,
+                TextColor3 = T.bad,
+            })
+            corner(bDel, 6); stroke(bDel, T.line, 1, 0.4)
+            bEdit.MouseButton1Click:Connect(function() loadForm(k, e) end)
+            bDel.MouseButton1Click:Connect(function()
+                local prev = TagDB.entries[k]
+                TagDB.entries[k] = nil
+                -- clear icon + tags from any matching player in-server
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p.Name:lower() == k then
+                        if prev and prev.icon then TagIcons:set(p.UserId, nil) end
+                        if prev and type(prev.tags) == "table" then
+                            for _, t in ipairs(prev.tags) do Tags:remove(p.UserId, t) end
+                        end
+                        pcall(refreshBill, p)
+                    end
+                end
+                rebuildList()
+                notify("Removed tag entry: " .. k, "warn")
+            end)
+        end
+        if #keys == 0 then
+            inst("TextLabel", listFrame, {
+                Size = UDim2.new(1, 0, 0, 24),
+                BackgroundTransparency = 1,
+                Font = Enum.Font.Gotham,
+                TextSize = 11,
+                TextColor3 = T.dim,
+                Text = "no entries yet — add one above",
+            })
+        end
+    end
+
+    section(pgTags, "Actions")
+
+    button(pgTags, "Save / Update entry", function()
+        local u = (form.username or ""):gsub("^%s+",""):gsub("%s+$","")
+        if u == "" then notify("Username required", "bad"); return end
+        local key = u:lower()
+        local entry = {}
+        if form.displayName ~= "" then entry.displayName = form.displayName end
+        if form.color ~= "" then entry.color = form.color end
+        if form.icon ~= "" then entry.icon = form.icon end
+        if form.effect and form.effect ~= "none" then entry.effect = form.effect end
+        if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
+        if form.tags ~= "" then
+            local list = {}
+            for t in (form.tags .. ","):gmatch("([^,]*),") do
+                t = t:gsub("^%s+",""):gsub("%s+$","")
+                if t ~= "" then list[#list+1] = t end
+            end
+            if #list > 0 then entry.tags = list end
+        end
+        -- if editing under a renamed key, drop old key first
+        if editingKey and editingKey ~= key then TagDB.entries[editingKey] = nil end
+        TagDB.entries[key] = entry
+        applyToMatchingPlayer(u)
+        rebuildList()
+        clearForm()
+        notify("Saved tag for " .. u, "good")
+    end)
+
+    button(pgTags, "Clear form / new entry", function() clearForm() end)
+
+    button(pgTags, "Apply all to server (refresh bubbles)", function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            TagDB:applyTo(p)
+            pcall(refreshBill, p)
+        end
+        notify("Refreshed all player tags", "good")
+    end)
+
+    button(pgTags, "Reload from pastebin (discards unsaved)", function()
+        task.spawn(function()
+            TagDB:load()
+            for _, p in ipairs(Players:GetPlayers()) do
+                TagDB:applyTo(p); pcall(refreshBill, p)
+            end
+            rebuildList()
+            notify("Reloaded from pastebin", "good")
+        end)
+    end)
+
+    section(pgTags, "Export")
+    local exportLbl = inst("TextLabel", pgTags, {
+        Size = UDim2.new(1, -8, 0, 16),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham,
+        TextSize = 10,
+        TextColor3 = T.dim,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "Paste this text into pastebin.com/wySWnyme to save permanently:",
+    })
+    local exportFrame = inst("Frame", pgTags, {
+        Size = UDim2.new(1, -8, 0, 120),
+        BackgroundColor3 = T.bg2,
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+    })
+    corner(exportFrame, 8); stroke(exportFrame, T.line, 1, 0.5)
+    local exportBox = inst("TextBox", exportFrame, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 8, 0, 8),
+        Size = UDim2.new(1, -16, 1, -16),
+        Font = Enum.Font.Code,
+        TextSize = 11,
+        TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true,
+        MultiLine = true,
+        ClearTextOnFocus = false,
+        Text = "",
+    })
+
+    local function buildExport()
+        local keys = {}
+        for k in pairs(TagDB.entries) do keys[#keys+1] = k end
+        table.sort(keys)
+        local lines = {}
+        for _, k in ipairs(keys) do
+            local e = TagDB.entries[k]
+            local tagsStr = (e.tags and table.concat(e.tags, ",")) or ""
+            lines[#lines+1] = table.concat({
+                k,
+                e.displayName or "",
+                e.color or "",
+                e.effect or "",
+                e.icon or "",
+                tagsStr,
+                e.textFx or "",
+            }, " | ")
+        end
+        return table.concat(lines, "\n")
+    end
+
+    button(pgTags, "Copy export to clipboard", function()
+        local txt = buildExport()
+        exportBox.Text = txt
+        local clip = rawget(getfenv(), "setclipboard")
+            or rawget(getfenv(), "toclipboard")
+            or (syn and syn.write_clipboard)
+        if clip then
+            pcall(clip, txt)
+            notify("Copied " .. (#txt) .. " chars to clipboard", "good")
+        else
+            notify("No clipboard support — copy from textbox below", "warn")
+        end
+    end)
+
+    button(pgTags, "Show export text below", function()
+        exportBox.Text = buildExport()
+    end)
+
+    rebuildList()
+end
+
+
+
+
+
 ------------------------------------------------------- ENABLE PLAYER TAGS PROMPT
 task.delay(2.2, function()
     local prompt = inst("Frame", Root, {
