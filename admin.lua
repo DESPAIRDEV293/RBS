@@ -3070,6 +3070,7 @@ end)
 
 -- Player-target commands open the bar prefilled
 button(pgCmds, "!goto / !tp <player>",  function() _openCmd("!goto ") end)
+button(pgCmds, "!to <player>",           function() _openCmd("!to ") end)
 button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
 button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
