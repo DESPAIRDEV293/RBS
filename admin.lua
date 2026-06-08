@@ -3649,14 +3649,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
   ------------------------------------------------------------------
   -- NT TEAM TAGS  ·  limited Tags tab for users with role == "nt"
   -- They can ONLY edit: tag name(s), color (hex), and image (icon).
-  -- No effects, no fonts, no animations, no pastebin
+  -- No fonts, no pastebin
   -- sync, no export. Owner/Admin/Staff still see the full editor above.
   ------------------------------------------------------------------
   if _G.__SeigeMyRole() == "nt" then
     local pgNtTags = makeTab("Tags", "✎", "NT Team · edit tag name, color, image")
     if _G.__SeigeAudit then _G.__SeigeAudit("ui_open:nt_tags_tab", "NT tag editor mounted", true) end
     section(pgNtTags, "Tag editor (NT Team)")
-    label(pgNtTags, "Limited editor — you can change tag names, colors and image only. Effects, fonts and other settings are restricted.")
+    label(pgNtTags, "Limited editor — you can change tag names, colors and image only. Fonts and other settings are restricted.")
 
     local function _ntField(parent, lbl, ph)
         label(parent, lbl)
@@ -3708,7 +3708,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
         -- Start from existing entry so we preserve fields NT can't edit
-        -- (effects, fonts, customText, displayName, outline, etc.).
+        -- (fonts, customText, displayName, outline, etc.).
         local existing = TagDB.entries[key] or {}
         local entry = {}
         for k, v in pairs(existing) do entry[k] = v end
@@ -3835,15 +3835,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             key,
             e.displayName or "",
             e.color or "",
-            e.effect or "",
+            "",
             e.icon or "",
             tagsStr,
-            e.textFx or "",
+            "",
             e.customText or "",
             e.customHandle or "",
             e.outline or "",
             e.font or "",
-            e.sweep or "",
+            "",
             "",
         }
         while #fields > 1 and (fields[#fields] == nil or fields[#fields] == "") do
