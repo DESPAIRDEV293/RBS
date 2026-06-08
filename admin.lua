@@ -1575,8 +1575,8 @@ local function refreshBill(p)
 
     -- Text effect (glitch / type / explode)
     local newTextFx = cfg and cfg.textFx
-    e.nameBase   = (cfg and cfg.displayName) or p.DisplayName
-    e.handleBase = "@" .. p.Name
+    e.nameBase   = nameStr
+    e.handleBase = handleStr
     if newTextFx ~= e.textFx then
         e.textFx = newTextFx
         e.txState = nil
