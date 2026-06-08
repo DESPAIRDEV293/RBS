@@ -2841,14 +2841,8 @@ for _, p in ipairs(Players:GetPlayers()) do hookCharBill(p) end
 -- Load the script-managed tag database, then apply to all players
 task.spawn(function()
     TagDB:load()
-    -- Default tag for any executor without a custom entry: a "User" chip
-    -- alongside their real DisplayName + @username + Roblox avatar.
-    do
-        local key = (LP.Name or ""):lower()
-        if key ~= "" and not TagDB.entries[key] then
-            TagDB.entries[key] = { tags = { "User" } }
-        end
-    end
+    -- No default chip: the pill shows only DisplayName + @handle until a tag
+    -- is explicitly equipped in the Tags panel. (Removed the auto "User" chip.)
     for _, p in ipairs(Players:GetPlayers()) do
         TagDB:applyTo(p)
         -- ensure persisted entries get a bubble on script reload too
