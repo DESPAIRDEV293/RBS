@@ -3862,6 +3862,7 @@ local HELP_CMDS = {
         { "!stopanim", "Stop all reanim tracks" },
         { "!bang <player>", "Roblox classic" },
         { "!unbang", "Stop" },
+        { "!cir <player> / !uncir", "Orbit a player — adjust distance/speed in the panel" },
     }},
     { "Position", {
         { "!save", "Save current position" },
@@ -4413,6 +4414,29 @@ button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
 button(pgCmds, "!head <player>",        function() _openCmd("!head ") end)
 button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
+button(pgCmds, "Circle  —  orbit a player (!cir)", function()
+    _openPanel("circle", "Circle  ·  orbit a player", 240, function(body)
+        _G.__SeigeCircle = _G.__SeigeCircle or { radius = 6, speed = 2, height = 0 }
+        local C = _G.__SeigeCircle
+        local tbox = inst("TextBox", body, {
+            Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
+            TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+            PlaceholderText = "  Player name…", Text = "", ClearTextOnFocus = false,
+        })
+        button(body, "Start circling", function()
+            local name = tbox.Text
+            if not name or name == "" then notify("Type a player name", "warn"); return end
+            local target = findPlr(name)
+            if not target then notify("Player not found", "bad"); return end
+            _seigeCircleStart(target)
+            notify("Circling " .. target.Name, "good")
+        end)
+        slider(body, "Distance (closer ↔ farther)", 2, 40, C.radius, function(v) C.radius = v end)
+        slider(body, "Speed", 1, 12, C.speed, function(v) C.speed = v end)
+        slider(body, "Height offset", -10, 10, C.height, function(v) C.height = v end)
+        button(body, "Stop (!uncir)", function() _seigeCircleStop(); notify("Circle stopped", "good") end)
+    end)
+end)
 
 section(pgCmds, "Extras")
 button(pgCmds, "!esp  —  highlight all players",         function() _runCmd("!esp") end)
@@ -7230,6 +7254,42 @@ cmdHandlers["unbang"] = function()
     if _G.__BangTrack then pcall(function() _G.__BangTrack:Stop() end); _G.__BangTrack = nil end
     notify("Bang stopped", "good")
 end
+
+-- !cir <player> — orbit the target. Adjustable radius/speed via panel.
+_G.__SeigeCircle = _G.__SeigeCircle or { radius = 6, speed = 2, height = 0 }
+local function _seigeCircleStop()
+    if _G.__CircleConn then pcall(function() _G.__CircleConn:Disconnect() end); _G.__CircleConn = nil end
+    _G.__CircleTarget = nil
+end
+local function _seigeCircleStart(target)
+    _seigeCircleStop()
+    _G.__CircleTarget = target
+    local t0 = tick()
+    _G.__CircleConn = RunService.Heartbeat:Connect(function()
+        local tgt = _G.__CircleTarget
+        if not tgt or not tgt.Parent then _seigeCircleStop(); return end
+        local thrp = phrp(tgt); local me = hrp()
+        if not (thrp and me) then return end
+        local C = _G.__SeigeCircle
+        local ang = (tick() - t0) * (C.speed or 2)
+        local off = Vector3.new(math.cos(ang) * (C.radius or 6), C.height or 0, math.sin(ang) * (C.radius or 6))
+        local pos = thrp.Position + off
+        me.CFrame = CFrame.new(pos, thrp.Position)
+    end)
+end
+cmdHandlers["cir"] = function(arg)
+    if not arg or arg == "" then
+        if _G.__CircleConn then _seigeCircleStop(); notify("Circle stopped", "good"); return end
+        notify("!cir <player>", "warn"); return
+    end
+    local target = findPlr(arg)
+    if not target then notify("Player not found", "bad"); return end
+    _seigeCircleStart(target)
+    notify("Circling " .. target.Name .. " (!uncir to stop)", "good")
+end
+cmdHandlers["circle"] = cmdHandlers["cir"]
+cmdHandlers["uncir"] = function() _seigeCircleStop(); notify("Circle stopped", "good") end
+cmdHandlers["uncircle"] = cmdHandlers["uncir"]
 
 -- ---------- extended chat commands ----------
 local function getHum()
