@@ -10395,7 +10395,6 @@ cmdHandlers["taginfo"] = function(arg)
     end
     if e.textOutline then rows[#rows+1] = { text = "outline: " .. tostring(e.textOutline) } end
     if e.icon then rows[#rows+1] = { text = "icon: " .. tostring(e.icon) } end
-    if e.effect then rows[#rows+1] = { text = "effect: " .. tostring(e.effect) } end
     if #rows == 0 then rows[1] = { text = "(entry exists but no details)" } end
     _openResultPanel("taginfo", "Tag info · @" .. key, rows, { height = 320 })
 end
