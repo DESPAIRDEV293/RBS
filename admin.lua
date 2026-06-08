@@ -1858,7 +1858,7 @@ local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands, executor and rejoin
 local pgShaders = makeTab("Shaders", "☀", "Real post-processing: bloom, blur, DOF, color")
 local pgSpotify = makeTab("Spotify", "♫", "Connect your token and control playback")
 local pgConfig  = makeTab("Config",  "⚙", "Settings and keybinds")
--- Skybox tab removed; skybox options now live under the Shaders tab.
+-- Skybox settings live under the Config tab.
 local pgMisc    = makeTab("Misc",    "⋯", "Other tools and experimental features")
 -- Aliases — content for these older tabs now lives inside the Misc tab.
 local pgWorld   = pgMisc
