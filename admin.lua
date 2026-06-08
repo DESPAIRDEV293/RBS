@@ -3360,7 +3360,7 @@ local HELP_CMDS = {
         { "!spectate <player>", "Spectate a player" },
         { "!unspectate", "Stop spectating" },
         { "!face <player>", "Face a player" },
-        { "!head <player>", "Stand on their head" },
+        { "!head <player>", "Sit on a player's head and lock there until !head or !unhead" },
         { "!fling <player>", "Fling a player" },
     }},
     { "Animations", {
