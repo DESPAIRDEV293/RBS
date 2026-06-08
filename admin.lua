@@ -1983,9 +1983,13 @@ if LP.Name == "0rot3" then
             tbColor.Text  = rawColor
             tbColor2.Text = ""
         end
-        local iconRaw = (e and e.icon) or ""
-        iconRaw = tostring(iconRaw):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
-        tbIcon.Text     = iconRaw
+        local iconRaw = tostring((e and e.icon) or "")
+        if iconRaw:lower():sub(1, 4) == "gif:" then
+            -- keep gif spec intact (e.g. "gif:1234567890:4:4:12")
+            tbIcon.Text = iconRaw
+        else
+            tbIcon.Text = iconRaw:gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
+        end
         tbTags.Text     = (e and e.tags and table.concat(e.tags, ",")) or ""
         tbCustom.Text   = (e and e.customText) or ""
         effDD.set(e and e.effect or "none")
