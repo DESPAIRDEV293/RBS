@@ -300,6 +300,25 @@ local SubBrand = inst("TextLabel", Top, {
     Text = "admin · " .. ADMIN_BUILD,
 })
 
+-- Titlebar clock
+local TopClock = inst("TextLabel", Top, {
+    AnchorPoint = Vector2.new(1, 0.5),
+    Position = UDim2.new(1, -76, 0.5, 0),
+    Size = UDim2.new(0, 86, 0, 24),
+    BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35, BorderSizePixel = 0,
+    Font = Enum.Font.GothamSemibold, TextSize = 12,
+    TextColor3 = T.text,
+    Text = (os.date("%I:%M %p"):gsub("^0", "")),
+})
+corner(TopClock, 6); stroke(TopClock, T.line, 1, 0.5)
+task.spawn(function()
+    while TopClock and TopClock.Parent do
+        local t = os.date("%I:%M %p"):gsub("^0", "")
+        TopClock.Text = t
+        task.wait(1)
+    end
+end)
+
 local function topBtn(icon, x, fn)
     local b = inst("TextButton", Top, {
         AnchorPoint = Vector2.new(1, 0.5),
