@@ -3464,9 +3464,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- metal sweep animation has been removed; keep a no-op shim so the rest
     -- of the panel (which references sweepDD.set) doesn't error.
     local sweepDD = { set = function() end }
-    -- per-tag tag special (outline aura effect around the bubble). "none" = no aura.
-    local ELEMENT_OPTS = { "none", "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
-    local elementDD = dropdown(pgTags, "Tag special (outline effect)", ELEMENT_OPTS, function(v) form.element = v end)
+    -- Tag specials were removed because their aura layer caused a faint box behind tags.
+    local elementDD = { set = function() form.element = "none" end }
 
     -- Give the Tag panel's dropdowns more room: longer labels (e.g. "Tag
     -- special (outline effect)") and longer option values (e.g. "celestial",
@@ -3588,9 +3587,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         fontDD.set((e and e.font) or "Default")
         sweepDD.set((e and e.sweep) or "on")
         form.sweep = (e and e.sweep) or "on"
-        local el = (e and e.element) or "none"
-        elementDD.set(el)
-        form.element = el
+        elementDD.set("none")
+        form.element = "none"
     end
 
     local function clearForm() loadForm(nil, nil) end
