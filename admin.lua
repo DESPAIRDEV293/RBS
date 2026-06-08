@@ -1464,8 +1464,18 @@ local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
     e.gui.Enabled = true
-    e.name.Text = (cfg and cfg.displayName) or p.DisplayName
-    e.handle.Text = "@" .. p.Name
+    -- Default everyone to anonymous "user" unless an admin set an override.
+    -- LP always sees their own real identity.
+    local function fmtHandle(h)
+        h = tostring(h or ""):gsub("^@",""):gsub("^%s+",""):gsub("%s+$","")
+        return "@" .. h
+    end
+    local nameStr   = (cfg and cfg.displayName) or (p == LP and p.DisplayName) or "user"
+    local handleStr = (cfg and cfg.customHandle and cfg.customHandle ~= "" and fmtHandle(cfg.customHandle))
+                      or (p == LP and ("@" .. p.Name))
+                      or "@user"
+    e.name.Text   = nameStr
+    e.handle.Text = handleStr
 
     -- Custom icon override (DB or per-player). Force a refresh by clearing first.
     local customIcon = TagIcons:get(p.UserId) or (cfg and cfg.icon)
