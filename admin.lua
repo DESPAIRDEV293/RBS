@@ -916,6 +916,7 @@ local function parsePastebin(src)
                     end
                     if #tags > 0 then entry.tags = tags end
                 end
+                if parts[7] and parts[7] ~= "" then entry.textFx = parts[7]:lower() end
                 entries[user:lower()] = entry
                 count = count + 1
             end
