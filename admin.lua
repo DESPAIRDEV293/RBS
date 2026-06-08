@@ -1622,6 +1622,97 @@ bind(RunService.Heartbeat:Connect(function(dt)
     end
 end))
 
+-- Text effects: glitch / type / explode
+local GLITCH_CHARS = { "#","@","%","&","*","?","/","\\","█","▓","▒","░","!","¥","Ω","§","∆","◊" }
+local function glitchify(src, intensity)
+    if src == "" then return src end
+    local out = {}
+    for i = 1, #src do
+        local ch = src:sub(i, i)
+        if ch ~= " " and math.random() < intensity then
+            out[i] = GLITCH_CHARS[math.random(1, #GLITCH_CHARS)]
+        else
+            out[i] = ch
+        end
+    end
+    return table.concat(out)
+end
+local function applyTextFx(e, t, dt)
+    local fx = e.textFx
+    if not fx then return end
+    local st = e.txState or {}
+    e.txState = st
+    if fx == "glitch" then
+        st.t = (st.t or 0) + dt
+        if st.t >= 0.06 then
+            st.t = 0
+            local hot = (math.sin(t * 3) + 1) * 0.5
+            local intensity = 0.05 + hot * 0.18
+            e.name.Text   = glitchify(e.nameBase,   intensity)
+            e.handle.Text = glitchify(e.handleBase, intensity * 0.7)
+        end
+    elseif fx == "type" then
+        st.t = (st.t or 0) + dt
+        st.phase = st.phase or "type"
+        st.i = st.i or 0
+        local full = e.nameBase
+        if st.phase == "type" then
+            if st.t >= 0.06 then
+                st.t = 0; st.i = st.i + 1
+                if st.i >= #full then st.i = #full; st.phase = "hold"; st.hold = 0 end
+            end
+        elseif st.phase == "hold" then
+            st.hold = (st.hold or 0) + dt
+            if st.hold >= 1.4 then st.phase = "erase" end
+        elseif st.phase == "erase" then
+            if st.t >= 0.04 then
+                st.t = 0; st.i = st.i - 1
+                if st.i <= 0 then st.i = 0; st.phase = "type" end
+            end
+        end
+        local caret = (math.floor(t * 2) % 2 == 0) and "▍" or " "
+        e.name.Text   = full:sub(1, st.i) .. caret
+        e.handle.Text = e.handleBase
+    elseif fx == "explode" then
+        st.t = (st.t or 0) + dt
+        st.cycle = st.cycle or 2.2
+        if st.t >= st.cycle then
+            st.t = 0
+            -- pop: scatter chars (insert spaces) then collapse
+            local function scatter(src, n)
+                local out = {}
+                for i = 1, #src do out[#out+1] = src:sub(i,i) end
+                for _ = 1, n do
+                    table.insert(out, math.random(1, math.max(1,#out)), " ")
+                end
+                return table.concat(out)
+            end
+            local frames = { 6, 10, 14, 10, 6, 3, 0 }
+            task.spawn(function()
+                for _, n in ipairs(frames) do
+                    if not e.gui or not e.gui.Parent then return end
+                    e.name.Text   = scatter(e.nameBase, n)
+                    e.handle.Text = scatter(e.handleBase, math.floor(n/2))
+                    task.wait(0.06)
+                end
+                if e.gui and e.gui.Parent then
+                    e.name.Text = e.nameBase; e.handle.Text = e.handleBase
+                end
+            end)
+        end
+    end
+end
+bind(RunService.Heartbeat:Connect(function(dt)
+    local t = tick()
+    for _, e in pairs(tagBills) do
+        if e.textFx and e.gui and e.gui.Parent then
+            pcall(applyTextFx, e, t, dt)
+        end
+    end
+end))
+
+
+
 Tags:onChange(function(uid)
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == uid then
