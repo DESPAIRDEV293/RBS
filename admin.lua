@@ -3896,6 +3896,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
 
         TagDB.entries[key] = entry
         TagDB.localEntries[key] = entry
+        if _G.__SeigeNtMarkSaved then pcall(_G.__SeigeNtMarkSaved, key) end
 
         -- Apply to the live player in this server, if present
         for _, p in ipairs(Players:GetPlayers()) do
