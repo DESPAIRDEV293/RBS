@@ -2824,12 +2824,14 @@ local function buildBill(p)
         Name = "specialBorder",
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Size = UDim2.new(1, 0, 0, 46),
+        Size = UDim2.new(0, 0, 0, 0),
         Position = UDim2.new(0, 0, 0, 6),
+        Visible = false,
         ZIndex = 2,
     })
     corner(specialBorder, 23)
     local specialStroke = inst("UIStroke", specialBorder, {
+        Enabled = false,
         Color = Color3.fromRGB(255, 255, 255),
         Thickness = 0,
         Transparency = 1,
