@@ -1470,6 +1470,18 @@ local function refreshBill(p)
         if e.fx then for _, c in ipairs(e.fx:GetChildren()) do c:Destroy() end end
     end
 
+    -- Text effect (glitch / type / explode)
+    local newTextFx = cfg and cfg.textFx
+    e.nameBase   = (cfg and cfg.displayName) or p.DisplayName
+    e.handleBase = "@" .. p.Name
+    if newTextFx ~= e.textFx then
+        e.textFx = newTextFx
+        e.txState = nil
+        -- restore plain text immediately; engine will take over next frame
+        e.name.Text   = e.nameBase
+        e.handle.Text = e.handleBase
+    end
+
     -- Auto-size bubble to text content
     local nameW   = measureText(e.name.Text,   Enum.Font.GothamBold, 14)
     local handleW = measureText(e.handle.Text, Enum.Font.Gotham,     10)
