@@ -2702,27 +2702,21 @@ local function refreshBill(p)
         end
     end
 
-    -- Tag special (outline aura): if the tag entry picks a named special, fetch
-    -- the bundled PNG and render it AROUND the bubble outline (does not replace
-    -- the bubble fill). Hidden when no special / "none" is selected.
-    if e.aura then
+    -- Tag special (outline aura): drives a UIStroke on the rounded pill
+    -- so the effect always wraps the bubble shape and never appears square.
+    if e.specialStroke then
         local elName = cfg and cfg.element
         local key = (elName and tostring(elName):lower()) or nil
-        if key and key ~= "" and key ~= "none" and TAG_SPECIAL_URLS[key] then
+        if key and key ~= "" and key ~= "none" and SPECIAL_ANIMS and SPECIAL_ANIMS[key] then
             if e.specialKey ~= key then
                 e.specialKey = key
-                local resolved = resolveIconUrl(TAG_SPECIAL_URLS[key]) or TAG_SPECIAL_URLS[key]
-                e.aura.Image = resolved
                 if _G.__SeigeStartSpecialAnim then _G.__SeigeStartSpecialAnim(e, key) end
             end
-            e.aura.Visible = true
         else
             if e.specialKey ~= nil and _G.__SeigeStopSpecialAnim then
                 _G.__SeigeStopSpecialAnim(e)
             end
             e.specialKey = nil
-            e.aura.Visible = false
-            e.aura.Image = ""
         end
     end
 
