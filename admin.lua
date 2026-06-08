@@ -6520,9 +6520,23 @@ do
             _G.__SeigeAntiVC.on = false
             notify("AntiVC OFF", "warn"); return
         end
-        if not V.isAvailable() then notify("Voice service not in this game", "bad"); return end
+        local ok, why = V.gateCheck("antivc")
+        if not ok then notify(why, "bad"); return end
         _G.__SeigeAntiVC.on = true
         notify("AntiVC ON — recycling voice (undetected)", "good")
+        task.spawn(function()
+            while _G.__SeigeAntiVC and _G.__SeigeAntiVC.on do
+                local base = tonumber(_G.__SeigeAntiVC.interval) or 25
+                task.wait(math.max(4, base) + math.random() * 4)
+                if not (_G.__SeigeAntiVC and _G.__SeigeAntiVC.on) then break end
+                V.cycle()
+            end
+        end)
+    end
+    cmdHandlers["vcactivate"] = function()
+        local ok, why = V.activate()
+        notify(ok and "Voice controls ACTIVE" or (why or "Activation failed"), ok and "good" or "warn")
+    end
         task.spawn(function()
             while _G.__SeigeAntiVC and _G.__SeigeAntiVC.on do
                 local base = tonumber(_G.__SeigeAntiVC.interval) or 25
