@@ -2049,16 +2049,32 @@ local function buildBill(p)
     local gui = inst("BillboardGui", pchar(p), {
         Name = "SeigeTagBB", Adornee = head,
         Active = true,
-        Size = UDim2.new(0, 240, 0, 50),
-        StudsOffset = Vector3.new(0, 1.6, 0),
+        Size = UDim2.new(0, 240, 0, 58),
+        StudsOffset = Vector3.new(0, 1.7, 0),
         AlwaysOnTop = true, LightInfluence = 0,
     })
-    local bg = inst("Frame", gui, {
-        Size = UDim2.new(1, 0, 0, 42), Position = UDim2.new(0, 0, 0, 4),
-        BackgroundColor3 = T.bg, BackgroundTransparency = 0.1, BorderSizePixel = 0,
-        ClipsDescendants = true,
+
+    -- Soft outer glow halo (sits behind the pill, slightly larger & blurred via image)
+    local glow = inst("ImageLabel", gui, {
+        Name = "glow",
+        BackgroundTransparency = 1,
+        Image = "rbxasset://textures/ui/Controls/DropShadow.png",
+        ImageColor3 = Color3.fromRGB(0, 0, 0),
+        ImageTransparency = 0.35,
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect.new(12, 12, 244, 244),
+        Size = UDim2.new(1, 24, 0, 60),
+        Position = UDim2.new(0, -12, 0, 2),
+        ZIndex = 0,
     })
-    corner(bg, 21)
+
+    local bg = inst("Frame", gui, {
+        Size = UDim2.new(1, 0, 0, 46), Position = UDim2.new(0, 0, 0, 6),
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.05, BorderSizePixel = 0,
+        ClipsDescendants = true,
+        ZIndex = 1,
+    })
+    corner(bg, 23)
     -- particle layer (sits above bg/image, below text/avatar)
     local fx = inst("Frame", bg, {
         Name = "fx", Size = UDim2.new(1, 0, 1, 0),
@@ -2066,10 +2082,10 @@ local function buildBill(p)
         ClipsDescendants = true,
     })
 
-    local st = stroke(bg, T.acc, 1.4, 0.3)
+    local st = stroke(bg, T.acc, 1.4, 0.25)
     local bgGrad = inst("UIGradient", bg, {
         Rotation = 90,
-        Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18)),
+        Color = ColorSequence.new(Color3.fromRGB(40,40,52), Color3.fromRGB(14,14,18)),
     })
     -- image fill layer (sits above gradient, below particles via ZIndex)
     local bgImg = inst("ImageLabel", bg, {
@@ -2082,41 +2098,104 @@ local function buildBill(p)
         ZIndex = 2,
         Image = "",
     })
-    corner(bgImg, 21)
+    corner(bgImg, 23)
+
+    -- Glossy top-shine highlight (above bg/image, below text)
+    local shine = inst("Frame", bg, {
+        Name = "shine",
+        Size = UDim2.new(1, -4, 0, 18),
+        Position = UDim2.new(0, 2, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.5,
+        BorderSizePixel = 0,
+        ZIndex = 3,
+    })
+    corner(shine, 18)
+    inst("UIGradient", shine, {
+        Rotation = 90,
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.55),
+            NumberSequenceKeypoint.new(1, 1),
+        }),
+    })
+
+    -- Bottom subtle inner shadow for depth
+    local underShade = inst("Frame", bg, {
+        Name = "underShade",
+        AnchorPoint = Vector2.new(0, 1),
+        Size = UDim2.new(1, 0, 0, 16),
+        Position = UDim2.new(0, 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 0.55,
+        BorderSizePixel = 0,
+        ZIndex = 3,
+    })
+    inst("UIGradient", underShade, {
+        Rotation = 90,
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(1, 0.55),
+        }),
+    })
+
     local av = inst("ImageLabel", bg, {
-        Size = UDim2.new(0, 32, 0, 32), Position = UDim2.new(0, 5, 0.5, -16),
+        Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 5, 0.5, -17),
         BackgroundColor3 = T.bg3, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop,
         ZIndex = 10,
     })
-    corner(av, 16)
+    corner(av, 17)
+    -- gradient ring around avatar — colored from chip color in refreshBill
+    local avRing = stroke(av, T.acc, 2, 0.1)
     pcall(function() av.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end)
     local nm = inst("TextLabel", bg, {
-        BackgroundTransparency = 1, Position = UDim2.new(0, 44, 0, 3), Size = UDim2.new(1, -120, 0, 18),
+        BackgroundTransparency = 1, Position = UDim2.new(0, 46, 0, 4), Size = UDim2.new(1, -120, 0, 18),
         Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
-        TextXAlignment = Enum.TextXAlignment.Left, Text = p.DisplayName, TextStrokeTransparency = 0.7,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = p.DisplayName, TextStrokeTransparency = 0.55,
+        TextStrokeColor3 = Color3.fromRGB(0, 0, 0),
         ZIndex = 10,
     })
     local hd = inst("TextLabel", bg, {
-        BackgroundTransparency = 1, Position = UDim2.new(0, 44, 0, 22), Size = UDim2.new(1, -120, 0, 14),
+        BackgroundTransparency = 1, Position = UDim2.new(0, 46, 0, 24), Size = UDim2.new(1, -120, 0, 14),
         Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "@" .. p.Name,
+        TextTransparency = 0.05,
         ZIndex = 10,
     })
     local sh = inst("Frame", bg, {
         AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0),
-        Size = UDim2.new(0, 80, 0, 22),
+        Size = UDim2.new(0, 80, 0, 24),
         BackgroundColor3 = T.bg2, BorderSizePixel = 0,
         ZIndex = 10,
     })
-    corner(sh, 11); stroke(sh, T.line, 1, 0.4)
+    corner(sh, 12); stroke(sh, T.line, 1, 0.35)
+    -- chip top-shine
+    local chipShine = inst("Frame", sh, {
+        Name = "chipShine",
+        Size = UDim2.new(1, -4, 0, 10),
+        Position = UDim2.new(0, 2, 0, 1),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.7,
+        BorderSizePixel = 0,
+        ZIndex = 10,
+    })
+    corner(chipShine, 8)
+    inst("UIGradient", chipShine, {
+        Rotation = 90,
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.55),
+            NumberSequenceKeypoint.new(1, 1),
+        }),
+    })
     local dot = inst("Frame", sh, {
-        Size = UDim2.new(0, 6, 0, 6), Position = UDim2.new(0, 8, 0.5, -3),
+        Size = UDim2.new(0, 7, 0, 7), Position = UDim2.new(0, 8, 0.5, -3),
         BackgroundColor3 = T.acc, BorderSizePixel = 0,
         ZIndex = 11,
     })
-    corner(dot, 3)
+    corner(dot, 4)
+    -- subtle glow on the dot
+    stroke(dot, T.acc, 1, 0.4)
     local stx = inst("TextLabel", sh, {
-        BackgroundTransparency = 1, Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(1, -22, 1, 0),
+        BackgroundTransparency = 1, Position = UDim2.new(0, 19, 0, 0), Size = UDim2.new(1, -23, 1, 0),
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
         ZIndex = 11,
