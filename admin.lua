@@ -10705,38 +10705,66 @@ local function _ntGate(name)
     return true
 end
 
--- 1) !taginfo <user> — show full tag details (color, tags, icon, effect, display name)
+-- Small inline hex->Color3 used by tag result panels.
+local function _seigeHexColor(h)
+    if type(h) ~= "string" then return nil end
+    local s = h:gsub("^#", "")
+    if #s == 3 then s = s:sub(1,1):rep(2) .. s:sub(2,2):rep(2) .. s:sub(3,3):rep(2) end
+    if #s ~= 6 then return nil end
+    local ok, c = pcall(function() return Color3.fromHex(s) end)
+    if ok and c then return c end
+    return nil
+end
+
+-- 1) !taginfo <user> — show full tag details in a GUI window
 cmdHandlers["taginfo"] = function(arg)
     if not _ntGate("!taginfo") then return end
     local t = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if t == "" then notify("Usage: !taginfo <user>", "warn"); return end
     local key = t:lower():gsub("^@", "")
     local e = TagDB and TagDB.entries and TagDB.entries[key] or nil
-    if not e then notify("No tag entry for " .. t, "warn"); return end
-    local parts = {}
-    if e.color then parts[#parts+1] = "color: " .. tostring(e.color) end
-    if e.tags and #e.tags > 0 then parts[#parts+1] = "tags: " .. table.concat(e.tags, ", ") end
-    if e.icon then parts[#parts+1] = "icon: " .. tostring(e.icon) end
-    if e.effect then parts[#parts+1] = "effect: " .. tostring(e.effect) end
-    if e.displayName then parts[#parts+1] = "name: " .. tostring(e.displayName) end
-    if #parts == 0 then parts[1] = "(entry exists but no details)" end
-    notify(t .. " · " .. table.concat(parts, " · "), "good")
+    if not e then
+        _openResultPanel("taginfo", "Tag info · @" .. key, {},
+            { empty = "No tag entry for @" .. key, height = 160 })
+        return
+    end
+    local rows = {}
+    if e.displayName then rows[#rows+1] = { text = "name: " .. tostring(e.displayName) } end
+    if e.tags and #e.tags > 0 then
+        for i, tag in ipairs(e.tags) do
+            rows[#rows+1] = { text = ("tag %d: %s"):format(i, tostring(tag)) }
+        end
+    end
+    if e.color then
+        rows[#rows+1] = { text = "color: " .. tostring(e.color), swatch = _seigeHexColor(e.color) }
+    end
+    if e.textColor then
+        rows[#rows+1] = { text = "text: " .. tostring(e.textColor), swatch = _seigeHexColor(e.textColor) }
+    end
+    if e.textOutline then rows[#rows+1] = { text = "outline: " .. tostring(e.textOutline) } end
+    if e.icon then rows[#rows+1] = { text = "icon: " .. tostring(e.icon) } end
+    if e.effect then rows[#rows+1] = { text = "effect: " .. tostring(e.effect) } end
+    if #rows == 0 then rows[1] = { text = "(entry exists but no details)" } end
+    _openResultPanel("taginfo", "Tag info · @" .. key, rows, { height = 320 })
 end
 
--- 2) !taglist — list all tagged players currently in this server
+-- 2) !taglist — list all tagged players currently in this server (GUI window)
 cmdHandlers["taglist"] = function()
     if not _ntGate("!taglist") then return end
-    local tagged = {}
+    local rows = {}
     for _, p in ipairs(Players:GetPlayers()) do
         local e = TagDB and TagDB.entries and TagDB.entries[p.Name:lower()] or nil
         if e then
-            local tag = e.tags and e.tags[1] or e.displayName or "tagged"
-            tagged[#tagged+1] = "@" .. p.Name .. " (" .. tag .. ")"
+            local tag = (e.tags and e.tags[1]) or e.displayName or "tagged"
+            rows[#rows+1] = {
+                text = "@" .. p.Name .. "  ·  " .. tag,
+                swatch = e.color and _seigeHexColor(e.color) or nil,
+            }
         end
     end
-    table.sort(tagged)
-    if #tagged == 0 then notify("No tagged players in this server", "warn")
-    else notify(("Tagged players (%d): %s"):format(#tagged, table.concat(tagged, ", ")), "good") end
+    table.sort(rows, function(a, b) return a.text < b.text end)
+    _openResultPanel("taglist", ("Tagged players · %d in server"):format(#rows), rows,
+        { empty = "No tagged players in this server.", height = 360 })
 end
 
 -- 3) !tagcheck <user> — quick yes/no whether a player has a tag entry
@@ -10754,33 +10782,36 @@ cmdHandlers["tagcheck"] = function(arg)
     end
 end
 
--- 4) !tagfind <keyword> — search tag database by username or tag name
+-- 4) !tagfind <keyword> — search tag database by username or tag name (GUI window)
 cmdHandlers["tagfind"] = function(arg)
     if not _ntGate("!tagfind") then return end
     local kw = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if kw == "" then notify("Usage: !tagfind <keyword>", "warn"); return end
-    kw = kw:lower()
-    local hits = {}
+    local kwl = kw:lower()
+    local rows = {}
     for key, e in pairs(TagDB and TagDB.entries or {}) do
         local match = false
-        if key:find(kw, 1, true) then match = true end
+        if key:find(kwl, 1, true) then match = true end
         if not match and e.tags then
             for _, tag in ipairs(e.tags) do
-                if tostring(tag):lower():find(kw, 1, true) then match = true; break end
+                if tostring(tag):lower():find(kwl, 1, true) then match = true; break end
             end
         end
-        if not match and e.displayName and tostring(e.displayName):lower():find(kw, 1, true) then match = true end
+        if not match and e.displayName and tostring(e.displayName):lower():find(kwl, 1, true) then match = true end
         if match then
-            local label = e.displayName or (e.tags and e.tags[1]) or "tagged"
-            hits[#hits+1] = "@" .. key .. " (" .. label .. ")"
+            local label = (e.tags and e.tags[1]) or e.displayName or "tagged"
+            rows[#rows+1] = {
+                text = "@" .. key .. "  ·  " .. label,
+                swatch = e.color and _seigeHexColor(e.color) or nil,
+            }
         end
     end
-    table.sort(hits)
-    if #hits == 0 then notify("No tag entries matching '" .. kw .. "'", "warn")
-    else notify(("Found %d: %s"):format(#hits, table.concat(hits, ", ")), "good") end
+    table.sort(rows, function(a, b) return a.text < b.text end)
+    _openResultPanel("tagfind", ("Tag search '%s' · %d match%s"):format(kw, #rows, #rows == 1 and "" or "es"),
+        rows, { empty = "No tag entries matching '" .. kw .. "'.", height = 360 })
 end
 
--- 5) !tagcolors — show a sample of colors currently used in the tag database
+-- 5) !tagcolors — show colors currently used in the tag database (GUI window w/ swatches)
 cmdHandlers["tagcolors"] = function()
     if not _ntGate("!tagcolors") then return end
     local seen = {}
@@ -10790,11 +10821,13 @@ cmdHandlers["tagcolors"] = function()
             seen[c] = (seen[c] or 0) + 1
         end
     end
-    local list = {}
-    for c, n in pairs(seen) do list[#list+1] = c .. " (" .. n .. ")" end
-    table.sort(list)
-    if #list == 0 then notify("No colors found in tag database", "warn")
-    else notify(("Colors used: %s"):format(table.concat(list, ", ")), "good") end
+    local rows = {}
+    for c, n in pairs(seen) do
+        rows[#rows+1] = { text = c, right = n .. "×", swatch = _seigeHexColor(c), _n = n }
+    end
+    table.sort(rows, function(a, b) return a._n > b._n end)
+    _openResultPanel("tagcolors", ("Tag colors · %d unique"):format(#rows), rows,
+        { empty = "No colors found in tag database.", height = 360 })
 end
 
 
