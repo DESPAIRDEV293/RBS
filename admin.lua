@@ -5651,88 +5651,154 @@ local Pill = inst("Frame", Root, {
     Position = UDim2.new(0.5, 0, 0, 14),
     Size = UDim2.new(0, 0, 0, 44),
     AutomaticSize = Enum.AutomaticSize.X,
-    BackgroundColor3 = T.bg,
-    BackgroundTransparency = 0.05,
+    BackgroundColor3 = Color3.fromRGB(10, 10, 12),
+    BackgroundTransparency = 0.02,
     BorderSizePixel = 0,
     Active = true,
     ZIndex = 100,
 })
-corner(Pill, 14); stroke(Pill, T.line, 1, 0.4)
-inst("UIGradient", Pill, {
-    Rotation = 90,
-    Color = ColorSequence.new(T.bg2, T.bg),
-    Transparency = NumberSequence.new(0.08),
-})
+corner(Pill, 14); stroke(Pill, Color3.fromRGB(255,255,255), 1, 0.78)
 inst("UIPadding", Pill, {
-    PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
+    PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
     PaddingTop = UDim.new(0, 5),  PaddingBottom = UDim.new(0, 5),
 })
 inst("UIListLayout", Pill, {
     FillDirection = Enum.FillDirection.Horizontal,
     VerticalAlignment = Enum.VerticalAlignment.Center,
-    Padding = UDim.new(0, 4),
+    Padding = UDim.new(0, 6),
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
 
--- Brand (name + username) — FIRST
+-- helper: thin vertical divider between sections of the bar
+local function pillDivider(order)
+    local d = inst("Frame", Pill, {
+        Size = UDim2.new(0, 1, 1, -10), BackgroundColor3 = Color3.fromRGB(255,255,255),
+        BackgroundTransparency = 0.82, BorderSizePixel = 0,
+        LayoutOrder = order, ZIndex = 101,
+    })
+    return d
+end
+
+-- Brand pill (name + @user) — FIRST
 local brandBlock = inst("Frame", Pill, {
-    Size = UDim2.new(0, 70, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
+    Size = UDim2.new(0, 86, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
 })
+inst("UIPadding", brandBlock, { PaddingLeft = UDim.new(0,6), PaddingRight = UDim.new(0,6) })
 inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
     Size = UDim2.new(1, 0, 0, 14),
-    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
+    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = Color3.fromRGB(255,255,255),
     TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
 })
 inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
     Size = UDim2.new(1, 0, 0, 12),
-    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
+    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.good,
     TextXAlignment = Enum.TextXAlignment.Left, Text = "@" .. LP.Name, ZIndex = 101,
 })
 
--- Status (FPS + PING stacked) — AFTER brand
-local statBlock = inst("Frame", Pill, {
-    Size = UDim2.new(0, 90, 1, -4), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 101,
+pillDivider(2)
+
+-- FPS / PING stat pills
+local function statPill(order, color)
+    local f = inst("Frame", Pill, {
+        Size = UDim2.new(0, 80, 0, 26), BackgroundColor3 = color,
+        BackgroundTransparency = 0.86, BorderSizePixel = 0,
+        LayoutOrder = order, ZIndex = 101,
+    })
+    corner(f, 13); stroke(f, color, 1, 0.55)
+    return f
+end
+local fpsBox = statPill(3, T.good)
+local fpsDot = inst("Frame", fpsBox, {
+    AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
+    Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = T.good, BorderSizePixel = 0, ZIndex = 102,
 })
-local fpsLbl = inst("TextLabel", statBlock, {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 3),
-    Size = UDim2.new(1, 0, 0, 14),
-    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.good,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "● FPS --", ZIndex = 101,
+corner(fpsDot, 3)
+inst("TextLabel", fpsBox, {
+    Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(0, 28, 1, 0),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = Color3.fromRGB(255,255,255),
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "FPS", ZIndex = 102,
 })
-local pingLbl = inst("TextLabel", statBlock, {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 19),
-    Size = UDim2.new(1, 0, 0, 14),
-    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.good,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "● PING --", ZIndex = 101,
+local fpsLbl = inst("TextLabel", fpsBox, {
+    Position = UDim2.new(0, 44, 0, 0), Size = UDim2.new(1, -50, 1, 0),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.good,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "--", ZIndex = 102,
 })
-inst("TextLabel", brandBlock, {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
-    Size = UDim2.new(1, 0, 0, 12),
-    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "@" .. LP.Name, ZIndex = 101,
+
+local pingBox = statPill(4, T.warn)
+local pingDot = inst("Frame", pingBox, {
+    AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
+    Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = T.warn, BorderSizePixel = 0, ZIndex = 102,
 })
+corner(pingDot, 3)
+inst("TextLabel", pingBox, {
+    Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(0, 30, 1, 0),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = Color3.fromRGB(255,255,255),
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "PING", ZIndex = 102,
+})
+local pingLbl = inst("TextLabel", pingBox, {
+    Position = UDim2.new(0, 46, 0, 0), Size = UDim2.new(1, -52, 1, 0),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.warn,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "--", ZIndex = 102,
+})
+
+pillDivider(5)
 
 -- Icon button row
 local iconsRow = inst("Frame", Pill, {
     Size = UDim2.new(0, 0, 1, -4),
     AutomaticSize = Enum.AutomaticSize.X,
-    BackgroundTransparency = 1, LayoutOrder = 3, ZIndex = 101,
+    BackgroundTransparency = 1, LayoutOrder = 6, ZIndex = 101,
 })
 inst("UIListLayout", iconsRow, {
     FillDirection = Enum.FillDirection.Horizontal,
     VerticalAlignment = Enum.VerticalAlignment.Center,
-    Padding = UDim.new(0, 4),
+    Padding = UDim.new(0, 6),
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
 
--- Clock at far right
-local pillClock = inst("TextLabel", Pill, {
-    Size = UDim2.new(0, 78, 1, -4), BackgroundTransparency = 1, LayoutOrder = 99,
-    Font = Enum.Font.GothamSemibold, TextSize = 12, TextColor3 = T.text,
+pillDivider(95)
+
+-- Hide/show toggle (compacts the bar to a hamburger) — before clock
+local pillToggle = inst("TextButton", Pill, {
+    Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = Color3.fromRGB(255,255,255),
+    BackgroundTransparency = 0.88, BorderSizePixel = 0, AutoButtonColor = false,
+    Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = Color3.fromRGB(255,255,255),
+    Text = "", LayoutOrder = 96, ZIndex = 102,
+})
+corner(pillToggle, 8); stroke(pillToggle, Color3.fromRGB(255,255,255), 1, 0.65)
+local pillToggleImg = inst("ImageLabel", pillToggle, {
+    BackgroundTransparency = 1,
+    AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0, 18, 0, 18),
+    Image = "rbxassetid://106620609396373",
+    ImageColor3 = Color3.fromRGB(255,255,255), ZIndex = 103,
+})
+
+-- Clock pill at far right (time + date)
+local clockBox = inst("Frame", Pill, {
+    Size = UDim2.new(0, 82, 1, -4), BackgroundTransparency = 1,
+    LayoutOrder = 99, ZIndex = 101,
+})
+inst("UIPadding", clockBox, { PaddingLeft = UDim.new(0,6), PaddingRight = UDim.new(0,6) })
+local pillClock = inst("TextLabel", clockBox, {
+    Position = UDim2.new(0, 0, 0, 3), Size = UDim2.new(1, 0, 0, 14),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = Color3.fromRGB(255,255,255),
     TextXAlignment = Enum.TextXAlignment.Right,
     Text = (os.date("%I:%M %p"):gsub("^0", "")), ZIndex = 101,
+})
+local pillDate = inst("TextLabel", clockBox, {
+    Position = UDim2.new(0, 0, 0, 19), Size = UDim2.new(1, 0, 0, 12),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
+    TextXAlignment = Enum.TextXAlignment.Right,
+    Text = os.date("%a %b %d"), ZIndex = 101,
 })
 
 -- Pill drag
@@ -5773,17 +5839,18 @@ task.spawn(function()
             lastFps = math.floor(frames / elapsed + 0.5)
             frames = 0
             windowStart = now
-            fpsLbl.Text = "● FPS " .. lastFps
+            fpsLbl.Text = tostring(lastFps)
             fpsLbl.TextColor3 = lastFps > 45 and T.good or (lastFps > 25 and T.warn or T.bad)
         end
         local ok, ping = pcall(function()
             return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
         end)
         if ok and ping then
-            pingLbl.Text = "● PING " .. ping .. "ms"
-            pingLbl.TextColor3 = ping < 120 and T.good or (ping < 280 and T.warn or T.bad)
+            pingLbl.Text = ping .. " ms"
+            pingLbl.TextColor3 = ping < 120 and T.warn or (ping < 280 and T.warn or T.bad)
         end
         pillClock.Text = (os.date("%I:%M %p"):gsub("^0", ""))
+        pillDate.Text  = os.date("%a %b %d")
     end
     pcall(function() rsConn:Disconnect() end)
 end)
@@ -6320,23 +6387,25 @@ for _, name in ipairs(tabOrder) do
         idx = idx + 1
         makePanel(name, entry)
         local imgId = tabImages[name]
+        local WHITE = Color3.fromRGB(255,255,255)
         local ib = inst("TextButton", iconsRow, {
             Size = UDim2.new(0, 32, 0, 32),
-            BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25, BorderSizePixel = 0,
+            BackgroundColor3 = WHITE, BackgroundTransparency = 1, BorderSizePixel = 0,
             AutoButtonColor = false,
-            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = WHITE,
             Text = imgId and "" or ((entry.ico and entry.ico.Text) or "•"),
             LayoutOrder = idx, ZIndex = 102,
         })
-        corner(ib, 8); stroke(ib, T.line, 1, 0.4)
+        corner(ib, 16)
+        local ibImg
         if imgId then
-            inst("ImageLabel", ib, {
+            ibImg = inst("ImageLabel", ib, {
                 BackgroundTransparency = 1,
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 Position = UDim2.new(0.5, 0, 0.5, 0),
                 Size = UDim2.new(0, 18, 0, 18),
                 Image = imgId,
-                ImageColor3 = T.text,
+                ImageColor3 = WHITE,
                 ZIndex = 103,
             })
         end
@@ -6345,13 +6414,18 @@ for _, name in ipairs(tabOrder) do
         local function setHover(on)
             local p = panels[name]
             local active = p and p.frame.Visible
-            if on then
-                tween(ib, 0.12, { BackgroundColor3 = T.acc, BackgroundTransparency = 0.1 })
+            if active then
+                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0 })
+                ib.TextColor3 = Color3.fromRGB(10,10,12)
+                if ibImg then ibImg.ImageColor3 = Color3.fromRGB(10,10,12) end
+            elseif on then
+                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0.82 })
+                ib.TextColor3 = WHITE
+                if ibImg then ibImg.ImageColor3 = WHITE end
             else
-                tween(ib, 0.12, {
-                    BackgroundColor3 = active and T.acc or T.bg3,
-                    BackgroundTransparency = active and 0.15 or 0.25,
-                })
+                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 1 })
+                ib.TextColor3 = WHITE
+                if ibImg then ibImg.ImageColor3 = WHITE end
             end
         end
         ib.MouseEnter:Connect(function()
@@ -6372,6 +6446,38 @@ for _, name in ipairs(tabOrder) do
     end
 end
 
+-- Pill compact toggle (hides stats/icons/clock, leaves a hamburger)
+do
+    local collapsed = false
+    local hidden = { brandBlock, fpsBox, pingBox, iconsRow, clockBox }
+    -- also hide every divider frame in the pill except the toggle itself
+    local dividers = {}
+    for _, ch in ipairs(Pill:GetChildren()) do
+        if ch:IsA("Frame") and ch.Size.X.Offset == 1 then dividers[#dividers+1] = ch end
+    end
+    pillToggle.MouseEnter:Connect(function()
+        tween(pillToggle, 0.12, { BackgroundTransparency = 0.78 })
+    end)
+    pillToggle.MouseLeave:Connect(function()
+        tween(pillToggle, 0.12, { BackgroundTransparency = 0.88 })
+    end)
+    pillToggle.MouseButton1Click:Connect(function()
+        collapsed = not collapsed
+        for _, f in ipairs(hidden) do f.Visible = not collapsed end
+        for _, d in ipairs(dividers) do d.Visible = not collapsed end
+        if collapsed then
+            pillToggleImg.Visible = false
+            pillToggle.Text = "≡"
+            for _, p in pairs(panels) do
+                if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
+            end
+        else
+            pillToggle.Text = ""
+            pillToggleImg.Visible = true
+        end
+    end)
+end
+
 -- setTab is now a no-op (panels manage their own visibility); keep symbol for
 -- backwards compatibility with anything that might call it.
 setTab = function() end
@@ -6386,7 +6492,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
             for _, p in pairs(panels) do
                 if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
                 if p.btn then
-                    tween(p.btn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25 })
+                    tween(p.btn, 0.12, { BackgroundColor3 = Color3.fromRGB(255,255,255), BackgroundTransparency = 1 })
                 end
             end
         end
