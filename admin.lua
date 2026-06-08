@@ -1657,16 +1657,29 @@ local function refreshBill(p)
     local txt = Tags:summary(p.UserId)
     -- owner-only custom chip text override
     if cfg and cfg.customText and cfg.customText ~= "" then txt = cfg.customText end
+    local chipColor
     if txt ~= "" then
         e.sh.Visible = true
         e.stat.Text = txt:gsub(",", " • ")
-        local c = c1 or tagColor(p)
-        e.stroke.Color = c; e.dot.BackgroundColor3 = c
+        chipColor = c1 or tagColor(p)
     else
         e.sh.Visible = false
-        local c = c1 or (p == LP and T.good or T.acc)
-        e.stroke.Color = c; e.dot.BackgroundColor3 = c
+        chipColor = c1 or (p == LP and T.good or T.acc)
     end
+    e.dot.BackgroundColor3 = chipColor
+    -- Outline: per-entry override. "off"/"none"/"0" disables the stroke entirely.
+    local outlineRaw = cfg and cfg.outline
+    local outlineNorm = tostring(outlineRaw or ""):lower():gsub("^%s+",""):gsub("%s+$","")
+    if outlineNorm == "off" or outlineNorm == "none" or outlineNorm == "0" or outlineNorm == "false" then
+        e.outlineOff = true
+        e.stroke.Enabled = false
+    else
+        e.outlineOff = false
+        e.stroke.Enabled = true
+        local oc = (outlineRaw and outlineRaw ~= "" and parseColor(outlineRaw)) or chipColor
+        e.stroke.Color = oc
+    end
+
     -- Bubble fill: solid / split / gradient / image
     if e.bgGrad then
         local fill = parseFill(cfg and cfg.color)
