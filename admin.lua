@@ -3333,7 +3333,7 @@ local HELP_CMDS = {
     { "Rejoin & teleport", {
         { "!rj", "Rejoin the same place (new server)" },
         { "!tprj", "Rejoin THIS server and restore your position via queue_on_teleport" },
-        { "!hop", "Teleport to a random public server" },
+        
     }},
     { "Character", {
         { "!reset / !r / !respawn", "Kill your character to respawn" },
