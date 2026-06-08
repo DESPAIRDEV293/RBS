@@ -3637,7 +3637,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if sok then
             notify("Saved tag for " .. u .. " (persisted)", "good")
         elseif noFs then
-            notify("Saved tag for " .. u .. " — syncing to pastebin", "good")
+            notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
         else
             notify("Saved tag for " .. u .. " — local save failed: " .. tostring(serr), "warn")
         end
