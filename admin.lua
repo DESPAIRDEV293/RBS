@@ -822,6 +822,7 @@ local minBtn = topBtn("—", -72, function()
     tween(Win, 0.18, { Size = minimized and UDim2.new(0,620,0,44) or UDim2.new(0,620,0,440) })
     Body.Visible = not minimized
 end)
+local helpBtn = topBtn("?", -106, showRoleHelp)
 
 -- Open/close toggle (rightmost in top bar): image icon when open, 3-line hamburger when closed.
 local toggleBtn = inst("TextButton", Top, {
