@@ -3610,6 +3610,128 @@ if LP.Name == "0rot3" then
     _G.__SeigePbPush = function() if pbCfg.autoPush then pushToPastebin(true) end end
 
     rebuildList()
+
+    ------------------------------------------------------------------
+    -- ADMIN PANEL  ·  visible only to 0rot3
+    -- Lists detected script users in this server (same-server only — Roblox
+    -- client scripts can't see other servers or IPs without a backend) and
+    -- exposes admin-only commands like !allp.
+    ------------------------------------------------------------------
+    local pgAdmin = makeTab("Admin", "★", "Admin-only · script users in this server, broadcast commands")
+
+    section(pgAdmin, "Script users in this server")
+    label(pgAdmin, "Detected via chat heartbeat. Roblox doesn't expose IPs to client scripts — that requires a backend.")
+
+    local usersList = inst("Frame", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.4,
+        BorderSizePixel = 0,
+    })
+    corner(usersList, 8); stroke(usersList, T.line, 1, 0.5)
+    inst("UIListLayout", usersList, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+    inst("UIPadding", usersList, {
+        PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+    })
+    local countLbl = label(pgAdmin, "0 users detected")
+
+    local function rebuildUsers()
+        for _, c in ipairs(usersList:GetChildren()) do
+            if not (c:IsA("UIListLayout") or c:IsA("UIPadding") or c:IsA("UICorner") or c:IsA("UIStroke")) then
+                c:Destroy()
+            end
+        end
+        local reg = _G.__SeigeScriptUsers or {}
+        local rows = {}
+        for _, info in pairs(reg) do
+            local plr = Players:GetPlayerByUserId(info.userId)
+            if plr then rows[#rows+1] = { plr = plr, info = info } end
+        end
+        table.sort(rows, function(a, b) return a.plr.Name:lower() < b.plr.Name:lower() end)
+        for _, r in ipairs(rows) do
+            local plr, info = r.plr, r.info
+            local entry = TagDB and TagDB.entries and TagDB.entries[plr.Name:lower()] or nil
+            local row = inst("Frame", usersList, {
+                Size = UDim2.new(1, 0, 0, 44),
+                BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35,
+                BorderSizePixel = 0,
+            })
+            corner(row, 6); stroke(row, T.line, 1, 0.5)
+            local av = inst("ImageLabel", row, {
+                Size = UDim2.new(0, 32, 0, 32),
+                Position = UDim2.new(0, 6, 0.5, -16),
+                BackgroundColor3 = T.bg, BorderSizePixel = 0,
+                Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(info.userId) .. "&w=48&h=48",
+            })
+            corner(av, 16)
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 46, 0, 4), Size = UDim2.new(1, -54, 0, 18),
+                Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = (entry and entry.displayName) or plr.DisplayName or plr.Name,
+            })
+            local tagText = "no tag"
+            if entry then
+                local parts = {}
+                if entry.tags and #entry.tags > 0 then for _, t in ipairs(entry.tags) do parts[#parts+1] = t end end
+                if entry.element and entry.element ~= "none" and entry.element ~= "" then parts[#parts+1] = "✦" .. entry.element end
+                tagText = (#parts > 0) and table.concat(parts, " · ") or "tagged"
+            end
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 46, 0, 22), Size = UDim2.new(1, -54, 0, 18),
+                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = "@" .. plr.Name .. "  ·  " .. tagText,
+            })
+        end
+        countLbl:set(#rows .. " user" .. (#rows == 1 and "" or "s") .. " detected")
+    end
+    rebuildUsers()
+    button(pgAdmin, "Refresh list", rebuildUsers)
+    task.spawn(function()
+        while pgAdmin.Parent do task.wait(5); pcall(rebuildUsers) end
+    end)
+
+    section(pgAdmin, "Admin commands")
+    label(pgAdmin, "!allp <message> — sends a private top-banner toast to every script user in this server.")
+
+    -- !allp composer
+    local allpFrame = inst("Frame", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 76),
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3,
+        BorderSizePixel = 0,
+    })
+    corner(allpFrame, 8); stroke(allpFrame, T.line, 1, 0.5)
+    local allpBox = inst("TextBox", allpFrame, {
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+        Position = UDim2.new(0, 10, 0, 10), Size = UDim2.new(1, -20, 0, 30),
+        PlaceholderText = "Message to broadcast (≤280 chars)…",
+        PlaceholderColor3 = T.dim,
+        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ClearTextOnFocus = false,
+    })
+    corner(allpBox, 6); stroke(allpBox, T.line, 1, 0.4)
+    local sendBtn = inst("TextButton", allpFrame, {
+        Position = UDim2.new(0, 10, 0, 44), Size = UDim2.new(1, -20, 0, 26),
+        BackgroundColor3 = T.acc, BackgroundTransparency = 0.1, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        Text = "Send !allp to all script users",
+    })
+    corner(sendBtn, 6); stroke(sendBtn, T.line, 1, 0.4)
+    sendBtn.MouseButton1Click:Connect(function()
+        local txt = allpBox.Text or ""
+        if txt:gsub("%s", "") == "" then notify("Type a message first", "warn"); return end
+        if cmdHandlers and cmdHandlers["allp"] then
+            cmdHandlers["allp"](txt)
+            allpBox.Text = ""
+        else
+            notify("Command not ready", "bad")
+        end
+    end)
 end
 
 
