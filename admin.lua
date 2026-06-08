@@ -5370,9 +5370,38 @@ local function stopAllReanim()
     end
 end
 
+-- Loads the full AK-style reanim system (separate reanim.lua module in this repo).
+-- Pins to the latest commit SHA so it bypasses GitHub raw caching, like loader.lua does.
+local function loadReanimSystem()
+    if _G.__ReanimSystemLoaded then notify("Reanim system already loaded", "warn"); return end
+    notify("Loading reanim system...", "good")
+    task.spawn(function()
+        local OWNER, REPO, BRANCH, FILE = "DESPAIRDEV293", "roblox-script-buddy", "main", "reanim.lua"
+        local sha
+        pcall(function()
+            local api = game:HttpGet(("https://api.github.com/repos/%s/%s/commits/%s"):format(OWNER, REPO, BRANCH))
+            sha = api:match('"sha"%s*:%s*"([a-f0-9]+)"')
+        end)
+        local url = sha
+            and ("https://raw.githubusercontent.com/%s/%s/%s/%s"):format(OWNER, REPO, sha, FILE)
+            or  ("https://raw.githubusercontent.com/%s/%s/%s/%s"):format(OWNER, REPO, BRANCH, FILE)
+        local ok, src = pcall(function() return game:HttpGet(url) end)
+        if not ok or type(src) ~= "string" then notify("Reanim fetch failed", "bad"); return end
+        local fn, err = loadstring(src)
+        if not fn then notify("Reanim compile error: " .. tostring(err), "bad"); return end
+        local rok, rerr = pcall(fn)
+        if not rok then notify("Reanim runtime error: " .. tostring(rerr), "bad"); return end
+        _G.__ReanimSystemLoaded = true
+        notify("Reanim system loaded", "good")
+    end)
+end
+
 cmdHandlers["reanim"] = function(arg)
     arg = (arg or ""):gsub("^%s+",""):gsub("%s+$","")
-    if arg == "" or arg == "stop" or arg == "off" then
+    if arg == "" or arg == "load" or arg == "start" or arg == "open" then
+        loadReanimSystem(); return
+    end
+    if arg == "stop" or arg == "off" then
         stopAllReanim(); notify("Reanim stopped", "good"); return
     end
     local idPart, speedPart = arg:match("^(%S+)%s*(.*)$")
