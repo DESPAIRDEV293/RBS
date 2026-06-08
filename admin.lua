@@ -4634,12 +4634,19 @@ local function findPlr(q)
     if not q or q == "" then return nil end
     q = q:lower()
     if q == "me" then return LP end
-    local best, bestLen
+    local best, bestScore
     for _, p in ipairs(Players:GetPlayers()) do
         local nm, dn = p.Name:lower(), p.DisplayName:lower()
         if nm == q or dn == q then return p end
+        -- prefix match scores highest, substring match scores medium
+        local score
         if nm:sub(1, #q) == q or dn:sub(1, #q) == q then
-            if not best or #nm < bestLen then best, bestLen = p, #nm end
+            score = 100 - #nm  -- shorter name = better
+        elseif nm:find(q, 1, true) or dn:find(q, 1, true) then
+            score = 10 - #nm
+        end
+        if score and (not bestScore or score > bestScore) then
+            best, bestScore = p, score
         end
     end
     return best
