@@ -3535,10 +3535,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         end
         if tryLoad() then return end
         -- not found locally: refresh from pastebin and try again
-        notify("Not in cache — refreshing pastebin…", "warn")
+        notify("Not in cache — refreshing from GitHub…", "warn")
         task.spawn(function()
             local ok = pcall(function() TagDB:load() end)
-            if not ok then notify("Pastebin fetch failed", "bad"); return end
+            if not ok then notify("GitHub fetch failed", "bad"); return end
             if not tryLoad() then
                 notify("No tag found for " .. raw, "bad")
             end
@@ -3637,7 +3637,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if sok then
             notify("Saved tag for " .. u .. " (persisted)", "good")
         elseif noFs then
-            notify("Saved tag for " .. u .. " — syncing to pastebin", "good")
+            notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
         else
             notify("Saved tag for " .. u .. " — local save failed: " .. tostring(serr), "warn")
         end
@@ -3659,7 +3659,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         notify("Refreshed all player tags", "good")
     end)
 
-    button(pgTags, "Reload from pastebin (discards unsaved)", function()
+    button(pgTags, "Reload from GitHub (discards unsaved)", function()
         task.spawn(function()
             TagDB:load()
             for _, p in ipairs(Players:GetPlayers()) do
@@ -3671,7 +3671,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 pcall(buildBill, p)
             end
             rebuildList()
-            notify("Reloaded from pastebin", "good")
+            notify("Reloaded from GitHub", "good")
         end)
     end)
 
@@ -3683,7 +3683,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         TextSize = 10,
         TextColor3 = T.dim,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Text = "Paste this text into pastebin.com/wySWnyme to save permanently:",
+        Text = "Export of current tag data (auto-synced to GitHub; copy below if you need it manually):",
     })
     local exportFrame = inst("Frame", pgTags, {
         Size = UDim2.new(1, -8, 0, 120),
@@ -3761,12 +3761,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     end)
 
     ------------------------------------------------------------------
-    -- PASTEBIN SYNC  ·  push in-game edits to the actual pastebin URL
+    -- GITHUB SYNC  ·  push in-game edits to the GitHub gist via our
+    -- Lovable web endpoint. Credentials live server-side as secrets,
+    -- so no API keys are needed in-game.
     ------------------------------------------------------------------
-    section(pgTags, "Pastebin sync")
+    section(pgTags, "GitHub sync")
 
     local PB_CFG_FILE = "seige_pastebin.json"
-    local pbCfg = { devKey = "", userKey = "", pasteKey = "wySWnyme", autoPush = false, autoPull = true, pullInterval = 30 }
+    local pbCfg = { autoPush = false, autoPull = true, pullInterval = 30 }
 
     do
         local rf = rawget(getfenv(), "readfile"); local isf = rawget(getfenv(), "isfile")
@@ -3783,232 +3785,89 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if wf then pcall(wf, PB_CFG_FILE, HttpService:JSONEncode(pbCfg)) end
     end
 
-    -- URL-encode a string for application/x-www-form-urlencoded
-    local function urlEncode(s)
-        s = tostring(s or "")
-        s = s:gsub("\n", "\r\n")
-        s = s:gsub("([^%w%-%.%_%~])", function(c)
-            return string.format("%%%02X", string.byte(c))
-        end)
-        return s
-    end
+    local BOT_URL  = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94.lovable.app/api/public/pastebin"
+    local BOT_AUTH = "1f0957eaf8dd4ed89bb594440220eb4c"
 
-    -- Pick whichever HTTP-with-POST function the executor exposes
-    local function httpPost(url, body, headers)
+    local function pushToGithub(silent)
+        local body = buildExport()
+        local payload = HttpService:JSONEncode({ body = body })
         local req = rawget(getfenv(), "request")
             or rawget(getfenv(), "http_request")
             or (rawget(getfenv(), "syn") and syn.request)
             or (rawget(getfenv(), "http") and http.request)
             or (rawget(getfenv(), "fluxus") and fluxus.request)
-        if not req then return nil, "no executor http request function" end
+        if not req then
+            if not silent then notify("GitHub push: no HTTP request API in this executor", "bad") end
+            return false, "no http"
+        end
         local ok, res = pcall(req, {
-            Url = url, Method = "POST", Body = body,
-            Headers = headers or { ["Content-Type"] = "application/x-www-form-urlencoded" },
+            Url = BOT_URL,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"]    = "application/json",
+                ["x-pastebin-auth"] = BOT_AUTH,
+            },
+            Body = payload,
         })
-        if not ok then return nil, tostring(res) end
-        return res, nil
-    end
-
-    -- Build form body (table -> "k=v&k=v")
-    local function form(params)
-        local parts = {}
-        for k, v in pairs(params) do
-            parts[#parts + 1] = urlEncode(k) .. "=" .. urlEncode(v)
+        if not ok or not res then
+            if not silent then notify("GitHub push failed: " .. tostring(res), "bad") end
+            return false, tostring(res)
         end
-        return table.concat(parts, "&")
-    end
-
-    -- Send the current entries to pastebin.
-    --   silent=true → only notify on failure
-    -- Returns: ok, url_or_error
-    local function pushToPastebin(silent)
-        if pbCfg.devKey == "" then
-            if not silent then notify("Set your Pastebin dev API key first", "bad") end
-            return false, "missing dev key"
-        end
-        local body = buildExport()
-        -- EDIT path: keeps the same URL so script users get changes automatically
-        if pbCfg.userKey ~= "" and pbCfg.pasteKey ~= "" then
-            local res, err = httpPost("https://pastebin.com/api/api_post.php", form({
-                api_dev_key      = pbCfg.devKey,
-                api_user_key     = pbCfg.userKey,
-                api_paste_key    = pbCfg.pasteKey,
-                api_option       = "edit",
-                api_paste_code   = body,
-                api_paste_name   = "seige_tags",
-                api_paste_format = "text",
-                api_paste_private= "1",
-                api_paste_expire_date = "N",
-            }))
-            if not res then
-                if not silent then notify("Pastebin edit failed: " .. tostring(err), "bad") end
-                return false, err
-            end
-            local txt = tostring(res.Body or "")
-            if txt:sub(1, 15) == "Bad API request" then
-                if not silent then notify("Pastebin: " .. txt, "bad") end
-                return false, txt
-            end
-            if not silent then notify("Pushed to pastebin (edited paste " .. pbCfg.pasteKey .. ")", "good") end
-            return true, "https://pastebin.com/raw/" .. pbCfg.pasteKey
-        end
-        -- CREATE path: makes a new unlisted paste; URL changes each time
-        local res, err = httpPost("https://pastebin.com/api/api_post.php", form({
-            api_dev_key      = pbCfg.devKey,
-            api_option       = "paste",
-            api_paste_code   = body,
-            api_paste_name   = "seige_tags",
-            api_paste_format = "text",
-            api_paste_private= "1",  -- unlisted
-            api_paste_expire_date = "N",
-        }))
-        if not res then
-            if not silent then notify("Pastebin push failed: " .. tostring(err), "bad") end
-            return false, err
-        end
+        local status = res.StatusCode or res.Status or 0
         local txt = tostring(res.Body or "")
-        if not txt:match("^https?://") then
-            if not silent then notify("Pastebin: " .. txt, "bad") end
-            return false, txt
+        if status >= 200 and status < 300 then
+            if not silent then notify("Pushed to GitHub gist", "good") end
+            return true, "ok"
         end
-        local id = txt:match("pastebin%.com/([%w]+)") or ""
-        local raw = id ~= "" and ("https://pastebin.com/raw/" .. id) or txt
-        local clip = rawget(getfenv(), "setclipboard")
-        if clip then pcall(clip, raw) end
         if not silent then
-            notify("Created paste: " .. raw .. " (copied)", "good")
+            notify(("GitHub push failed (HTTP %s): %s"):format(tostring(status), txt:sub(1, 120)), "bad")
         end
-        return true, raw
+        return false, txt
     end
 
-    -- credential fields
-    local function pbField(lbl, key, placeholder)
-        local f = inst("Frame", pgTags, {
-            Size = UDim2.new(1, -8, 0, 48),
-            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3, BorderSizePixel = 0,
-        })
-        corner(f, 8); stroke(f, T.line, 1, 0.5)
-        inst("TextLabel", f, {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0, 4),
-            Size = UDim2.new(1, -20, 0, 14),
-            Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.dim,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Text = string.upper(lbl),
-        })
-        local tb = inst("TextBox", f, {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0, 20),
-            Size = UDim2.new(1, -20, 0, 22),
-            PlaceholderText = placeholder or "",
-            PlaceholderColor3 = T.dim,
-            Font = Enum.Font.Code, TextSize = 12,
-            TextColor3 = T.text,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Text = tostring(pbCfg[key] or ""),
-            ClearTextOnFocus = false,
-        })
-        tb:GetPropertyChangedSignal("Text"):Connect(function()
-            pbCfg[key] = tb.Text
-        end)
-        tb.FocusLost:Connect(function() savePbCfg() end)
-        return tb
-    end
-
-    pbField("Pastebin API dev key (required)",   "devKey",   "paste your api_dev_key here")
-    pbField("Pastebin API user key (for edit)",  "userKey",  "optional — needed to edit existing paste")
-    pbField("Paste key to edit (URL slug)",      "pasteKey", "wySWnyme")
-
-    toggle(pgTags, "Auto-push to pastebin on every save", pbCfg.autoPush, function(v)
+    toggle(pgTags, "Auto-push to GitHub on every save", pbCfg.autoPush, function(v)
         pbCfg.autoPush = v; savePbCfg()
     end)
 
-    button(pgTags, "Push to pastebin now", function()
-        task.spawn(function() pushToPastebin(false) end)
+    button(pgTags, "Push to GitHub now", function()
+        task.spawn(function() pushToGithub(false) end)
     end)
 
-    -------------------------------------------------------------------
-    -- BOT PUSH  ·  one-click sync that goes through our Lovable web
-    -- endpoint instead of pastebin's API directly. The dev key + user
-    -- key live server-side as secrets, so this button works even if
-    -- the user hasn't filled out the pbCfg fields above.
-    -------------------------------------------------------------------
-    local BOT_URL  = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94.lovable.app/api/public/pastebin"
-    local BOT_AUTH = "1f0957eaf8dd4ed89bb594440220eb4c" -- = PASTEBIN_USER_KEY on the server
-    button(pgTags, "Push to bot (auto-sync via server)", function()
-        task.spawn(function()
-            local body = buildExport()
-            local payload = HttpService:JSONEncode({ body = body })
-            local req = rawget(getfenv(), "request")
-                or rawget(getfenv(), "http_request")
-                or (syn and syn.request)
-                or (http and http.request)
-            if not req then
-                notify("Bot push: no HTTP request API in this executor", "bad")
-                return
-            end
-            local ok, res = pcall(req, {
-                Url = BOT_URL,
-                Method = "POST",
-                Headers = {
-                    ["Content-Type"]    = "application/json",
-                    ["x-pastebin-auth"] = BOT_AUTH,
-                },
-                Body = payload,
-            })
-            if not ok or not res then
-                notify("Bot push failed: " .. tostring(res), "bad")
-                return
-            end
-            local status = res.StatusCode or res.Status or 0
-            local txt = tostring(res.Body or "")
-            if status >= 200 and status < 300 then
-                notify("Bot push OK — pastebin updated", "good")
-            else
-                notify(("Bot push failed (HTTP %s): %s"):format(tostring(status), txt:sub(1, 120)), "bad")
-            end
-        end)
-    end)
-
-
-    -------------------------------------------------------------------
-    -- AUTO-PULL  ·  detect remote pastebin edits and reflect them in
-    -- the in-game tag editor so changes made on pastebin.com show up
+    ------------------------------------------------------------------
+    -- AUTO-PULL  ·  detect remote GitHub edits and reflect them in
+    -- the in-game tag editor so changes made on the gist show up
     -- as editable entries without a rejoin.
-    -------------------------------------------------------------------
+    ------------------------------------------------------------------
     local lastPullHash = nil
     local function hashStr(s)
-        -- cheap content fingerprint; sum + length is enough to detect edits
         s = tostring(s or "")
         local sum = 0
         for i = 1, #s do sum = (sum + s:byte(i) * i) % 2147483647 end
         return #s .. ":" .. sum
     end
 
-    local function pullFromPastebin(silent)
+    local function pullFromGithub(silent)
         local src
         local ok = pcall(function()
             src = game:HttpGet(TAGS_PASTEBIN_URL .. (TAGS_PASTEBIN_URL:find("?") and "&" or "?") .. "v=" .. tostring(os.time()))
         end)
         if not ok or not src or src == "" then
-            if not silent then notify("Pastebin pull failed", "bad") end
+            if not silent then notify("GitHub pull failed", "bad") end
             return false, "fetch failed"
         end
         local h = hashStr(src)
         if lastPullHash and h == lastPullHash then
-            if not silent then notify("Pastebin: no changes", "dim") end
+            if not silent then notify("GitHub: no changes", "dim") end
             return true, "unchanged"
         end
         lastPullHash = h
         local entries, count = parsePastebin(src)
         if count == 0 then
-            if not silent then notify("Pastebin parse returned 0 entries", "warn") end
+            if not silent then notify("GitHub parse returned 0 entries", "warn") end
             return false, "empty parse"
         end
-        -- Preserve local overrides on top of the fresh remote snapshot
         TagDB.entries = entries
         TagDB:mergeLocal()
-        -- Refresh live bubbles
         for _, p in ipairs(Players:GetPlayers()) do
             pcall(function() TagDB:applyTo(p) end)
             if tagBills[p] then
@@ -4018,23 +3877,19 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             pcall(buildBill, p)
         end
         rebuildList()
-        if not silent then notify(("Pulled %d tag entries from pastebin"):format(count), "good") end
+        if not silent then notify(("Pulled %d tag entries from GitHub"):format(count), "good") end
         return true, "ok"
     end
 
-    toggle(pgTags, "Auto-pull pastebin changes into editor", pbCfg.autoPull, function(v)
+    toggle(pgTags, "Auto-pull GitHub changes into editor", pbCfg.autoPull, function(v)
         pbCfg.autoPull = v; savePbCfg()
     end)
 
-    button(pgTags, "Pull from pastebin now", function()
-        task.spawn(function() pullFromPastebin(false) end)
+    button(pgTags, "Pull from GitHub now", function()
+        task.spawn(function() pullFromGithub(false) end)
     end)
 
-    -- Background poller: every pullInterval seconds, re-fetch the paste and,
-    -- if its contents changed, update TagDB + rebuild the editor list.
     bind(task.spawn(function()
-        -- seed hash with current paste so the first tick after toggle-on
-        -- doesn't spuriously "detect a change" on initial load
         task.wait(2)
         pcall(function()
             local src = game:HttpGet(TAGS_PASTEBIN_URL .. (TAGS_PASTEBIN_URL:find("?") and "&" or "?") .. "v=" .. tostring(os.time()))
@@ -4045,82 +3900,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             if iv < 10 then iv = 10 end
             task.wait(iv)
             if pbCfg.autoPull then
-                pcall(pullFromPastebin, true)
+                pcall(pullFromGithub, true)
             end
         end
     end))
 
-    button(pgTags, "Get user key from username/password (one-time)", function()
-        if pbCfg.devKey == "" then notify("Set dev key first", "bad"); return end
-        local user = rawget(getfenv(), "Lighting") -- placeholder; we collect via simple prompt
-        -- Inline credential prompt
-        local up = inst("Frame", Root, {
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 320, 0, 160),
-            BackgroundColor3 = T.bg2, BorderSizePixel = 0, ZIndex = 200,
-        })
-        corner(up, 10); stroke(up, T.line, 1, 0.4)
-        inst("TextLabel", up, {
-            BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 8),
-            Size = UDim2.new(1, -24, 0, 18), Font = Enum.Font.GothamBold, TextSize = 12,
-            TextColor3 = T.text, TextXAlignment = Enum.TextXAlignment.Left,
-            Text = "Pastebin login (one-time)", ZIndex = 201,
-        })
-        local function mkBox(y, ph)
-            local b = inst("TextBox", up, {
-                BackgroundColor3 = T.bg, BackgroundTransparency = 0.1, BorderSizePixel = 0,
-                Position = UDim2.new(0, 12, 0, y), Size = UDim2.new(1, -24, 0, 26),
-                Font = Enum.Font.Code, TextSize = 12, TextColor3 = T.text,
-                PlaceholderText = ph, PlaceholderColor3 = T.dim,
-                ClearTextOnFocus = false, Text = "", ZIndex = 201,
-            })
-            corner(b, 6); stroke(b, T.line, 1, 0.4)
-            return b
-        end
-        local uBox = mkBox(32, "pastebin username")
-        local pBox = mkBox(64, "pastebin password")
-        local function close() up:Destroy() end
-        local cancel = inst("TextButton", up, {
-            Position = UDim2.new(0, 12, 1, -34), Size = UDim2.new(0, 90, 0, 26),
-            BackgroundColor3 = T.bg3, BorderSizePixel = 0, AutoButtonColor = false,
-            Font = Enum.Font.GothamSemibold, TextSize = 12, TextColor3 = T.text,
-            Text = "Cancel", ZIndex = 201,
-        })
-        corner(cancel, 6); cancel.MouseButton1Click:Connect(close)
-        local ok = inst("TextButton", up, {
-            AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 1, -34),
-            Size = UDim2.new(0, 90, 0, 26),
-            BackgroundColor3 = T.acc, BorderSizePixel = 0, AutoButtonColor = false,
-            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
-            Text = "Login", ZIndex = 201,
-        })
-        corner(ok, 6)
-        ok.MouseButton1Click:Connect(function()
-            local un, pw = uBox.Text, pBox.Text
-            close()
-            task.spawn(function()
-                local res, err = httpPost("https://pastebin.com/api/api_login.php", form({
-                    api_dev_key       = pbCfg.devKey,
-                    api_user_name     = un,
-                    api_user_password = pw,
-                }))
-                if not res then notify("Login failed: " .. tostring(err), "bad"); return end
-                local body = tostring(res.Body or "")
-                if body:sub(1, 15) == "Bad API request" then
-                    notify("Pastebin: " .. body, "bad"); return
-                end
-                pbCfg.userKey = body; savePbCfg()
-                notify("User key saved", "good")
-            end)
-        end)
-    end)
+    label(pgTags, "Tip: edits sync to a GitHub gist via the Lovable server. Auto-push uploads on every save; auto-pull reflects remote edits live.")
 
-    label(pgTags, "Tip: with both user key + paste key, edits update the SAME URL in place.")
-    label(pgTags, "Without them, each push creates a new unlisted paste (URL is copied to clipboard).")
-
-    -- Expose for the Save button to auto-push
-    _G.__SeigePbPush = function() if pbCfg.autoPush then pushToPastebin(true) end end
+    -- Save button hook: auto-push to GitHub when enabled
+    _G.__SeigePbPush = function() if pbCfg.autoPush then pushToGithub(true) end end
 
     rebuildList()
   end -- end owner-only Tags manager
@@ -4292,7 +4080,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- them to contact the script owner to apply the change.
     ------------------------------------------------------------------
     section(pgNtTags, "Export (contact script owner)")
-    label(pgNtTags, "NT Team cannot push to pastebin. Copy your tag line below and send it to the script owner to apply.")
+    label(pgNtTags, "NT Team cannot push to GitHub. Copy your tag line below and send it to the script owner to apply.")
 
     -- Track which keys this NT user saved in this session, so the
     -- export only includes their own changes (not the whole DB).
@@ -4381,7 +4169,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.sub,
             TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
-            Text = "You don't have permission to push to pastebin. Copy the tag line below and send it to the script owner so they can apply your change.",
+            Text = "You don't have permission to push to GitHub. Copy the tag line below and send it to the script owner so they can apply your change.",
             ZIndex = 242,
         })
 
