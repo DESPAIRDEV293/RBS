@@ -3096,6 +3096,52 @@ button(pgCmds, "Copy PlaceId", function()
     else notify("setclipboard unavailable", "bad") end
 end)
 
+------------------------------------------------------- COMMANDS LIST (Cmds tab)
+section(pgCmds, "Commands  ·  also work in Roblox chat & F6 bar")
+
+local function _runCmd(s)
+    if _G.__AdminRunCmd then _G.__AdminRunCmd(s)
+    else notify("Command system not ready", "warn") end
+end
+local function _openCmd(s)
+    if _G.__AdminOpenCmd then _G.__AdminOpenCmd(s)
+    else notify("Command bar not ready", "warn") end
+end
+
+button(pgCmds, "Open Command Bar (F6)", function() _openCmd("!") end)
+
+-- No-arg commands run immediately
+button(pgCmds, "!rj  —  rejoin same server",                function() _runCmd("!rj") end)
+button(pgCmds, "!tprj  —  rejoin & restore position",        function() _runCmd("!tprj") end)
+button(pgCmds, "!r / !rejoin  —  rejoin",                    function() _runCmd("!r") end)
+button(pgCmds, "!reset / !respawn",                          function() _runCmd("!reset") end)
+button(pgCmds, "!jump",                                      function() _runCmd("!jump") end)
+button(pgCmds, "!heal",                                      function() _runCmd("!heal") end)
+button(pgCmds, "!god",                                       function() _runCmd("!god") end)
+button(pgCmds, "!ungod",                                     function() _runCmd("!ungod") end)
+button(pgCmds, "!noclip",                                    function() _runCmd("!noclip") end)
+button(pgCmds, "!clip",                                      function() _runCmd("!clip") end)
+button(pgCmds, "!fly",                                       function() _runCmd("!fly") end)
+button(pgCmds, "!unfly",                                     function() _runCmd("!unfly") end)
+button(pgCmds, "!unspectate",                                function() _runCmd("!unspectate") end)
+button(pgCmds, "!pos",                                       function() _runCmd("!pos") end)
+button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
+button(pgCmds, "!load  —  load saved position",              function() _runCmd("!load") end)
+button(pgCmds, "!info",                                      function() _runCmd("!info") end)
+button(pgCmds, "!help",                                      function() _runCmd("!help") end)
+button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
+button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
+
+-- Arg commands open the bar prefilled
+button(pgCmds, "!ws / !speed <n>",      function() _openCmd("!ws ") end)
+button(pgCmds, "!jp <n>",               function() _openCmd("!jp ") end)
+button(pgCmds, "!goto / !tp <player>",  function() _openCmd("!goto ") end)
+button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
+button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
+button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
+button(pgCmds, "!head <player>",        function() _openCmd("!head ") end)
+button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
+
 ------------------------------------------------------- EXECUTOR BAR (Cmds)
 section(pgCmds, "Executor")
 
