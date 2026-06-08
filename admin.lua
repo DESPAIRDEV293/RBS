@@ -2068,8 +2068,9 @@ if LP.Name == "0rot3" then
             tbColor2.Text = ""
         end
         local iconRaw = tostring((e and e.icon) or "")
-        if iconRaw:lower():sub(1, 4) == "gif:" then
-            -- keep gif spec intact (e.g. "gif:1234567890:4:4:12")
+        local iconLower = iconRaw:lower()
+        if iconLower:sub(1, 4) == "gif:" or iconLower:sub(1, 7) == "sprite:" then
+            -- keep gif/sprite spec intact (e.g. "gif:1234567890:4:4:12" or "sprite:...")
             tbIcon.Text = iconRaw
         else
             tbIcon.Text = iconRaw:gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
