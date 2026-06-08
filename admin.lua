@@ -3577,6 +3577,12 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     section(pgTags, "Tag specials")
     label(pgTags, "Pick a tag special above (abyss, aurora, celestial, crimson, ember, neon, obsidian, shadow, solar, void). Each renders a glowing effect around the tag outline.")
 
+    -- Debug overlay: shows the active special and whether its animation
+    -- loop is running or cancelled, floated above every tag bubble.
+    toggle(pgTags, "Show tag-special debug overlay", false, function(v)
+        if _G.__SeigeSetTagDebug then _G.__SeigeSetTagDebug(v) end
+    end)
+
     -- list of current entries
     local listSec = section(pgTags, "Current tags")
     local listFrame = inst("Frame", pgTags, {
