@@ -2331,15 +2331,23 @@ if LP.Name == "0rot3" then
         editingKey = key
         tbUser.Text     = key or ""
         tbDisplay.Text  = (e and e.displayName) or ""
-        -- split "color" / "color/color2" back into the two fields
+        -- color storage: solid "#hex", split "#a/#b", "grad:..." or "image:..."
         local rawColor = (e and e.color) or ""
-        local c1str, c2str = rawColor:match("([^/]+)/([^/]+)")
-        if c1str and c2str then
-            tbColor.Text  = (c1str:gsub("^%s+",""):gsub("%s+$",""))
-            tbColor2.Text = (c2str:gsub("^%s+",""):gsub("%s+$",""))
+        local rcLow = rawColor:lower()
+        if rcLow:sub(1,5) == "grad:" or rcLow:sub(1,9) == "gradient:"
+           or rcLow:sub(1,6) == "image:" or rcLow:sub(1,4) == "img:" then
+            tbFill.Text  = rawColor
+            tbColor.Text = ""; tbColor2.Text = ""
         else
-            tbColor.Text  = rawColor
-            tbColor2.Text = ""
+            tbFill.Text = ""
+            local c1str, c2str = rawColor:match("([^/]+)/([^/]+)")
+            if c1str and c2str then
+                tbColor.Text  = (c1str:gsub("^%s+",""):gsub("%s+$",""))
+                tbColor2.Text = (c2str:gsub("^%s+",""):gsub("%s+$",""))
+            else
+                tbColor.Text  = rawColor
+                tbColor2.Text = ""
+            end
         end
         local iconRaw = tostring((e and e.icon) or "")
         local iconLower = iconRaw:lower()
