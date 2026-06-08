@@ -4303,6 +4303,85 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
         })
     end
 
+    ------------------------------------------------------------------
+    -- AVAILABLE COMMANDS  ·  filtered by the viewer's role permissions
+    -- Each command shows its syntax + description, with a one-click
+    -- button. Commands taking <args> open the cmd bar prefilled; arg-
+    -- free commands run instantly.
+    ------------------------------------------------------------------
+    section(pgAdmin, _ntOnly and "Your NT tag commands" or "Your available commands")
+    label(pgAdmin, "Click Run to execute. Commands with <args> open the command bar prefilled so you can fill in the rest.")
+
+    local cmdsList = inst("Frame", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.4,
+        BorderSizePixel = 0,
+    })
+    corner(cmdsList, 8); stroke(cmdsList, T.line, 1, 0.5)
+    inst("UIListLayout", cmdsList, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+    inst("UIPadding", cmdsList, {
+        PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8),
+        PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+    })
+
+    local _myCmdCount = 0
+    for _, item in ipairs(HELP_COMMANDS) do
+        local allowed = false
+        for _, p in ipairs(item.perms or {}) do
+            if _G.__SeigeCan(p) then allowed = true; break end
+        end
+        if allowed then
+            _myCmdCount = _myCmdCount + 1
+            local row = inst("Frame", cmdsList, {
+                Size = UDim2.new(1, 0, 0, 56),
+                BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35,
+                BorderSizePixel = 0,
+            })
+            corner(row, 6); stroke(row, T.line, 1, 0.5)
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 10, 0, 6), Size = UDim2.new(1, -110, 0, 18),
+                Font = Enum.Font.Code, TextSize = 13, TextColor3 = T.acc,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = item.cmd,
+            })
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 10, 0, 26), Size = UDim2.new(1, -110, 0, 24),
+                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextWrapped = true,
+                Text = item.desc or "",
+            })
+            local hasArgs = item.cmd:find("<") ~= nil
+            local btn = inst("TextButton", row, {
+                Size = UDim2.new(0, 92, 0, 30),
+                Position = UDim2.new(1, -100, 0.5, -15),
+                BackgroundColor3 = T.acc, BackgroundTransparency = 0.05,
+                BorderSizePixel = 0, AutoButtonColor = true,
+                Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.bg,
+                Text = hasArgs and "Fill ▸" or "Run ▸",
+            })
+            corner(btn, 6)
+            btn.MouseButton1Click:Connect(function()
+                local base = item.cmd:match("^(%S+)") or item.cmd
+                if hasArgs then
+                    if _G.__AdminOpenCmd then _G.__AdminOpenCmd(base .. " ") end
+                else
+                    if _G.__AdminRunCmd then _G.__AdminRunCmd(base) end
+                end
+            end)
+        end
+    end
+    if _myCmdCount == 0 then
+        label(cmdsList, "No commands available for your role.")
+    end
+
+    -- NT-only users only see the commands window above. Staff/Admin/Owner
+    -- continue with the full script-users roster and management tools.
+    if not _ntOnly then
+
     section(pgAdmin, "Script users in this server")
     label(pgAdmin, "Detected via chat heartbeat. Roblox doesn't expose IPs to client scripts — that requires a backend.")
 
