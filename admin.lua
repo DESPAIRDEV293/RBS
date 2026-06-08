@@ -3503,7 +3503,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local function pushToGithub(silent)
         local body = buildExport()
         local payload = HttpService:JSONEncode({ body = body })
-        local getUrl = BOT_URL .. "?key=" .. HttpService:UrlEncode(BOT_AUTH) .. "&body=" .. HttpService:UrlEncode(body)
+        local writeUrl = BOT_URL .. "?key=" .. HttpService:UrlEncode(BOT_AUTH)
+        local getUrl = writeUrl .. "&body=" .. HttpService:UrlEncode(body)
         local headers = {
             ["Content-Type"]    = "application/json",
             ["x-pastebin-auth"] = BOT_AUTH,
@@ -3526,14 +3527,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             or (rawget(genv, "WrapExecutor") and WrapExecutor.request)
         local function tryHttpService()
             return pcall(function()
-                return HttpService:RequestAsync({ Url = BOT_URL, Method = "POST", Headers = headers, Body = payload })
+                return HttpService:RequestAsync({ Url = writeUrl, Method = "POST", Headers = headers, Body = payload })
             end)
         end
         local function tryHttpPost()
             -- game:HttpPostAsync is exposed by some executors and works in
             -- LocalScripts where HttpService:RequestAsync is blocked.
             return pcall(function()
-                return game:HttpPostAsync(BOT_URL, payload, Enum.HttpContentType.ApplicationJson, false)
+                return game:HttpPostAsync(writeUrl, payload, Enum.HttpContentType.ApplicationJson, false)
             end)
         end
         local function tryHttpGet()
@@ -3546,7 +3547,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         end
         local status, txt = 0, ""
         if req then
-            local ok, res = pcall(req, { Url = BOT_URL, Method = "POST", Headers = headers, Body = payload })
+            local ok, res = pcall(req, { Url = writeUrl, Method = "POST", Headers = headers, Body = payload })
             if ok and res then
                 status = res.StatusCode or res.Status or 0
                 txt = tostring(res.Body or "")
