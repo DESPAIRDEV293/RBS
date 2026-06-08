@@ -7231,6 +7231,42 @@ cmdHandlers["unbang"] = function()
     notify("Bang stopped", "good")
 end
 
+-- !cir <player> — orbit the target. Adjustable radius/speed via panel.
+_G.__SeigeCircle = _G.__SeigeCircle or { radius = 6, speed = 2, height = 0 }
+local function _seigeCircleStop()
+    if _G.__CircleConn then pcall(function() _G.__CircleConn:Disconnect() end); _G.__CircleConn = nil end
+    _G.__CircleTarget = nil
+end
+local function _seigeCircleStart(target)
+    _seigeCircleStop()
+    _G.__CircleTarget = target
+    local t0 = tick()
+    _G.__CircleConn = RunService.Heartbeat:Connect(function()
+        local tgt = _G.__CircleTarget
+        if not tgt or not tgt.Parent then _seigeCircleStop(); return end
+        local thrp = phrp(tgt); local me = hrp()
+        if not (thrp and me) then return end
+        local C = _G.__SeigeCircle
+        local ang = (tick() - t0) * (C.speed or 2)
+        local off = Vector3.new(math.cos(ang) * (C.radius or 6), C.height or 0, math.sin(ang) * (C.radius or 6))
+        local pos = thrp.Position + off
+        me.CFrame = CFrame.new(pos, thrp.Position)
+    end)
+end
+cmdHandlers["cir"] = function(arg)
+    if not arg or arg == "" then
+        if _G.__CircleConn then _seigeCircleStop(); notify("Circle stopped", "good"); return end
+        notify("!cir <player>", "warn"); return
+    end
+    local target = findPlr(arg)
+    if not target then notify("Player not found", "bad"); return end
+    _seigeCircleStart(target)
+    notify("Circling " .. target.Name .. " (!uncir to stop)", "good")
+end
+cmdHandlers["circle"] = cmdHandlers["cir"]
+cmdHandlers["uncir"] = function() _seigeCircleStop(); notify("Circle stopped", "good") end
+cmdHandlers["uncircle"] = cmdHandlers["uncir"]
+
 -- ---------- extended chat commands ----------
 local function getHum()
     local c = LP.Character
