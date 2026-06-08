@@ -271,6 +271,21 @@ local glow = inst("ImageLabel", Win, {
     ZIndex = 0,
 })
 
+-- Custom background (image / gif via spritesheet) -- lives behind glass
+local Backdrop = inst("ImageLabel", Win, {
+    Name = "Backdrop",
+    BackgroundTransparency = 1,
+    Image = "",
+    ImageTransparency = 0.4,
+    ScaleType = Enum.ScaleType.Crop,
+    Size = UDim2.new(1, 0, 1, 0),
+    Position = UDim2.new(0, 0, 0, 0),
+    ZIndex = 0,
+})
+corner(Backdrop, 14)
+-- clip the backdrop to the window's rounded corners
+inst("UICorner", Backdrop, { CornerRadius = UDim.new(0, 14) })
+
 -- Title bar (drag region)
 local Top = inst("Frame", Win, {
     Size = UDim2.new(1, 0, 0, 44),
