@@ -6492,7 +6492,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
             for _, p in pairs(panels) do
                 if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
                 if p.btn then
-                    tween(p.btn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25 })
+                    tween(p.btn, 0.12, { BackgroundColor3 = Color3.fromRGB(255,255,255), BackgroundTransparency = 1 })
                 end
             end
         end
