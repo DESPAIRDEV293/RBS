@@ -138,9 +138,9 @@ _G.__SeigeLockSet = _readLockSet()
 local ROLES_FILE = "seige_roles.json"
 local OWNER_NAME = "0rot3"
 local ROLE_PERMS = {
-    owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true },
-    admin = { view = true, allp = true, lock = true, usay = true },
-    staff = { view = true, allp = true },
+    owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true, staff_cmd = true },
+    admin = { view = true, allp = true, lock = true, usay = true, staff_cmd = true },
+    staff = { view = true, allp = true, staff_cmd = true },
     nt    = { view = true },
 }
 local ROLE_LABELS = {
@@ -9301,6 +9301,130 @@ cmdHandlers["usay"] = function(arg)
     else notify("Failed: " .. tostring(err), "bad") end
 end
 
+-- =====================================================================
+-- STAFF COMMANDS (10) · available to Staff, Admin, Owner
+-- Excludes !usay and !rmvp/!unrmvp (those stay Admin/Owner only).
+-- =====================================================================
+local function _staffGate(name)
+    if not (_G.__SeigeCan and _G.__SeigeCan("staff_cmd")) then
+        notify(name .. " requires Staff role", "bad"); return false
+    end
+    return true
+end
+local function _resolveScriptUser(name)
+    name = tostring(name or ""):gsub("^@", ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if name == "" then return nil end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Name:lower() == name:lower() or p.DisplayName:lower() == name:lower() then
+            return p
+        end
+    end
+    return nil
+end
+
+-- 1) !bring <user> — teleport target script user to me
+cmdHandlers["bring"] = function(arg)
+    if not _staffGate("!bring") then return end
+    local t = tostring(arg or ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !bring <user>", "warn"); return end
+    if not _G.__SeigeBringSend then notify("Broadcast not ready", "bad"); return end
+    local ok, err = _G.__SeigeBringSend(t)
+    if ok then notify("Bringing " .. t, "good") else notify("Failed: " .. tostring(err), "bad") end
+end
+
+-- 2) !bringall — teleport every script user to me
+cmdHandlers["bringall"] = function()
+    if not _staffGate("!bringall") then return end
+    if not _G.__SeigeBringAllSend then notify("Broadcast not ready", "bad"); return end
+    _G.__SeigeBringAllSend()
+    notify("Bringing all script users", "good")
+end
+
+-- 3) !goto <user> — teleport me to target (local; works on any player)
+cmdHandlers["goto"] = function(arg)
+    if not _staffGate("!goto") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    local myHRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    local tHRP  = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+    if not (myHRP and tHRP) then notify("Character not ready", "warn"); return end
+    myHRP.CFrame = tHRP.CFrame + Vector3.new(0, 0, 3)
+    notify("Teleported to " .. p.Name, "good")
+end
+
+-- 4) !freeze <user> — anchor the target script user
+cmdHandlers["freeze"] = function(arg)
+    if not _staffGate("!freeze") then return end
+    local t = tostring(arg or ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !freeze <user>", "warn"); return end
+    if not _G.__SeigeFreezeSend then notify("Broadcast not ready", "bad"); return end
+    _G.__SeigeFreezeSend(t, true); notify("Froze " .. t, "good")
+end
+
+-- 5) !unfreeze <user>
+cmdHandlers["unfreeze"] = function(arg)
+    if not _staffGate("!unfreeze") then return end
+    local t = tostring(arg or ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !unfreeze <user>", "warn"); return end
+    if not _G.__SeigeFreezeSend then notify("Broadcast not ready", "bad"); return end
+    _G.__SeigeFreezeSend(t, false); notify("Unfroze " .. t, "good")
+end
+
+-- 6) !warn <user> <message> — private warning banner on target's screen
+cmdHandlers["warn"] = function(arg)
+    if not _staffGate("!warn") then return end
+    local s = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local target, msg = s:match("^(%S+)%s+(.+)$")
+    if not target or not msg then notify("Usage: !warn <user> <message>", "warn"); return end
+    if not _G.__SeigeWarnSend then notify("Broadcast not ready", "bad"); return end
+    local ok, err = _G.__SeigeWarnSend(target, msg)
+    if ok then notify("Warned " .. target, "good") else notify("Failed: " .. tostring(err), "bad") end
+end
+
+-- 7) !shout <message> — big centered overlay on every script user's screen
+cmdHandlers["shout"] = function(arg)
+    if not _staffGate("!shout") then return end
+    local msg = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if msg == "" then notify("Usage: !shout <message>", "warn"); return end
+    if not _G.__SeigeShoutSend then notify("Broadcast not ready", "bad"); return end
+    _G.__SeigeShoutSend(msg); notify("Shouted to all script users", "good")
+end
+
+-- 8) !ping <user> — flash target's screen + bell sound
+cmdHandlers["ping"] = function(arg)
+    if not _staffGate("!ping") then return end
+    local t = tostring(arg or ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !ping <user>", "warn"); return end
+    if not _G.__SeigePingSend then notify("Broadcast not ready", "bad"); return end
+    _G.__SeigePingSend(t); notify("Pinged " .. t, "good")
+end
+
+-- 9) !whois <user> — show local info about a player
+cmdHandlers["whois"] = function(arg)
+    if not _staffGate("!whois") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    local entry = TagDB and TagDB.entries and TagDB.entries[p.Name:lower()] or nil
+    local tag = entry and ((entry.tags and entry.tags[1]) or entry.displayName or "tagged") or "no tag"
+    local age = "?"; pcall(function() age = tostring(p.AccountAge) end)
+    notify(string.format("@%s · %s · age %s d · uid %d · tag: %s",
+        p.Name, p.DisplayName, age, p.UserId, tag), "good")
+end
+
+-- 10) !list — list all detected script users
+cmdHandlers["list"] = function()
+    if not _staffGate("!list") then return end
+    local reg = _G.__SeigeScriptUsers or {}
+    local names = {}
+    for _, info in pairs(reg) do
+        local plr = Players:GetPlayerByUserId(info.userId)
+        if plr then names[#names+1] = "@" .. plr.Name end
+    end
+    table.sort(names)
+    if #names == 0 then notify("No script users detected in this server", "warn")
+    else notify(("%d script user%s: %s"):format(#names, #names==1 and "" or "s", table.concat(names, ", ")), "good") end
+end
+
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
@@ -9621,7 +9745,179 @@ end)()
         return true
     end
 
-    local function showAllpBanner(senderName, msg)
+    local showAllpBanner  -- forward decl (used by staff WARN handler below)
+
+    ------------------------------------------------------------------
+    -- STAFF COMMANDS  ·  10 commands available to staff/admin/owner.
+    -- These piggy-back on the same chat-marker broadcast channel as
+    -- !allp / !usay. Only script users react to the markers; non-script
+    -- users see the marker filtered/stripped from chat.
+    ------------------------------------------------------------------
+    local BRING_MARK  = "\226\159\166SEIGE-BRING\226\159\167"   -- <sender>|<target or *>
+    local FREEZE_MARK = "\226\159\166SEIGE-FREEZE\226\159\167"  -- <target>|<1|0>
+    local WARN_MARK   = "\226\159\166SEIGE-WARN\226\159\167"    -- <target>|<sender>|<msg>
+    local SHOUT_MARK  = "\226\159\166SEIGE-SHOUT\226\159\167"   -- <sender>|<msg>
+    local PING_MARK   = "\226\159\166SEIGE-PING\226\159\167"    -- <target>|<sender>
+
+    local function _cleanName(s)
+        return tostring(s or ""):gsub("^@", ""):gsub("^%s+", ""):gsub("%s+$", "")
+    end
+
+    _G.__SeigeBringSend = function(targetName)
+        targetName = _cleanName(targetName)
+        if targetName == "" then return false, "empty target" end
+        broadcast(BRING_MARK .. LP.Name .. "|" .. targetName)
+        return true
+    end
+    _G.__SeigeBringAllSend = function()
+        broadcast(BRING_MARK .. LP.Name .. "|*")
+        return true
+    end
+    _G.__SeigeFreezeSend = function(targetName, frozen)
+        targetName = _cleanName(targetName)
+        if targetName == "" then return false, "empty target" end
+        broadcast(FREEZE_MARK .. targetName .. "|" .. (frozen and "1" or "0"))
+        return true
+    end
+    _G.__SeigeWarnSend = function(targetName, msg)
+        targetName = _cleanName(targetName)
+        msg = tostring(msg or ""):gsub("[\r\n]+", " ")
+        if targetName == "" then return false, "empty target" end
+        if msg == "" then return false, "empty message" end
+        if #msg > 240 then msg = msg:sub(1, 240) end
+        broadcast(WARN_MARK .. targetName .. "|" .. LP.Name .. "|" .. msg)
+        return true
+    end
+    _G.__SeigeShoutSend = function(msg)
+        msg = tostring(msg or ""):gsub("[\r\n]+", " ")
+        if msg == "" then return false, "empty" end
+        if #msg > 160 then msg = msg:sub(1, 160) end
+        broadcast(SHOUT_MARK .. LP.Name .. "|" .. msg)
+        return true
+    end
+    _G.__SeigePingSend = function(targetName)
+        targetName = _cleanName(targetName)
+        if targetName == "" then return false, "empty target" end
+        broadcast(PING_MARK .. targetName .. "|" .. LP.Name)
+        return true
+    end
+
+    -- Local helpers (effects applied when WE are the target)
+    local function _ourHRP()
+        local c = LP.Character
+        return c and c:FindFirstChild("HumanoidRootPart")
+    end
+    local function _doTeleportToSender(senderName)
+        local sender = Players:FindFirstChild(senderName)
+        local hrp = _ourHRP()
+        local sHRP = sender and sender.Character and sender.Character:FindFirstChild("HumanoidRootPart")
+        if hrp and sHRP then
+            -- Small ring offset so multiple brought users don't stack exactly.
+            local ang = math.random() * math.pi * 2
+            local off = Vector3.new(math.cos(ang) * 3, 0, math.sin(ang) * 3)
+            hrp.CFrame = sHRP.CFrame + off
+        end
+    end
+    local function _doFreezeSelf(frozen)
+        local hrp = _ourHRP()
+        if hrp then hrp.Anchored = frozen and true or false end
+    end
+    local function _showShout(senderName, msg)
+        local box = inst("Frame", Root, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.4, 0),
+            Size = UDim2.new(0, 520, 0, 110),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.05,
+            BorderSizePixel = 0, ZIndex = 60,
+        })
+        corner(box, 14); stroke(box, T.bad, 2, 0.1)
+        inst("TextLabel", box, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 16, 0, 10), Size = UDim2.new(1, -32, 0, 18),
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.bad,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "SHOUT · " .. (senderName or "staff"), ZIndex = 61,
+        })
+        inst("TextLabel", box, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 16, 0, 32), Size = UDim2.new(1, -32, 1, -46),
+            Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = T.text,
+            TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center,
+            TextYAlignment = Enum.TextYAlignment.Center,
+            Text = msg or "", ZIndex = 61,
+        })
+        task.delay(6, function() if box.Parent then box:Destroy() end end)
+    end
+    local function _flashPing(senderName)
+        local flash = inst("Frame", Root, {
+            Size = UDim2.fromScale(1, 1), BackgroundColor3 = T.acc,
+            BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 70,
+        })
+        for i = 1, 3 do
+            tween(flash, 0.18, { BackgroundTransparency = 0.85 }); task.wait(0.2)
+            tween(flash, 0.18, { BackgroundTransparency = 0.4  }); task.wait(0.2)
+        end
+        flash:Destroy()
+        pcall(function()
+            local s = Instance.new("Sound")
+            s.SoundId = "rbxasset://sounds/bell.wav"; s.Volume = 1; s.Parent = Root
+            s:Play(); task.delay(2, function() s:Destroy() end)
+        end)
+        notify("Ping from @" .. (senderName or "staff"), "warn")
+    end
+
+    -- Expose marker constants + dispatcher used by handleText below
+    _G.__SeigeStaffMarkers = {
+        BRING = BRING_MARK, FREEZE = FREEZE_MARK, WARN = WARN_MARK,
+        SHOUT = SHOUT_MARK, PING = PING_MARK,
+    }
+    _G.__SeigeStaffHandle = function(text)
+        if type(text) ~= "string" then return false end
+        if text:sub(1, #BRING_MARK) == BRING_MARK then
+            local body = text:sub(#BRING_MARK + 1)
+            local sender, target = body:match("^([^|]+)|(.*)$")
+            if sender and target then
+                target = _cleanName(target)
+                if target == "*" or target:lower() == LP.Name:lower() then
+                    _doTeleportToSender(sender)
+                end
+            end
+            return true
+        end
+        if text:sub(1, #FREEZE_MARK) == FREEZE_MARK then
+            local body = text:sub(#FREEZE_MARK + 1)
+            local target, flag = body:match("^([^|]+)|(.*)$")
+            if target and target:lower():gsub("%s+","") == LP.Name:lower() then
+                _doFreezeSelf(flag == "1")
+            end
+            return true
+        end
+        if text:sub(1, #WARN_MARK) == WARN_MARK then
+            local body = text:sub(#WARN_MARK + 1)
+            local target, sender, msg = body:match("^([^|]+)|([^|]+)|(.*)$")
+            if target and target:lower():gsub("%s+","") == LP.Name:lower() then
+                showAllpBanner("WARN · " .. (sender or "staff"), msg or "")
+            end
+            return true
+        end
+        if text:sub(1, #SHOUT_MARK) == SHOUT_MARK then
+            local body = text:sub(#SHOUT_MARK + 1)
+            local sender, msg = body:match("^([^|]+)|(.*)$")
+            if sender then _showShout(sender, msg or "") end
+            return true
+        end
+        if text:sub(1, #PING_MARK) == PING_MARK then
+            local body = text:sub(#PING_MARK + 1)
+            local target, sender = body:match("^([^|]+)|(.*)$")
+            if target and target:lower():gsub("%s+","") == LP.Name:lower() then
+                _flashPing(sender)
+            end
+            return true
+        end
+        return false
+    end
+
+    showAllpBanner = function(senderName, msg)
         local banner = inst("Frame", Root, {
             AnchorPoint = Vector2.new(0.5, 0),
             Position = UDim2.new(0.5, 0, 0, -120),
@@ -9730,6 +10026,7 @@ end)()
             end
             return true
         end
+        if _G.__SeigeStaffHandle and _G.__SeigeStaffHandle(text) then return true end
         if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
             pingFromUser(srcPlayer)
