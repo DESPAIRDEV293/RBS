@@ -2231,7 +2231,11 @@ if LP.Name == "0rot3" then
     button(pgTags, "Apply all to server (refresh bubbles)", function()
         for _, p in ipairs(Players:GetPlayers()) do
             TagDB:applyTo(p)
-            pcall(refreshBill, p)
+            if tagBills[p] then
+                pcall(function() tagBills[p].gui:Destroy() end)
+                tagBills[p] = nil
+            end
+            pcall(buildBill, p)
         end
         notify("Refreshed all player tags", "good")
     end)
@@ -2240,7 +2244,12 @@ if LP.Name == "0rot3" then
         task.spawn(function()
             TagDB:load()
             for _, p in ipairs(Players:GetPlayers()) do
-                TagDB:applyTo(p); pcall(refreshBill, p)
+                TagDB:applyTo(p)
+                if tagBills[p] then
+                    pcall(function() tagBills[p].gui:Destroy() end)
+                    tagBills[p] = nil
+                end
+                pcall(buildBill, p)
             end
             rebuildList()
             notify("Reloaded from pastebin", "good")
