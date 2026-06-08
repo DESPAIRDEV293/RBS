@@ -2009,6 +2009,7 @@ if LP.Name == "0rot3" then
         end
         tbTags.Text     = (e and e.tags and table.concat(e.tags, ",")) or ""
         tbCustom.Text   = (e and e.customText) or ""
+        tbHandle.Text   = (e and e.customHandle) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
     end
