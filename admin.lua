@@ -2886,6 +2886,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         icon = "", tags = "", customText = "", customHandle = "",
         font = "Default",
         textColor = "", textOutline = "",
+        textFx = "None", avatarOutline = "On",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -3013,6 +3014,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- per-tag font (dafont-style picks)
     local TAG_FONT_OPTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
+
+    -- Text animation effect (applies to the display name in the pill)
+    local TAG_FX_OPTS = { "None", "Typewriter", "Glitch", "Rainbow" }
+    local fxDD = dropdown(pgTags, "Text animation", TAG_FX_OPTS, function(v) form.textFx = v end)
+
+    -- Toggle for the ring/outline around the profile avatar in the pill
+    local AVATAR_OUTLINE_OPTS = { "On", "Off" }
+    local avOutlineDD = dropdown(pgTags, "Profile outline", AVATAR_OUTLINE_OPTS, function(v) form.avatarOutline = v end)
     -- Give the Tag panel's dropdowns more room; longer option values were
     -- getting clipped at the default 140px button width.
     -- The dropdown helper returns a controller (not the Frame), so walk
@@ -3128,6 +3137,19 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         tbTextColor.Text   = (e and e.textColor) or ""
         tbTextOutline.Text = (e and e.textOutline) or ""
         fontDD.set((e and e.font) or "Default")
+        do
+            local fx = tostring((e and e.textFx) or ""):lower()
+            local label = "None"
+            if fx == "typewriter" or fx == "type" then label = "Typewriter"
+            elseif fx == "glitch" then label = "Glitch"
+            elseif fx == "rainbow" then label = "Rainbow" end
+            form.textFx = label; fxDD.set(label)
+        end
+        do
+            local ao = tostring((e and e.avatarOutline) or ""):lower()
+            local label = (ao == "off" or ao == "none" or ao == "0" or ao == "false") and "Off" or "On"
+            form.avatarOutline = label; avOutlineDD.set(label)
+        end
     end
 
     local function clearForm() loadForm(nil, nil) end
@@ -3366,6 +3388,12 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if to ~= "" then entry.textOutline = to end
         if form.font and form.font ~= "" and form.font ~= "Default" then
             entry.font = form.font
+        end
+        if form.textFx and form.textFx ~= "" and form.textFx ~= "None" then
+            entry.textFx = form.textFx:lower()
+        end
+        if form.avatarOutline == "Off" then
+            entry.avatarOutline = "off"
         end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
