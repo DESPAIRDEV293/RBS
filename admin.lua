@@ -2761,6 +2761,7 @@ local function refreshBill(p)
     local total = 5 + 34 + 8 + textW + chipBlock + 10
     if total < 120 then total = 120 end
     e.bg.Size  = UDim2.new(0, total, 0, 46)
+    if e.specialBorder then e.specialBorder.Size = UDim2.new(0, total, 0, 46) end
     e.gui.Size = UDim2.new(0, total + 24, 0, 58)
 end
 
