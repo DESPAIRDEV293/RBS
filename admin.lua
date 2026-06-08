@@ -4256,7 +4256,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local function _ntBuildLineFor(key)
         local e = TagDB.entries[key]; if not e then return nil end
         local tagsStr = (e.tags and table.concat(e.tags, ",")) or ""
-        return table.concat({
+        local fields = {
             key,
             e.displayName or "",
             e.color or "",
@@ -4270,8 +4270,13 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             e.font or "",
             e.sweep or "",
             e.element or "",
-        }, " | ")
+        }
+        while #fields > 1 and (fields[#fields] == nil or fields[#fields] == "") do
+            fields[#fields] = nil
+        end
+        return table.concat(fields, " | ")
     end
+
 
     local _ntPopupGui
     local function _ntShowContactPopup(text)
