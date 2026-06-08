@@ -1586,7 +1586,7 @@ local function buildBill(p)
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
     })
-    tagBills[p] = { gui = gui, bg = bg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, base = math.random() * 6.28, effect = nil, fxToken = 0 }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, base = math.random() * 6.28, effect = nil, fxToken = 0 }
     refreshBill(p)
 end
 local function rebuildBills()
