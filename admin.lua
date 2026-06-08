@@ -2028,15 +2028,15 @@ local function refreshBill(p)
     if e.sh.Visible then
         local statW = measureText(e.stat.Text, Enum.Font.GothamBold, 10)
         local shW   = math.ceil(statW + 28)
-        e.sh.Size   = UDim2.new(0, shW, 0, 22)
+        e.sh.Size   = UDim2.new(0, shW, 0, 24)
         chipBlock   = shW + 8
     end
 
-    -- avatar(5+32) + gap(8) + text + chipBlock + right pad(10)
-    local total = 5 + 32 + 8 + textW + chipBlock + 10
-    if total < 110 then total = 110 end
-    e.bg.Size  = UDim2.new(0, total, 0, 42)
-    e.gui.Size = UDim2.new(0, total + 8, 0, 50)
+    -- avatar(5+34) + gap(8) + text + chipBlock + right pad(10)
+    local total = 5 + 34 + 8 + textW + chipBlock + 10
+    if total < 120 then total = 120 end
+    e.bg.Size  = UDim2.new(0, total, 0, 46)
+    e.gui.Size = UDim2.new(0, total + 24, 0, 58)
 end
 
 
