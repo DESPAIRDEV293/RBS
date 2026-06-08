@@ -3839,6 +3839,49 @@ if LP.Name == "0rot3" then
             notify("Command not ready", "bad")
         end
     end)
+
+    section(pgAdmin, "Lockout (!rmvp / !unrmvp)")
+    label(pgAdmin, "Locks the target user out of the script. Persists on their machine until !unrmvp.")
+    local lockFrame = inst("Frame", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 80),
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3,
+        BorderSizePixel = 0,
+    })
+    corner(lockFrame, 8); stroke(lockFrame, T.line, 1, 0.5)
+    local lockBox = inst("TextBox", lockFrame, {
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+        Position = UDim2.new(0, 10, 0, 10), Size = UDim2.new(1, -20, 0, 28),
+        PlaceholderText = "Roblox username (e.g. SomeUser)",
+        PlaceholderColor3 = T.dim,
+        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ClearTextOnFocus = false,
+    })
+    corner(lockBox, 6); stroke(lockBox, T.line, 1, 0.4)
+    local lockBtn = inst("TextButton", lockFrame, {
+        Position = UDim2.new(0, 10, 0, 44), Size = UDim2.new(0.5, -14, 0, 26),
+        BackgroundColor3 = T.bad, BackgroundTransparency = 0.1, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        Text = "!rmvp · lock",
+    })
+    corner(lockBtn, 6); stroke(lockBtn, T.line, 1, 0.4)
+    local unlockBtn = inst("TextButton", lockFrame, {
+        Position = UDim2.new(0.5, 4, 0, 44), Size = UDim2.new(0.5, -14, 0, 26),
+        BackgroundColor3 = T.good, BackgroundTransparency = 0.1, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        Text = "!unrmvp · unlock",
+    })
+    corner(unlockBtn, 6); stroke(unlockBtn, T.line, 1, 0.4)
+    lockBtn.MouseButton1Click:Connect(function()
+        local n = lockBox.Text or ""
+        if n:gsub("%s", "") == "" then notify("Enter a username", "warn"); return end
+        if cmdHandlers and cmdHandlers["rmvp"] then cmdHandlers["rmvp"](n); lockBox.Text = "" end
+    end)
+    unlockBtn.MouseButton1Click:Connect(function()
+        local n = lockBox.Text or ""
+        if n:gsub("%s", "") == "" then notify("Enter a username", "warn"); return end
+        if cmdHandlers and cmdHandlers["unrmvp"] then cmdHandlers["unrmvp"](n); lockBox.Text = "" end
+    end)
 end
 
 
