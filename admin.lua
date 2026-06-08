@@ -2103,6 +2103,15 @@ local function buildBill(p)
         ZIndex = 50,
     })
     clickBtn.MouseButton1Click:Connect(function()
+        -- click sound (plays for everyone, including LP clicking own tag)
+        pcall(function()
+            local s = Instance.new("Sound")
+            s.SoundId = "rbxassetid://6895079853" -- short UI click
+            s.Volume  = 0.7
+            s.Parent  = game:GetService("SoundService")
+            s:Play()
+            game:GetService("Debris"):AddItem(s, 2)
+        end)
         if p == LP then return end
         local targetHrp = phrp(p)
         local myHrp = hrp()
@@ -2116,6 +2125,7 @@ local function buildBill(p)
         notify("Teleported to " .. p.DisplayName, "good")
     end)
     tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    hideRobloxName(p)
     refreshBill(p)
 end
 local function rebuildBills()
