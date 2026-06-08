@@ -1511,6 +1511,10 @@ local function buildBill(p)
     -- DB-only: only players with a tags.lua entry get bubbles (LP always gets one)
     if p ~= LP and not TagDB:configFor(p) then return end
     local head = pchar(p):FindFirstChild("Head"); if not head then return end
+    -- anti-dup: nuke any leftover billboards from a previous script run
+    for _, c in ipairs(pchar(p):GetChildren()) do
+        if c.Name == "SeigeTagBB" then c:Destroy() end
+    end
 
     local gui = inst("BillboardGui", pchar(p), {
         Name = "SeigeTagBB", Adornee = head,
