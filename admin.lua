@@ -4341,10 +4341,9 @@ end)
     dropdown(pgThemes, "Tag font (dafont styles)", TAG_FONTS, function(v)
         _G.__SeigeTagFont = v; applyTagFont(); saveCfg()
     end)
-end)()
-
 
     section(pgThemes, "Bubble animations  (player tags)")
+
     local BUBBLE = { "None", "Bounce", "Pulse", "Float", "Wobble", "Shake", "Heartbeat" }
     _G.__SeigeBubbleAnim = _G.__SeigeBubbleAnim or "None"
     dropdown(pgThemes, "Tag bubble animation", BUBBLE, function(v)
