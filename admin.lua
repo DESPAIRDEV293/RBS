@@ -4169,7 +4169,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.sub,
             TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
             TextYAlignment = Enum.TextYAlignment.Top,
-            Text = "You don't have permission to push to pastebin. Copy the tag line below and send it to the script owner so they can apply your change.",
+            Text = "You don't have permission to push to GitHub. Copy the tag line below and send it to the script owner so they can apply your change.",
             ZIndex = 242,
         })
 
