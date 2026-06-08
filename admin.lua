@@ -3183,7 +3183,11 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local label = "None"
             if fx == "typewriter" or fx == "type" then label = "Typewriter"
             elseif fx == "glitch" then label = "Glitch"
-            elseif fx == "rainbow" then label = "Rainbow" end
+            elseif fx == "rainbow" then label = "Rainbow"
+            elseif fx == "floating" or fx == "float" then label = "Floating"
+            elseif fx == "zerograv" or fx == "zero-grav" or fx == "zerog" then label = "Zerograv"
+            elseif fx == "wave" then label = "Wave"
+            elseif fx == "shake" then label = "Shake" end
             form.textFx = label; fxDD.set(label)
         end
         do
