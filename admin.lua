@@ -2857,6 +2857,53 @@ if LP.Name == "0rot3" then
         end
     end
 
+    -- Tag elements: editable asset IDs per named preset. Each row exposes one
+    -- of the 10 element slots; entering a Roblox asset id (or rbxassetid URL)
+    -- makes that element available as a back-plate skin in the dropdown above.
+    section(pgTags, "Tag elements")
+    label(pgTags, "Paste a Roblox asset id (numbers) or rbxassetid://... per element. Leave blank to disable.")
+    for _, elName in ipairs(TAG_ELEMENT_NAMES) do
+        local row = inst("Frame", pgTags, {
+            Size = UDim2.new(1, -8, 0, 48),
+            BackgroundColor3 = T.bg2,
+            BackgroundTransparency = 0.3,
+            BorderSizePixel = 0,
+        })
+        corner(row, 8); stroke(row, T.line, 1, 0.5)
+        inst("TextLabel", row, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 4),
+            Size = UDim2.new(1, -20, 0, 14),
+            Font = Enum.Font.GothamBold,
+            TextSize = 10,
+            TextColor3 = T.dim,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = string.upper(elName),
+        })
+        local tb = inst("TextBox", row, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 20),
+            Size = UDim2.new(1, -20, 0, 22),
+            PlaceholderText = "1234567890  or  rbxassetid://1234567890",
+            PlaceholderColor3 = T.dim,
+            Font = Enum.Font.Gotham,
+            TextSize = 12,
+            TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = tagElements[elName] or "",
+            ClearTextOnFocus = false,
+        })
+        tb.FocusLost:Connect(function()
+            tagElements[elName] = tb.Text or ""
+            if _G.__AdminSaveCfg then pcall(_G.__AdminSaveCfg) end
+            -- repaint any live bubbles using this element
+            for _, p in ipairs(Players:GetPlayers()) do
+                if tagBills[p] then pcall(refreshBill, p) end
+            end
+            notify("Tag element '" .. elName .. "' updated", "good")
+        end)
+    end
+
     -- list of current entries
     local listSec = section(pgTags, "Current tags")
     local listFrame = inst("Frame", pgTags, {
