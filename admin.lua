@@ -126,6 +126,81 @@ local function _writeLockSet(set)
 end
 _G.__SeigeLockSet = _readLockSet()
 
+------------------------------------------------------- ROLES & PERMISSIONS
+-- 0rot3 is the hardcoded OWNER (full access, cannot be removed).
+-- Other Roblox users can be granted one of three roles, which controls
+-- whether the Admin panel shows up for them and which actions they can run:
+--   admin → view + allp + rmvp/unrmvp + usay
+--   staff → view + allp
+--   nt    → view only (NT Team — read-only observers)
+-- Roles persist on the owner's machine in seige_roles.json. The owner
+-- manages them from the Admin panel "Roles & Permissions" section.
+local ROLES_FILE = "seige_roles.json"
+local OWNER_NAME = "0rot3"
+local ROLE_PERMS = {
+    owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true },
+    admin = { view = true, allp = true, lock = true, usay = true },
+    staff = { view = true, allp = true },
+    nt    = { view = true },
+}
+local ROLE_LABELS = {
+    owner = "Owner",
+    admin = "Admin",
+    staff = "Staff",
+    nt    = "NT Team",
+}
+local function _readRoleMap()
+    local isf = rawget(getfenv(), "isfile")
+    local rf  = rawget(getfenv(), "readfile")
+    if not (isf and rf) then return {} end
+    local ok, exists = pcall(isf, ROLES_FILE)
+    if not ok or not exists then return {} end
+    local okR, raw = pcall(rf, ROLES_FILE)
+    if not okR or not raw then return {} end
+    local okD, data = pcall(HttpService.JSONDecode, HttpService, raw)
+    if not okD or type(data) ~= "table" or type(data.roles) ~= "table" then return {} end
+    local map = {}
+    for name, role in pairs(data.roles) do
+        if type(name) == "string" and type(role) == "string" and ROLE_PERMS[role] then
+            map[name:lower()] = role
+        end
+    end
+    return map
+end
+local function _writeRoleMap(map)
+    local wf = rawget(getfenv(), "writefile")
+    if not wf then return false end
+    local ok, raw = pcall(HttpService.JSONEncode, HttpService, { roles = map })
+    if not ok then return false end
+    return pcall(wf, ROLES_FILE, raw)
+end
+_G.__SeigeRoleMap = _readRoleMap()
+
+_G.__SeigeMyRole = function()
+    if LP.Name == OWNER_NAME then return "owner" end
+    return _G.__SeigeRoleMap[LP.Name:lower()]
+end
+_G.__SeigeCan = function(action)
+    local r = _G.__SeigeMyRole()
+    if not r then return false end
+    local p = ROLE_PERMS[r]
+    return p and p[action] == true
+end
+_G.__SeigeSetRole = function(name, role)
+    name = tostring(name or ""):gsub("^@",""):gsub("%s+",""):lower()
+    if name == "" then return false, "empty name" end
+    if name == OWNER_NAME:lower() then return false, "owner is hardcoded" end
+    if role == nil or role == "" then
+        _G.__SeigeRoleMap[name] = nil
+    else
+        if not ROLE_PERMS[role] or role == "owner" then return false, "invalid role" end
+        _G.__SeigeRoleMap[name] = role
+    end
+    _writeRoleMap(_G.__SeigeRoleMap)
+    return true
+end
+_G.__SeigeRoleLabel = function(r) return ROLE_LABELS[r] or "—" end
+
 local function showLockoutScreen()
     -- Wipe anything we already parented and replace with a minimal
     -- "contact staff" panel. Keeps the ScreenGui so we still own the layer.
@@ -2764,7 +2839,8 @@ end)
 -- In-game GUI to add/edit/remove tag entries without touching code or pastebin.
 -- Changes apply LIVE to everyone in the server. Export button copies a
 -- pastebin-formatted text block to your clipboard so you can save permanently.
-if LP.Name == "0rot3" then
+if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
+  if LP.Name == OWNER_NAME then
     local EFFECT_OPTS = { "none", "rain", "snow", "sparkle", "nebula" }
     local TEXTFX_OPTS = { "none", "glitch", "type", "explode" }
 
@@ -3717,6 +3793,7 @@ if LP.Name == "0rot3" then
     _G.__SeigePbPush = function() if pbCfg.autoPush then pushToPastebin(true) end end
 
     rebuildList()
+  end -- end owner-only Tags manager
 
     ------------------------------------------------------------------
     -- ADMIN PANEL  ·  visible only to 0rot3
