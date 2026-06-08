@@ -2806,12 +2806,22 @@ local function buildBill(p)
     })
     corner(bg, 23)
 
-    -- Tag special aura: drawn as a UIStroke around the rounded pill (`bg`)
-    -- so it ALWAYS wraps the bubble's shape and never renders as a square.
-    -- A UIGradient on the stroke lets specials cycle colors along the border.
-    -- The old ImageLabel approach rendered square because Roblox ImageLabels
-    -- can't honor a UICorner clip across a stretched PNG.
-    local specialStroke = inst("UIStroke", bg, {
+    -- Tag special aura: drawn as a UIStroke around a transparent Frame that
+    -- exactly overlays `bg`. UIStroke does NOT render reliably on a
+    -- CanvasGroup (which bg is, so descendants can be UICorner-clipped), so
+    -- we host the stroke on a sibling Frame instead. The frame is transparent
+    -- and only the stroke is visible — guaranteed to wrap the pill shape and
+    -- never appear square.
+    local specialBorder = inst("Frame", gui, {
+        Name = "specialBorder",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Size = UDim2.new(1, 0, 0, 46),
+        Position = UDim2.new(0, 0, 0, 6),
+        ZIndex = 2,
+    })
+    corner(specialBorder, 23)
+    local specialStroke = inst("UIStroke", specialBorder, {
         Color = Color3.fromRGB(255, 255, 255),
         Thickness = 0,
         Transparency = 1,
