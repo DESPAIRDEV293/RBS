@@ -6259,6 +6259,7 @@ local tabImages = {
     Shaders = "rbxassetid://107400785814105",  -- striped ball
     Cmds    = "rbxassetid://79760780173556",   -- command
     Config  = "rbxassetid://125262243617493",  -- settings
+    Spotify = "rbxassetid://103992944497423",  -- music
 }
 -- include any tabs that weren't listed (forward-compat)
 for n, _ in pairs(tabs) do
