@@ -3387,6 +3387,81 @@ button(pgCmds, "Character  —  reset / refresh / click-TP", function()
     end)
 end)
 
+button(pgCmds, "Reanim  —  swap body & play animations", function()
+    _openPanel("reanim", "Reanim  ·  character swap + animations", 230, function(body)
+        button(body, "Start reanim (swap to puppet body)", function() _runCmd("!reanim") end)
+        button(body, "Stop reanim (respawn)", function() _runCmd("!unreanim") end)
+        textbox(body, "Animation/KFS asset id  (optional: id speed)", function(v)
+            _runCmd("!reanim " .. v)
+        end)
+        button(body, "Stop all playing tracks", function() _runCmd("!stopanim") end)
+    end)
+end)
+
+button(pgCmds, "NameEdit  —  hide username/display name", function()
+    _openPanel("nameedit", "NameEdit  ·  cosmetic name spoof", 260, function(body)
+        -- Track originals so Reset works across respawns
+        _G.__NameOrig = _G.__NameOrig or {
+            display = LP.DisplayName,
+            name    = LP.Name,
+        }
+        local function applyToChar(char, displayName, userName)
+            if not char then return end
+            local h = char:FindFirstChildOfClass("Humanoid")
+            if h and displayName and displayName ~= "" then
+                pcall(function() h.DisplayName = displayName end)
+            end
+            -- Rewrite any BillboardGui text labels on the character (custom nameplates)
+            for _, d in ipairs(char:GetDescendants()) do
+                if d:IsA("TextLabel") or d:IsA("TextButton") then
+                    local txt = d.Text
+                    if type(txt) == "string" then
+                        if displayName and displayName ~= "" and txt:find(_G.__NameOrig.display, 1, true) then
+                            pcall(function() d.Text = txt:gsub(_G.__NameOrig.display, displayName) end)
+                        end
+                        if userName and userName ~= "" and txt:find(_G.__NameOrig.name, 1, true) then
+                            pcall(function() d.Text = txt:gsub(_G.__NameOrig.name, userName) end)
+                        end
+                    end
+                end
+            end
+        end
+        local function apply(displayName, userName)
+            _G.__NameSpoof = { display = displayName, name = userName }
+            applyToChar(LP.Character, displayName, userName)
+            if not _G.__NameSpoofConn then
+                _G.__NameSpoofConn = LP.CharacterAdded:Connect(function(c)
+                    task.wait(0.4)
+                    if _G.__NameSpoof then
+                        applyToChar(c, _G.__NameSpoof.display, _G.__NameSpoof.name)
+                    end
+                end)
+            end
+            notify("Name spoofed (local view): " .. (displayName ~= "" and displayName or userName), "good")
+        end
+
+        local dnBox, unBox
+        dnBox = textbox(body, "New display name (overhead)", function(v) apply(v, unBox and unBox.Text or "") end)
+        unBox = textbox(body, "New username text (cosmetic only)", function(v) apply(dnBox and dnBox.Text or "", v) end)
+        button(body, "Apply both", function()
+            apply(dnBox and dnBox.Text or "", unBox and unBox.Text or "")
+        end)
+        button(body, "Reset to original", function()
+            _G.__NameSpoof = nil
+            if _G.__NameSpoofConn then _G.__NameSpoofConn:Disconnect(); _G.__NameSpoofConn = nil end
+            applyToChar(LP.Character, _G.__NameOrig.display, _G.__NameOrig.name)
+            notify("Name reset", "good")
+        end)
+        button(body, "Randomize", function()
+            local pool = {"Guest","Player","Noob","_","xX","Pro","Roblox","Roblo","System"}
+            local r = pool[math.random(#pool)] .. tostring(math.random(1000, 9999))
+            apply(r, r)
+            if dnBox then dnBox.Text = r end
+            if unBox then unBox.Text = r end
+        end)
+    end)
+end)
+
 
 
 -- Player-target commands open the bar prefilled
