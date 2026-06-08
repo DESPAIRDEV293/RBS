@@ -1267,6 +1267,8 @@ local function parsePastebin(src)
                 if parts[7] and parts[7] ~= "" then entry.textFx = parts[7]:lower() end
                 if parts[8] and parts[8] ~= "" then entry.customText = parts[8] end
                 if parts[9] and parts[9] ~= "" then entry.customHandle = parts[9] end
+                if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
+                if parts[11] and parts[11] ~= "" then entry.font = parts[11] end
                 entries[user:lower()] = entry
                 count = count + 1
             end
