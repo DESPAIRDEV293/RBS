@@ -8727,6 +8727,8 @@ end)()
 
 
 -- preferred order on the pill
+local idx, cmdBar, cmdBox, cmdHandlers, findPlr, getHum, _seigeCircleStart, _seigeCircleStop
+;(function()
 local tabOrder = {
     "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Skybox", "Misc",
 }
@@ -8747,7 +8749,7 @@ for n, _ in pairs(tabs) do
     if not found then tabOrder[#tabOrder + 1] = n end
 end
 
-local idx = 0
+idx = 0
 for _, name in ipairs(tabOrder) do
     local entry = tabs[name]
     if entry then
@@ -8917,7 +8919,7 @@ local cmdBarGui = inst("ScreenGui", nil, {
     DisplayOrder = 200,
 })
 safeParent(cmdBarGui)
-local cmdBar = inst("Frame", cmdBarGui, {
+cmdBar = inst("Frame", cmdBarGui, {
     AnchorPoint = Vector2.new(0.5, 1),
     Position = UDim2.new(0.5, 0, 1, -24),
     Size = UDim2.new(0, 520, 0, 40),
@@ -8930,7 +8932,7 @@ local cmdPrefix = inst("TextLabel", cmdBar, {
     BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16,
     TextColor3 = T.acc, Text = ">", ZIndex = 201,
 })
-local cmdBox = inst("TextBox", cmdBar, {
+cmdBox = inst("TextBox", cmdBar, {
     Position = UDim2.new(0, 34, 0, 0), Size = UDim2.new(1, -44, 1, 0),
     BackgroundTransparency = 1, BorderSizePixel = 0,
     Font = Enum.Font.Code, TextSize = 14, TextColor3 = T.text, PlaceholderColor3 = T.dim,
@@ -8939,7 +8941,7 @@ local cmdBox = inst("TextBox", cmdBar, {
     Text = "", ZIndex = 201,
 })
 
-local function findPlr(q)
+function findPlr(q)
     if not q or q == "" then return nil end
     q = q:lower()
     if q == "me" then return LP end
@@ -8961,7 +8963,7 @@ local function findPlr(q)
     return best
 end
 
-local cmdHandlers = {}
+cmdHandlers = {}
 _G.__SeigeCmds = cmdHandlers
 cmdHandlers["rj"] = function()
     notify("Rejoining...", "good")
@@ -9073,11 +9075,11 @@ end
 
 -- !cir <player> — orbit the target. Adjustable radius/speed via panel.
 _G.__SeigeCircle = _G.__SeigeCircle or { radius = 6, speed = 2, height = 0 }
-local function _seigeCircleStop()
+function _seigeCircleStop()
     if _G.__CircleConn then pcall(function() _G.__CircleConn:Disconnect() end); _G.__CircleConn = nil end
     _G.__CircleTarget = nil
 end
-local function _seigeCircleStart(target)
+function _seigeCircleStart(target)
     _seigeCircleStop()
     _G.__CircleTarget = target
     local t0 = tick()
@@ -9318,7 +9320,7 @@ cmdHandlers["unstalk"] = function() _seigeStalkStop(); notify("Stalk stopped", "
 
 
 -- ---------- extended chat commands ----------
-local function getHum()
+function getHum()
     local c = LP.Character
     return c and c:FindFirstChildOfClass("Humanoid")
 end
@@ -9476,6 +9478,7 @@ cmdHandlers["bring"] = function(arg)
         end
     end)
 end
+end)()
 
 -- ================================================================
 -- Reanim: free the humanoid from default animations and play custom
