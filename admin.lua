@@ -3926,6 +3926,156 @@ if LP.Name == "0rot3" then
             usayMsg.Text = ""
         end
     end)
+
+    section(pgAdmin, "Quick !usay from targets")
+    label(pgAdmin, "Pick a detected script user below, type a message, and preview before sending.")
+
+    local selectedUsayTarget = nil
+    local usayTargetRows = {}
+
+    local targetsFrame = inst("Frame", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 180),
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.4,
+        BorderSizePixel = 0,
+    })
+    corner(targetsFrame, 8); stroke(targetsFrame, T.line, 1, 0.5)
+    local targetsScroll = inst("ScrollingFrame", targetsFrame, {
+        Size = UDim2.new(1, -4, 1, -4),
+        Position = UDim2.new(0, 2, 0, 2),
+        BackgroundTransparency = 1, BorderSizePixel = 0,
+        ScrollBarThickness = 3, ScrollBarImageColor3 = T.acc,
+        ScrollingDirection = Enum.ScrollingDirection.Y,
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+    })
+    local targetsLayout = inst("UIListLayout", targetsScroll, {
+        Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder,
+    })
+    inst("UIPadding", targetsScroll, {
+        PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4),
+        PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4),
+    })
+
+    local function rebuildTargetList()
+        for _, c in ipairs(targetsScroll:GetChildren()) do
+            if not (c:IsA("UIListLayout") or c:IsA("UIPadding") or c:IsA("UICorner") or c:IsA("UIStroke")) then
+                c:Destroy()
+            end
+        end
+        usayTargetRows = {}
+        local reg = _G.__SeigeScriptUsers or {}
+        local rows = {}
+        for _, info in pairs(reg) do
+            local plr = Players:GetPlayerByUserId(info.userId)
+            if plr then rows[#rows+1] = { plr = plr, info = info } end
+        end
+        table.sort(rows, function(a, b) return a.plr.Name:lower() < b.plr.Name:lower() end)
+        for _, r in ipairs(rows) do
+            local plr = r.plr
+            local row = inst("TextButton", targetsScroll, {
+                Size = UDim2.new(1, 0, 0, 38),
+                BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35,
+                BorderSizePixel = 0, AutoButtonColor = false,
+                Text = "",
+            })
+            corner(row, 6); stroke(row, T.line, 1, 0.5)
+            local av = inst("ImageLabel", row, {
+                Size = UDim2.new(0, 28, 0, 28),
+                Position = UDim2.new(0, 6, 0.5, -14),
+                BackgroundColor3 = T.bg, BorderSizePixel = 0,
+                Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(r.info.userId) .. "&w=48&h=48",
+            })
+            corner(av, 14)
+            local nameLbl = inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 40, 0, 4), Size = UDim2.new(1, -48, 0, 16),
+                Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = plr.DisplayName or plr.Name,
+            })
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 40, 0, 20), Size = UDim2.new(1, -48, 0, 14),
+                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = "@" .. plr.Name,
+            })
+            row.MouseEnter:Connect(function()
+                if selectedUsayTarget ~= plr.Name then
+                    tween(row, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.15 })
+                end
+            end)
+            row.MouseLeave:Connect(function()
+                if selectedUsayTarget ~= plr.Name then
+                    tween(row, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35 })
+                end
+            end)
+            row.MouseButton1Click:Connect(function()
+                selectedUsayTarget = plr.Name
+                for _, other in ipairs(usayTargetRows) do
+                    tween(other, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35 })
+                    other:FindFirstChildOfClass("UIStroke").Color = T.line
+                end
+                tween(row, 0.12, { BackgroundColor3 = T.acc, BackgroundTransparency = 0.2 })
+                row:FindFirstChildOfClass("UIStroke").Color = T.acc
+                usayUser.Text = plr.Name
+            end)
+            table.insert(usayTargetRows, row)
+        end
+        if #rows == 0 then
+            local empty = inst("TextLabel", targetsScroll, {
+                Size = UDim2.new(1, 0, 0, 38),
+                BackgroundTransparency = 1,
+                Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.dim,
+                Text = "No script users detected in this server.",
+            })
+        end
+    end
+    rebuildTargetList()
+    task.spawn(function()
+        while targetsFrame.Parent do task.wait(5); pcall(rebuildTargetList) end
+    end)
+
+    local quickMsg = inst("TextBox", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 28),
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        PlaceholderText = "Message to send as the selected user…", PlaceholderColor3 = T.dim,
+        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ClearTextOnFocus = false,
+    })
+    corner(quickMsg, 6); stroke(quickMsg, T.line, 1, 0.4)
+
+    local previewLbl = label(pgAdmin, "Preview: (select a user and type a message)")
+    local function updatePreview()
+        local t = selectedUsayTarget or "(no user selected)"
+        local m = quickMsg.Text
+        if m == "" then m = "…" end
+        previewLbl:set(t .. " will say:  \"" .. m .. "\"")
+    end
+    quickMsg:GetPropertyChangedSignal("Text"):Connect(updatePreview)
+
+    local quickSend = inst("TextButton", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 28),
+        BackgroundColor3 = T.acc, BackgroundTransparency = 0.1, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        Text = "Send !usay to selected target",
+    })
+    corner(quickSend, 6); stroke(quickSend, T.line, 1, 0.4)
+    quickSend.MouseEnter:Connect(function() tween(quickSend, 0.15, {BackgroundColor3 = T.acc2}) end)
+    quickSend.MouseLeave:Connect(function() tween(quickSend, 0.15, {BackgroundColor3 = T.acc}) end)
+    quickSend.MouseButton1Click:Connect(function()
+        local u = selectedUsayTarget
+        local m = (quickMsg.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if not u or u == "" then notify("Select a target from the list first", "warn"); return end
+        if m == "" then notify("Type a message first", "warn"); return end
+        if cmdHandlers and cmdHandlers["usay"] then
+            cmdHandlers["usay"](u .. " " .. m)
+            quickMsg.Text = ""
+            updatePreview()
+        end
+    end)
 end
 
 
