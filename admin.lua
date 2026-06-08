@@ -2303,17 +2303,17 @@ local function parseGifSpec(raw)
 end
 
 -- ===== Tag special animations =====
--- Each named special gets its own loop driving aura.ImageTransparency,
--- ImageColor3, Rotation, and/or scale so the outline visibly comes alive.
--- Loops are token-guarded so re-applying or removing the special cancels
--- the previous coroutine cleanly.
+-- Each named special drives the `specialStroke` (UIStroke on the rounded
+-- pill bg) so the effect always wraps the bubble shape and never appears
+-- as a square. Loops are token-guarded so re-applying or removing the
+-- special cancels the previous coroutine cleanly.
 local function _animLoop(e, token, runFrame)
     if _G.__SeigeReducedMotion then
         return
     end
     task.spawn(function()
         local t0 = os.clock()
-        while e.aura and e.aura.Parent and e.specialAnimToken == token do
+        while e.specialStroke and e.specialStroke.Parent and e.specialAnimToken == token do
             local t = os.clock() - t0
             local ok = pcall(runFrame, t)
             if not ok then break end
@@ -2322,36 +2322,48 @@ local function _animLoop(e, token, runFrame)
     end)
 end
 
-local function _resetAura(e, baseSize, basePos)
-    if not e.aura then return end
-    e.aura.Rotation = 0
-    e.aura.ImageTransparency = 0
-    e.aura.ImageColor3 = Color3.new(1, 1, 1)
-    e.aura.Size = baseSize or UDim2.new(1, 16, 0, 56)
-    e.aura.Position = basePos or UDim2.new(0, -8, 0, 1)
+local function _setStroke(e, color, thickness, transparency)
+    if not e.specialStroke then return end
+    if color then e.specialStroke.Color = color end
+    if thickness then e.specialStroke.Thickness = thickness end
+    if transparency then e.specialStroke.Transparency = transparency end
+end
+
+local function _resetAura(e)
+    if e.specialStroke then
+        e.specialStroke.Thickness = 0
+        e.specialStroke.Transparency = 1
+        e.specialStroke.Color = Color3.fromRGB(255, 255, 255)
+    end
+    if e.specialGrad then
+        e.specialGrad.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+        e.specialGrad.Rotation = 0
+    end
 end
 
 local SPECIAL_ANIMS = {
     abyss = function(e, t)
-        -- slow deep breathing
         local k = (math.sin(t * 1.4) + 1) * 0.5
-        e.aura.ImageTransparency = 0.15 + k * 0.45
-        e.aura.ImageColor3 = Color3.fromRGB(120 + k * 40, 140 + k * 40, 220)
+        _setStroke(e, Color3.fromRGB(120 + k * 40, 140 + k * 40, 220), 2.5 + k * 1.5, 0.05 + (1 - k) * 0.35)
     end,
     aurora = function(e, t)
-        -- color cycling through aurora hues
-        local h = (t * 0.08) % 1
-        e.aura.ImageColor3 = Color3.fromHSV(h, 0.55, 1)
-        e.aura.ImageTransparency = 0.1 + math.sin(t * 2) * 0.15
+        -- color cycling along the border via UIGradient
+        local h1 = (t * 0.08) % 1
+        local h2 = (h1 + 0.33) % 1
+        local h3 = (h1 + 0.66) % 1
+        e.specialGrad.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0,   Color3.fromHSV(h1, 0.6, 1)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromHSV(h2, 0.6, 1)),
+            ColorSequenceKeypoint.new(1,   Color3.fromHSV(h3, 0.6, 1)),
+        })
+        e.specialGrad.Rotation = (t * 30) % 360
+        _setStroke(e, Color3.fromRGB(255, 255, 255), 3, 0.1 + math.sin(t * 2) * 0.1)
     end,
     celestial = function(e, t)
-        -- gentle twinkle + drift
         local k = (math.sin(t * 3.2) + 1) * 0.5
-        e.aura.ImageTransparency = 0.05 + k * 0.35
-        e.aura.ImageColor3 = Color3.fromRGB(220 + k * 35, 230 + k * 25, 255)
+        _setStroke(e, Color3.fromRGB(220 + k * 35, 230 + k * 25, 255), 2 + k * 2, 0.05 + (1 - k) * 0.3)
     end,
     crimson = function(e, t)
-        -- heartbeat: two quick beats + rest
         local phase = (t * 1.1) % 1
         local pulse
         if phase < 0.15 then pulse = phase / 0.15
@@ -2359,48 +2371,33 @@ local SPECIAL_ANIMS = {
         elseif phase < 0.45 then pulse = (phase - 0.30) / 0.15
         elseif phase < 0.60 then pulse = 1 - (phase - 0.45) / 0.15
         else pulse = 0 end
-        e.aura.ImageTransparency = 0.5 - pulse * 0.45
-        e.aura.ImageColor3 = Color3.fromRGB(255, 60 + pulse * 60, 80 + pulse * 40)
+        _setStroke(e, Color3.fromRGB(255, 60 + pulse * 60, 80 + pulse * 40), 2 + pulse * 3, 0.1 + (1 - pulse) * 0.45)
     end,
     ember = function(e, t)
-        -- fast flicker like flame
         local flick = math.noise(t * 6, 0, 0)
-        e.aura.ImageTransparency = 0.2 + (flick + 0.5) * 0.4
-        e.aura.ImageColor3 = Color3.fromRGB(255, 130 + flick * 60, 40 + flick * 30)
+        _setStroke(e, Color3.fromRGB(255, 130 + flick * 60, 40 + flick * 30), 2.5 + (flick + 0.5) * 1.5, 0.15 + (0.5 - flick) * 0.3)
     end,
     neon = function(e, t)
-        -- snappy on/off blink (sharp square-ish wave)
         local s = math.sin(t * 4.5)
-        e.aura.ImageTransparency = s > 0 and 0 or 0.55
-        e.aura.ImageColor3 = Color3.fromHSV(((t * 0.5) % 1), 1, 1)
+        _setStroke(e, Color3.fromHSV(((t * 0.5) % 1), 1, 1), s > 0 and 4 or 1.5, s > 0 and 0 or 0.55)
     end,
     obsidian = function(e, t)
-        -- slow heavy pulse, dark
         local k = (math.sin(t * 1.0) + 1) * 0.5
-        e.aura.ImageTransparency = 0.25 + k * 0.4
-        e.aura.ImageColor3 = Color3.fromRGB(70 + k * 40, 70 + k * 40, 90 + k * 40)
+        _setStroke(e, Color3.fromRGB(70 + k * 40, 70 + k * 40, 90 + k * 40), 2 + k * 2, 0.2 + (1 - k) * 0.35)
     end,
     shadow = function(e, t)
-        -- smoky fade with slow drift in scale
         local k = (math.sin(t * 1.6) + 1) * 0.5
-        e.aura.ImageTransparency = 0.3 + k * 0.5
-        e.aura.ImageColor3 = Color3.fromRGB(40 + k * 30, 40 + k * 30, 50 + k * 30)
-        e.aura.Size = UDim2.new(1, 16 + k * 6, 0, 56 + k * 4)
-        e.aura.Position = UDim2.new(0, -8 - k * 3, 0, 1 - k * 2)
+        _setStroke(e, Color3.fromRGB(40 + k * 30, 40 + k * 30, 50 + k * 30), 2 + k * 3, 0.25 + (1 - k) * 0.5)
     end,
     solar = function(e, t)
-        -- rotating flare + bright pulse
-        e.aura.Rotation = (t * 30) % 360
         local k = (math.sin(t * 2.4) + 1) * 0.5
-        e.aura.ImageTransparency = 0.05 + k * 0.35
-        e.aura.ImageColor3 = Color3.fromRGB(255, 200 + k * 50, 80 + k * 60)
+        _setStroke(e, Color3.fromRGB(255, 200 + k * 50, 80 + k * 60), 2.5 + k * 2, 0.05 + (1 - k) * 0.3)
+        if e.specialGrad then e.specialGrad.Rotation = (t * 60) % 360 end
     end,
     void = function(e, t)
-        -- slow counter-rotation + transparency wave
-        e.aura.Rotation = -((t * 12) % 360)
         local k = (math.sin(t * 0.9) + 1) * 0.5
-        e.aura.ImageTransparency = 0.2 + k * 0.5
-        e.aura.ImageColor3 = Color3.fromRGB(140 - k * 40, 80 - k * 30, 180 - k * 30)
+        _setStroke(e, Color3.fromRGB(140 - k * 40, 80 - k * 30, 180 - k * 30), 2 + k * 2.5, 0.15 + (1 - k) * 0.5)
+        if e.specialGrad then e.specialGrad.Rotation = -((t * 24) % 360) end
     end,
 }
 
@@ -2412,11 +2409,9 @@ local function _setDebug(e, text, color)
 end
 
 function _G.__SeigeStartSpecialAnim(e, key)
-    if not e or not e.aura then return end
+    if not e or not e.specialStroke then return end
     e.specialAnimToken = (e.specialAnimToken or 0) + 1
-    local baseSize = UDim2.new(1, 16, 0, 56)
-    local basePos  = UDim2.new(0, -8, 0, 1)
-    _resetAura(e, baseSize, basePos)
+    _resetAura(e)
     local fn = SPECIAL_ANIMS[key]
     if not fn then
         _setDebug(e, "special: " .. tostring(key) .. " · no anim", Color3.fromRGB(255, 200, 120))
@@ -2425,7 +2420,6 @@ function _G.__SeigeStartSpecialAnim(e, key)
     _setDebug(e, "special: " .. key .. " · running", Color3.fromRGB(180, 255, 180))
     local myToken = e.specialAnimToken
     _animLoop(e, myToken, function(t) fn(e, t) end)
-    -- mark cancelled once token advances (start of next call or stop)
     task.spawn(function()
         while e.specialAnimToken == myToken do RunService.Heartbeat:Wait() end
         if e.specialKey == nil then
@@ -2439,7 +2433,6 @@ function _G.__SeigeStopSpecialAnim(e)
     e.specialAnimToken = (e.specialAnimToken or 0) + 1
     _resetAura(e)
     _setDebug(e, "special: none · cancelled", Color3.fromRGB(255, 160, 160))
-    -- briefly show "cancelled" then fade to "none"
     task.delay(1.2, function()
         if e and e.specialKey == nil then
             _setDebug(e, "special: none", Color3.fromRGB(180, 180, 180))
