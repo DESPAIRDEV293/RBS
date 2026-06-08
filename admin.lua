@@ -859,7 +859,10 @@ end
 --   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
 --               to split the bubble in half (left/right), e.g. #ff3b6b/#00aaff
 --   - effect: rain | snow | sparkle | nebula   (or blank for none)
---   - icon:   Roblox image ID (raw number, e.g. 1234567890)
+--   - icon:   Roblox image ID (raw number, e.g. 1234567890), OR an animated
+--             sprite-sheet spec "gif:assetId:cols:rows:fps[:sheetSize]"
+--             e.g. gif:1234567890:4:4:12   (16-frame 4x4 sheet at 12 fps;
+--             sheetSize defaults to 1024)
 --   - textFx: glitch | type | explode   (or blank for none)
 --   - customText: optional override for the right-side chip text (owner-only feature)
 --   - Lines starting with # or // are comments. Blank lines are ignored.
