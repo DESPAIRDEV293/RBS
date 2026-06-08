@@ -1151,11 +1151,20 @@ function TagDB:mergeLocal()
     local local_ = self:loadLocal()
     self.localEntries = local_ or {}
     if not local_ then return 0 end
+    -- Pastebin / remote is the source of truth. Only fill in local-only
+    -- entries (keys the remote DB doesn't already define) so that edits made
+    -- on pastebin always win over an older cached copy on disk.
     local n = 0
-    for k, v in pairs(local_) do self.entries[k] = v; n = n + 1 end
-    if n > 0 then print(("[Tags] merged %d local override(s)"):format(n)) end
+    for k, v in pairs(local_) do
+        if self.entries[k] == nil then
+            self.entries[k] = v
+            n = n + 1
+        end
+    end
+    if n > 0 then print(("[Tags] merged %d local-only override(s)"):format(n)) end
     return n
 end
+
 
 function TagDB:load()
     -- Try Pastebin source first (easy-edit text format)
