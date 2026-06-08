@@ -1505,7 +1505,36 @@ button(pgPlayers, "Teleport to player", withSel(function(p)
     local h = phrp(p); if h and hrp() then hrp().CFrame = h.CFrame + Vector3.new(0, 3, 0) end
 end))
 button(pgPlayers, "Bring player to you", withSel(function(p)
-    local h = phrp(p); if h and hrp() then h.CFrame = hrp().CFrame + Vector3.new(0, 3, 0) end
+    local thrp, myH = phrp(p), hrp()
+    if not (thrp and myH) then notify("No character", "bad"); return end
+    notify("Bringing " .. p.Name .. "...", "good")
+    task.spawn(function()
+        -- direct CFrame loop (works in non-FE / network-owned parts)
+        for i = 1, 25 do
+            if not phrp(p) or not hrp() then break end
+            pcall(function() phrp(p).CFrame = hrp().CFrame + Vector3.new(0, 3, 0) end)
+            task.wait(0.05)
+        end
+        -- tool-grab fallback (FE bring via firetouchinterest)
+        local tool = LP.Backpack:FindFirstChildOfClass("Tool")
+            or (LP.Character and LP.Character:FindFirstChildOfClass("Tool"))
+        if tool and tool:FindFirstChild("Handle") and typeof(firetouchinterest) == "function" then
+            pcall(function()
+                tool.Parent = LP.Character
+                local saved = myH.CFrame
+                for i = 1, 20 do
+                    local t = phrp(p); if not t then break end
+                    myH.CFrame = t.CFrame
+                    pcall(function() firetouchinterest(tool.Handle, t, 0) end)
+                    task.wait()
+                    pcall(function() firetouchinterest(tool.Handle, t, 1) end)
+                    task.wait(0.05)
+                end
+                myH.CFrame = saved
+            end)
+        end
+        notify("Bring complete", "good")
+    end)
 end))
 local spectatingPlr
 button(pgPlayers, "Spectate / unspectate", withSel(function(p)
