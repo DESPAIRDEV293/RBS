@@ -4115,7 +4115,7 @@ end
 -- preferred order on the pill
 local tabOrder = {
     "Profile", "Players", "Self", "Visuals", "World",
-    "Tags", "Server", "Cmds", "Themes", "Shaders", "Config",
+    "Tags", "Server", "Cmds", "Themes", "Shaders", "Detector", "Config",
 }
 -- include any tabs that weren't listed (forward-compat)
 for n, _ in pairs(tabs) do
