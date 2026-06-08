@@ -1153,17 +1153,26 @@ function TagDB:mergeLocal()
     if not local_ then return 0 end
     -- Pastebin / remote is the source of truth. Only fill in local-only
     -- entries (keys the remote DB doesn't already define) so that edits made
-    -- on pastebin always win over an older cached copy on disk.
-    local n = 0
+    -- on pastebin always win over an older cached copy on disk. Stale local
+    -- duplicates (keys now present in remote) are pruned and re-saved so the
+    -- disk cache doesn't grow forever.
+    local n, pruned = 0, 0
     for k, v in pairs(local_) do
         if self.entries[k] == nil then
             self.entries[k] = v
             n = n + 1
+        else
+            self.localEntries[k] = nil
+            pruned = pruned + 1
         end
     end
-    if n > 0 then print(("[Tags] merged %d local-only override(s)"):format(n)) end
+    if pruned > 0 then pcall(function() self:saveLocal() end) end
+    if n > 0 or pruned > 0 then
+        print(("[Tags] merged %d local-only override(s), pruned %d stale"):format(n, pruned))
+    end
     return n
 end
+
 
 
 function TagDB:load()
