@@ -2884,7 +2884,9 @@ local function refreshBill(p)
     end
 
     -- Layout: leftPad(5) + avatar(34) + gap(5) + text + chipBlock + rightPad(8)
-    local total = 5 + 34 + 5 + textW + chipBlock + 8
+    -- Enforced minimum pill width of 120px so single-word names still render
+    -- as a recognisable pill rather than collapsing to a tiny chip.
+    local pillW = math.max(120, 5 + 34 + 5 + textW + chipBlock + 8)
     -- Reposition labels so they start tight after the avatar (override the
     -- 46px hardcoded offset from buildBill's initial placement).
     if e.name   then e.name.Position   = UDim2.new(0, 44, 0, 4)  end
@@ -2892,8 +2894,13 @@ local function refreshBill(p)
     e.nameBasePos   = e.name   and e.name.Position   or e.nameBasePos
     e.handleBasePos = e.handle and e.handle.Position or e.handleBasePos
 
-    e.bg.Size  = UDim2.new(1, 0, 1, 0)
-    e.gui.Size = UDim2.new(0, total, 0, 46)
+    -- Pill (bg) is exactly pillW x 46. Billboard wrapper is pill + 24 wide,
+    -- 58 tall — the 12px halo on each side gives the aura glow + outline
+    -- room to render without being clipped by the BillboardGui bounds.
+    e.bg.AnchorPoint = Vector2.new(0.5, 0.5)
+    e.bg.Position    = UDim2.new(0.5, 0, 0.5, 0)
+    e.bg.Size        = UDim2.new(0, pillW, 0, 46)
+    e.gui.Size       = UDim2.new(0, pillW + 24, 0, 58)
 
     -- ── Aura: applied LAST so it cleanly overrides the static stroke + fill
     -- with its animated ring + transparent interior. All previous renderers
