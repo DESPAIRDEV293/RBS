@@ -4080,7 +4080,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- them to contact the script owner to apply the change.
     ------------------------------------------------------------------
     section(pgNtTags, "Export (contact script owner)")
-    label(pgNtTags, "NT Team cannot push to pastebin. Copy your tag line below and send it to the script owner to apply.")
+    label(pgNtTags, "NT Team cannot push to GitHub. Copy your tag line below and send it to the script owner to apply.")
 
     -- Track which keys this NT user saved in this session, so the
     -- export only includes their own changes (not the whole DB).
