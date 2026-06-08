@@ -1834,6 +1834,23 @@ local function refreshBill(p)
     e.name.Text   = nameStr
     e.handle.Text = handleStr
 
+    -- Per-tag font override (set in Tags panel). Falls back to global tag font, then defaults.
+    do
+        local perTag = cfg and cfg.font
+        local globalTag = _G.__SeigeTagFont
+        local choice = (perTag and perTag ~= "" and perTag ~= "Default") and perTag
+                       or (globalTag and globalTag ~= "Default" and globalTag)
+                       or nil
+        local font = choice and Enum.Font[choice] or nil
+        pcall(function()
+            e.name.Font   = font or Enum.Font.GothamBold
+            e.handle.Font = font or Enum.Font.Gotham
+            if e.stat then e.stat.Font = font or Enum.Font.GothamBold end
+        end)
+    end
+
+
+
     -- Custom icon override (DB or per-player). Force a refresh by clearing first.
     local customIcon = TagIcons:get(p.UserId) or (cfg and cfg.icon)
     if e.av then
@@ -2368,6 +2385,7 @@ if LP.Name == "0rot3" then
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
         icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
+        font = "Default",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -2478,6 +2496,9 @@ if LP.Name == "0rot3" then
     local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
     -- text animation dropdown
     local txDD  = dropdown(pgTags, "Text animation", TEXTFX_OPTS, function(v) form.textFx = v end)
+    -- per-tag font (dafont-style picks)
+    local TAG_FONT_OPTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
+    local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
 
     -- live preview swatch
     local prev = inst("Frame", pgTags, {
@@ -2559,6 +2580,7 @@ if LP.Name == "0rot3" then
         tbOutline.Text  = (e and e.outline) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
+        fontDD.set((e and e.font) or "Default")
     end
 
     local function clearForm() loadForm(nil, nil) end
@@ -2719,6 +2741,9 @@ if LP.Name == "0rot3" then
         end
         if form.outline and form.outline ~= "" then
             entry.outline = (form.outline:gsub("^%s+",""):gsub("%s+$",""))
+        end
+        if form.font and form.font ~= "" and form.font ~= "Default" then
+            entry.font = form.font
         end
         if form.tags ~= "" then
             local list = {}
