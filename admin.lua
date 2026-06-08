@@ -1440,18 +1440,16 @@ end
 ------------------------------------------------------- TABS
 local pgProfile = makeTab("Profile", "◈", "Your account, recent games and friends")
 local pgPlayers = makeTab("Players", "◉", "Server roster and player tools")
--- Self tab removed — its controls are now popouts in the Cmds tab.
-local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
--- Tags tab removed — now managed via the script database (tags.lua)
--- Aim moved to Cmds tab as commands (pgAim retained as hidden frame for legacy refs)
-
-
 local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands, executor and rejoin")
-local pgSpotify = makeTab("Spotify", "♫", "Connect your token and control playback")
-local pgThemes  = makeTab("Themes",  "✿", "Customize colors and background")
 local pgShaders = makeTab("Shaders", "☀", "Real post-processing: bloom, blur, DOF, color")
+local pgSpotify = makeTab("Spotify", "♫", "Connect your token and control playback")
 local pgConfig  = makeTab("Config",  "⚙", "Settings and keybinds")
-local pgDetect  = makeTab("Detector","◎", "Detects other scripts loaded in this game")
+local pgSkybox  = makeTab("Skybox",  "☁", "Skybox presets and atmosphere")
+local pgMisc    = makeTab("Misc",    "⋯", "Other tools and experimental features")
+-- Aliases — content for these older tabs now lives inside the Misc tab.
+local pgWorld   = pgMisc
+local pgThemes  = pgMisc
+local pgDetect  = pgMisc
 
 ------------------------------------------------------- HELPERS
 local function char()  return LP.Character end
