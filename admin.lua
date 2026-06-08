@@ -853,7 +853,7 @@ end
 --   2) TAGS_DB_URL        — the legacy tags.lua on GitHub (Lua table).
 --
 -- Pastebin line format (one player per line, pipe-separated):
---   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3 | textFx | customText
+--   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3 | textFx | customText | customHandle
 --
 --   - Only `username` is required. Leave any field blank to skip it (keep the |).
 --   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
@@ -864,11 +864,13 @@ end
 --             e.g. gif:1234567890:4:4:12   (16-frame 4x4 sheet at 12 fps;
 --             sheetSize defaults to 1024)
 --   - textFx: glitch | type | explode   (or blank for none)
---   - customText: optional override for the right-side chip text (owner-only feature)
+--   - customText:   optional override for the right-side chip text (owner-only)
+--   - customHandle: optional override for the "@name" line on the tag (owner-only).
+--                   Anyone without an entry shows the anonymous "user" / "@user".
 --   - Lines starting with # or // are comments. Blank lines are ignored.
 --
 -- Example paste:
---   DESPAIRDEV293 | Despair | #ff3b6b/#00aaff | nebula |  | Owner,Dev | glitch | VIP
+--   DESPAIRDEV293 | Despair | #ff3b6b/#00aaff | nebula |  | Owner,Dev | glitch | VIP | despair
 --   Builderman    | Builderman | #00aaff | sparkle | 156 | Roblox
 --
 -- To change tags: edit the paste, hit Save, rejoin (or wait for next load).
