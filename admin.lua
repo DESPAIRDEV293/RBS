@@ -4430,7 +4430,12 @@ bind(UIS.InputBegan:Connect(function(i, gp)
         local v = not Pill.Visible
         Pill.Visible = v
         if not v then
-            for _, p in pairs(panels) do p.frame.Visible = false end
+            for _, p in pairs(panels) do
+                p.frame.Visible = false
+                if p.btn then
+                    tween(p.btn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25 })
+                end
+            end
         end
     end
 end))
