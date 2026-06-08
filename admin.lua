@@ -1779,20 +1779,51 @@ local function refreshBill(p)
         local c = c1 or (p == LP and T.good or T.acc)
         e.stroke.Color = c; e.dot.BackgroundColor3 = c
     end
-    -- Two-color split bubble background (left half c1, right half c2)
+    -- Bubble fill: solid / split / gradient / image
     if e.bgGrad then
-        if c1 and c2 then
+        local fill = parseFill(cfg and cfg.color)
+        if fill and fill.kind == "image" then
+            if e.bgImg then
+                e.bgImg.Image = fill.url
+                e.bgImg.ImageTransparency = 0
+                e.bgImg.Visible = true
+            end
+            e.bg.BackgroundTransparency = 1
+            e.bgGrad.Color = ColorSequence.new(Color3.new(1, 1, 1))
+        elseif fill and fill.kind == "gradient" then
+            if e.bgImg then e.bgImg.Visible = false end
+            e.bgGrad.Rotation = fill.rotation or 90
+            local n = #fill.stops
+            local kps = {}
+            for i, c in ipairs(fill.stops) do
+                local t = (i - 1) / math.max(1, n - 1)
+                kps[#kps + 1] = ColorSequenceKeypoint.new(t, c)
+            end
+            e.bgGrad.Color = ColorSequence.new(kps)
+            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+            e.bg.BackgroundTransparency = 0
+        elseif fill and fill.kind == "split" then
+            if e.bgImg then e.bgImg.Visible = false end
             e.bgGrad.Rotation = 0
             e.bgGrad.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0,    c1),
-                ColorSequenceKeypoint.new(0.499, c1),
-                ColorSequenceKeypoint.new(0.5,  c2),
-                ColorSequenceKeypoint.new(1,    c2),
+                ColorSequenceKeypoint.new(0,     fill.c1),
+                ColorSequenceKeypoint.new(0.499, fill.c1),
+                ColorSequenceKeypoint.new(0.5,   fill.c2),
+                ColorSequenceKeypoint.new(1,     fill.c2),
             })
+            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+            e.bg.BackgroundTransparency = 0
+        elseif fill and fill.kind == "solid" then
+            if e.bgImg then e.bgImg.Visible = false end
+            e.bgGrad.Rotation = 90
+            e.bgGrad.Color = ColorSequence.new(fill.c, fill.c)
+            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
             e.bg.BackgroundTransparency = 0
         else
+            if e.bgImg then e.bgImg.Visible = false end
             e.bgGrad.Rotation = 90
-            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18))
+            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
+            e.bg.BackgroundColor3 = T.bg
             e.bg.BackgroundTransparency = 0.1
         end
     end
