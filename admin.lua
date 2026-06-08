@@ -9301,6 +9301,130 @@ cmdHandlers["usay"] = function(arg)
     else notify("Failed: " .. tostring(err), "bad") end
 end
 
+-- =====================================================================
+-- STAFF COMMANDS (10) · available to Staff, Admin, Owner
+-- Excludes !usay and !rmvp/!unrmvp (those stay Admin/Owner only).
+-- =====================================================================
+local function _staffGate(name)
+    if not (_G.__SeigeCan and _G.__SeigeCan("staff_cmd")) then
+        notify(name .. " requires Staff role", "bad"); return false
+    end
+    return true
+end
+local function _resolveScriptUser(name)
+    name = tostring(name or ""):gsub("^@", ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if name == "" then return nil end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Name:lower() == name:lower() or p.DisplayName:lower() == name:lower() then
+            return p
+        end
+    end
+    return nil
+end
+
+-- 1) !bring <user> — teleport target script user to me
+cmdHandlers["bring"] = function(arg)
+    if not _staffGate("!bring") then return end
+    local t = tostring(arg or ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !bring <user>", "warn"); return end
+    if not _G.__SeigeBringSend then notify("Broadcast not ready", "bad"); return end
+    local ok, err = _G.__SeigeBringSend(t)
+    if ok then notify("Bringing " .. t, "good") else notify("Failed: " .. tostring(err), "bad") end
+end
+
+-- 2) !bringall — teleport every script user to me
+cmdHandlers["bringall"] = function()
+    if not _staffGate("!bringall") then return end
+    if not _G.__SeigeBringAllSend then notify("Broadcast not ready", "bad"); return end
+    _G.__SeigeBringAllSend()
+    notify("Bringing all script users", "good")
+end
+
+-- 3) !goto <user> — teleport me to target (local; works on any player)
+cmdHandlers["goto"] = function(arg)
+    if not _staffGate("!goto") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    local myHRP = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    local tHRP  = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+    if not (myHRP and tHRP) then notify("Character not ready", "warn"); return end
+    myHRP.CFrame = tHRP.CFrame + Vector3.new(0, 0, 3)
+    notify("Teleported to " .. p.Name, "good")
+end
+
+-- 4) !freeze <user> — anchor the target script user
+cmdHandlers["freeze"] = function(arg)
+    if not _staffGate("!freeze") then return end
+    local t = tostring(arg or ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !freeze <user>", "warn"); return end
+    if not _G.__SeigeFreezeSend then notify("Broadcast not ready", "bad"); return end
+    _G.__SeigeFreezeSend(t, true); notify("Froze " .. t, "good")
+end
+
+-- 5) !unfreeze <user>
+cmdHandlers["unfreeze"] = function(arg)
+    if not _staffGate("!unfreeze") then return end
+    local t = tostring(arg or ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !unfreeze <user>", "warn"); return end
+    if not _G.__SeigeFreezeSend then notify("Broadcast not ready", "bad"); return end
+    _G.__SeigeFreezeSend(t, false); notify("Unfroze " .. t, "good")
+end
+
+-- 6) !warn <user> <message> — private warning banner on target's screen
+cmdHandlers["warn"] = function(arg)
+    if not _staffGate("!warn") then return end
+    local s = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local target, msg = s:match("^(%S+)%s+(.+)$")
+    if not target or not msg then notify("Usage: !warn <user> <message>", "warn"); return end
+    if not _G.__SeigeWarnSend then notify("Broadcast not ready", "bad"); return end
+    local ok, err = _G.__SeigeWarnSend(target, msg)
+    if ok then notify("Warned " .. target, "good") else notify("Failed: " .. tostring(err), "bad") end
+end
+
+-- 7) !shout <message> — big centered overlay on every script user's screen
+cmdHandlers["shout"] = function(arg)
+    if not _staffGate("!shout") then return end
+    local msg = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if msg == "" then notify("Usage: !shout <message>", "warn"); return end
+    if not _G.__SeigeShoutSend then notify("Broadcast not ready", "bad"); return end
+    _G.__SeigeShoutSend(msg); notify("Shouted to all script users", "good")
+end
+
+-- 8) !ping <user> — flash target's screen + bell sound
+cmdHandlers["ping"] = function(arg)
+    if not _staffGate("!ping") then return end
+    local t = tostring(arg or ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !ping <user>", "warn"); return end
+    if not _G.__SeigePingSend then notify("Broadcast not ready", "bad"); return end
+    _G.__SeigePingSend(t); notify("Pinged " .. t, "good")
+end
+
+-- 9) !whois <user> — show local info about a player
+cmdHandlers["whois"] = function(arg)
+    if not _staffGate("!whois") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    local entry = TagDB and TagDB.entries and TagDB.entries[p.Name:lower()] or nil
+    local tag = entry and ((entry.tags and entry.tags[1]) or entry.displayName or "tagged") or "no tag"
+    local age = "?"; pcall(function() age = tostring(p.AccountAge) end)
+    notify(string.format("@%s · %s · age %s d · uid %d · tag: %s",
+        p.Name, p.DisplayName, age, p.UserId, tag), "good")
+end
+
+-- 10) !list — list all detected script users
+cmdHandlers["list"] = function()
+    if not _staffGate("!list") then return end
+    local reg = _G.__SeigeScriptUsers or {}
+    local names = {}
+    for _, info in pairs(reg) do
+        local plr = Players:GetPlayerByUserId(info.userId)
+        if plr then names[#names+1] = "@" .. plr.Name end
+    end
+    table.sort(names)
+    if #names == 0 then notify("No script users detected in this server", "warn")
+    else notify(("%d script user%s: %s"):format(#names, #names==1 and "" or "s", table.concat(names, ", ")), "good") end
+end
+
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
