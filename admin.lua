@@ -2260,60 +2260,126 @@ local function refreshBill(p)
         end)
     end
 
-    -- Text effects: typewriter, glitch, rainbow. Token cancels prior loops.
+    -- Text effects: animate BOTH the display name and the @handle.
     do
         local fx = cfg and cfg.textFx
         fx = tostring(fx or ""):lower():gsub("^%s+",""):gsub("%s+$","")
         e.fxToken = (e.fxToken or 0) + 1
         local myToken = e.fxToken
-        local label = e.name
+
+        e.nameBasePos   = e.nameBasePos   or e.name.Position
+        e.handleBasePos = e.handleBasePos or e.handle.Position
+        e.name.Position   = e.nameBasePos
+        e.handle.Position = e.handleBasePos
+
+        local targets = {
+            { label = e.name,   full = nameStr,   basePos = e.nameBasePos },
+            { label = e.handle, full = handleStr, basePos = e.handleBasePos },
+        }
+        for _, t in ipairs(targets) do t.label.Text = t.full end
+
+        local function alive() return e.fxToken == myToken end
+
         if fx == "typewriter" or fx == "type" then
-            local full = nameStr
-            task.spawn(function()
-                while e.fxToken == myToken and label and label.Parent do
-                    for i = 0, #full do
-                        if e.fxToken ~= myToken then return end
-                        label.Text = string.sub(full, 1, i)
-                        task.wait(0.08)
-                    end
-                    task.wait(1.2)
-                    for i = #full, 0, -1 do
-                        if e.fxToken ~= myToken then return end
-                        label.Text = string.sub(full, 1, i)
-                        task.wait(0.05)
-                    end
-                    task.wait(0.4)
-                end
-            end)
-        elseif fx == "glitch" then
-            local full = nameStr
-            local glitchChars = "!@#$%^&*<>?/\\|=+-_"
-            task.spawn(function()
-                while e.fxToken == myToken and label and label.Parent do
-                    local out = {}
-                    for i = 1, #full do
-                        if math.random() < 0.18 then
-                            local r = math.random(1, #glitchChars)
-                            out[i] = string.sub(glitchChars, r, r)
-                        else
-                            out[i] = string.sub(full, i, i)
+            for _, t in ipairs(targets) do
+                task.spawn(function()
+                    local full = t.full
+                    while alive() and t.label and t.label.Parent do
+                        for i = 0, #full do
+                            if not alive() then return end
+                            t.label.Text = string.sub(full, 1, i); task.wait(0.08)
                         end
+                        task.wait(1.2)
+                        for i = #full, 0, -1 do
+                            if not alive() then return end
+                            t.label.Text = string.sub(full, 1, i); task.wait(0.05)
+                        end
+                        task.wait(0.4)
                     end
-                    label.Text = table.concat(out)
-                    task.wait(0.08)
-                end
-            end)
+                end)
+            end
+        elseif fx == "glitch" then
+            local glitchChars = "!@#$%^&*<>?/\\|=+-_"
+            for _, t in ipairs(targets) do
+                task.spawn(function()
+                    local full = t.full
+                    while alive() and t.label and t.label.Parent do
+                        local out = {}
+                        for i = 1, #full do
+                            if math.random() < 0.18 then
+                                local r = math.random(1, #glitchChars)
+                                out[i] = string.sub(glitchChars, r, r)
+                            else
+                                out[i] = string.sub(full, i, i)
+                            end
+                        end
+                        t.label.Text = table.concat(out); task.wait(0.08)
+                    end
+                end)
+            end
         elseif fx == "rainbow" then
             task.spawn(function()
                 local t0 = tick()
-                while e.fxToken == myToken and label and label.Parent do
+                while alive() and e.name and e.name.Parent do
                     local h = (tick() - t0) * 0.4 % 1
-                    label.TextColor3 = Color3.fromHSV(h, 0.85, 1)
+                    local c = Color3.fromHSV(h, 0.85, 1)
+                    if e.name   then e.name.TextColor3   = c end
+                    if e.handle then e.handle.TextColor3 = c end
                     task.wait(0.05)
                 end
             end)
-        else
-            label.Text = nameStr
+        elseif fx == "floating" or fx == "float" then
+            for i, t in ipairs(targets) do
+                task.spawn(function()
+                    local phase = (i - 1) * math.pi * 0.5
+                    while alive() and t.label and t.label.Parent do
+                        local off = math.sin(tick() * 3 + phase) * 2
+                        t.label.Position = t.basePos + UDim2.fromOffset(0, off)
+                        task.wait(0.03)
+                    end
+                end)
+            end
+        elseif fx == "zerograv" or fx == "zero-grav" or fx == "zerog" then
+            for i, t in ipairs(targets) do
+                task.spawn(function()
+                    task.wait((i - 1) * 0.6)
+                    while alive() and t.label and t.label.Parent do
+                        for f = 0, 1, 0.05 do
+                            if not alive() then return end
+                            local ease = f * f
+                            t.label.Position = t.basePos + UDim2.fromOffset(0, math.floor(ease * 22))
+                            task.wait(0.03)
+                        end
+                        task.wait(0.4)
+                        t.label.Position = t.basePos + UDim2.fromOffset(0, -10)
+                        task.wait(0.08)
+                        t.label.Position = t.basePos
+                        task.wait(0.9)
+                    end
+                end)
+            end
+        elseif fx == "wave" then
+            for i, t in ipairs(targets) do
+                task.spawn(function()
+                    local phase = (i - 1) * math.pi
+                    while alive() and t.label and t.label.Parent do
+                        local off = math.sin(tick() * 4 + phase) * 3
+                        t.label.Position = t.basePos + UDim2.fromOffset(off, 0)
+                        task.wait(0.03)
+                    end
+                end)
+            end
+        elseif fx == "shake" then
+            for _, t in ipairs(targets) do
+                task.spawn(function()
+                    while alive() and t.label and t.label.Parent do
+                        local dx = math.random(-2, 2)
+                        local dy = math.random(-1, 1)
+                        t.label.Position = t.basePos + UDim2.fromOffset(dx, dy)
+                        task.wait(0.05)
+                    end
+                end)
+            end
         end
     end
 
