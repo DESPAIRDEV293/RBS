@@ -221,6 +221,13 @@ _G.__SeigeSetKill = function(on, fromBroadcast)
     on = on == true
     if _G.__SeigeKilled == on then return end
     _G.__SeigeKilled = on
+    if _G.__SeigeAudit then
+        _G.__SeigeAudit(
+            "toggle:kill_switch",
+            (on and "ON" or "OFF") .. (fromBroadcast and " (received)" or " (local)"),
+            true
+        )
+    end
     for _, fn in ipairs(_G.__SeigeKillListeners) do pcall(fn, on, fromBroadcast) end
 end
 _G.__SeigeOnKill = function(fn)
