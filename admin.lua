@@ -1220,9 +1220,9 @@ local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
 
 local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands, executor and rejoin")
 local pgThemes  = makeTab("Themes",  "✿", "Customize colors and background")
-local pgShaders = makeTab("Shaders", "✷", "Real post-processing: bloom, blur, DOF, color")
+local pgShaders = makeTab("Shaders", "☀", "Real post-processing: bloom, blur, DOF, color")
 local pgConfig  = makeTab("Config",  "⚙", "Settings and keybinds")
-local pgDetect  = makeTab("Detector","⚲", "Detects other scripts loaded in this game")
+local pgDetect  = makeTab("Detector","◎", "Detects other scripts loaded in this game")
 
 ------------------------------------------------------- HELPERS
 local function char()  return LP.Character end
