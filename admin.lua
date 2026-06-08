@@ -10861,6 +10861,7 @@ _G.__AdminCleanup = function()
     killFly()
     clearBills()
     pcall(function() Root:Destroy() end)
+    if helpGui then pcall(function() helpGui:Destroy() end); helpGui = nil end
     pcall(function() Lighting.Brightness = 1; Lighting.GlobalShadows = true; Lighting.Ambient = Color3.fromRGB(70,70,70) end)
     if _G.__SeigePresenceCleanup then pcall(_G.__SeigePresenceCleanup) end
     _G.__AdminLoaded = nil
