@@ -2743,6 +2743,11 @@ if LP.Name == "0rot3" then
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
     -- metal sweep highlight on/off (per tag)
     local sweepDD = dropdown(pgTags, "Metal sweep animation", { "on", "off" }, function(v) form.sweep = v end)
+    -- per-tag element preset (back-plate skin). "none" = no overlay.
+    local ELEMENT_OPTS = { "none", "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
+    local elementDD = dropdown(pgTags, "Tag element (back-plate preset)", ELEMENT_OPTS, function(v) form.element = v end)
+
+
 
     -- live preview swatch
     local prev = inst("Frame", pgTags, {
