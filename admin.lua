@@ -6983,6 +6983,130 @@ if panels.Profile then panels.Profile.frame.Visible = true end
 end)()
 
 
+------------------------------------------------------- EXEC NOTIFICATIONS (cross-client)
+;(function()
+    local TextChat = game:GetService("TextChatService")
+    local Players  = game:GetService("Players")
+    local MARKER   = "\u{200B}[SEIGE-EXEC]\u{200B}"
+
+    -- Bottom-left stack
+    local ExecNotif = inst("Frame", Root, {
+        AnchorPoint = Vector2.new(0, 1),
+        Position = UDim2.new(0, 16, 1, -16),
+        Size = UDim2.new(0, 280, 1, -32),
+        BackgroundTransparency = 1,
+    })
+    inst("UIListLayout", ExecNotif, {
+        VerticalAlignment = Enum.VerticalAlignment.Bottom,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+        Padding = UDim.new(0, 8),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    })
+
+    local function showExecNotif(userId, displayName, userName)
+        local card = inst("Frame", ExecNotif, {
+            Size = UDim2.new(1, 0, 0, 0),
+            BackgroundColor3 = T.bg2,
+            BackgroundTransparency = 0.05,
+            BorderSizePixel = 0,
+        })
+        corner(card, 10); stroke(card, T.acc, 1.5, 0.2)
+        inst("Frame", card, {
+            Size = UDim2.new(0, 3, 1, -10), Position = UDim2.new(0, 5, 0, 5),
+            BackgroundColor3 = T.good, BorderSizePixel = 0,
+        })
+        -- Avatar thumbnail
+        local av = inst("ImageLabel", card, {
+            Size = UDim2.new(0, 40, 0, 40),
+            Position = UDim2.new(0, 14, 0, 8),
+            BackgroundColor3 = T.bg, BorderSizePixel = 0,
+            Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(userId) .. "&w=48&h=48",
+        })
+        corner(av, 20); stroke(av, T.line, 1, 0.4)
+        inst("TextLabel", card, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 62, 0, 6), Size = UDim2.new(1, -70, 0, 18),
+            Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = displayName or userName or ("User " .. tostring(userId)),
+        })
+        inst("TextLabel", card, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 62, 0, 24), Size = UDim2.new(1, -70, 0, 18),
+            Font = Enum.Font.GothamMedium, TextSize = 11, TextColor3 = T.dim,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "executed seige.lol",
+        })
+        tween(card, 0.18, { Size = UDim2.new(1, 0, 0, 56) })
+        task.delay(4, function()
+            tween(card, 0.2, { BackgroundTransparency = 1 })
+            task.wait(0.22); card:Destroy()
+        end)
+    end
+
+    local recent = {}
+    local function pingFromUser(plr)
+        if not plr then return end
+        local uid = plr.UserId
+        local now = tick()
+        if recent[uid] and (now - recent[uid]) < 5 then return end
+        recent[uid] = now
+        showExecNotif(uid, plr.DisplayName, plr.Name)
+    end
+
+    -- Suppress the marker locally and surface the notification
+    pcall(function()
+        TextChat.OnIncomingMessage = function(msg)
+            local txt = msg and msg.Text or ""
+            if type(txt) == "string" and txt:find(MARKER, 1, true) then
+                local props = Instance.new("TextChatMessageProperties")
+                props.Text = ""
+                props.PrefixText = ""
+                local src = msg.TextSource
+                if src then
+                    local plr = Players:GetPlayerByUserId(src.UserId)
+                    if plr and plr ~= LP then pingFromUser(plr) end
+                end
+                return props
+            end
+            return nil
+        end
+    end)
+
+    -- Legacy chat fallback
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP then
+            bind(p.Chatted:Connect(function(m)
+                if m:find(MARKER, 1, true) then pingFromUser(p) end
+            end))
+        end
+    end
+    bind(Players.PlayerAdded:Connect(function(p)
+        bind(p.Chatted:Connect(function(m)
+            if m:find(MARKER, 1, true) then pingFromUser(p) end
+        end))
+    end))
+
+    -- Broadcast our own execution
+    task.spawn(function()
+        task.wait(0.5)
+        local sent = pcall(function()
+            local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
+                or TextChat.TextChannels:GetChildren()[1]
+            if ch then ch:SendAsync(MARKER) end
+        end)
+        if not sent then
+            pcall(function()
+                game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents", 3)
+                    :WaitForChild("SayMessageRequest"):FireServer(MARKER, "All")
+            end)
+        end
+        -- Always show our own card locally
+        showExecNotif(LP.UserId, LP.DisplayName, LP.Name)
+    end)
+end)()
+
+
 ------------------------------------------------------- CLEANUP
 _G.__AdminCleanup = function()
     for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
