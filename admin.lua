@@ -227,6 +227,34 @@ _G.__SeigeOnKill = function(fn)
     if type(fn) == "function" then table.insert(_G.__SeigeKillListeners, fn) end
 end
 
+-- AUDIT LOG · per-client ring buffer of role-gated UI opens, toggles and
+-- command attempts. Each entry records who, when, what, and whether the
+-- action was permitted by the gating layer. The owner panel renders this
+-- list so abuse and unauthorized attempts can be reviewed.
+_G.__SeigeAuditLog = _G.__SeigeAuditLog or {}
+_G.__SeigeAuditListeners = _G.__SeigeAuditListeners or {}
+local AUDIT_MAX = 250
+_G.__SeigeAudit = function(action, detail, allowed)
+    local entry = {
+        t       = os.time(),
+        player  = (LP and LP.Name) or "?",
+        role    = (_G.__SeigeMyRole and _G.__SeigeMyRole()) or "none",
+        action  = tostring(action or ""),
+        detail  = tostring(detail or ""),
+        allowed = allowed ~= false,
+    }
+    table.insert(_G.__SeigeAuditLog, entry)
+    while #_G.__SeigeAuditLog > AUDIT_MAX do table.remove(_G.__SeigeAuditLog, 1) end
+    for _, fn in ipairs(_G.__SeigeAuditListeners) do pcall(fn, entry) end
+end
+_G.__SeigeOnAudit = function(fn)
+    if type(fn) == "function" then table.insert(_G.__SeigeAuditListeners, fn) end
+end
+_G.__SeigeClearAudit = function()
+    _G.__SeigeAuditLog = {}
+    for _, fn in ipairs(_G.__SeigeAuditListeners) do pcall(fn, nil) end
+end
+
 -- Help popup: shows role-specific commands
 local HELP_COMMANDS = {
     { perms = {"staff_cmd"}, cmd = "!bring <user>",         desc = "Teleport a script user to you" },
