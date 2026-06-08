@@ -2727,7 +2727,97 @@ button(pgCmds, "Copy PlaceId", function()
     else notify("setclipboard unavailable", "bad") end
 end)
 
-------------------------------------------------------- CONFIG TAB
+------------------------------------------------------- EXECUTOR BAR (Cmds)
+section(pgCmds, "Executor")
+
+local execFrame = inst("Frame", pgCmds, {
+    Size = UDim2.new(1, -8, 0, 130),
+    BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3, BorderSizePixel = 0,
+    Visible = false,
+})
+corner(execFrame, 8); stroke(execFrame, T.line, 1, 0.5)
+
+local execBox = inst("TextBox", execFrame, {
+    Position = UDim2.new(0, 8, 0, 8),
+    Size = UDim2.new(1, -16, 1, -48),
+    BackgroundColor3 = T.bg, BackgroundTransparency = 0.15, BorderSizePixel = 0,
+    Font = Enum.Font.Code, TextSize = 12,
+    TextColor3 = T.text, PlaceholderColor3 = T.dim,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    TextYAlignment = Enum.TextYAlignment.Top,
+    ClearTextOnFocus = false, MultiLine = true,
+    PlaceholderText = "-- Lua code, e.g.  print('hi')",
+    Text = "",
+})
+corner(execBox, 6); stroke(execBox, T.line, 1, 0.5)
+inst("UIPadding", execBox, {
+    PaddingLeft = UDim.new(0,8), PaddingRight = UDim.new(0,8),
+    PaddingTop = UDim.new(0,6), PaddingBottom = UDim.new(0,6),
+})
+
+local function runExec()
+    local src = execBox.Text
+    if src == "" then return end
+    local ls = rawget(getfenv(), "loadstring") or loadstring
+    if not ls then notify("loadstring unavailable", "bad"); return end
+    local fn, err = ls(src)
+    if not fn then notify("Compile: " .. tostring(err), "bad"); return end
+    local ok, perr = pcall(fn)
+    if ok then notify("Executed", "good")
+    else notify("Runtime: " .. tostring(perr), "bad") end
+end
+
+local execRun = inst("TextButton", execFrame, {
+    AnchorPoint = Vector2.new(1, 1),
+    Position = UDim2.new(1, -8, 1, -8),
+    Size = UDim2.new(0, 90, 0, 28),
+    BackgroundColor3 = T.acc, BackgroundTransparency = 0.1, BorderSizePixel = 0,
+    AutoButtonColor = false,
+    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+    Text = "Execute",
+})
+corner(execRun, 6); stroke(execRun, T.line, 1, 0.5)
+execRun.MouseButton1Click:Connect(runExec)
+
+local execClear = inst("TextButton", execFrame, {
+    AnchorPoint = Vector2.new(0, 1),
+    Position = UDim2.new(0, 8, 1, -8),
+    Size = UDim2.new(0, 70, 0, 28),
+    BackgroundColor3 = T.bg3, BackgroundTransparency = 0.15, BorderSizePixel = 0,
+    AutoButtonColor = false,
+    Font = Enum.Font.GothamSemibold, TextSize = 12, TextColor3 = T.text,
+    Text = "Clear",
+})
+corner(execClear, 6); stroke(execClear, T.line, 1, 0.5)
+execClear.MouseButton1Click:Connect(function() execBox.Text = "" end)
+
+local execPaste = inst("TextButton", execFrame, {
+    AnchorPoint = Vector2.new(0, 1),
+    Position = UDim2.new(0, 82, 1, -8),
+    Size = UDim2.new(0, 70, 0, 28),
+    BackgroundColor3 = T.bg3, BackgroundTransparency = 0.15, BorderSizePixel = 0,
+    AutoButtonColor = false,
+    Font = Enum.Font.GothamSemibold, TextSize = 12, TextColor3 = T.text,
+    Text = "Paste",
+})
+corner(execPaste, 6); stroke(execPaste, T.line, 1, 0.5)
+execPaste.MouseButton1Click:Connect(function()
+    local gc = rawget(getfenv(), "getclipboard") or rawget(getfenv(), "Clipboard")
+    if type(gc) == "function" then
+        local ok, s = pcall(gc); if ok and s then execBox.Text = s; notify("Pasted", "good") end
+    else notify("getclipboard unavailable", "warn") end
+end)
+
+local execEnabled = false
+toggle(pgCmds, "Show execution bar", false, function(v)
+    execEnabled = v
+    execFrame.Visible = v
+    if _G.__AdminSaveCfg then _G.__AdminSaveCfg() end
+end)
+-- Reorder so executor frame appears under the toggle visually:
+execFrame.LayoutOrder = 99
+
+
 section(pgConfig, "Settings")
 local toggleKey = Enum.KeyCode.F2
 local awaitingKey = false
