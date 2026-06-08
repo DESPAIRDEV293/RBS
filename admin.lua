@@ -2137,8 +2137,10 @@ local function buildBill(p)
     clickBtn.MouseButton1Click:Connect(onTagClicked)
 
     tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
+    if _G.__SeigeApplyTagFont then pcall(_G.__SeigeApplyTagFont) end
 end
 local function rebuildBills()
     clearBills()
