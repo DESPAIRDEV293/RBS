@@ -1978,10 +1978,11 @@ local function buildBill(p)
         ClipsDescendants = true,
     })
     corner(bg, 21)
-    -- particle layer (sits behind text)
+    -- particle layer (sits above bg/image, below text/avatar)
     local fx = inst("Frame", bg, {
         Name = "fx", Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1, ZIndex = 0,
+        BackgroundTransparency = 1, ZIndex = 5,
+        ClipsDescendants = true,
     })
 
     local st = stroke(bg, T.acc, 1.4, 0.3)
@@ -1989,7 +1990,7 @@ local function buildBill(p)
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18)),
     })
-    -- image fill layer (sits above gradient, below text/avatar via ZIndex)
+    -- image fill layer (sits above gradient, below particles via ZIndex)
     local bgImg = inst("ImageLabel", bg, {
         Name = "bgImg",
         Size = UDim2.new(1, 0, 1, 0),
@@ -1997,13 +1998,14 @@ local function buildBill(p)
         ImageTransparency = 1,
         ScaleType = Enum.ScaleType.Crop,
         Visible = false,
-        ZIndex = 1,
+        ZIndex = 2,
         Image = "",
     })
     corner(bgImg, 21)
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 32, 0, 32), Position = UDim2.new(0, 5, 0.5, -16),
         BackgroundColor3 = T.bg3, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop,
+        ZIndex = 10,
     })
     corner(av, 16)
     pcall(function() av.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end)
@@ -2011,27 +2013,32 @@ local function buildBill(p)
         BackgroundTransparency = 1, Position = UDim2.new(0, 44, 0, 3), Size = UDim2.new(1, -120, 0, 18),
         Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = p.DisplayName, TextStrokeTransparency = 0.7,
+        ZIndex = 10,
     })
     local hd = inst("TextLabel", bg, {
         BackgroundTransparency = 1, Position = UDim2.new(0, 44, 0, 22), Size = UDim2.new(1, -120, 0, 14),
         Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "@" .. p.Name,
+        ZIndex = 10,
     })
     local sh = inst("Frame", bg, {
         AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0),
         Size = UDim2.new(0, 80, 0, 22),
         BackgroundColor3 = T.bg2, BorderSizePixel = 0,
+        ZIndex = 10,
     })
     corner(sh, 11); stroke(sh, T.line, 1, 0.4)
     local dot = inst("Frame", sh, {
         Size = UDim2.new(0, 6, 0, 6), Position = UDim2.new(0, 8, 0.5, -3),
         BackgroundColor3 = T.acc, BorderSizePixel = 0,
+        ZIndex = 11,
     })
     corner(dot, 3)
     local stx = inst("TextLabel", sh, {
         BackgroundTransparency = 1, Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(1, -22, 1, 0),
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ZIndex = 11,
     })
     -- invisible click overlay covering the whole bubble → teleport to target player
     local clickBtn = inst("TextButton", bg, {
