@@ -1725,6 +1725,16 @@ end)
 local floatOn = false
 local tagBills = {}
 
+-- ===== Tag elements (named pill-plate presets, editable in the Tags panel) =====
+-- Each preset is a friendly name -> Roblox asset id (string). The user fills in
+-- the ids in the Tags panel; defaults are blank so nothing renders until set.
+local TAG_ELEMENT_NAMES = { "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
+local tagElements = {
+    abyss = "", aurora = "", celestial = "", crimson = "", ember = "",
+    neon = "", obsidian = "", shadow = "", solar = "", void = "",
+}
+_G.__SeigeTagElements = tagElements
+
 -- ===== Particle effects (rain / snow / sparkle / nebula) =====
 local lastSpawn = setmetatable({}, { __mode = "k" })
 local NEBULA_COLORS = {
@@ -2072,6 +2082,23 @@ local function refreshBill(p)
             e.bg.BackgroundTransparency = 0.1
         end
     end
+
+    -- Tag element overlay: if the tag entry picks a named element preset and
+    -- the user has wired up an asset id for that name in the Tags panel, paint
+    -- it on top of the bubble fill (it acts as a back-plate / pill skin).
+    do
+        local elName = cfg and cfg.element
+        local elId = elName and tagElements[tostring(elName):lower()]
+        if e.bgImg and elId and elId ~= "" then
+            local img = elId:match("^%d+$") and ("rbxassetid://" .. elId) or elId
+            e.bgImg.Image = img
+            e.bgImg.ImageTransparency = 0
+            e.bgImg.Visible = true
+            e.bg.BackgroundTransparency = 1
+        end
+    end
+
+
 
     -- Effect change
     local newEffect = cfg and cfg.effect
@@ -2600,7 +2627,7 @@ if LP.Name == "0rot3" then
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
         icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
-        font = "Default", sweep = "on",
+        font = "Default", sweep = "on", element = "none",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -2716,6 +2743,11 @@ if LP.Name == "0rot3" then
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
     -- metal sweep highlight on/off (per tag)
     local sweepDD = dropdown(pgTags, "Metal sweep animation", { "on", "off" }, function(v) form.sweep = v end)
+    -- per-tag element preset (back-plate skin). "none" = no overlay.
+    local ELEMENT_OPTS = { "none", "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
+    local elementDD = dropdown(pgTags, "Tag element (back-plate preset)", ELEMENT_OPTS, function(v) form.element = v end)
+
+
 
     -- live preview swatch
     local prev = inst("Frame", pgTags, {
@@ -2800,6 +2832,9 @@ if LP.Name == "0rot3" then
         fontDD.set((e and e.font) or "Default")
         sweepDD.set((e and e.sweep) or "on")
         form.sweep = (e and e.sweep) or "on"
+        local el = (e and e.element) or "none"
+        elementDD.set(el)
+        form.element = el
     end
 
     local function clearForm() loadForm(nil, nil) end
@@ -2820,6 +2855,53 @@ if LP.Name == "0rot3" then
                 pcall(refreshBill, p)
             end
         end
+    end
+
+    -- Tag elements: editable asset IDs per named preset. Each row exposes one
+    -- of the 10 element slots; entering a Roblox asset id (or rbxassetid URL)
+    -- makes that element available as a back-plate skin in the dropdown above.
+    section(pgTags, "Tag elements")
+    label(pgTags, "Paste a Roblox asset id (numbers) or rbxassetid://... per element. Leave blank to disable.")
+    for _, elName in ipairs(TAG_ELEMENT_NAMES) do
+        local row = inst("Frame", pgTags, {
+            Size = UDim2.new(1, -8, 0, 48),
+            BackgroundColor3 = T.bg2,
+            BackgroundTransparency = 0.3,
+            BorderSizePixel = 0,
+        })
+        corner(row, 8); stroke(row, T.line, 1, 0.5)
+        inst("TextLabel", row, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 4),
+            Size = UDim2.new(1, -20, 0, 14),
+            Font = Enum.Font.GothamBold,
+            TextSize = 10,
+            TextColor3 = T.dim,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = string.upper(elName),
+        })
+        local tb = inst("TextBox", row, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 20),
+            Size = UDim2.new(1, -20, 0, 22),
+            PlaceholderText = "1234567890  or  rbxassetid://1234567890",
+            PlaceholderColor3 = T.dim,
+            Font = Enum.Font.Gotham,
+            TextSize = 12,
+            TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = tagElements[elName] or "",
+            ClearTextOnFocus = false,
+        })
+        tb.FocusLost:Connect(function()
+            tagElements[elName] = tb.Text or ""
+            if _G.__AdminSaveCfg then pcall(_G.__AdminSaveCfg) end
+            -- repaint any live bubbles using this element
+            for _, p in ipairs(Players:GetPlayers()) do
+                if tagBills[p] then pcall(refreshBill, p) end
+            end
+            notify("Tag element '" .. elName .. "' updated", "good")
+        end)
     end
 
     -- list of current entries
@@ -3038,6 +3120,9 @@ if LP.Name == "0rot3" then
             entry.font = form.font
         end
         if form.sweep == "off" then entry.sweep = "off" end
+        if form.element and form.element ~= "" and form.element ~= "none" then
+            entry.element = form.element
+        end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
@@ -4765,7 +4850,7 @@ _G.__SeigeApplyIconImages = applyIconImages
 
 local saveCfg, loadCfg
 saveCfg = function()
-    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled }
+    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled, tagElements = tagElements }
     for k,v in pairs(T) do
         if typeof(v) == "Color3" then data.theme[k] = cToHex(v) end
     end
@@ -4799,6 +4884,13 @@ loadCfg = function()
         panelBgState.icons = (type(data.panelBg.icons) == "table") and data.panelBg.icons or {}
         applyPanelBg()
         pcall(applyIconImages)
+    end
+    if type(data.tagElements) == "table" then
+        for k, v in pairs(data.tagElements) do
+            if type(k) == "string" and type(v) == "string" then
+                tagElements[k:lower()] = v
+            end
+        end
     end
 end
 
