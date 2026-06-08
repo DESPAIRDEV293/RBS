@@ -283,8 +283,6 @@ local Backdrop = inst("ImageLabel", Win, {
     ZIndex = 0,
 })
 corner(Backdrop, 14)
--- clip the backdrop to the window's rounded corners
-inst("UICorner", Backdrop, { CornerRadius = UDim.new(0, 14) })
 
 -- Title bar (drag region)
 local Top = inst("Frame", Win, {
