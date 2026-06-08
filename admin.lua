@@ -1061,7 +1061,7 @@ local TAGS_LOCAL_FILE = "seige_tags_overrides.json"
 function TagDB:saveLocal()
     local writefile = rawget(getfenv(), "writefile")
     if not writefile then return false, "writefile not available" end
-    local ok, encoded = pcall(function() return HttpService:JSONEncode(self.entries or {}) end)
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(self.localEntries or {}) end)
     if not ok then return false, tostring(encoded) end
     local wok, werr = pcall(writefile, TAGS_LOCAL_FILE, encoded)
     if not wok then return false, tostring(werr) end
@@ -1085,6 +1085,7 @@ function TagDB:loadLocal()
 end
 function TagDB:mergeLocal()
     local local_ = self:loadLocal()
+    self.localEntries = local_ or {}
     if not local_ then return 0 end
     local n = 0
     for k, v in pairs(local_) do self.entries[k] = v; n = n + 1 end
