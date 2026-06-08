@@ -2802,9 +2802,6 @@ end)
 -- pastebin-formatted text block to your clipboard so you can save permanently.
 if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
   if LP.Name == OWNER_NAME then
-    local EFFECT_OPTS = { "none", "rain", "snow", "sparkle", "nebula" }
-    local TEXTFX_OPTS = { "none", "glitch", "type", "explode" }
-
     local pgTags = makeTab("Tags", "✎", "Custom tags, colors and icons")
 
     -- Make the Tags page breathe: extra vertical spacing between rows and
@@ -2828,8 +2825,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- form values
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
-        icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
-        font = "Default", sweep = "on",
+        icon = "", tags = "", customText = "", customHandle = "",
+        font = "Default",
         textColor = "", textOutline = "",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
@@ -2955,16 +2952,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     section(pgTags, "Other")
 
 
-    -- effect dropdown
-    local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
-    -- text animation dropdown
-    local txDD  = dropdown(pgTags, "Text animation", TEXTFX_OPTS, function(v) form.textFx = v end)
     -- per-tag font (dafont-style picks)
     local TAG_FONT_OPTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
-    -- metal sweep animation has been removed; keep a no-op shim so the rest
-    -- of the panel (which references sweepDD.set) doesn't error.
-    local sweepDD = { set = function() end }
     -- Give the Tag panel's dropdowns more room; longer option values were
     -- getting clipped at the default 140px button width.
     -- The dropdown helper returns a controller (not the Frame), so walk
@@ -3079,11 +3069,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         tbOutline.Text  = (e and e.outline) or ""
         tbTextColor.Text   = (e and e.textColor) or ""
         tbTextOutline.Text = (e and e.textOutline) or ""
-        effDD.set(e and e.effect or "none")
-        txDD.set(e and e.textFx or "none")
         fontDD.set((e and e.font) or "Default")
-        sweepDD.set((e and e.sweep) or "on")
-        form.sweep = (e and e.sweep) or "on"
     end
 
     local function clearForm() loadForm(nil, nil) end
