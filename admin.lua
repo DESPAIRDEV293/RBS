@@ -4134,7 +4134,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
 
     ------------------------------------------------------------------
     -- ADMIN PANEL  ·  visible to OWNER (0rot3) and any user with a role
-    -- Roles: admin (full commands), staff (allp only), nt (view only).
+    -- Roles: admin (full + freeze), staff (8 cmds), nt (tag cmds + view).
     -- The owner manages role assignments in the "Roles & Permissions" section.
     ------------------------------------------------------------------
     local _myRole = _G.__SeigeMyRole() or "nt"
