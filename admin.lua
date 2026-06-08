@@ -6453,6 +6453,8 @@ end)
 
 ------------------------------------------------------- AIM TAB (camera lock)
 section(pgCmds, "Aim assist (camera lock)")
+local execFrame, execEnabled, saveCfg, loadCfg, cToHex, applyPanelBg, applyIconImages, bgState, panelBgState, bgImgBox, ROLE_ORDER, roleRows
+;(function()
 local aimOn, aimFov, aimSmooth = false, 100, 0.25
 local aimVisOnly = true
 local aimKey = "RightMouseButton"
@@ -6553,7 +6555,7 @@ end))
 ------------------------------------------------------- EXECUTOR BAR (Cmds)
 section(pgCmds, "Executor")
 
-local execFrame = inst("Frame", pgCmds, {
+execFrame = inst("Frame", pgCmds, {
     Size = UDim2.new(1, -8, 0, 130),
     BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3, BorderSizePixel = 0,
     Visible = false,
@@ -6631,7 +6633,7 @@ execPaste.MouseButton1Click:Connect(function()
     else notify("getclipboard unavailable", "warn") end
 end)
 
-local execEnabled = false
+execEnabled = false
 toggle(pgCmds, "Show execution bar", false, function(v)
     execEnabled = v
     execFrame.Visible = v
@@ -6652,7 +6654,7 @@ local function hexToColor(h)
     if not (r and g and b) then return nil end
     return Color3.fromRGB(r,g,b)
 end
-local function cToHex(c)
+function cToHex(c)
     return string.format("#%02X%02X%02X",
         math.floor(c.R*255+0.5), math.floor(c.G*255+0.5), math.floor(c.B*255+0.5))
 end
@@ -6677,7 +6679,7 @@ local function applyTheme(newT)
     end
 end
 
-local bgState = { image = "", trans = 0.4 }
+bgState = { image = "", trans = 0.4 }
 local function resolveBgUrl(s)
     if not s or s == "" then return "" end
     s = tostring(s):gsub("^%s+",""):gsub("%s+$","")
@@ -6697,8 +6699,8 @@ local function applyBg()
 end
 
 -- Per-panel background image (applied to every floating panel's __SeigeBgImg)
-local panelBgState = { image = "", trans = 0.5, panels = {}, icons = {} }
-local function applyPanelBg()
+panelBgState = { image = "", trans = 0.5, panels = {}, icons = {} }
+function applyPanelBg()
     local gUrl = resolveBgUrl(panelBgState.image)
     local panelsTbl = rawget(_G, "__SeigePanels")
     if not panelsTbl then return end
@@ -6719,7 +6721,7 @@ local function applyPanelBg()
         end
     end
 end
-local function applyIconImages()
+function applyIconImages()
     local panelsTbl = rawget(_G, "__SeigePanels")
     if not panelsTbl then return end
     for name, p in pairs(panelsTbl) do
@@ -6736,7 +6738,7 @@ end
 _G.__SeigeApplyPanelBg = applyPanelBg
 _G.__SeigeApplyIconImages = applyIconImages
 
-local saveCfg, loadCfg
+
 saveCfg = function()
     local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled, tagElements = tagElements }
     for k,v in pairs(T) do
@@ -6783,7 +6785,7 @@ loadCfg = function()
 end
 
 section(pgThemes, "Background")
-local bgImgBox = textbox(pgThemes, "Image / GIF asset id or URL (rbxassetid://, http://...)", function(v)
+bgImgBox = textbox(pgThemes, "Image / GIF asset id or URL (rbxassetid://, http://...)", function(v)
     bgState.image = v; applyBg(); saveCfg()
     notify("Background updated", "good")
 end)
@@ -6858,8 +6860,8 @@ for name,_ in pairs(PRESETS) do
 end
 
 section(pgThemes, "Custom colors")
-local ROLE_ORDER = { "bg","bg2","bg3","line","text","sub","dim","acc","acc2","good","warn","bad" }
-local roleRows = {}
+ROLE_ORDER = { "bg","bg2","bg3","line","text","sub","dim","acc","acc2","good","warn","bad" }
+roleRows = {}
 local function makeRoleRow(role)
     local row = inst("Frame", pgThemes, {
         Size = UDim2.new(1, -8, 0, 34),
@@ -6913,6 +6915,7 @@ button(pgThemes, "Reset to default", function()
         end
     end
 end)
+end)()
 
 -- =============================================================
 -- ===== Typography & Animation customisation ==================
