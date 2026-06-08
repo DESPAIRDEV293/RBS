@@ -9718,14 +9718,21 @@ end
 
 cmdHandlers["spectate"] = function(arg)
     local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
-    local c = target.Character; local h = c and c:FindFirstChildOfClass("Humanoid")
-    if not h then notify("No target humanoid", "bad"); return end
-    Workspace.CurrentCamera.CameraSubject = h
+    if _G.__SeigeStartSpectate then
+        _G.__SeigeStartSpectate(target)
+    else
+        local c = target.Character; local h = c and c:FindFirstChildOfClass("Humanoid")
+        if not h then notify("No target humanoid", "bad"); return end
+        Workspace.CurrentCamera.CameraSubject = h
+    end
     notify("Spectating " .. target.Name, "good")
 end
 cmdHandlers["unspectate"] = function()
-    local h = getHum(); if h then Workspace.CurrentCamera.CameraSubject = h; notify("Unspectated", "good") end
+    if _G.__SeigeStopSpectate then _G.__SeigeStopSpectate() end
+    local h = getHum(); if h then Workspace.CurrentCamera.CameraSubject = h end
+    notify("Unspectated", "good")
 end
+
 
 cmdHandlers["fling"] = function(arg)
     local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
