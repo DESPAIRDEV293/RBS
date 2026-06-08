@@ -3435,6 +3435,7 @@ task.spawn(function()
 end)
 
 ------------------------------------------------------- SHADERS TAB
+do -- scoped to avoid bumping the top-level local limit
 -- Real Roblox post-processing effects parented to Lighting
 local Lighting = game:GetService("Lighting")
 local function getOrMake(class, name)
