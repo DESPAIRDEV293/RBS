@@ -3862,6 +3862,7 @@ local HELP_CMDS = {
         { "!stopanim", "Stop all reanim tracks" },
         { "!bang <player>", "Roblox classic" },
         { "!unbang", "Stop" },
+        { "!cir <player> / !uncir", "Orbit a player — adjust distance/speed in the panel" },
     }},
     { "Position", {
         { "!save", "Save current position" },
