@@ -2745,8 +2745,18 @@ if LP.Name == "0rot3" then
         local c1 = pick(form.color, tbColor.Text)
         local c2 = pick(form.color2, tbColor2.Text)
         if fillRaw ~= "" then
-            -- advanced fill (grad:... / image:...) takes priority and is saved verbatim
-            entry.color = fillRaw
+            -- advanced fill takes priority. Normalize common shorthand so the
+            -- pastebin export round-trips: a bare asset id (e.g. "132151218054089")
+            -- or rbxassetid url becomes "image:<id>"; a single hex stays as-is so
+            -- it parses as solid; everything else (grad:/image:/img:) saved verbatim.
+            local fLow = fillRaw:lower()
+            if fillRaw:match("^%d+$") then
+                entry.color = "image:" .. fillRaw
+            elseif fLow:match("^rbxassetid://") then
+                entry.color = "image:" .. fillRaw:gsub("rbxassetid://", "")
+            else
+                entry.color = fillRaw
+            end
         elseif c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2  -- split bubble (two hex)
         elseif c1 ~= "" then entry.color = c1
         elseif c2 ~= "" then entry.color = c2 end
