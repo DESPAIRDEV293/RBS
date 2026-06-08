@@ -2384,15 +2384,43 @@ local function refreshBill(p)
 
     -- Sync tag text (display name + @handle + chip text) to the user's
     -- configured tag color. If they have no custom color, keep defaults.
+    -- A per-entry "textColor" override beats the chip color when set.
     local hasCustomColor = cfg and cfg.color and cfg.color ~= ""
+    local textOverride = nil
+    if cfg and cfg.textColor and cfg.textColor ~= "" then
+        textOverride = parseColor(cfg.textColor)
+    end
+    local nameColor   = textOverride or (hasCustomColor and chipColor) or T.text
+    local handleColor = textOverride or (hasCustomColor and chipColor) or T.sub
+    local statColor   = textOverride or (hasCustomColor and chipColor) or T.text
+    if e.name   then e.name.TextColor3   = nameColor   end
+    if e.handle then e.handle.TextColor3 = handleColor end
+    if e.stat   then e.stat.TextColor3   = statColor   end
+
+    -- Per-entry text-stroke color around the name labels. "off"/"none" disables.
+    local toRaw = cfg and cfg.textOutline
+    local toNorm = tostring(toRaw or ""):lower():gsub("^%s+",""):gsub("%s+$","")
     if e.name then
-        e.name.TextColor3 = hasCustomColor and chipColor or T.text
+        if toNorm == "off" or toNorm == "none" or toNorm == "0" or toNorm == "false" then
+            e.name.TextStrokeTransparency = 1
+        elseif toRaw and toRaw ~= "" then
+            local sc = parseColor(toRaw)
+            if sc then
+                e.name.TextStrokeColor3 = sc
+                e.name.TextStrokeTransparency = 0.25
+            end
+        end
     end
     if e.handle then
-        e.handle.TextColor3 = hasCustomColor and chipColor or T.sub
-    end
-    if e.stat then
-        e.stat.TextColor3 = hasCustomColor and chipColor or T.text
+        if toNorm == "off" or toNorm == "none" or toNorm == "0" or toNorm == "false" then
+            e.handle.TextStrokeTransparency = 1
+        elseif toRaw and toRaw ~= "" then
+            local sc = parseColor(toRaw)
+            if sc then
+                e.handle.TextStrokeColor3 = sc
+                e.handle.TextStrokeTransparency = 0.4
+            end
+        end
     end
 
     -- Metal sweep highlight: default ON, disable when cfg.sweep == "off"
