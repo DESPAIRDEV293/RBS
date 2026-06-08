@@ -4447,6 +4447,60 @@ button(pgCmds, "Invis  —  toggle + keybind", function()
         end)
     end)
 end)
+
+-- Anti: block other players from headsit / face / bang / drag on you
+_G.__SeigeAnti = _G.__SeigeAnti or { on = false, radius = 4, conn = nil }
+local function _seigeAntiStop()
+    local A = _G.__SeigeAnti
+    if A.conn then pcall(function() A.conn:Disconnect() end); A.conn = nil end
+    A.on = false
+end
+local function _seigeAntiStart()
+    local A = _G.__SeigeAnti
+    _seigeAntiStop()
+    A.on = true
+    A.conn = RunService.Heartbeat:Connect(function()
+        local myHRP = hrp(); local myH = hum()
+        if not myHRP or not myH then return end
+        -- break forced Sit (headsit lock)
+        if myH.Sit then myH.Sit = false; myH.Jump = true end
+        -- shove off any player crammed into us (bang / head)
+        local r = tonumber(A.radius) or 4
+        local myPos = myHRP.Position
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LP then
+                local ohrp = phrp(p)
+                if ohrp then
+                    local d = (ohrp.Position - myPos).Magnitude
+                    if d < r then
+                        myHRP.CFrame = myHRP.CFrame + Vector3.new(0, 8, 0)
+                        break
+                    end
+                end
+            end
+        end
+    end)
+end
+button(pgCmds, "Anti  —  block headsit / bang / drag", function()
+    _openPanel("anti", "Anti  ·  block bang/head/face", 170, function(body)
+        local A = _G.__SeigeAnti
+        toggle(body, "Anti on", A.on, function(s)
+            if s then _seigeAntiStart(); notify("Anti on", "good")
+            else _seigeAntiStop(); notify("Anti off", "good") end
+        end)
+        slider(body, "Push radius", 2, 12, A.radius or 4, function(v)
+            A.radius = v
+        end)
+    end)
+end)
+if _G.__SeigeCmds then
+    _G.__SeigeCmds["anti"] = function()
+        if _G.__SeigeAnti and _G.__SeigeAnti.on then _seigeAntiStop(); notify("Anti off", "good")
+        else _seigeAntiStart(); notify("Anti on", "good") end
+    end
+    _G.__SeigeCmds["unanti"] = function() _seigeAntiStop(); notify("Anti off", "good") end
+end
+
 button(pgCmds, "!ghost  —  transparent + noclip",        function() _runCmd("!ghost") end)
 button(pgCmds, "!size <n>",                              function() _openCmd("!size ") end)
 button(pgCmds, "!hatspin  —  fling spinning accessories",function() _runCmd("!hatspin") end)
