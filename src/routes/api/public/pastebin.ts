@@ -36,10 +36,20 @@ async function writePaste(body: string): Promise<{ ok: true; url: string } | { o
   return { ok: true, url: txt };
 }
 
+function authorized(request: Request): boolean {
+  const expected = process.env.PASTEBIN_USER_KEY;
+  if (!expected) return false;
+  const header = request.headers.get("x-pastebin-auth") || "";
+  return header === expected;
+}
+
 export const Route = createFileRoute("/api/public/pastebin")({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
+        if (!authorized(request)) {
+          return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
+        }
         try {
           const text = await readPaste();
           const lines = text.split("\n").filter((l) => l.trim().length > 0);
@@ -52,6 +62,9 @@ export const Route = createFileRoute("/api/public/pastebin")({
         }
       },
       POST: async ({ request }) => {
+        if (!authorized(request)) {
+          return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
+        }
         let payload: { body?: string };
         try {
           payload = await request.json();
@@ -70,3 +83,4 @@ export const Route = createFileRoute("/api/public/pastebin")({
     },
   },
 });
+
