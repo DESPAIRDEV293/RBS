@@ -1740,7 +1740,8 @@ local function parsePastebin(src)
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
                 if parts[11] and parts[11] ~= "" then entry.font = parts[11] end
                 if parts[12] and parts[12] ~= "" then entry.sweep = parts[12]:lower() end
-                if parts[13] and parts[13] ~= "" then entry.element = parts[13]:lower() end
+        -- Tag specials are intentionally ignored/stripped so old saved values
+        -- cannot bring back the faint square aura behind tags.
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -3843,9 +3844,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             entry.font = form.font
         end
         if form.sweep == "off" then entry.sweep = "off" end
-        if form.element and form.element ~= "" and form.element ~= "none" then
-            entry.element = form.element
-        end
+        entry.element = nil
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
@@ -3965,7 +3964,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 e.outline or "",
                 e.font or "",
                 e.sweep or "",
-                e.element or "",
+                "",
             }
             -- Trim trailing empty fields so each row stays compact like the
             -- legacy entries (e.g. eyk_a). The loader pads missing tail fields
@@ -4387,7 +4386,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             e.outline or "",
             e.font or "",
             e.sweep or "",
-            e.element or "",
+            "",
         }
         while #fields > 1 and (fields[#fields] == nil or fields[#fields] == "") do
             fields[#fields] = nil
