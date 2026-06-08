@@ -1667,7 +1667,7 @@ local function spawnRain(e)
         Position = UDim2.new(math.random(), 0, 0, -12),
         BackgroundColor3 = Color3.fromRGB(150, 190, 255),
         BackgroundTransparency = 0.35,
-        BorderSizePixel = 0, ZIndex = 0,
+        BorderSizePixel = 0, ZIndex = 6,
     })
     TweenService:Create(f, TweenInfo.new(0.55, Enum.EasingStyle.Linear),
         { Position = UDim2.new(f.Position.X.Scale, 0, 1, 8), BackgroundTransparency = 1 }):Play()
@@ -1679,7 +1679,7 @@ local function spawnSnow(e)
         Position = UDim2.new(math.random(), 0, 0, -4),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 0.15,
-        BorderSizePixel = 0, ZIndex = 0,
+        BorderSizePixel = 0, ZIndex = 6,
     })
     corner(f, 2)
     local x = f.Position.X.Scale + (math.random() - 0.5) * 0.18
@@ -1693,7 +1693,7 @@ local function spawnSparkle(e)
         Position = UDim2.new(math.random(), 0, math.random(), 0),
         BackgroundColor3 = Color3.fromRGB(255, 240, 180),
         BackgroundTransparency = 0,
-        BorderSizePixel = 0, ZIndex = 0,
+        BorderSizePixel = 0, ZIndex = 6,
     })
     corner(f, 1)
     TweenService:Create(f, TweenInfo.new(0.55, Enum.EasingStyle.Quad),
@@ -1707,7 +1707,7 @@ local function spawnNebula(e)
         Position = UDim2.new(math.random() * 1.2 - 0.1, 0, math.random() * 1.4 - 0.2, 0),
         BackgroundColor3 = NEBULA_COLORS[math.random(#NEBULA_COLORS)],
         BackgroundTransparency = 0.78,
-        BorderSizePixel = 0, ZIndex = 0,
+        BorderSizePixel = 0, ZIndex = 6,
     })
     corner(f, math.floor(sz / 2))
     local tx = f.Position.X.Scale + (math.random() - 0.5) * 0.5
