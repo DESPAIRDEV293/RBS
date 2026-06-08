@@ -2785,10 +2785,12 @@ local function buildBill(p)
     })
 
     -- Outer drop-shadow glow removed: its 9-slice rectangle showed through
-    -- as a faint square halo behind the rounded pill. Keep a hidden stub
-    -- so existing references (tagBills[p].glow) stay non-nil.
-    local glow = inst("Frame", gui, {
-        Name = "glow", BackgroundTransparency = 1, Visible = false,
+    -- as a faint square halo behind the rounded pill. Keep an invisible
+    -- ImageLabel stub so existing references (e.glow.ImageColor3 / .ImageTransparency
+    -- in updateBill) still write to a valid property and don't error.
+    local glow = inst("ImageLabel", gui, {
+        Name = "glow", BackgroundTransparency = 1, Image = "",
+        ImageTransparency = 1, Visible = false,
         Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
     })
 
