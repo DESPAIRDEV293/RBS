@@ -4311,7 +4311,96 @@ end
     -- No automatic initial scan — MacSploit / some executors throw
     -- "DM Lock Violation" when CoreGui is walked too early. User must press Rescan.
 
+    --------------------------------------------------------------------------
+    -- DISCORD MEMBER LIST (server 1425348267457253498, bot 1455765555318493431)
+    -- The bot publishes a JSON file of verified Roblox UserIds of members.
+    -- This script just HttpGet's that file — no token embedded.
+    -- Expected JSON: { "userIds": [123, 456, ...], "updated": <unix> }
+    --------------------------------------------------------------------------
+    section(pgDetect, "Discord server members (auto-tag)")
+    local DISCORD_MEMBERS_URL = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/discord-members.json"
+    local discordTag = "Scripter"
+    local discordSet = {}        -- [userId] = true
+    local discordLastPull = 0
+    local discordAutoPull = true
+    local discordNotify = true
+
+    local discordStatus = label(pgDetect, "Discord: not pulled yet")
+    local discordCount  = label(pgDetect, "Members loaded: 0")
+
+    local function applyDiscordTags()
+        local applied = 0
+        for _, p in ipairs(Players:GetPlayers()) do
+            if discordSet[p.UserId] and not Tags:has(p.UserId, discordTag) then
+                Tags:add(p.UserId, discordTag)
+                applied = applied + 1
+                if discordNotify then
+                    notify("Discord member in game: " .. p.Name, "warn")
+                    statusLbl:set("Status: ⚠ Discord member " .. p.Name .. " detected")
+                end
+            end
+        end
+        return applied
+    end
+
+    local function pullDiscordMembers(silent)
+        local ok, body = pcall(function()
+            return game:HttpGet(DISCORD_MEMBERS_URL .. "?v=" .. tostring(os.time()))
+        end)
+        if not ok or not body then
+            if not silent then notify("Discord pull failed: " .. tostring(body), "bad") end
+            discordStatus:set("Discord: pull failed (" .. os.date("%H:%M:%S") .. ")")
+            return
+        end
+        local HS = game:GetService("HttpService")
+        local okJ, data = pcall(function() return HS:JSONDecode(body) end)
+        if not okJ or type(data) ~= "table" or type(data.userIds) ~= "table" then
+            if not silent then notify("Discord pull: bad JSON", "bad") end
+            discordStatus:set("Discord: bad JSON (" .. os.date("%H:%M:%S") .. ")")
+            return
+        end
+        discordSet = {}
+        local n = 0
+        for _, uid in ipairs(data.userIds) do
+            local id = tonumber(uid)
+            if id then discordSet[id] = true; n = n + 1 end
+        end
+        discordLastPull = os.time()
+        discordCount:set("Members loaded: " .. n)
+        discordStatus:set("Discord: pulled OK at " .. os.date("%H:%M:%S"))
+        local applied = applyDiscordTags()
+        if not silent then notify("Discord: " .. n .. " members, tagged " .. applied, "good") end
+    end
+
+    button(pgDetect, "Pull Discord members now", function() pullDiscordMembers(false) end)
+    toggle(pgDetect, "Auto-pull every 5 min", true, function(v) discordAutoPull = v end)
+    toggle(pgDetect, "Notify when Discord member joins", true, function(v) discordNotify = v end)
+
+    -- Re-check on join
+    bind(Players.PlayerAdded:Connect(function(p)
+        task.wait(1)
+        if discordSet[p.UserId] then
+            if not Tags:has(p.UserId, discordTag) then Tags:add(p.UserId, discordTag) end
+            if discordNotify then
+                notify("Discord member joined: " .. p.Name, "warn")
+                statusLbl:set("Status: ⚠ Discord member " .. p.Name .. " joined")
+            end
+        end
+    end))
+
+    -- Initial + periodic pull
+    task.spawn(function()
+        task.wait(2)
+        pullDiscordMembers(true)
+        while true do
+            task.wait(300)
+            if discordAutoPull then pcall(pullDiscordMembers, true) end
+        end
+    end)
+
 end)()
+
+
 
 
 
