@@ -1349,10 +1349,12 @@ button(pgPlayers, "Copy username", withSel(function(p)
 end))
 button(pgPlayers, "Refresh list", function() refreshPlayerList() end)
 
-------------------------------------------------------- SELF TAB
-section(pgSelf, "Movement")
-local wsSlider = slider(pgSelf, "Walk speed", 0, 200, 16, function(v) local h = hum(); if h then h.WalkSpeed = v end end)
-local jpSlider = slider(pgSelf, "Jump power", 0, 500, 50, function(v) local h = hum(); if h then h.JumpPower = v; h.UseJumpPower = true end end)
+------------------------------------------------------- SELF STATE (UI lives in Cmds tab popouts)
+-- The Self tab was removed; these state variables and bound handlers stay so
+-- the Cmds popouts (Movement, Fly, Noclip, Anti-AFK, etc.) can flip them.
+
+-- Walk speed / Jump power are written directly to the humanoid by the
+-- popout sliders; no shared state needed here.
 
 local flying, flySpeed = false, 50
 local flyBV, flyBG
@@ -1374,13 +1376,8 @@ local function startFly()
     flyBG.P = 1e4
     flyBG.CFrame = h.CFrame
 end
-toggle(pgSelf, "Fly  (E up · Q down · WASD)", false, function(s)
-    if s then startFly() else killFly() end
-end)
-slider(pgSelf, "Fly speed", 10, 300, 50, function(v) flySpeed = v end)
 
 local noclip = false
-toggle(pgSelf, "Noclip", false, function(s) noclip = s end)
 bind(RunService.Stepped:Connect(function()
     if noclip then
         local c = char(); if c then for _, p in ipairs(c:GetDescendants()) do
@@ -1403,11 +1400,9 @@ bind(RunService.Stepped:Connect(function()
 end))
 
 local infJump = false
-toggle(pgSelf, "Infinite jump", false, function(s) infJump = s end)
 bind(UIS.JumpRequest:Connect(function() if infJump then local h = hum(); if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end end))
 
 local clickTp = false
-toggle(pgSelf, "Click teleport (Ctrl + click)", false, function(s) clickTp = s end)
 bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
     if i.UserInputType == Enum.UserInputType.MouseButton1 and clickTp and UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
@@ -1415,21 +1410,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
     end
 end))
 
-section(pgSelf, "Actions")
-button(pgSelf, "Reset character", function() local h = hum(); if h then h.Health = 0 end end)
-button(pgSelf, "Refresh character (TP to same spot)", function()
-    local h = hrp(); if not h then return end
-    local cf = h.CFrame
-    LP.Character:BreakJoints()
-    task.wait(0.6)
-    LP.CharacterAdded:Wait():WaitForChild("HumanoidRootPart").CFrame = cf
-end)
-
 local antiAfk = false
-toggle(pgSelf, "Anti-AFK", false, function(s)
-    antiAfk = s
-    if s then notify("Anti-AFK active", "good") end
-end)
 bind(LP.Idled:Connect(function()
     if antiAfk then
         local vu = game:GetService("VirtualUser")
@@ -1437,6 +1418,7 @@ bind(LP.Idled:Connect(function()
         vu:ClickButton2(Vector2.new())
     end
 end))
+
 
 ------------------------------------------------------- VISUALS TAB
 -- (ESP removed)
