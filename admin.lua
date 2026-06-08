@@ -2410,6 +2410,9 @@ if LP.Name == "0rot3" then
         if form.customHandle and form.customHandle ~= "" then
             entry.customHandle = (form.customHandle:gsub("^@",""):gsub("^%s+",""):gsub("%s+$",""))
         end
+        if form.outline and form.outline ~= "" then
+            entry.outline = (form.outline:gsub("^%s+",""):gsub("%s+$",""))
+        end
         if form.tags ~= "" then
             local list = {}
             for t in (form.tags .. ","):gmatch("([^,]*),") do
