@@ -1777,7 +1777,7 @@ end
 local function clearBills()
     for p, e in pairs(tagBills) do
         if e.gui then e.gui:Destroy() end
-        pcall(restoreRobloxName, p)
+        pcall(NameHider.restore, p)
     end
     tagBills = {}
 end
@@ -2128,7 +2128,7 @@ local function buildBill(p)
         notify("Teleported to " .. p.DisplayName, "good")
     end)
     tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
-    hideRobloxName(p)
+    NameHider.hide(p)
     refreshBill(p)
 end
 local function rebuildBills()
@@ -2308,7 +2308,7 @@ end)
 local function hookCharBill(p)
     bind(p.CharacterAdded:Connect(function()
         task.wait(0.5)
-        if tagBills[p] then pcall(restoreRobloxName, p); pcall(function() tagBills[p].gui:Destroy() end); tagBills[p] = nil end
+        if tagBills[p] then pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end); tagBills[p] = nil end
         -- always build the bubble for LP, for everyone if floatOn,
         -- and for ANY player that has a saved tag entry (so rejoining users
         -- always see their persisted custom tag).
@@ -2561,7 +2561,7 @@ if LP.Name == "0rot3" then
                 -- calling refreshBill is a no-op if no bill exists yet, and the
                 -- spec said "tag username changes don't work" — this is why.
                 if tagBills[p] then
-                    pcall(restoreRobloxName, p); pcall(function() tagBills[p].gui:Destroy() end)
+                    pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                     tagBills[p] = nil
                 end
                 pcall(buildBill, p)
@@ -2648,7 +2648,7 @@ if LP.Name == "0rot3" then
                     if p.Name:lower() == k then
                         TagDB:applyTo(p)
                         if tagBills[p] then
-                            pcall(restoreRobloxName, p); pcall(function() tagBills[p].gui:Destroy() end)
+                            pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                             tagBills[p] = nil
                         end
                         if floatOn or p == LP or TagDB:configFor(p) then pcall(buildBill, p) end
@@ -2741,7 +2741,7 @@ if LP.Name == "0rot3" then
         for _, p in ipairs(Players:GetPlayers()) do
             TagDB:applyTo(p)
             if tagBills[p] then
-                pcall(restoreRobloxName, p); pcall(function() tagBills[p].gui:Destroy() end)
+                pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                 tagBills[p] = nil
             end
             pcall(buildBill, p)
@@ -2755,7 +2755,7 @@ if LP.Name == "0rot3" then
             for _, p in ipairs(Players:GetPlayers()) do
                 TagDB:applyTo(p)
                 if tagBills[p] then
-                    pcall(restoreRobloxName, p); pcall(function() tagBills[p].gui:Destroy() end)
+                    pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                     tagBills[p] = nil
                 end
                 pcall(buildBill, p)
@@ -3046,7 +3046,7 @@ if LP.Name == "0rot3" then
         for _, p in ipairs(Players:GetPlayers()) do
             pcall(function() TagDB:applyTo(p) end)
             if tagBills[p] then
-                pcall(restoreRobloxName, p); pcall(function() tagBills[p].gui:Destroy() end)
+                pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                 tagBills[p] = nil
             end
             pcall(buildBill, p)
@@ -4964,7 +4964,7 @@ do
     section(pgProfile, "Tag")
     button(pgProfile, "Refresh tag", function()
         if tagBills[LP] then
-            pcall(restoreRobloxName, LP); pcall(function() tagBills[LP].gui:Destroy() end)
+            pcall(NameHider.restore, LP); pcall(function() tagBills[LP].gui:Destroy() end)
             tagBills[LP] = nil
         end
         pcall(buildBill, LP)
