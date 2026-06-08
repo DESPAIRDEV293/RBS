@@ -3795,6 +3795,166 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
     rebuildList()
   end -- end owner-only Tags manager
 
+  ------------------------------------------------------------------
+  -- NT TEAM TAGS  ·  limited Tags tab for users with role == "nt"
+  -- They can ONLY edit: tag name(s), color (hex), and image (icon).
+  -- No effects, no fonts, no animation/element specials, no pastebin
+  -- sync, no export. Owner/Admin/Staff still see the full editor above.
+  ------------------------------------------------------------------
+  if _G.__SeigeMyRole() == "nt" then
+    local pgNtTags = makeTab("Tags", "✎", "NT Team · edit tag name, color, image")
+    section(pgNtTags, "Tag editor (NT Team)")
+    label(pgNtTags, "Limited editor — you can change tag names, colors and image only. Effects, fonts and other settings are restricted.")
+
+    local function _ntField(parent, lbl, ph)
+        label(parent, lbl)
+        local tb = inst("TextBox", parent, {
+            Size = UDim2.new(1, -8, 0, 30),
+            BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+            BorderSizePixel = 0,
+            PlaceholderText = ph or "",
+            PlaceholderColor3 = T.dim,
+            Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+            ClearTextOnFocus = false,
+        })
+        corner(tb, 6); stroke(tb, T.line, 1, 0.4)
+        return tb
+    end
+
+    local ntUser   = _ntField(pgNtTags, "Username (required)", "e.g. SomeUser")
+    local ntTags   = _ntField(pgNtTags, "Tag names (comma separated)", "Owner, Dev")
+    local ntColor  = _ntField(pgNtTags, "Color (hex)", "#ff3b6b")
+    local ntColor2 = _ntField(pgNtTags, "Second color (optional · split bubble)", "#00aaff")
+    local ntIcon   = _ntField(pgNtTags, "Image / icon (Roblox asset ID)", "1234567890")
+
+    local function _trim(s) return (tostring(s or ""):gsub("^%s+",""):gsub("%s+$","")) end
+
+    local function loadFromKey(key)
+        local e = TagDB.entries[key] or {}
+        ntUser.Text   = key
+        ntTags.Text   = (e.tags and table.concat(e.tags, ", ")) or ""
+        -- Split combined "a/b" color form
+        local c = tostring(e.color or "")
+        if c:find("/") then
+            local a, b = c:match("^([^/]+)/([^/]+)$")
+            ntColor.Text  = a or ""
+            ntColor2.Text = b or ""
+        elseif c:sub(1,6) == "image:" then
+            ntColor.Text = ""; ntColor2.Text = ""
+            ntIcon.Text = c:sub(7)
+        else
+            ntColor.Text = c; ntColor2.Text = ""
+        end
+        if e.icon and e.icon ~= "" and ntIcon.Text == "" then
+            ntIcon.Text = tostring(e.icon)
+        end
+    end
+
+    button(pgNtTags, "Save / Update entry", function()
+        local u = _trim(ntUser.Text)
+        if u == "" then notify("Username required", "bad"); return end
+        local key = u:lower()
+        -- Start from existing entry so we preserve fields NT can't edit
+        -- (effects, fonts, element, customText, displayName, outline, etc.).
+        local existing = TagDB.entries[key] or {}
+        local entry = {}
+        for k, v in pairs(existing) do entry[k] = v end
+
+        -- Tag names
+        local tagsRaw = _trim(ntTags.Text)
+        if tagsRaw ~= "" then
+            local list = {}
+            for t in (tagsRaw .. ","):gmatch("([^,]*),") do
+                t = _trim(t); if t ~= "" then list[#list+1] = t end
+            end
+            entry.tags = (#list > 0) and list or nil
+        else
+            entry.tags = nil
+        end
+
+        -- Color (hex / split). Icon-color path is handled via the icon field.
+        local c1 = _trim(ntColor.Text)
+        local c2 = _trim(ntColor2.Text)
+        if c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
+        elseif c1 ~= "" then entry.color = c1
+        elseif c2 ~= "" then entry.color = c2
+        else
+            -- Don't blank out an existing color silently; only clear if it was a plain hex/split
+            local cur = tostring(existing.color or "")
+            if cur == "" or cur:find("^#") or cur:find("/") then entry.color = nil end
+        end
+
+        -- Image / icon
+        local iconRaw = _trim(ntIcon.Text)
+        if iconRaw ~= "" then
+            local cleanId = iconRaw:gsub("rbxassetid://", ""):gsub("%D", "")
+            if cleanId ~= "" then entry.icon = cleanId end
+        else
+            entry.icon = nil
+        end
+
+        TagDB.entries[key] = entry
+        TagDB.localEntries[key] = entry
+
+        -- Apply to the live player in this server, if present
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name:lower() == key then pcall(function() TagDB:applyTo(p) end) end
+        end
+
+        local sok, serr = TagDB:saveLocal()
+        if sok then notify("Saved tag for " .. u, "good")
+        else notify("Saved (local-only) for " .. u .. ": " .. tostring(serr), "warn") end
+    end)
+
+    button(pgNtTags, "Clear form", function()
+        ntUser.Text = ""; ntTags.Text = ""; ntColor.Text = ""
+        ntColor2.Text = ""; ntIcon.Text = ""
+    end)
+
+    section(pgNtTags, "Existing entries (click to load)")
+    local ntList = inst("ScrollingFrame", pgNtTags, {
+        Size = UDim2.new(1, -8, 0, 220),
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        ScrollBarThickness = 4,
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.4,
+        BorderSizePixel = 0,
+    })
+    corner(ntList, 8); stroke(ntList, T.line, 1, 0.5)
+    inst("UIListLayout", ntList, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+    inst("UIPadding", ntList, {
+        PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6),
+    })
+
+    local function rebuildNtList()
+        for _, c in ipairs(ntList:GetChildren()) do
+            if not (c:IsA("UIListLayout") or c:IsA("UIPadding") or c:IsA("UICorner") or c:IsA("UIStroke")) then
+                c:Destroy()
+            end
+        end
+        local keys = {}
+        for k in pairs(TagDB.entries) do keys[#keys+1] = k end
+        table.sort(keys)
+        for _, k in ipairs(keys) do
+            local e = TagDB.entries[k] or {}
+            local row = inst("TextButton", ntList, {
+                Size = UDim2.new(1, 0, 0, 32),
+                BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35,
+                AutoButtonColor = false, BorderSizePixel = 0,
+                Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = "  @" .. k .. "   ·   " .. ((e.tags and table.concat(e.tags, ", ")) or "no tag"),
+            })
+            corner(row, 5); stroke(row, T.line, 1, 0.5)
+            row.MouseButton1Click:Connect(function() loadFromKey(k) end)
+        end
+    end
+    rebuildNtList()
+    button(pgNtTags, "Refresh list", rebuildNtList)
+  end -- end NT-only Tags
+
     ------------------------------------------------------------------
     -- ADMIN PANEL  ·  visible to OWNER (0rot3) and any user with a role
     -- Roles: admin (full commands), staff (allp only), nt (view only).
