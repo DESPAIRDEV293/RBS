@@ -3073,6 +3073,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         username = "", displayName = "", color = "", color2 = "", fill = "",
         icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
         font = "Default", sweep = "on", element = "none",
+        textColor = "", textOutline = "",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -3140,6 +3141,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
     local tbHandle   = field(pgTags, "Custom @handle (overrides @user — optional)", "customHandle", "despair")
     local tbOutline  = field(pgTags, "Outline color (hex, or 'off' to disable)", "outline", "#ffffff   or   off")
+    local tbTextColor   = field(pgTags, "Tag text color (display name + @handle) — hex, blank = auto",
+                                "textColor", "#ffffff   or   blank for auto")
+    local tbTextOutline = field(pgTags, "Tag text outline color (text stroke around the name) — hex, or 'off'",
+                                "textOutline", "#000000   or   off")
 
     -- gradient presets (inspired by gradientshub.com) — click to set the fill spec
     section(pgTags, "Gradient presets")
@@ -3552,6 +3557,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if ch ~= "" then entry.customHandle = (ch:gsub("^@","")) end
         local ol = pick(form.outline, tbOutline.Text)
         if ol ~= "" then entry.outline = ol end
+        local tc = pick(form.textColor, tbTextColor.Text)
+        if tc ~= "" then entry.textColor = tc end
+        local to = pick(form.textOutline, tbTextOutline.Text)
+        if to ~= "" then entry.textOutline = to end
         if form.font and form.font ~= "" and form.font ~= "Default" then
             entry.font = form.font
         end
