@@ -3329,6 +3329,12 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- Badge chip (right-side "OWNER/DEV/..." pill). Default OFF; turn ON per-tag.
     local SHOW_CHIP_OPTS = { "Off", "On" }
     local showChipDD = dropdown(pgTags, "Show badge chip", SHOW_CHIP_OPTS, function(v) form.showChip = v end)
+
+    -- Aura: animated outline that replaces the static stroke. The pill
+    -- interior goes transparent so only the avatar/text and the aura ring
+    -- show. "Off" returns to the normal solid/gradient bubble.
+    local TAG_AURA_OPTS = { "Off", "Ember", "Frost", "Lightning", "Void", "Aurora", "Crimson", "Royal", "Toxic", "Phantom", "Solar" }
+    local auraDD = dropdown(pgTags, "Tag aura", TAG_AURA_OPTS, function(v) form.aura = v end)
     -- Give the Tag panel's dropdowns more room; longer option values were
     -- getting clipped at the default 140px button width.
     -- The dropdown helper returns a controller (not the Frame), so walk
