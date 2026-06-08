@@ -4850,7 +4850,7 @@ _G.__SeigeApplyIconImages = applyIconImages
 
 local saveCfg, loadCfg
 saveCfg = function()
-    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled }
+    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled, tagElements = tagElements }
     for k,v in pairs(T) do
         if typeof(v) == "Color3" then data.theme[k] = cToHex(v) end
     end
