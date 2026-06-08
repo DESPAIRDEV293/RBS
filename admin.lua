@@ -3435,7 +3435,7 @@ local function _openHelpPanel()
     end)
 end
 _G.__SeigeOpenHelp = _openHelpPanel
-end
+end)()
 
 button(pgCmds, "Open Command Bar (F6)", function() _openCmd("!") end)
 
