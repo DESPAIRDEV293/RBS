@@ -1577,18 +1577,16 @@ end
 --   2) TAGS_DB_URL        — the legacy tags.lua on GitHub (Lua table).
 --
 -- Pastebin line format (one player per line, pipe-separated):
---   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3 | textFx | customText | customHandle | outline | font
+--   username | displayName | #hexcolor | ignored | icon | tag1,tag2,tag3 | ignored | customText | customHandle | outline | font
 --
 --   - Only `username` is required. Leave any field blank to skip it (keep the |).
 --   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
 --               to split the bubble in half (left/right), e.g. #ff3b6b/#00aaff,
 --               OR an advanced fill spec like grad:#a,#b@90 or image:1234567890
---   - effect: rain | snow | sparkle | nebula   (or blank for none)
 --   - icon:   Roblox image ID (raw number, e.g. 1234567890), OR an animated
 --             sprite-sheet spec "gif:assetId:cols:rows:fps[:sheetSize]"
 --             e.g. gif:1234567890:4:4:12   (16-frame 4x4 sheet at 12 fps;
 --             sheetSize defaults to 1024)
---   - textFx: glitch | type | explode   (or blank for none)
 --   - customText:   optional override for the right-side chip text (owner-only)
 --   - customHandle: optional override for the "@name" line on the tag (owner-only).
 --                   Anyone without an entry shows the anonymous "user" / "@user".
@@ -1725,7 +1723,8 @@ local function parsePastebin(src)
                 local entry = {}
                 if parts[2] and parts[2] ~= "" then entry.displayName = parts[2] end
                 if parts[3] and parts[3] ~= "" then entry.color = parts[3] end
-                if parts[4] and parts[4] ~= "" then entry.effect = parts[4]:lower() end
+                -- Old effect/special fields are intentionally ignored so they
+                -- cannot render square translucent layers behind the tag pill.
                 if parts[5] and parts[5] ~= "" then entry.icon = parts[5] end
                 if parts[6] and parts[6] ~= "" then
                     local tags = {}
@@ -1734,12 +1733,12 @@ local function parsePastebin(src)
                     end
                     if #tags > 0 then entry.tags = tags end
                 end
-                if parts[7] and parts[7] ~= "" then entry.textFx = parts[7]:lower() end
+                -- parts[7] used to be textFx; ignored.
                 if parts[8] and parts[8] ~= "" then entry.customText = parts[8] end
                 if parts[9] and parts[9] ~= "" then entry.customHandle = parts[9] end
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
                 if parts[11] and parts[11] ~= "" then entry.font = parts[11] end
-                if parts[12] and parts[12] ~= "" then entry.sweep = parts[12]:lower() end
+                -- parts[12] used to be sweep; ignored.
                 -- Old unused 13th field intentionally ignored/stripped so saved
                 -- values cannot bring back the faint square aura behind tags.
                 entries[user:lower()] = entry
@@ -1748,6 +1747,17 @@ local function parsePastebin(src)
         end
     end
     return entries, count
+end
+
+local function stripTagSpecials(entry)
+    if type(entry) ~= "table" then return entry end
+    entry.effect = nil
+    entry.textFx = nil
+    entry.sweep = nil
+    entry.element = nil
+    entry.special = nil
+    entry.aura = nil
+    return entry
 end
 
 -- Local persistence: any tag the owner saves/deletes in the in-game panel is
@@ -1775,7 +1785,7 @@ function TagDB:loadLocal()
     if not okDec or type(data) ~= "table" then return nil end
     local out = {}
     for k, v in pairs(data) do
-        if type(v) == "table" then out[tostring(k):lower()] = v end
+        if type(v) == "table" then out[tostring(k):lower()] = stripTagSpecials(v) end
     end
     return out
 end
@@ -1836,7 +1846,7 @@ function TagDB:load()
         warn("[Tags] eval failed: " .. tostring(data)); self.entries = {}; self:mergeLocal(); return
     end
     local entries = {}
-    for k, v in pairs(data) do entries[tostring(k):lower()] = v end
+    for k, v in pairs(data) do entries[tostring(k):lower()] = stripTagSpecials(v) end
     self.entries = entries
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
     self:mergeLocal()
@@ -2140,76 +2150,6 @@ end)
 local floatOn = false
 local tagBills = {}
 
--- ===== Particle effects (rain / snow / sparkle / nebula) =====
-local lastSpawn = setmetatable({}, { __mode = "k" })
-local NEBULA_COLORS = {
-    Color3.fromRGB(120, 90, 220),
-    Color3.fromRGB(80, 110, 240),
-    Color3.fromRGB(200, 80, 200),
-    Color3.fromRGB(80, 180, 220),
-}
-local function spawnRain(e)
-    local f = inst("Frame", e.fx, {
-        Size = UDim2.new(0, 2, 0, math.random(8, 14)),
-        Position = UDim2.new(math.random(), 0, 0, -12),
-        BackgroundColor3 = Color3.fromRGB(150, 190, 255),
-        BackgroundTransparency = 0.35,
-        BorderSizePixel = 0, ZIndex = 6,
-    })
-    TweenService:Create(f, TweenInfo.new(0.55, Enum.EasingStyle.Linear),
-        { Position = UDim2.new(f.Position.X.Scale, 0, 1, 8), BackgroundTransparency = 1 }):Play()
-    task.delay(0.6, function() if f then f:Destroy() end end)
-end
-local function spawnSnow(e)
-    local f = inst("Frame", e.fx, {
-        Size = UDim2.new(0, 3, 0, 3),
-        Position = UDim2.new(math.random(), 0, 0, -4),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 0.15,
-        BorderSizePixel = 0, ZIndex = 6,
-    })
-    corner(f, 2)
-    local x = f.Position.X.Scale + (math.random() - 0.5) * 0.18
-    TweenService:Create(f, TweenInfo.new(1.3, Enum.EasingStyle.Sine),
-        { Position = UDim2.new(x, 0, 1, 4), BackgroundTransparency = 1 }):Play()
-    task.delay(1.35, function() if f then f:Destroy() end end)
-end
-local function spawnSparkle(e)
-    local f = inst("Frame", e.fx, {
-        Size = UDim2.new(0, 2, 0, 2),
-        Position = UDim2.new(math.random(), 0, math.random(), 0),
-        BackgroundColor3 = Color3.fromRGB(255, 240, 180),
-        BackgroundTransparency = 0,
-        BorderSizePixel = 0, ZIndex = 6,
-    })
-    corner(f, 1)
-    TweenService:Create(f, TweenInfo.new(0.55, Enum.EasingStyle.Quad),
-        { Size = UDim2.new(0, 6, 0, 6), BackgroundTransparency = 1 }):Play()
-    task.delay(0.6, function() if f then f:Destroy() end end)
-end
-local function spawnNebula(e)
-    local sz = math.random(22, 38)
-    local f = inst("Frame", e.fx, {
-        Size = UDim2.new(0, sz, 0, sz),
-        Position = UDim2.new(math.random() * 1.2 - 0.1, 0, math.random() * 1.4 - 0.2, 0),
-        BackgroundColor3 = NEBULA_COLORS[math.random(#NEBULA_COLORS)],
-        BackgroundTransparency = 0.78,
-        BorderSizePixel = 0, ZIndex = 6,
-    })
-    corner(f, math.floor(sz / 2))
-    local tx = f.Position.X.Scale + (math.random() - 0.5) * 0.5
-    local ty = f.Position.Y.Scale + (math.random() - 0.5) * 0.4
-    TweenService:Create(f, TweenInfo.new(2.6, Enum.EasingStyle.Sine),
-        { Position = UDim2.new(tx, 0, ty, 0), BackgroundTransparency = 1,
-          Size = UDim2.new(0, sz + 12, 0, sz + 12) }):Play()
-    task.delay(2.7, function() if f then f:Destroy() end end)
-end
-local EFFECT_RATES  = { rain = 0.045, snow = 0.10, sparkle = 0.13, nebula = 0.30 }
-local EFFECT_SPAWN  = { rain = spawnRain, snow = spawnSnow, sparkle = spawnSparkle, nebula = spawnNebula }
-
-
-
-
 -- Stash original Humanoid display settings so we can restore them when a bubble goes away
 local NameHider = {}
 do
@@ -2439,35 +2379,6 @@ local function refreshBill(p)
         end
     end
 
-    -- Metal sweep highlight: TEMPORARILY DISABLED across all tags.
-    local sweepOn = false
-
-    if e.sweep and sweepOn ~= e.sweepOn then
-        e.sweepOn = sweepOn
-        e.sweepToken = (e.sweepToken or 0) + 1
-        if sweepOn then
-            local myToken = e.sweepToken
-            e.sweep.Visible = true
-            task.spawn(function()
-                local TweenService = game:GetService("TweenService")
-                while e.sweepToken == myToken and e.sweep and e.sweep.Parent do
-                    local w = (e.bg and e.bg.AbsoluteSize.X) or 200
-                    e.sweep.Position = UDim2.new(0, -60, 0, -12)
-                    local tw = TweenService:Create(
-                        e.sweep,
-                        TweenInfo.new(1.6, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
-                        { Position = UDim2.new(0, w + 20, 0, -12) }
-                    )
-                    tw:Play()
-                    task.wait(1.65)
-                    task.wait(2.0 + math.random() * 1.5) -- pause between sweeps
-                end
-                if e.sweep then e.sweep.Visible = false end
-            end)
-        else
-            e.sweep.Visible = false
-        end
-    end
     -- Outline: per-entry override. "off"/"none"/"0" disables the stroke entirely.
     local outlineRaw = cfg and cfg.outline
     local outlineNorm = tostring(outlineRaw or ""):lower():gsub("^%s+",""):gsub("%s+$","")
@@ -2530,25 +2441,6 @@ local function refreshBill(p)
         end
     end
 
-    -- Effect change
-    local newEffect = cfg and cfg.effect
-    if newEffect ~= e.effect then
-        e.effect = newEffect
-        if e.fx then for _, c in ipairs(e.fx:GetChildren()) do c:Destroy() end end
-    end
-
-    -- Text effect (glitch / type / explode)
-    local newTextFx = cfg and cfg.textFx
-    e.nameBase   = nameStr
-    e.handleBase = handleStr
-    if newTextFx ~= e.textFx then
-        e.textFx = newTextFx
-        e.txState = nil
-        -- restore plain text immediately; engine will take over next frame
-        e.name.Text   = e.nameBase
-        e.handle.Text = e.handleBase
-    end
-
     -- Auto-size bubble to text content
     local nameW   = measureText(e.name.Text,   Enum.Font.GothamBold, 14)
     local handleW = measureText(e.handle.Text, Enum.Font.Gotham,     10)
@@ -2601,24 +2493,15 @@ local function buildBill(p)
         Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
     })
 
-    -- CanvasGroup (not Frame) so descendants (particles, sweep, image fill,
-    -- shine, under-shade) are composited and masked by UICorner. A plain
-    -- Frame's ClipsDescendants only clips to a rectangle, which is why
-    -- effects used to leak into the square corners of the pill.
-    local bg = inst("CanvasGroup", gui, {
+    -- Plain rounded Frame: avoids CanvasGroup's faint rectangular compositing
+    -- artifact now that tag-special/effect layers have been fully removed.
+    local bg = inst("Frame", gui, {
         Size = UDim2.new(1, 0, 0, 46), Position = UDim2.new(0, 0, 0, 6),
         BackgroundColor3 = T.bg, BackgroundTransparency = 0.05, BorderSizePixel = 0,
         ClipsDescendants = true,
         ZIndex = 1,
     })
     corner(bg, 23)
-
-    -- particle layer (sits above bg/image, below text/avatar)
-    local fx = inst("Frame", bg, {
-        Name = "fx", Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1, ZIndex = 5,
-        ClipsDescendants = true,
-    })
 
     local st = stroke(bg, T.acc, 1.4, 0.25)
     local bgGrad = inst("UIGradient", bg, {
@@ -2668,6 +2551,7 @@ local function buildBill(p)
         BorderSizePixel = 0,
         ZIndex = 3,
     })
+    corner(underShade, 16)
     inst("UIGradient", underShade, {
         Rotation = 90,
         Transparency = NumberSequence.new({
@@ -2675,30 +2559,6 @@ local function buildBill(p)
             NumberSequenceKeypoint.new(1, 0.55),
         }),
     })
-
-    -- Metal sweep highlight (animated diagonal specular streak)
-    local sweep = inst("Frame", bg, {
-        Name = "sweep",
-        Size = UDim2.new(0, 38, 1, 24),
-        Position = UDim2.new(0, -50, 0, -12),
-        Rotation = 18,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ZIndex = 4,
-        Visible = false,
-    })
-    inst("UIGradient", sweep, {
-        Rotation = 0,
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0,   1),
-            NumberSequenceKeypoint.new(0.45, 0.55),
-            NumberSequenceKeypoint.new(0.5, 0.25),
-            NumberSequenceKeypoint.new(0.55, 0.55),
-            NumberSequenceKeypoint.new(1,   1),
-        }),
-    })
-
 
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 5, 0.5, -17),
@@ -2818,7 +2678,7 @@ local function buildBill(p)
         cd.MouseClick:Connect(function() onTagClicked() end)
     end)
 
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, shine = shine, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, gifToken = 0, gifKey = nil }
     _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
@@ -2858,109 +2718,11 @@ bind(RunService.Heartbeat:Connect(function()
     end
 end))
 
--- Particle spawner — runs each Heartbeat for bills with an effect
-bind(RunService.Heartbeat:Connect(function(dt)
-    for _, e in pairs(tagBills) do
-        if e.effect and e.fx and e.fx.Parent then
-            local rate = EFFECT_RATES[e.effect] or 0.2
-            lastSpawn[e] = (lastSpawn[e] or 0) + dt
-            if lastSpawn[e] >= rate then
-                lastSpawn[e] = 0
-                local fn = EFFECT_SPAWN[e.effect]
-                if fn then pcall(fn, e) end
-            end
-        end
-    end
-end))
-
--- Text effects: glitch / type / explode
-local GLITCH_CHARS = { "#","@","%","&","*","?","/","\\","█","▓","▒","░","!","¥","Ω","§","∆","◊" }
-local function glitchify(src, intensity)
-    if src == "" then return src end
-    local out = {}
-    for i = 1, #src do
-        local ch = src:sub(i, i)
-        if ch ~= " " and math.random() < intensity then
-            out[i] = GLITCH_CHARS[math.random(1, #GLITCH_CHARS)]
-        else
-            out[i] = ch
-        end
-    end
-    return table.concat(out)
-end
-local function applyTextFx(e, t, dt)
-    local fx = e.textFx
-    if not fx then return end
-    local st = e.txState or {}
-    e.txState = st
-    if fx == "glitch" then
-        st.t = (st.t or 0) + dt
-        if st.t >= 0.06 then
-            st.t = 0
-            local hot = (math.sin(t * 3) + 1) * 0.5
-            local intensity = 0.05 + hot * 0.18
-            e.name.Text   = glitchify(e.nameBase,   intensity)
-            e.handle.Text = glitchify(e.handleBase, intensity * 0.7)
-        end
-    elseif fx == "type" then
-        st.t = (st.t or 0) + dt
-        st.phase = st.phase or "type"
-        st.i = st.i or 0
-        local full = e.nameBase
-        if st.phase == "type" then
-            if st.t >= 0.06 then
-                st.t = 0; st.i = st.i + 1
-                if st.i >= #full then st.i = #full; st.phase = "hold"; st.hold = 0 end
-            end
-        elseif st.phase == "hold" then
-            st.hold = (st.hold or 0) + dt
-            if st.hold >= 1.4 then st.phase = "erase" end
-        elseif st.phase == "erase" then
-            if st.t >= 0.04 then
-                st.t = 0; st.i = st.i - 1
-                if st.i <= 0 then st.i = 0; st.phase = "type" end
-            end
-        end
-        local caret = (math.floor(t * 2) % 2 == 0) and "▍" or " "
-        e.name.Text   = full:sub(1, st.i) .. caret
-        e.handle.Text = e.handleBase
-    elseif fx == "explode" then
-        st.t = (st.t or 0) + dt
-        st.cycle = st.cycle or 2.2
-        if st.t >= st.cycle then
-            st.t = 0
-            -- pop: scatter chars (insert spaces) then collapse
-            local function scatter(src, n)
-                local out = {}
-                for i = 1, #src do out[#out+1] = src:sub(i,i) end
-                for _ = 1, n do
-                    table.insert(out, math.random(1, math.max(1,#out)), " ")
-                end
-                return table.concat(out)
-            end
-            local frames = { 6, 10, 14, 10, 6, 3, 0 }
-            task.spawn(function()
-                for _, n in ipairs(frames) do
-                    if not e.gui or not e.gui.Parent then return end
-                    e.name.Text   = scatter(e.nameBase, n)
-                    e.handle.Text = scatter(e.handleBase, math.floor(n/2))
-                    task.wait(0.06)
-                end
-                if e.gui and e.gui.Parent then
-                    e.name.Text = e.nameBase; e.handle.Text = e.handleBase
-                end
-            end)
-        end
-    end
-end
 bind(RunService.Heartbeat:Connect(function(dt)
     local t = tick()
     local anim = _G.__SeigeBubbleAnim or "None"
     local amt  = tonumber(_G.__SeigeBubbleAmt) or 0.5
     for _, e in pairs(tagBills) do
-        if e.textFx and e.gui and e.gui.Parent then
-            pcall(applyTextFx, e, t, dt)
-        end
         -- ----- Bubble animation (Themes tab) -----
         if anim ~= "None" and e.bg and e.bg.Parent then
             local sc = e.bg:FindFirstChildOfClass("UIScale")
@@ -3050,9 +2812,6 @@ end)
 -- pastebin-formatted text block to your clipboard so you can save permanently.
 if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
   if LP.Name == OWNER_NAME then
-    local EFFECT_OPTS = { "none", "rain", "snow", "sparkle", "nebula" }
-    local TEXTFX_OPTS = { "none", "glitch", "type", "explode" }
-
     local pgTags = makeTab("Tags", "✎", "Custom tags, colors and icons")
 
     -- Make the Tags page breathe: extra vertical spacing between rows and
@@ -3076,8 +2835,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- form values
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
-        icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
-        font = "Default", sweep = "on",
+        icon = "", tags = "", customText = "", customHandle = "",
+        font = "Default",
         textColor = "", textOutline = "",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
@@ -3203,16 +2962,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     section(pgTags, "Other")
 
 
-    -- effect dropdown
-    local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
-    -- text animation dropdown
-    local txDD  = dropdown(pgTags, "Text animation", TEXTFX_OPTS, function(v) form.textFx = v end)
     -- per-tag font (dafont-style picks)
     local TAG_FONT_OPTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
-    -- metal sweep animation has been removed; keep a no-op shim so the rest
-    -- of the panel (which references sweepDD.set) doesn't error.
-    local sweepDD = { set = function() end }
     -- Give the Tag panel's dropdowns more room; longer option values were
     -- getting clipped at the default 140px button width.
     -- The dropdown helper returns a controller (not the Frame), so walk
@@ -3327,11 +3079,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         tbOutline.Text  = (e and e.outline) or ""
         tbTextColor.Text   = (e and e.textColor) or ""
         tbTextOutline.Text = (e and e.textOutline) or ""
-        effDD.set(e and e.effect or "none")
-        txDD.set(e and e.textFx or "none")
         fontDD.set((e and e.font) or "Default")
-        sweepDD.set((e and e.sweep) or "on")
-        form.sweep = (e and e.sweep) or "on"
     end
 
     local function clearForm() loadForm(nil, nil) end
@@ -3558,8 +3306,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 if cleanId ~= "" then entry.icon = cleanId end
             end
         end
-        if form.effect and form.effect ~= "none" then entry.effect = form.effect end
-        if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
         local ct = pick(form.customText, tbCustom.Text)
         if ct ~= "" then entry.customText = ct end
         local ch = pick(form.customHandle, tbHandle.Text)
@@ -3573,7 +3319,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if form.font and form.font ~= "" and form.font ~= "Default" then
             entry.font = form.font
         end
-        if form.sweep == "off" then entry.sweep = "off" end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
@@ -3684,15 +3429,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 k,
                 e.displayName or "",
                 e.color or "",
-                e.effect or "",
+                "",
                 e.icon or "",
                 tagsStr,
-                e.textFx or "",
+                "",
                 e.customText or "",
                 e.customHandle or "",
                 e.outline or "",
                 e.font or "",
-                e.sweep or "",
+                "",
                 "",
             }
             -- Trim trailing empty fields so each row stays compact like the
@@ -3914,14 +3659,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
   ------------------------------------------------------------------
   -- NT TEAM TAGS  ·  limited Tags tab for users with role == "nt"
   -- They can ONLY edit: tag name(s), color (hex), and image (icon).
-  -- No effects, no fonts, no animations, no pastebin
+  -- No fonts, no pastebin
   -- sync, no export. Owner/Admin/Staff still see the full editor above.
   ------------------------------------------------------------------
   if _G.__SeigeMyRole() == "nt" then
     local pgNtTags = makeTab("Tags", "✎", "NT Team · edit tag name, color, image")
     if _G.__SeigeAudit then _G.__SeigeAudit("ui_open:nt_tags_tab", "NT tag editor mounted", true) end
     section(pgNtTags, "Tag editor (NT Team)")
-    label(pgNtTags, "Limited editor — you can change tag names, colors and image only. Effects, fonts and other settings are restricted.")
+    label(pgNtTags, "Limited editor — you can change tag names, colors and image only. Fonts and other settings are restricted.")
 
     local function _ntField(parent, lbl, ph)
         label(parent, lbl)
@@ -3973,7 +3718,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
         -- Start from existing entry so we preserve fields NT can't edit
-        -- (effects, fonts, customText, displayName, outline, etc.).
+        -- (fonts, customText, displayName, outline, etc.).
         local existing = TagDB.entries[key] or {}
         local entry = {}
         for k, v in pairs(existing) do entry[k] = v end
@@ -4100,15 +3845,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             key,
             e.displayName or "",
             e.color or "",
-            e.effect or "",
+            "",
             e.icon or "",
             tagsStr,
-            e.textFx or "",
+            "",
             e.customText or "",
             e.customHandle or "",
             e.outline or "",
             e.font or "",
-            e.sweep or "",
+            "",
             "",
         }
         while #fields > 1 and (fields[#fields] == nil or fields[#fields] == "") do
@@ -10649,7 +10394,6 @@ cmdHandlers["taginfo"] = function(arg)
     end
     if e.textOutline then rows[#rows+1] = { text = "outline: " .. tostring(e.textOutline) } end
     if e.icon then rows[#rows+1] = { text = "icon: " .. tostring(e.icon) } end
-    if e.effect then rows[#rows+1] = { text = "effect: " .. tostring(e.effect) } end
     if #rows == 0 then rows[1] = { text = "(entry exists but no details)" } end
     _openResultPanel("taginfo", "Tag info · @" .. key, rows, { height = 320 })
 end
