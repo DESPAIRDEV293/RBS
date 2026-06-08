@@ -3333,7 +3333,7 @@ local HELP_CMDS = {
     { "Rejoin & teleport", {
         { "!rj", "Rejoin the same place (new server)" },
         { "!tprj", "Rejoin THIS server and restore your position via queue_on_teleport" },
-        { "!hop", "Teleport to a random public server" },
+        
     }},
     { "Character", {
         { "!reset / !r / !respawn", "Kill your character to respawn" },
@@ -3360,7 +3360,7 @@ local HELP_CMDS = {
         { "!spectate <player>", "Spectate a player" },
         { "!unspectate", "Stop spectating" },
         { "!face <player>", "Face a player" },
-        { "!head <player>", "Stand on their head" },
+        { "!head <player>", "Sit on a player's head and lock there until !head or !unhead" },
         { "!fling <player>", "Fling a player" },
     }},
     { "Animations", {
@@ -3666,7 +3666,7 @@ button(pgCmds, "!ghost  —  transparent + noclip",        function() _runCmd("!
 button(pgCmds, "!size <n>",                              function() _openCmd("!size ") end)
 button(pgCmds, "!hatspin  —  fling spinning accessories",function() _runCmd("!hatspin") end)
 button(pgCmds, "!freecam  —  WASD/EQ camera",            function() _runCmd("!freecam") end)
-button(pgCmds, "!hop  —  random server hop",             function() _runCmd("!hop") end)
+
 button(pgCmds, "!say <message>",                         function() _openCmd("!say ") end)
 button(pgCmds, "!baseplate  —  extend the map",          function() _runCmd("!baseplate") end)
 
@@ -5450,13 +5450,44 @@ cmdHandlers["face"] = function(arg)
     notify("Facing " .. target.Name, "good")
 end
 cmdHandlers["head"] = function(arg)
+    -- Toggle: !head <player> locks you sitting on their head; !head (no arg) unlocks
+    if _G.__HeadLock then
+        if _G.__HeadLock.conn then pcall(function() _G.__HeadLock.conn:Disconnect() end) end
+        _G.__HeadLock = nil
+        local h = hum(); if h then h.Sit = false end
+        notify("Head-lock off", "good")
+        if not arg or arg == "" then return end
+    end
+    if not arg or arg == "" then notify("Usage: !head <player>  (run again to unlock)", "warn"); return end
     local target = findPlr(arg)
     if not target then notify("Player not found", "bad"); return end
-    local th = pchar(target) and pchar(target):FindFirstChild("Head")
-    local myH = hrp()
-    if not (th and myH) then notify("No head/character", "bad"); return end
-    myH.CFrame = th.CFrame * CFrame.new(0, 1.5, 0)
-    notify("On head of " .. target.Name, "good")
+    local myH = hrp(); local h = hum()
+    if not myH or not h then notify("No character", "bad"); return end
+    h.Sit = true
+    _G.__HeadLock = { target = target }
+    _G.__HeadLock.conn = RunService.Heartbeat:Connect(function()
+        local t = _G.__HeadLock and _G.__HeadLock.target
+        if not t or not t.Parent then
+            if _G.__HeadLock and _G.__HeadLock.conn then _G.__HeadLock.conn:Disconnect() end
+            _G.__HeadLock = nil; return
+        end
+        local tc = t.Character
+        local thead = tc and tc:FindFirstChild("Head")
+        local me = hrp(); local mh = hum()
+        if thead and me then
+            me.CFrame = thead.CFrame * CFrame.new(0, 1.5, 0)
+            if mh then mh.Sit = true end
+        end
+    end)
+    notify("Sitting on " .. target.Name .. "'s head — !head again to unlock", "good")
+end
+cmdHandlers["unhead"] = function()
+    if _G.__HeadLock then
+        if _G.__HeadLock.conn then pcall(function() _G.__HeadLock.conn:Disconnect() end) end
+        _G.__HeadLock = nil
+        local h = hum(); if h then h.Sit = false end
+        notify("Head-lock off", "good")
+    end
 end
 cmdHandlers["bang"] = function(arg)
     local target = findPlr(arg)
