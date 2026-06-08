@@ -3895,7 +3895,7 @@ inst("UIListLayout", Pill, {
 
 -- Brand (name + username) — FIRST
 local brandBlock = inst("Frame", Pill, {
-    Size = UDim2.new(0, 120, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
+    Size = UDim2.new(0, 70, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
 })
 inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
@@ -4623,6 +4623,16 @@ local function runBarCmd(raw)
 end
 
 cmdBox.PlaceholderText = "Type a command (!rj, !tprj, !face, !bang, !head, !sit) — Enter to run, Esc to close"
+
+-- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command
+pcall(function()
+    LP.Chatted:Connect(function(msg)
+        if type(msg) ~= "string" then return end
+        if msg:sub(1, 1) ~= "!" then return end
+        runBarCmd(msg)
+    end)
+end)
+
 
 local barPinned = false
 cmdBox.FocusLost:Connect(function(enter)
