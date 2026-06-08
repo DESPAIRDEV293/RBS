@@ -6422,8 +6422,50 @@ do
         if p == nil then return _G.__SeigeMicMuted == true end
         return p == false
     end
+
+    -- Activation gate: if the user joined the game with their mic MUTED,
+    -- nothing voice-related works until they unmute in Roblox and click
+    -- "Activate" in the popout (or run !vcactivate).
+    _G.__SeigeVoiceActivated = _G.__SeigeVoiceActivated or false
+    local function snapshotInitialMute()
+        if _G.__SeigeVoiceInitChecked then return end
+        _G.__SeigeVoiceInitChecked = true
+        local p = V.isPublishing()
+        -- nil = API didn't answer yet; treat as locked to be safe.
+        _G.__SeigeVoiceStartedMuted = (p == false) or (p == nil)
+        if not _G.__SeigeVoiceStartedMuted then
+            _G.__SeigeVoiceActivated = true -- mic was live → auto-activate
+        end
+    end
+    task.spawn(function()
+        -- Wait briefly for VoiceChatInternal to come online before snapshotting
+        for _ = 1, 20 do
+            if V.isAvailable() and V.isPublishing() ~= nil then break end
+            task.wait(0.5)
+        end
+        snapshotInitialMute()
+    end)
+    function V.isActivated() return _G.__SeigeVoiceActivated == true end
+    function V.activate()
+        snapshotInitialMute()
+        if V.isPublishing() == false then
+            return false, "Unmute your mic in Roblox first"
+        end
+        _G.__SeigeVoiceActivated = true
+        return true
+    end
+    function V.gateCheck(action)
+        if not V.isAvailable() then return false, "Voice service not in this game" end
+        if not V.isActivated() then
+            return false, "Mic muted at start — unmute & click Activate first"
+        end
+        return true
+    end
+
     -- Mic mute: Publish/Unpublish on VoiceChatInternal (controls transmit).
     function V.setMuted(on)
+        local ok, why = V.gateCheck("setMuted")
+        if not ok then notify(why, "warn"); return end
         _G.__SeigeMicMuted = on and true or false
         local s = svcInternal()
         if on then
@@ -6431,21 +6473,19 @@ do
         else
             tryCall(s, { "Publish" })
         end
-        -- Fallback: nudge the public service if available (older clients)
         local pub = svcPublic()
         if pub then pcall(function() if on then pub:joinVoice() end end) end
     end
-    -- Leave channel: unsubscribe from everyone + unpublish own mic
     function V.leave()
+        local ok, why = V.gateCheck("leave"); if not ok then notify(why, "warn"); return end
         local s = svcInternal()
         tryCall(s, { "UnsubscribeAll" })
         tryCall(s, { "Unpublish" })
-        -- Public-service fallback
         local pub = svcPublic()
         tryCall(pub, { "leaveChannel", "LeaveChannel" })
     end
-    -- Rejoin: subscribe to everyone + republish mic (unless force-muted)
     function V.join()
+        local ok, why = V.gateCheck("join"); if not ok then notify(why, "warn"); return end
         local s = svcInternal()
         tryCall(s, { "SubscribeAll" })
         if not _G.__SeigeMicMuted then
@@ -6454,9 +6494,8 @@ do
         local pub = svcPublic()
         tryCall(pub, { "joinVoice", "JoinChannel" })
     end
-    -- One full leave→rejoin cycle with jitter; this is the "anti-ban" core.
     function V.cycle()
-        if not V.isAvailable() then return false end
+        local ok = V.gateCheck("cycle"); if not ok then return false end
         V.leave()
         task.wait(0.35 + math.random() * 0.5)
         V.join()
@@ -6464,6 +6503,9 @@ do
     end
     function V.summary()
         if not V.isAvailable() then return "Voice service not available in this game" end
+        if not V.isActivated() then
+            return "LOCKED — mic was muted at start. Unmute, then click Activate."
+        end
         local mic = V.isMuted() and "MUTED" or "LIVE"
         local sub = V.isSubscribed()
         local subTxt = sub == nil and "?" or (sub and "ON" or "OFF")
