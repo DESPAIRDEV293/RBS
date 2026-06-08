@@ -36,7 +36,7 @@ async function writePaste(body: string): Promise<{ ok: true; url: string } | { o
   return { ok: true, url: txt };
 }
 
-export const Route = createFileRoute("/api/pastebin")({
+export const Route = createFileRoute("/api/public/pastebin")({
   server: {
     handlers: {
       GET: async () => {
