@@ -1213,7 +1213,6 @@ end
 local pgProfile = makeTab("Profile", "◈", "Your account, recent games and friends")
 local pgPlayers = makeTab("Players", "◉", "Server roster and player tools")
 local pgSelf    = makeTab("Self",    "✦", "Character, speed, flight, jump")
-local pgVisuals = makeTab("Visuals", "◐", "ESP, lighting and fullbright")
 local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
 -- Tags tab removed — now managed via the script database (tags.lua)
 -- Aim moved to Cmds tab as commands (pgAim retained as hidden frame for legacy refs)
@@ -1440,7 +1439,7 @@ bind(LP.Idled:Connect(function()
 end))
 
 ------------------------------------------------------- VISUALS TAB
-section(pgVisuals, "ESP")
+section(pgShaders, "ESP")
 local espOn, espFilter = false, "All"
 local espNames, espDist, espHealth = true, true, true
 local espBoxes = {} -- [player] = { hl, bb, lblName, lblDist, hpFill }
@@ -1519,12 +1518,12 @@ local function rebuildEsp()
     for _, p in ipairs(Players:GetPlayers()) do buildEspFor(p) end
 end
 
-toggle(pgVisuals, "ESP", false, function(s) espOn = s; rebuildEsp() end)
-dropdown(pgVisuals, "ESP filter", { "All", "Friends", "Targets", "Tagged" }, function(o) espFilter = o; rebuildEsp() end)
-toggle(pgVisuals, "Show names", true, function(s) espNames = s end)
-toggle(pgVisuals, "Show distance", true, function(s) espDist = s end)
-toggle(pgVisuals, "Show health bar", true, function(s) espHealth = s end)
-button(pgVisuals, "Refresh ESP", rebuildEsp)
+toggle(pgShaders, "ESP", false, function(s) espOn = s; rebuildEsp() end)
+dropdown(pgShaders, "ESP filter", { "All", "Friends", "Targets", "Tagged" }, function(o) espFilter = o; rebuildEsp() end)
+toggle(pgShaders, "Show names", true, function(s) espNames = s end)
+toggle(pgShaders, "Show distance", true, function(s) espDist = s end)
+toggle(pgShaders, "Show health bar", true, function(s) espHealth = s end)
+button(pgShaders, "Refresh ESP", rebuildEsp)
 
 bind(RunService.RenderStepped:Connect(function()
     if not espOn then return end
@@ -1557,19 +1556,15 @@ for _, p in ipairs(Players:GetPlayers()) do
     bind(p.CharacterAdded:Connect(function() task.wait(0.5); if espOn then buildEspFor(p) end end))
 end
 
-section(pgVisuals, "Camera & Lighting")
-slider(pgVisuals, "Field of view", 30, 120, 70, function(v) cam.FieldOfView = v end)
-toggle(pgVisuals, "Fullbright", false, function(s)
+section(pgShaders, "Camera & Lighting")
+slider(pgShaders, "Field of view", 30, 120, 70, function(v) cam.FieldOfView = v end)
+toggle(pgShaders, "Fullbright", false, function(s)
     if s then
         Lighting.Brightness = 3; Lighting.ClockTime = 14; Lighting.FogEnd = 1e6
         Lighting.GlobalShadows = false; Lighting.Ambient = Color3.new(1,1,1)
     else
         Lighting.Brightness = 1; Lighting.GlobalShadows = true; Lighting.Ambient = Color3.fromRGB(70,70,70)
     end
-end)
-toggle(pgVisuals, "Low graphics (fog off, shadows off)", false, function(s)
-    Lighting.FogEnd = s and 1e6 or 1000
-    Lighting.GlobalShadows = not s
 end)
 
 ------------------------------------------------------- WORLD TAB
@@ -3925,9 +3920,26 @@ inst("UIListLayout", Pill, {
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
 
--- Status (FPS + PING stacked)
+-- Brand (name + username) — FIRST
+local brandBlock = inst("Frame", Pill, {
+    Size = UDim2.new(0, 120, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
+})
+inst("TextLabel", brandBlock, {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
+    Size = UDim2.new(1, 0, 0, 14),
+    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
+})
+inst("TextLabel", brandBlock, {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
+    Size = UDim2.new(1, 0, 0, 12),
+    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "@" .. LP.Name, ZIndex = 101,
+})
+
+-- Status (FPS + PING stacked) — AFTER brand
 local statBlock = inst("Frame", Pill, {
-    Size = UDim2.new(0, 90, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
+    Size = UDim2.new(0, 90, 1, -4), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 101,
 })
 local fpsLbl = inst("TextLabel", statBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 3),
@@ -3940,17 +3952,6 @@ local pingLbl = inst("TextLabel", statBlock, {
     Size = UDim2.new(1, 0, 0, 14),
     Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.good,
     TextXAlignment = Enum.TextXAlignment.Left, Text = "● PING --", ZIndex = 101,
-})
-
--- Brand (name + username)
-local brandBlock = inst("Frame", Pill, {
-    Size = UDim2.new(0, 120, 1, -4), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 101,
-})
-inst("TextLabel", brandBlock, {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
-    Size = UDim2.new(1, 0, 0, 14),
-    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
 })
 inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
@@ -4338,8 +4339,14 @@ end)()
 
 -- preferred order on the pill
 local tabOrder = {
-    "Profile", "Players", "Self", "Visuals", "World",
+    "Profile", "Players", "Self", "World",
     "Tags", "Server", "Cmds", "Themes", "Shaders", "Detector", "Config",
+}
+-- Per-tab image icons (rbxassetid). Images should be white on transparent bg.
+local tabImages = {
+    Profile = "rbxassetid://87697251489549",   -- user
+    Players = "rbxassetid://85934990670048",   -- users
+    Shaders = "rbxassetid://107400785814105",  -- striped ball
 }
 -- include any tabs that weren't listed (forward-compat)
 for n, _ in pairs(tabs) do
@@ -4354,15 +4361,27 @@ for _, name in ipairs(tabOrder) do
     if entry then
         idx = idx + 1
         makePanel(name, entry)
+        local imgId = tabImages[name]
         local ib = inst("TextButton", iconsRow, {
             Size = UDim2.new(0, 32, 0, 32),
             BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25, BorderSizePixel = 0,
             AutoButtonColor = false,
             Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
-            Text = (entry.ico and entry.ico.Text) or "•",
+            Text = imgId and "" or ((entry.ico and entry.ico.Text) or "•"),
             LayoutOrder = idx, ZIndex = 102,
         })
         corner(ib, 8); stroke(ib, T.line, 1, 0.4)
+        if imgId then
+            inst("ImageLabel", ib, {
+                BackgroundTransparency = 1,
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, 0),
+                Size = UDim2.new(0, 18, 0, 18),
+                Image = imgId,
+                ImageColor3 = T.text,
+                ZIndex = 103,
+            })
+        end
         panels[name].btn = ib
 
         local function setHover(on)
