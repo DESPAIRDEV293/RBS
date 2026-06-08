@@ -2542,6 +2542,7 @@ if LP.Name == "0rot3" then
         local sok, serr = TagDB:saveLocal()
         if sok then notify("Saved tag for " .. u .. " (persisted)", "good")
         else notify("Saved tag for " .. u .. " — local save failed: " .. tostring(serr), "warn") end
+        if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
     end)
 
     button(pgTags, "Clear form / new entry", function() clearForm() end)
