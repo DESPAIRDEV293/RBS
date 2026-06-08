@@ -4905,6 +4905,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
         end
     end)
     end -- end !usay gate
+    end -- end if not _ntOnly (script-users + management sections)
 end
 
 
