@@ -1320,6 +1320,7 @@ local function parsePastebin(src)
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
                 if parts[11] and parts[11] ~= "" then entry.font = parts[11] end
                 if parts[12] and parts[12] ~= "" then entry.sweep = parts[12]:lower() end
+                if parts[13] and parts[13] ~= "" then entry.element = parts[13]:lower() end
                 entries[user:lower()] = entry
                 count = count + 1
             end
