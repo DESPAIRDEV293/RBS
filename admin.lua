@@ -5042,6 +5042,96 @@ pcall(function() Tip.Parent = Root; Tip.ZIndex = 220 end)
 
 local panels = {}
 local panelSlot = 0
+
+-- Animated visibility transition for any panel frame.
+-- Respects _G.__SeigePageAnim and _G.__SeigePageAnimSpeed set in Themes tab.
+_G.__SeigeAnimPanel = function(frame, show)
+    if not frame then return end
+    local style = _G.__SeigePageAnim or "Fade"
+    local dur   = tonumber(_G.__SeigePageAnimSpeed) or 0.24
+    if style == "None" then frame.Visible = show; return end
+    -- Capture the "rest" geometry once; we tween from/to it on each toggle.
+    if not frame:GetAttribute("__restPos") then
+        frame:SetAttribute("__restPos",  true)
+        frame:SetAttribute("__restPosX", frame.Position.X.Offset)
+        frame:SetAttribute("__restPosY", frame.Position.Y.Offset)
+        frame:SetAttribute("__restPosXS", frame.Position.X.Scale)
+        frame:SetAttribute("__restPosYS", frame.Position.Y.Scale)
+    end
+    local px, py = frame:GetAttribute("__restPosX"), frame:GetAttribute("__restPosY")
+    local pxs, pys = frame:GetAttribute("__restPosXS"), frame:GetAttribute("__restPosYS")
+    local restPos = UDim2.new(pxs, px, pys, py)
+
+    local scaleObj = frame:FindFirstChildOfClass("UIScale")
+    if not scaleObj then
+        scaleObj = Instance.new("UIScale"); scaleObj.Scale = 1; scaleObj.Parent = frame
+    end
+
+    local function tweenInto(props, easing, dir, time)
+        TweenService:Create(frame, TweenInfo.new(time or dur, easing or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
+    end
+
+    if show then
+        frame.Visible = true
+        frame.BackgroundTransparency = 1
+        frame.Position = restPos
+        scaleObj.Scale = 1
+        if style == "Fade" then
+            tweenInto({ BackgroundTransparency = 0.04 })
+        elseif style == "Scale" then
+            scaleObj.Scale = 0.85
+            tweenInto({ BackgroundTransparency = 0.04 })
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        elseif style == "Slide-down" then
+            frame.Position = UDim2.new(pxs, px, pys, py - 40)
+            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+        elseif style == "Slide-up" then
+            frame.Position = UDim2.new(pxs, px, pys, py + 40)
+            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+        elseif style == "Slide-right" then
+            frame.Position = UDim2.new(pxs, px - 60, pys, py)
+            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+        elseif style == "Flip" then
+            scaleObj.Scale = 0.01
+            tweenInto({ BackgroundTransparency = 0.04 })
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        elseif style == "Bounce" then
+            scaleObj.Scale = 0.6
+            tweenInto({ BackgroundTransparency = 0.04 })
+            TweenService:Create(scaleObj, TweenInfo.new(dur * 1.3, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        else
+            frame.BackgroundTransparency = 0.04
+        end
+    else
+        if style == "Fade" then
+            tweenInto({ BackgroundTransparency = 1 })
+        elseif style == "Scale" then
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.85 }):Play()
+            tweenInto({ BackgroundTransparency = 1 })
+        elseif style == "Slide-down" then
+            tweenInto({ Position = UDim2.new(pxs, px, pys, py + 40), BackgroundTransparency = 1 })
+        elseif style == "Slide-up" then
+            tweenInto({ Position = UDim2.new(pxs, px, pys, py - 40), BackgroundTransparency = 1 })
+        elseif style == "Slide-right" then
+            tweenInto({ Position = UDim2.new(pxs, px + 60, pys, py), BackgroundTransparency = 1 })
+        elseif style == "Flip" then
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Scale = 0.01 }):Play()
+            tweenInto({ BackgroundTransparency = 1 })
+        elseif style == "Bounce" then
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0.6 }):Play()
+            tweenInto({ BackgroundTransparency = 1 })
+        end
+        task.delay(dur + 0.02, function()
+            if frame and frame.Parent then
+                frame.Visible = false
+                frame.Position = restPos
+                if scaleObj then scaleObj.Scale = 1 end
+                frame.BackgroundTransparency = 0.04
+            end
+        end)
+    end
+end
+
 local function makePanel(name, entry)
     local page = entry.page
     panelSlot = panelSlot + 1
