@@ -5777,6 +5777,7 @@ cmdHandlers["reanimdata"] = function(arg) playKeyframeData(arg or "", 1) end
 
 _G.__PlayReanimText = playKeyframeData -- expose to the popout's "Play" button
 
+cmdHandlers["reanim"] = function(arg)
     arg = (arg or ""):gsub("^%s+",""):gsub("%s+$","")
     if arg == "" or arg == "on" or arg == "start" then startReanim(); return end
     if arg == "stop" or arg == "off" then _G.__StopReanim(); return end
