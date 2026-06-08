@@ -1845,7 +1845,9 @@ if LP.Name == "DESPAIRDEV293" then
         tbUser.Text     = key or ""
         tbDisplay.Text  = (e and e.displayName) or ""
         tbColor.Text    = (e and e.color) or ""
-        tbIcon.Text     = (e and e.icon) or ""
+        local iconRaw = (e and e.icon) or ""
+        iconRaw = tostring(iconRaw):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
+        tbIcon.Text     = iconRaw
         tbTags.Text     = (e and e.tags and table.concat(e.tags, ",")) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
