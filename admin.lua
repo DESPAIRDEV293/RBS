@@ -4914,6 +4914,16 @@ do
 
     button(pgProfile, "Refresh now", function() refreshFriends() end)
 
+    section(pgProfile, "Tag")
+    button(pgProfile, "Refresh tag", function()
+        if tagBills[LP] then
+            pcall(function() tagBills[LP].gui:Destroy() end)
+            tagBills[LP] = nil
+        end
+        pcall(buildBill, LP)
+        notify("Your tag has been refreshed", "good")
+    end)
+
     -- initial load + real-time auto-refresh every 30s
     task.spawn(function() task.wait(0.5); refreshFriends() end)
     task.spawn(function()
