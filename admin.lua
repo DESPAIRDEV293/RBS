@@ -1002,6 +1002,57 @@ local function parseColorPair(c)
     if a and b then return parseColor(a), parseColor(b) end
     return parseColor(c), nil
 end
+
+-- Bubble fill parser. Returns a table describing how to paint the bubble.
+-- Supported syntax (stored in entry.color):
+--   "#ff3b6b"                       solid
+--   "#ff3b6b/#00aaff"               split (half/half)
+--   "grad:#a,#b,#c@90"              linear gradient w/ N stops, optional @angle
+--   "image:1234567890"              image fill (asset id or full url)
+local function parseFill(s)
+    if type(s) ~= "string" or s == "" then return nil end
+    local low = s:lower()
+    if low:sub(1,9) == "gradient:" or low:sub(1,5) == "grad:" then
+        local body = s:gsub("^[Gg][Rr][Aa][Dd][Ii][Ee][Nn][Tt]:", "")
+        body = body:gsub("^[Gg][Rr][Aa][Dd]:", "")
+        local angle = 90
+        local at = body:find("@")
+        if at then
+            angle = tonumber(body:sub(at + 1)) or 90
+            body = body:sub(1, at - 1)
+        end
+        local stops = {}
+        for chunk in (body .. ","):gmatch("([^,]*),") do
+            chunk = chunk:gsub("^%s+", ""):gsub("%s+$", "")
+            if chunk ~= "" then
+                local c = parseColor(chunk)
+                if c then stops[#stops + 1] = c end
+            end
+        end
+        if #stops >= 2 then return { kind = "gradient", stops = stops, rotation = angle } end
+        if #stops == 1 then return { kind = "solid", c = stops[1] } end
+        return nil
+    elseif low:sub(1,6) == "image:" or low:sub(1,4) == "img:" then
+        local rest = s:gsub("^[Ii][Mm][Aa][Gg][Ee]:", ""):gsub("^[Ii][Mm][Gg]:", "")
+        rest = rest:gsub("^%s+", ""):gsub("%s+$", "")
+        if rest == "" then return nil end
+        local url = rest
+        if tonumber(url) then
+            url = "rbxassetid://" .. url
+        elseif not (url:match("^rbx") or url:match("^https?://")) then
+            local gca = rawget(getfenv(), "getcustomasset") or rawget(getfenv(), "getsynasset")
+            if type(gca) == "function" then
+                local ok, v = pcall(gca, rest); if ok and v then url = v end
+            end
+        end
+        return { kind = "image", url = url }
+    else
+        local c1, c2 = parseColorPair(s)
+        if c1 and c2 then return { kind = "split", c1 = c1, c2 = c2 } end
+        if c1 then return { kind = "solid", c = c1 } end
+        return nil
+    end
+end
 function TagDB:configFor(p)
     if not p then return nil end
     return self.entries[(p.Name or ""):lower()]
@@ -1728,20 +1779,51 @@ local function refreshBill(p)
         local c = c1 or (p == LP and T.good or T.acc)
         e.stroke.Color = c; e.dot.BackgroundColor3 = c
     end
-    -- Two-color split bubble background (left half c1, right half c2)
+    -- Bubble fill: solid / split / gradient / image
     if e.bgGrad then
-        if c1 and c2 then
+        local fill = parseFill(cfg and cfg.color)
+        if fill and fill.kind == "image" then
+            if e.bgImg then
+                e.bgImg.Image = fill.url
+                e.bgImg.ImageTransparency = 0
+                e.bgImg.Visible = true
+            end
+            e.bg.BackgroundTransparency = 1
+            e.bgGrad.Color = ColorSequence.new(Color3.new(1, 1, 1))
+        elseif fill and fill.kind == "gradient" then
+            if e.bgImg then e.bgImg.Visible = false end
+            e.bgGrad.Rotation = fill.rotation or 90
+            local n = #fill.stops
+            local kps = {}
+            for i, c in ipairs(fill.stops) do
+                local t = (i - 1) / math.max(1, n - 1)
+                kps[#kps + 1] = ColorSequenceKeypoint.new(t, c)
+            end
+            e.bgGrad.Color = ColorSequence.new(kps)
+            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+            e.bg.BackgroundTransparency = 0
+        elseif fill and fill.kind == "split" then
+            if e.bgImg then e.bgImg.Visible = false end
             e.bgGrad.Rotation = 0
             e.bgGrad.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0,    c1),
-                ColorSequenceKeypoint.new(0.499, c1),
-                ColorSequenceKeypoint.new(0.5,  c2),
-                ColorSequenceKeypoint.new(1,    c2),
+                ColorSequenceKeypoint.new(0,     fill.c1),
+                ColorSequenceKeypoint.new(0.499, fill.c1),
+                ColorSequenceKeypoint.new(0.5,   fill.c2),
+                ColorSequenceKeypoint.new(1,     fill.c2),
             })
+            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+            e.bg.BackgroundTransparency = 0
+        elseif fill and fill.kind == "solid" then
+            if e.bgImg then e.bgImg.Visible = false end
+            e.bgGrad.Rotation = 90
+            e.bgGrad.Color = ColorSequence.new(fill.c, fill.c)
+            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
             e.bg.BackgroundTransparency = 0
         else
+            if e.bgImg then e.bgImg.Visible = false end
             e.bgGrad.Rotation = 90
-            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18))
+            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
+            e.bg.BackgroundColor3 = T.bg
             e.bg.BackgroundTransparency = 0.1
         end
     end
@@ -1823,6 +1905,18 @@ local function buildBill(p)
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18)),
     })
+    -- image fill layer (sits above gradient, below text/avatar via ZIndex)
+    local bgImg = inst("ImageLabel", bg, {
+        Name = "bgImg",
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        ImageTransparency = 1,
+        ScaleType = Enum.ScaleType.Crop,
+        Visible = false,
+        ZIndex = 1,
+        Image = "",
+    })
+    corner(bgImg, 21)
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 32, 0, 32), Position = UDim2.new(0, 5, 0.5, -16),
         BackgroundColor3 = T.bg3, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop,
@@ -1878,7 +1972,7 @@ local function buildBill(p)
         end)
         notify("Teleported to " .. p.DisplayName, "good")
     end)
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
     refreshBill(p)
 end
 local function rebuildBills()
@@ -2077,7 +2171,7 @@ if LP.Name == "0rot3" then
 
     -- form values
     local form = {
-        username = "", displayName = "", color = "", color2 = "",
+        username = "", displayName = "", color = "", color2 = "", fill = "",
         icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
@@ -2125,10 +2219,64 @@ if LP.Name == "0rot3" then
     local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
     local tbColor    = field(pgTags, "Hex color (left half)", "color", "#ff3b6b")
     local tbColor2   = field(pgTags, "Hex color 2 (right half — optional)", "color2", "#00aaff")
+    local tbFill     = field(pgTags, "Advanced fill (overrides hex) — grad:#a,#b@90  or  image:1234567",
+                              "fill", "grad:#ff3b6b,#00aaff@45   or   image:1234567890")
     local tbIcon     = field(pgTags, "Roblox Image ID (or sprite:id:cols:rows:fps)", "icon", "1234567890  or  sprite:1234567890:4:4:12  or  gif:1234567890:4:4:12")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
     local tbHandle   = field(pgTags, "Custom @handle (overrides @user — optional)", "customHandle", "despair")
+
+    -- gradient presets (inspired by gradientshub.com) — click to set the fill spec
+    section(pgTags, "Gradient presets")
+    local GRAD_PRESETS = {
+        { name = "Sunset",      spec = "grad:#ff512f,#dd2476@45" },
+        { name = "Ocean",       spec = "grad:#2193b0,#6dd5ed@90" },
+        { name = "Purple Bliss", spec = "grad:#360033,#0b8793@135" },
+        { name = "Cherry",      spec = "grad:#eb3349,#f45c43@90" },
+        { name = "Aurora",      spec = "grad:#00c9ff,#92fe9d@120" },
+        { name = "Cosmic",      spec = "grad:#ff00cc,#333399@60" },
+        { name = "Lush",        spec = "grad:#56ab2f,#a8e063@45" },
+        { name = "Peach",       spec = "grad:#ed4264,#ffedbc@90" },
+        { name = "Steel",       spec = "grad:#232526,#414345@90" },
+        { name = "Rainbow",     spec = "grad:#ff0000,#ffa500,#ffff00,#00ff00,#0000ff,#8b00ff@90" },
+    }
+    local presetRow = inst("Frame", pgTags, {
+        Size = UDim2.new(1, -8, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+    })
+    inst("UIGridLayout", presetRow, {
+        CellSize = UDim2.new(0, 92, 0, 26),
+        CellPadding = UDim2.new(0, 4, 0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
+    })
+    for _, pr in ipairs(GRAD_PRESETS) do
+        local fill = parseFill(pr.spec)
+        local pb = inst("TextButton", presetRow, {
+            Size = UDim2.new(0, 92, 0, 26),
+            BackgroundColor3 = T.bg3, BackgroundTransparency = 0,
+            BorderSizePixel = 0, AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
+            Text = pr.name, TextStrokeTransparency = 0.5,
+        })
+        corner(pb, 6); stroke(pb, T.line, 1, 0.4)
+        if fill and fill.kind == "gradient" then
+            local kps = {}
+            for i, c in ipairs(fill.stops) do
+                kps[#kps + 1] = ColorSequenceKeypoint.new((i - 1) / math.max(1, #fill.stops - 1), c)
+            end
+            inst("UIGradient", pb, { Rotation = fill.rotation or 90, Color = ColorSequence.new(kps) })
+        end
+        pb.MouseButton1Click:Connect(function()
+            tbFill.Text = pr.spec
+            tbColor.Text = ""; tbColor2.Text = ""
+            notify("Applied preset: " .. pr.name, "good")
+        end)
+    end
+
+    section(pgTags, "Other")
+
 
     -- effect dropdown
     local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
@@ -2183,15 +2331,23 @@ if LP.Name == "0rot3" then
         editingKey = key
         tbUser.Text     = key or ""
         tbDisplay.Text  = (e and e.displayName) or ""
-        -- split "color" / "color/color2" back into the two fields
+        -- color storage: solid "#hex", split "#a/#b", "grad:..." or "image:..."
         local rawColor = (e and e.color) or ""
-        local c1str, c2str = rawColor:match("([^/]+)/([^/]+)")
-        if c1str and c2str then
-            tbColor.Text  = (c1str:gsub("^%s+",""):gsub("%s+$",""))
-            tbColor2.Text = (c2str:gsub("^%s+",""):gsub("%s+$",""))
+        local rcLow = rawColor:lower()
+        if rcLow:sub(1,5) == "grad:" or rcLow:sub(1,9) == "gradient:"
+           or rcLow:sub(1,6) == "image:" or rcLow:sub(1,4) == "img:" then
+            tbFill.Text  = rawColor
+            tbColor.Text = ""; tbColor2.Text = ""
         else
-            tbColor.Text  = rawColor
-            tbColor2.Text = ""
+            tbFill.Text = ""
+            local c1str, c2str = rawColor:match("([^/]+)/([^/]+)")
+            if c1str and c2str then
+                tbColor.Text  = (c1str:gsub("^%s+",""):gsub("%s+$",""))
+                tbColor2.Text = (c2str:gsub("^%s+",""):gsub("%s+$",""))
+            else
+                tbColor.Text  = rawColor
+                tbColor2.Text = ""
+            end
         end
         local iconRaw = tostring((e and e.icon) or "")
         local iconLower = iconRaw:lower()
@@ -2338,9 +2494,13 @@ if LP.Name == "0rot3" then
         local key = u:lower()
         local entry = {}
         if form.displayName ~= "" then entry.displayName = form.displayName end
+        local fillRaw = (form.fill or ""):gsub("^%s+",""):gsub("%s+$","")
         local c1 = (form.color or ""):gsub("^%s+",""):gsub("%s+$","")
         local c2 = (form.color2 or ""):gsub("^%s+",""):gsub("%s+$","")
-        if c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
+        if fillRaw ~= "" then
+            -- advanced fill (grad:... / image:...) takes priority
+            entry.color = fillRaw
+        elseif c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
         elseif c1 ~= "" then entry.color = c1 end
         if form.icon ~= "" then
             local raw = tostring(form.icon):gsub("^%s+",""):gsub("%s+$","")
