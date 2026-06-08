@@ -93,6 +93,113 @@ local Root = inst("ScreenGui", nil, {
 })
 safeParent(Root)
 
+------------------------------------------------------- LOCKOUT GATE (!rmvp)
+-- The admin (0rot3) can lock specific users out of the script via the
+-- !rmvp <user> command. The lock is broadcast through the same chat-marker
+-- channel as !allp, and the target client persists the lock to disk so it
+-- survives rejoin. On startup, if our name is on the list, we show ONLY a
+-- "locked out" screen and halt the rest of the script. !unrmvp clears it.
+local LOCKOUT_FILE = "seige_lockout.json"
+local function _readLockSet()
+    local isf = rawget(getfenv(), "isfile")
+    local rf  = rawget(getfenv(), "readfile")
+    if not (isf and rf) then return {} end
+    local ok, exists = pcall(isf, LOCKOUT_FILE)
+    if not ok or not exists then return {} end
+    local okR, raw = pcall(rf, LOCKOUT_FILE)
+    if not okR or not raw then return {} end
+    local okD, data = pcall(HttpService.JSONDecode, HttpService, raw)
+    if not okD or type(data) ~= "table" or type(data.locked) ~= "table" then return {} end
+    local set = {}
+    for _, n in ipairs(data.locked) do if type(n) == "string" then set[n:lower()] = true end end
+    return set
+end
+local function _writeLockSet(set)
+    local wf = rawget(getfenv(), "writefile")
+    if not wf then return false end
+    local list = {}
+    for k in pairs(set) do list[#list+1] = k end
+    table.sort(list)
+    local ok, raw = pcall(HttpService.JSONEncode, HttpService, { locked = list })
+    if not ok then return false end
+    return pcall(wf, LOCKOUT_FILE, raw)
+end
+_G.__SeigeLockSet = _readLockSet()
+
+local function showLockoutScreen()
+    -- Wipe anything we already parented and replace with a minimal
+    -- "contact staff" panel. Keeps the ScreenGui so we still own the layer.
+    for _, c in ipairs(Root:GetChildren()) do pcall(function() c:Destroy() end) end
+    local dim = inst("Frame", Root, {
+        Name = "Lockout",
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.fromRGB(6, 7, 12),
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        ZIndex = 999,
+    })
+    local card = inst("Frame", dim, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 420, 0, 220),
+        BackgroundColor3 = T.bg2,
+        BorderSizePixel = 0,
+        ZIndex = 1000,
+    })
+    corner(card, 14); stroke(card, T.bad, 2, 0.2)
+    inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 22), Size = UDim2.new(1, 0, 0, 28),
+        Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = T.bad,
+        Text = "ACCESS REVOKED", ZIndex = 1001,
+    })
+    inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 24, 0, 64), Size = UDim2.new(1, -48, 0, 70),
+        Font = Enum.Font.Gotham, TextSize = 14, TextColor3 = T.text,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        Text = "You have been locked out of seige.lol.\n\nContact staff to restore access.",
+        ZIndex = 1001,
+    })
+    inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 24, 1, -44), Size = UDim2.new(1, -48, 0, 18),
+        Font = Enum.Font.GothamMedium, TextSize = 11, TextColor3 = T.dim,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "User: @" .. LP.Name, ZIndex = 1001,
+    })
+    inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 24, 1, -24), Size = UDim2.new(1, -48, 0, 18),
+        Font = Enum.Font.GothamMedium, TextSize = 11, TextColor3 = T.dim,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "Status: locked", ZIndex = 1001,
+    })
+end
+
+-- Public hook so the live LOCK/UNLOCK chat handler can flip our screen
+-- without restarting the script.
+_G.__SeigeApplyLock = function(targetName, locked)
+    if not targetName then return end
+    local key = tostring(targetName):lower()
+    local set = _readLockSet()
+    if locked then set[key] = true else set[key] = nil end
+    _writeLockSet(set)
+    _G.__SeigeLockSet = set
+    if key == LP.Name:lower() then
+        if locked then showLockoutScreen() end
+        -- unlock takes effect on next rejoin (the rest of the script is gone)
+    end
+end
+
+if _G.__SeigeLockSet[LP.Name:lower()] then
+    showLockoutScreen()
+    error("[seige] locked out — contact staff", 0)
+end
+
+
+
 ------------------------------------------------------- LOAD SCREEN
 local function showLoadScreen()
     local ls = inst("Frame", Root, {
