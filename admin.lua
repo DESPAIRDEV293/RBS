@@ -5629,7 +5629,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
         Pill.Visible = v
         if not v then
             for _, p in pairs(panels) do
-                p.frame.Visible = false
+                if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
                 if p.btn then
                     tween(p.btn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25 })
                 end
