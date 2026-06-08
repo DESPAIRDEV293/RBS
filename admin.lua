@@ -2663,6 +2663,24 @@ if LP.Name == "0rot3" then
 
     local pgTags = makeTab("Tags", "✎", "Custom tags, colors and icons")
 
+    -- Make the Tags page breathe: extra vertical spacing between rows and
+    -- a touch more interior padding so nothing feels cramped.
+    for _, c in ipairs(pgTags:GetChildren()) do
+        if c:IsA("UIListLayout") then c.Padding = UDim.new(0, 10) end
+        if c:IsA("UIPadding") then
+            c.PaddingTop = UDim.new(0, 10); c.PaddingBottom = UDim.new(0, 14)
+            c.PaddingLeft = UDim.new(0, 10); c.PaddingRight = UDim.new(0, 10)
+        end
+    end
+    -- Small visual spacer to separate logical groups on the Tags page.
+    local function tagSpacer(h)
+        inst("Frame", pgTags, {
+            Size = UDim2.new(1, -8, 0, h or 6),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+        })
+    end
+
     -- form values
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
@@ -2786,6 +2804,24 @@ if LP.Name == "0rot3" then
     -- per-tag tag special (outline aura effect around the bubble). "none" = no aura.
     local ELEMENT_OPTS = { "none", "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
     local elementDD = dropdown(pgTags, "Tag special (outline effect)", ELEMENT_OPTS, function(v) form.element = v end)
+
+    -- Give the Tag panel's dropdowns more room: longer labels (e.g. "Tag
+    -- special (outline effect)") and longer option values (e.g. "celestial",
+    -- "obsidian") were getting clipped at the default 140px button width.
+    -- The dropdown helper returns a controller (not the Frame), so walk
+    -- pgTags' children and resize any frame that matches the dropdown shape
+    -- (a TextButton anchored to the right edge).
+    for _, frame in ipairs(pgTags:GetChildren()) do
+        if frame:IsA("Frame") and frame.Size.Y.Offset == 34 then
+            local btn = frame:FindFirstChildOfClass("TextButton")
+            local lbl = frame:FindFirstChildOfClass("TextLabel")
+            if btn and lbl and btn.AnchorPoint == Vector2.new(1, 0.5) then
+                lbl.Size = UDim2.new(1, -200, 1, 0)
+                btn.Size = UDim2.new(0, 180, 0, 24)
+                frame.Size = UDim2.new(1, -8, 0, 38)
+            end
+        end
+    end
 
 
 
