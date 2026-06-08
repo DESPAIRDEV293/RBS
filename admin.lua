@@ -1835,9 +1835,11 @@ if LP.Name == "0rot3" then
 
     local tbUser     = field(pgTags, "Username (required)", "username", "DESPAIRDEV293")
     local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
-    local tbColor    = field(pgTags, "Hex color", "color", "#ff3b6b")
+    local tbColor    = field(pgTags, "Hex color (left half)", "color", "#ff3b6b")
+    local tbColor2   = field(pgTags, "Hex color 2 (right half — optional)", "color2", "#00aaff")
     local tbIcon     = field(pgTags, "Roblox Image ID", "icon", "1234567890")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
+    local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
 
     -- effect dropdown
     local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
