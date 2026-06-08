@@ -3501,6 +3501,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local function pushToGithub(silent)
         local body = buildExport()
         local payload = HttpService:JSONEncode({ body = body })
+        local getUrl = BOT_URL .. "?key=" .. HttpService:UrlEncode(BOT_AUTH) .. "&body=" .. HttpService:UrlEncode(body)
         local headers = {
             ["Content-Type"]    = "application/json",
             ["x-pastebin-auth"] = BOT_AUTH,
@@ -3533,6 +3534,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 return game:HttpPostAsync(BOT_URL, payload, Enum.HttpContentType.ApplicationJson, false)
             end)
         end
+        local function tryHttpGet()
+            -- Most executors allow game:HttpGet even when POST/request APIs are
+            -- blocked. The server accepts this signed GET write as a last-resort
+            -- path so tag edits can still sync reliably from Roblox.
+            return pcall(function()
+                return game:HttpGet(getUrl, true)
+            end)
+        end
         local status, txt = 0, ""
         if req then
             local ok, res = pcall(req, { Url = BOT_URL, Method = "POST", Headers = headers, Body = payload })
@@ -3554,6 +3563,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local ok, res = tryHttpPost()
             if ok and type(res) == "string" then
                 -- Assume success if no HTTP error was raised.
+                status = 200
+                txt = res
+            end
+        end
+        if status < 200 or status >= 300 then
+            -- Final-final fallback: signed GET write through the same endpoint.
+            local ok, res = tryHttpGet()
+            if ok and type(res) == "string" then
                 status = 200
                 txt = res
             end
