@@ -1137,16 +1137,20 @@ end
 
 local function label(parent, text)
     local f = inst("Frame", parent, {
-        Size = UDim2.new(1, -8, 0, 22),
+        Size = UDim2.new(1, -8, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
     })
     local l = inst("TextLabel", f, {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 1, 0),
+        Size = UDim2.new(1, 0, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
         Font = Enum.Font.Gotham,
         TextSize = 12,
         TextColor3 = T.sub,
         TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true,
         Text = text,
     })
     return { frame = f, set = function(_, t) l.Text = t end }
