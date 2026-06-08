@@ -3495,7 +3495,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if wf then pcall(wf, PB_CFG_FILE, HttpService:JSONEncode(pbCfg)) end
     end
 
-    local BOT_URL  = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94.lovable.app/api/public/pastebin"
+    -- Use the stable dev endpoint so the Roblox script gets the newest sync
+    -- route immediately after edits, without waiting on a manual publish.
+    local BOT_URL  = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/pastebin"
     local BOT_AUTH = "1f0957eaf8dd4ed89bb594440220eb4c"
 
     local function pushToGithub(silent)
