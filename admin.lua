@@ -3895,7 +3895,9 @@ end
 Win.Visible = false   -- retire the legacy chrome (kept around for compat)
 
 -- ============= TOP PILL ===========================================
-local Pill = inst("Frame", Root, {
+local Pill, iconsRow
+do -- scoped to avoid bumping the top-level local limit
+Pill = inst("Frame", Root, {
     Name = "TopPill",
     AnchorPoint = Vector2.new(0.5, 0),
     Position = UDim2.new(0.5, 0, 0, 14),
@@ -3907,12 +3909,74 @@ local Pill = inst("Frame", Root, {
     Active = true,
     ZIndex = 100,
 })
-corner(Pill, 14); stroke(Pill, T.line, 1, 0.4)
-inst("UIGradient", Pill, {
-    Rotation = 90,
-    Color = ColorSequence.new(T.bg2, T.bg),
-    Transparency = NumberSequence.new(0.08),
+corner(Pill, 16); stroke(Pill, T.line, 1, 0.4)
+local pillGrad = inst("UIGradient", Pill, {
+    Rotation = 0,
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 90, 160)),
+        ColorSequenceKeypoint.new(0.25, Color3.fromRGB(180, 120, 255)),
+        ColorSequenceKeypoint.new(0.50, Color3.fromRGB(90, 200, 255)),
+        ColorSequenceKeypoint.new(0.75, Color3.fromRGB(120, 255, 200)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 200, 120)),
+    }),
+    Transparency = NumberSequence.new(0.55),
 })
+-- Animated halo glow behind the pill
+local pillHalo = inst("ImageLabel", Pill, {
+    BackgroundTransparency = 1,
+    Image = "rbxasset://textures/ui/Controls/DropShadow.png",
+    ImageColor3 = Color3.fromRGB(180, 140, 255),
+    ImageTransparency = 0.55,
+    ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(12,12,244,244),
+    Size = UDim2.new(1, 60, 1, 60), Position = UDim2.new(0, -30, 0, -30),
+    ZIndex = 99,
+})
+-- Inner shine sweep (animated highlight crossing the pill)
+local pillShine = inst("Frame", Pill, {
+    Name = "Shine",
+    Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+    ZIndex = 100, ClipsDescendants = false,
+})
+corner(pillShine, 16)
+local shineGrad = inst("UIGradient", pillShine, {
+    Rotation = 25,
+    Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0.0, 1),
+        NumberSequenceKeypoint.new(0.45, 1),
+        NumberSequenceKeypoint.new(0.5, 0.55),
+        NumberSequenceKeypoint.new(0.55, 1),
+        NumberSequenceKeypoint.new(1.0, 1),
+    }),
+    Color = ColorSequence.new(Color3.new(1,1,1)),
+    Offset = Vector2.new(-1, 0),
+})
+-- Particle layer
+local pillFx = inst("Frame", Pill, {
+    Name = "Fx", Size = UDim2.new(1, 0, 1, 0),
+    BackgroundTransparency = 1, ZIndex = 102, ClipsDescendants = true,
+})
+corner(pillFx, 16)
+local particles = {}
+for i = 1, 14 do
+    local p = inst("Frame", pillFx, {
+        Size = UDim2.new(0, 3, 0, 3),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        ZIndex = 103,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+    })
+    corner(p, 4)
+    particles[i] = {
+        node = p,
+        x = math.random(),
+        y = math.random(),
+        vx = 0.08 + math.random() * 0.18,
+        vy = (math.random() - 0.5) * 0.04,
+        sz = 2 + math.random() * 3,
+        hue = math.random(),
+    }
+end
 inst("UIPadding", Pill, {
     PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
     PaddingTop = UDim.new(0, 5),  PaddingBottom = UDim.new(0, 5),
@@ -3945,11 +4009,20 @@ local pingLbl = inst("TextLabel", statBlock, {
 local brandBlock = inst("Frame", Pill, {
     Size = UDim2.new(0, 120, 1, -4), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 101,
 })
-inst("TextLabel", brandBlock, {
+local brandLbl = inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
     Size = UDim2.new(1, 0, 0, 14),
-    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
+    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = Color3.new(1,1,1),
     TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
+})
+local brandGrad = inst("UIGradient", brandLbl, {
+    Rotation = 0,
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 120, 200)),
+        ColorSequenceKeypoint.new(0.50, Color3.fromRGB(140, 200, 255)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(180, 255, 200)),
+    }),
+    Offset = Vector2.new(0, 0),
 })
 inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
@@ -3959,7 +4032,7 @@ inst("TextLabel", brandBlock, {
 })
 
 -- Icon button row
-local iconsRow = inst("Frame", Pill, {
+iconsRow = inst("Frame", Pill, {
     Size = UDim2.new(0, 0, 1, -4),
     AutomaticSize = Enum.AutomaticSize.X,
     BackgroundTransparency = 1, LayoutOrder = 3, ZIndex = 101,
@@ -4016,6 +4089,48 @@ task.spawn(function()
         pillClock.Text = (os.date("%I:%M %p"):gsub("^0", ""))
     end
 end)
+
+-- ✨ FANCY PILL ANIMATIONS: rotating rainbow, sweeping shine, pulsing halo,
+-- shimmering brand text, drifting sparkle particles
+bind(RunService.RenderStepped:Connect(function(dt)
+    local t = tick()
+    -- rotating rainbow background gradient
+    pillGrad.Rotation = (t * 40) % 360
+    pillGrad.Offset = Vector2.new(math.sin(t * 0.5) * 0.15, 0)
+    -- shine sweep: offset slides from -1 → 1 every 2.4s
+    local sweep = ((t * 0.42) % 1) * 2 - 1
+    shineGrad.Offset = Vector2.new(sweep, 0)
+    -- pulsing halo (breathing color + transparency)
+    local pulse = 0.5 + 0.5 * math.sin(t * 2.2)
+    pillHalo.ImageTransparency = 0.45 + pulse * 0.25
+    local hr = 180 + math.sin(t * 0.7) * 60
+    local hg = 140 + math.sin(t * 0.9 + 1) * 60
+    local hb = 220 + math.sin(t * 1.1 + 2) * 35
+    pillHalo.ImageColor3 = Color3.fromRGB(
+        math.clamp(hr, 0, 255), math.clamp(hg, 0, 255), math.clamp(hb, 0, 255)
+    )
+    -- brand text shimmer (gradient offset sweeps)
+    brandGrad.Offset = Vector2.new(((t * 0.6) % 2) - 1, 0)
+    brandGrad.Rotation = math.sin(t * 0.4) * 25
+    -- particles drift across the pill
+    for _, pt in ipairs(particles) do
+        pt.x = pt.x + pt.vx * dt
+        pt.y = pt.y + pt.vy * dt + math.sin(t * 2 + pt.hue * 6) * 0.0015
+        if pt.x > 1.05 then
+            pt.x = -0.05
+            pt.y = math.random()
+            pt.vx = 0.08 + math.random() * 0.18
+            pt.sz = 2 + math.random() * 3
+        end
+        local fade = 0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 3 + pt.hue * 8))
+        pt.node.BackgroundTransparency = fade
+        pt.node.Position = UDim2.new(pt.x, 0, math.clamp(pt.y, 0, 1), 0)
+        pt.node.Size = UDim2.new(0, pt.sz, 0, pt.sz)
+        local hueShift = (t * 0.1 + pt.hue) % 1
+        pt.node.BackgroundColor3 = Color3.fromHSV(hueShift, 0.4, 1)
+    end
+end))
+end -- end pill scope
 
 -- ============= FLOATING PANELS ====================================
 -- Move the tooltip out of the hidden Win and into Root for the new pill.
