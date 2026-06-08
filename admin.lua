@@ -2504,6 +2504,18 @@ local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
     e.gui.Enabled = true
+
+    -- Baseline reset every refresh: re-enable stroke and restore opaque bg so
+    -- per-entry overrides (outline/fill/textColor/aura) always start from a
+    -- known state. The blocks below then apply whatever the config specifies.
+    -- Aura teardown happens here too so a removed aura cleanly hands the pill
+    -- back to the normal stroke + fill renderers.
+    if e.auraStop and not Auras.canonical(cfg and cfg.aura) then
+        pcall(e.auraStop); e.auraStop = nil; e.auraName = nil
+    end
+    if e.stroke then e.stroke.Enabled = true end
+    if e.bg then e.bg.BackgroundTransparency = 0 end
+
     -- Default everyone to anonymous "user" unless an admin set an override.
     -- LP always sees their own real identity.
     local function fmtHandle(h)
@@ -2846,42 +2858,14 @@ local function refreshBill(p)
         end
     end
 
-    -- ── Aura: animated outline that replaces the static stroke + fills the
-    -- pill with a transparent interior so only the avatar/text and the aura
-    -- ring show through. Switching aura (or clearing it) tears down the
-    -- previous aura's tweens / glow frames cleanly.
-    do
-        local desired = Auras.canonical(cfg and cfg.aura)
-        if e.auraName ~= desired then
-            if e.auraStop then pcall(e.auraStop); e.auraStop = nil end
-            e.auraName = desired
-            if desired then
-                -- hide the normal bg fill + outline so the aura is the only ring
-                if e.stroke then e.stroke.Enabled = false end
-                if e.bgImg  then e.bgImg.Visible = false end
-                if e.bgGrad then e.bgGrad.Color = ColorSequence.new(Color3.new(1,1,1)) end
-                e.bg.BackgroundTransparency = 1
-                e.auraStop = Auras.apply(e.bg, desired)
-            end
-        elseif desired then
-            -- aura unchanged but other code above may have re-enabled the
-            -- stroke / fill; force them off again every refresh.
-            if e.stroke then e.stroke.Enabled = false end
-            if e.bgImg  then e.bgImg.Visible = false end
-            e.bg.BackgroundTransparency = 1
-        end
-    end
-
-
-
     -- Auto-size bubble to hug the visible text. Measure the FULL display name
     -- + @handle (not the in-progress typewriter/glitch text) so the pill stays
     -- snug even mid-animation. No artificial minimum so short names like
     -- "user / @user" render as a small pill instead of a wide rectangle.
-    local nameFull   = e.baseName or e.name.Text   or ""
-    local handleFull = handleStr  or e.handle.Text or ""
-    local nameW   = measureText(nameFull,   e.name.Font   or Enum.Font.GothamBold, 14)
-    local handleW = measureText(handleFull, e.handle.Font or Enum.Font.Gotham,     10)
+    local nameFont   = e.name.Font   or Enum.Font.GothamBold
+    local handleFont = e.handle.Font or Enum.Font.Gotham
+    local nameW   = measureText(nameStr   or "", nameFont,   14)
+    local handleW = measureText(handleStr or "", handleFont, 10)
     local textW   = math.ceil(math.max(nameW, handleW))
     -- breathing room for text-fx jitter (glitch chars, shake)
     e.name.Size   = UDim2.new(0, textW + 6, 0, 18)
@@ -2889,14 +2873,14 @@ local function refreshBill(p)
 
     local chipBlock = 0
     if e.sh and e.sh.Visible then
-        local statW = measureText(e.stat.Text, Enum.Font.GothamBold, 10)
+        local statW = measureText(e.stat.Text or "", e.stat.Font or Enum.Font.GothamBold, 10)
         local shW   = math.ceil(statW + 22)
         e.sh.Size   = UDim2.new(0, shW, 0, 22)
         chipBlock   = shW + 6
     end
 
-    -- Layout: leftPad(4) + avatar(34) + gap(6) + text + chipBlock + rightPad(8)
-    local total = 4 + 34 + 6 + textW + chipBlock + 8
+    -- Layout: leftPad(5) + avatar(34) + gap(5) + text + chipBlock + rightPad(8)
+    local total = 5 + 34 + 5 + textW + chipBlock + 8
     -- Reposition labels so they start tight after the avatar (override the
     -- 46px hardcoded offset from buildBill's initial placement).
     if e.name   then e.name.Position   = UDim2.new(0, 44, 0, 4)  end
@@ -2906,6 +2890,31 @@ local function refreshBill(p)
 
     e.bg.Size  = UDim2.new(1, 0, 1, 0)
     e.gui.Size = UDim2.new(0, total, 0, 46)
+
+    -- ── Aura: applied LAST so it cleanly overrides the static stroke + fill
+    -- with its animated ring + transparent interior. All previous renderers
+    -- (text color, outline color, fill) have already painted; aura just
+    -- swaps the visible chrome. Switching aura tears down the previous one.
+    do
+        local desired = Auras.canonical(cfg and cfg.aura)
+        if e.auraName ~= desired then
+            if e.auraStop then pcall(e.auraStop); e.auraStop = nil end
+            e.auraName = desired
+            if desired then
+                if e.stroke then e.stroke.Enabled = false end
+                if e.bgImg  then e.bgImg.Visible  = false end
+                if e.bgGrad then e.bgGrad.Color = ColorSequence.new(Color3.new(1,1,1)) end
+                e.bg.BackgroundTransparency = 1
+                e.auraStop = Auras.apply(e.bg, desired)
+            end
+        elseif desired then
+            -- aura unchanged but the baseline reset above re-enabled the
+            -- stroke / fill; force them off again so the aura is the only ring.
+            if e.stroke then e.stroke.Enabled = false end
+            if e.bgImg  then e.bgImg.Visible  = false end
+            e.bg.BackgroundTransparency = 1
+        end
+    end
 end
 
 
