@@ -185,6 +185,7 @@ end
 -- exempt. The flag is mirrored via chat broadcast (see KILL_MARK below) so
 -- a single owner toggle propagates to every script user in the server.
 _G.__SeigeKilled = _G.__SeigeKilled == true
+_G.__SeigeReducedMotion = _G.__SeigeReducedMotion == true
 local function _isOwnerLocal() return LP and LP.Name == OWNER_NAME end
 
 _G.__SeigeCan = function(action)
