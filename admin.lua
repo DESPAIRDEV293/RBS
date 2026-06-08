@@ -4476,10 +4476,12 @@ bind(UIS.InputBegan:Connect(function(i, gp)
 end))
 
 -- F6 command bar (executes !commands like !rj, !tprj)
-local cmdBarGui = inst("ScreenGui", Root, {
-    Name = "CmdBar", IgnoreGuiInset = true, ResetOnSpawn = false,
-    ZIndex = 200,
+-- IMPORTANT: ScreenGuis cannot be nested inside other ScreenGuis or they won't render.
+local cmdBarGui = inst("ScreenGui", nil, {
+    Name = "SeigeCmdBar", IgnoreGuiInset = true, ResetOnSpawn = false,
+    DisplayOrder = 200,
 })
+safeParent(cmdBarGui)
 local cmdBar = inst("Frame", cmdBarGui, {
     AnchorPoint = Vector2.new(0.5, 1),
     Position = UDim2.new(0.5, 0, 1, -24),
