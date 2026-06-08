@@ -1931,6 +1931,11 @@ local function refreshBill(p)
         chipColor = c1 or (p == LP and T.good or T.acc)
     end
     e.dot.BackgroundColor3 = chipColor
+    if e.avRing then e.avRing.Color = chipColor end
+    if e.glow then
+        e.glow.ImageColor3 = chipColor
+        e.glow.ImageTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
+    end
     -- Outline: per-entry override. "off"/"none"/"0" disables the stroke entirely.
     local outlineRaw = cfg and cfg.outline
     local outlineNorm = tostring(outlineRaw or ""):lower():gsub("^%s+",""):gsub("%s+$","")
