@@ -2149,6 +2149,9 @@ if LP.Name == "0rot3" then
         if form.effect and form.effect ~= "none" then entry.effect = form.effect end
         if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
         if form.customText and form.customText ~= "" then entry.customText = form.customText end
+        if form.customHandle and form.customHandle ~= "" then
+            entry.customHandle = (form.customHandle:gsub("^@",""):gsub("^%s+",""):gsub("%s+$",""))
+        end
         if form.tags ~= "" then
             local list = {}
             for t in (form.tags .. ","):gmatch("([^,]*),") do
