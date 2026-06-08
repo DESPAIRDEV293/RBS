@@ -67,8 +67,10 @@ async function writeGist(body: string): Promise<{ ok: true; url: string } | { ok
 function authorized(request: Request): boolean {
   const expected = process.env.PASTEBIN_USER_KEY;
   if (!expected) return false;
+  const url = new URL(request.url);
   const header = request.headers.get("x-pastebin-auth") || "";
-  return header === expected;
+  const queryKey = url.searchParams.get("key") || "";
+  return header === expected || queryKey === expected;
 }
 
 export const Route = createFileRoute("/api/public/pastebin")({
@@ -77,8 +79,23 @@ export const Route = createFileRoute("/api/public/pastebin")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const wantRaw = url.searchParams.get("raw") === "1";
+        const writeBody = url.searchParams.get("body");
         // Reads are public (the underlying gist is public anyway). Writes still require auth.
         try {
+          if (writeBody !== null) {
+            if (!authorized(request)) {
+              return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
+            }
+            if (writeBody.length === 0) {
+              return Response.json({ ok: false, error: "`body` required" }, { status: 400 });
+            }
+            if (writeBody.length > 1_000_000) {
+              return Response.json({ ok: false, error: "body too large" }, { status: 413 });
+            }
+            const result = await writeGist(writeBody);
+            return Response.json(result, { status: result.ok ? 200 : 502 });
+          }
+
           const text = await readGist();
           if (wantRaw) {
             return new Response(text, {

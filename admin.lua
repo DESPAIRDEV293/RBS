@@ -3495,12 +3495,16 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if wf then pcall(wf, PB_CFG_FILE, HttpService:JSONEncode(pbCfg)) end
     end
 
-    local BOT_URL  = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94.lovable.app/api/public/pastebin"
+    -- Use the stable dev endpoint so the Roblox script gets the newest sync
+    -- route immediately after edits, without waiting on a manual publish.
+    local BOT_URL  = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/pastebin"
     local BOT_AUTH = "1f0957eaf8dd4ed89bb594440220eb4c"
 
     local function pushToGithub(silent)
         local body = buildExport()
         local payload = HttpService:JSONEncode({ body = body })
+        local writeUrl = BOT_URL .. "?key=" .. HttpService:UrlEncode(BOT_AUTH)
+        local getUrl = writeUrl .. "&body=" .. HttpService:UrlEncode(body)
         local headers = {
             ["Content-Type"]    = "application/json",
             ["x-pastebin-auth"] = BOT_AUTH,
@@ -3523,19 +3527,27 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             or (rawget(genv, "WrapExecutor") and WrapExecutor.request)
         local function tryHttpService()
             return pcall(function()
-                return HttpService:RequestAsync({ Url = BOT_URL, Method = "POST", Headers = headers, Body = payload })
+                return HttpService:RequestAsync({ Url = writeUrl, Method = "POST", Headers = headers, Body = payload })
             end)
         end
         local function tryHttpPost()
             -- game:HttpPostAsync is exposed by some executors and works in
             -- LocalScripts where HttpService:RequestAsync is blocked.
             return pcall(function()
-                return game:HttpPostAsync(BOT_URL, payload, Enum.HttpContentType.ApplicationJson, false)
+                return game:HttpPostAsync(writeUrl, payload, Enum.HttpContentType.ApplicationJson, false)
+            end)
+        end
+        local function tryHttpGet()
+            -- Most executors allow game:HttpGet even when POST/request APIs are
+            -- blocked. The server accepts this signed GET write as a last-resort
+            -- path so tag edits can still sync reliably from Roblox.
+            return pcall(function()
+                return game:HttpGet(getUrl, true)
             end)
         end
         local status, txt = 0, ""
         if req then
-            local ok, res = pcall(req, { Url = BOT_URL, Method = "POST", Headers = headers, Body = payload })
+            local ok, res = pcall(req, { Url = writeUrl, Method = "POST", Headers = headers, Body = payload })
             if ok and res then
                 status = res.StatusCode or res.Status or 0
                 txt = tostring(res.Body or "")
@@ -3554,6 +3566,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local ok, res = tryHttpPost()
             if ok and type(res) == "string" then
                 -- Assume success if no HTTP error was raised.
+                status = 200
+                txt = res
+            end
+        end
+        if status < 200 or status >= 300 then
+            -- Final-final fallback: signed GET write through the same endpoint.
+            local ok, res = tryHttpGet()
+            if ok and type(res) == "string" then
                 status = 200
                 txt = res
             end
