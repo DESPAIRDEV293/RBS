@@ -2784,18 +2784,12 @@ local function buildBill(p)
         AlwaysOnTop = true, LightInfluence = 0,
     })
 
-    -- Soft outer glow halo (sits behind the pill, slightly larger & blurred via image)
-    local glow = inst("ImageLabel", gui, {
-        Name = "glow",
-        BackgroundTransparency = 1,
-        Image = "rbxasset://textures/ui/Controls/DropShadow.png",
-        ImageColor3 = Color3.fromRGB(0, 0, 0),
-        ImageTransparency = 0.35,
-        ScaleType = Enum.ScaleType.Slice,
-        SliceCenter = Rect.new(12, 12, 244, 244),
-        Size = UDim2.new(1, 24, 0, 60),
-        Position = UDim2.new(0, -12, 0, 2),
-        ZIndex = 0,
+    -- Outer drop-shadow glow removed: its 9-slice rectangle showed through
+    -- as a faint square halo behind the rounded pill. Keep a hidden stub
+    -- so existing references (tagBills[p].glow) stay non-nil.
+    local glow = inst("Frame", gui, {
+        Name = "glow", BackgroundTransparency = 1, Visible = false,
+        Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
     })
 
     -- CanvasGroup (not Frame) so descendants (particles, sweep, image fill,
