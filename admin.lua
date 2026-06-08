@@ -3068,6 +3068,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- Toggle for the ring/outline around the profile avatar in the pill
     local AVATAR_OUTLINE_OPTS = { "On", "Off" }
     local avOutlineDD = dropdown(pgTags, "Profile outline", AVATAR_OUTLINE_OPTS, function(v) form.avatarOutline = v end)
+
+    -- Badge chip (right-side "OWNER/DEV/..." pill). Default OFF; turn ON per-tag.
+    local SHOW_CHIP_OPTS = { "Off", "On" }
+    local showChipDD = dropdown(pgTags, "Show badge chip", SHOW_CHIP_OPTS, function(v) form.showChip = v end)
     -- Give the Tag panel's dropdowns more room; longer option values were
     -- getting clipped at the default 140px button width.
     -- The dropdown helper returns a controller (not the Frame), so walk
