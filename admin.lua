@@ -3073,6 +3073,9 @@ if LP.Name == "0rot3" then
             entry.font = form.font
         end
         if form.sweep == "off" then entry.sweep = "off" end
+        if form.element and form.element ~= "" and form.element ~= "none" then
+            entry.element = form.element
+        end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
