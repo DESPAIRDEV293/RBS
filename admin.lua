@@ -5610,7 +5610,8 @@ for _, name in ipairs(tabOrder) do
         ib.MouseLeave:Connect(function() setHover(false); Tip.Visible = false end)
         ib.MouseButton1Click:Connect(function()
             local p = panels[name]
-            p.frame.Visible = not p.frame.Visible
+            local newVis = not p.frame.Visible
+            if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, newVis) else p.frame.Visible = newVis end
             setHover(false)
         end)
     end
