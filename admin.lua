@@ -3513,6 +3513,7 @@ end
 for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant"}) do
     button(pgShaders, name, function() applyShader(name) end)
 end
+end -- end shaders scope
 
 ------------------------------------------------------- CONFIG TAB
 
