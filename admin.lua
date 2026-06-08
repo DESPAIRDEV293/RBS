@@ -3855,6 +3855,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 e.textOutline or "",
                 e.avatarOutline or "",
                 e.showChip or "",
+                e.aura or "",
             }
             -- Trim trailing empty fields so each row stays compact like the
             -- legacy entries (e.g. eyk_a). The loader pads missing tail fields
