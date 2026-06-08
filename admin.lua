@@ -180,9 +180,23 @@ _G.__SeigeMyRole = function()
     if LP.Name == OWNER_NAME then return "owner" end
     return _G.__SeigeRoleMap[LP.Name:lower()]
 end
+-- KILL SWITCH · owner-only global pause. When ON, every script user except
+-- the owner is locked out of commands and role permissions. Owner is always
+-- exempt. The flag is mirrored via chat broadcast (see KILL_MARK below) so
+-- a single owner toggle propagates to every script user in the server.
+_G.__SeigeKilled = _G.__SeigeKilled == true
+local function _isOwnerLocal() return LP and LP.Name == OWNER_NAME end
+
 _G.__SeigeCan = function(action)
     local r = _G.__SeigeMyRole()
     if not r then return false end
+    -- Owner can always do everything, kill switch or not.
+    if r == "owner" then
+        local p = ROLE_PERMS[r]
+        return p and p[action] == true
+    end
+    -- Non-owners are completely gated when the kill switch is on.
+    if _G.__SeigeKilled then return false end
     local p = ROLE_PERMS[r]
     return p and p[action] == true
 end
@@ -200,6 +214,18 @@ _G.__SeigeSetRole = function(name, role)
     return true
 end
 _G.__SeigeRoleLabel = function(r) return ROLE_LABELS[r] or "—" end
+
+-- Listeners for kill-switch state changes (UI binds here to refresh).
+_G.__SeigeKillListeners = _G.__SeigeKillListeners or {}
+_G.__SeigeSetKill = function(on, fromBroadcast)
+    on = on == true
+    if _G.__SeigeKilled == on then return end
+    _G.__SeigeKilled = on
+    for _, fn in ipairs(_G.__SeigeKillListeners) do pcall(fn, on, fromBroadcast) end
+end
+_G.__SeigeOnKill = function(fn)
+    if type(fn) == "function" then table.insert(_G.__SeigeKillListeners, fn) end
+end
 
 -- Help popup: shows role-specific commands
 local HELP_COMMANDS = {
