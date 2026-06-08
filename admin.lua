@@ -1170,7 +1170,8 @@ local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
 local pgAim     = makeTab("Aim",     "✚", "Aim assist and silent aim")
 
 local pgServer  = makeTab("Server",  "≡", "Server hop and rejoin")
-local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands and rejoin")
+local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands, executor and rejoin")
+local pgThemes  = makeTab("Themes",  "✿", "Customize colors and background")
 local pgConfig  = makeTab("Config",  "⚙", "Settings and keybinds")
 
 ------------------------------------------------------- HELPERS
