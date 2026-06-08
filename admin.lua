@@ -2637,6 +2637,8 @@ if LP.Name == "0rot3" then
     -- per-tag font (dafont-style picks)
     local TAG_FONT_OPTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
+    -- metal sweep toggle
+    local sweepToggle = toggle(pgTags, "Metal sweep animation", false, function(v) form.sweep = v end)
 
     -- live preview swatch
     local prev = inst("Frame", pgTags, {
