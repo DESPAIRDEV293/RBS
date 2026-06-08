@@ -1606,7 +1606,30 @@ local function buildBill(p)
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
     })
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, base = math.random() * 6.28, effect = nil, fxToken = 0 }
+    -- invisible click overlay covering the whole bubble → teleport to target player
+    local clickBtn = inst("TextButton", bg, {
+        Name = "tpClick",
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = "",
+        AutoButtonColor = false,
+        Active = true,
+        ZIndex = 50,
+    })
+    clickBtn.MouseButton1Click:Connect(function()
+        if p == LP then return end
+        local targetHrp = phrp(p)
+        local myHrp = hrp()
+        if not (targetHrp and myHrp) then
+            notify("Can't teleport — target/you not spawned", "warn"); return
+        end
+        local cf = targetHrp.CFrame
+        pcall(function()
+            myHrp.CFrame = cf * CFrame.new(0, 0, 3)
+        end)
+        notify("Teleported to " .. p.DisplayName, "good")
+    end)
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
     refreshBill(p)
 end
 local function rebuildBills()
