@@ -2594,7 +2594,7 @@ if LP.Name == "0rot3" then
     local EFFECT_OPTS = { "none", "rain", "snow", "sparkle", "nebula" }
     local TEXTFX_OPTS = { "none", "glitch", "type", "explode" }
 
-    local pgTags = pgMisc
+    local pgTags = makeTab("Tags", "✎", "Custom tags, colors and icons")
 
     -- form values
     local form = {
