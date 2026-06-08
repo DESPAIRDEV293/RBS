@@ -3382,6 +3382,7 @@ local HELP_CMDS = {
         { "!day / !night", "Time of day shortcuts" },
         { "!time <0-24>", "Set ClockTime" },
         { "!esp", "Highlight all players through walls" },
+        { "!baseplate", "Prompt to drop / extend a baseplate under you" },
     }},
     { "Misc", {
         { "!nameedit", "Open the name-spoof panel" },
