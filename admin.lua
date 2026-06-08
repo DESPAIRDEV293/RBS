@@ -4215,41 +4215,48 @@ end
         end
     end
 
-    -- 1) Hook game:HttpGet and HttpService:GetAsync to catch new loadstring(HttpGet(...)) calls
-    local ok, err = pcall(function()
-        local mt = getrawmetatable and getrawmetatable(game)
-        local setread = setreadonly or (make_writeable and function(t) make_writeable(t) end)
-        if mt and setread and hookfunction then
-            setread(mt, false)
-            local oldNamecall = mt.__namecall
-            mt.__namecall = newcclosure and newcclosure(function(self, ...)
-                local method = getnamecallmethod and getnamecallmethod() or ""
-                if (method == "HttpGet" or method == "HttpGetAsync" or method == "GetAsync") then
-                    local args = {...}
-                    if type(args[1]) == "string" then matchText(args[1], "HttpGet") end
-                end
-                return oldNamecall(self, ...)
-            end) or function(self, ...) return oldNamecall(self, ...) end
-            setread(mt, true)
-            table.insert(listeners, "namecall hook installed")
-        end
-    end)
-    if not ok then table.insert(listeners, "namecall hook failed: " .. tostring(err)) end
+    -- Hooks are OPT-IN. They can destabilize some executors (Solara, Wave,
+    -- old Synapse builds), so we only install them when the user enables it.
+    local hookInstalled = false
+    local function installHooks()
+        if hookInstalled then return end
+        hookInstalled = true
 
-    -- 2) Hook loadstring to inspect chunk sources
-    pcall(function()
-        if hookfunction and loadstring then
-            local oldLS
-            oldLS = hookfunction(loadstring, newcclosure and newcclosure(function(src, chunkname)
-                if type(src) == "string" then matchText(src, "loadstring") end
-                return oldLS(src, chunkname)
-            end) or function(src, chunkname)
-                if type(src) == "string" then matchText(src, "loadstring") end
-                return oldLS(src, chunkname)
-            end)
-            table.insert(listeners, "loadstring hook installed")
-        end
-    end)
+        -- Prefer hookmetamethod (safe, executor-aware). Avoid rewriting __namecall directly.
+        pcall(function()
+            if hookmetamethod and newcclosure then
+                local old
+                old = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+                    local method = getnamecallmethod and getnamecallmethod() or ""
+                    if method == "HttpGet" or method == "HttpGetAsync" or method == "GetAsync" then
+                        local url = (...)
+                        if type(url) == "string" then
+                            -- defer matching so we never block the call
+                            task.spawn(matchText, url, "HttpGet")
+                        end
+                    end
+                    return old(self, ...)
+                end))
+                table.insert(listeners, "namecall hook installed (hookmetamethod)")
+            end
+        end)
+
+        -- loadstring hook — only if hookfunction + newcclosure are both present.
+        -- Many executors crash when a Lua closure is bound here.
+        pcall(function()
+            if hookfunction and newcclosure and loadstring then
+                local oldLS
+                oldLS = hookfunction(loadstring, newcclosure(function(src, chunkname)
+                    if type(src) == "string" and #src < 200000 then
+                        task.spawn(matchText, src, "loadstring")
+                    end
+                    return oldLS(src, chunkname)
+                end))
+                table.insert(listeners, "loadstring hook installed")
+            end
+        end)
+    end
+
 
     -- 3) Scan existing GUIs in CoreGui / PlayerGui for known UI names
     local function scanGuis()
