@@ -2969,7 +2969,7 @@ do
         if current then pcall(function() current:Destroy() end); current = nil end
         local gui = inst("ScreenGui", nil, {
             Name = "SeigeSliderPopup", IgnoreGuiInset = true, ResetOnSpawn = false,
-            DisplayOrder = 220,
+            DisplayOrder = 220, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
         })
         safeParent(gui)
         current = gui
