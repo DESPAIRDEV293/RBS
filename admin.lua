@@ -5224,6 +5224,36 @@ local fxColor  = getOrMake("ColorCorrectionEffect","SeigeColor")
 local fxDOF    = getOrMake("DepthOfFieldEffect",   "SeigeDOF")
 local fxSun    = getOrMake("SunRaysEffect",        "SeigeSun")
 
+section(pgShaders, "Graphics Quality")
+local _savedTech, _savedShadows, _savedSoft, _savedDif, _savedSpc
+toggle(pgShaders, "Maximum visuals", false, function(on)
+    local Lighting = game:GetService("Lighting")
+    if on then
+        _savedTech   = Lighting.Technology
+        _savedShadows = Lighting.GlobalShadows
+        _savedSoft   = Lighting.ShadowSoftness
+        _savedDif    = Lighting.EnvironmentDiffuseScale
+        _savedSpc    = Lighting.EnvironmentSpecularScale
+        pcall(function()
+            Lighting.Technology = Enum.Technology.Future
+            Lighting.GlobalShadows = true
+            Lighting.ShadowSoftness = 0.2
+            Lighting.EnvironmentDiffuseScale = 1
+            Lighting.EnvironmentSpecularScale = 1
+        end)
+        notify("Quality: Maximum visuals enabled", "good")
+    else
+        pcall(function()
+            Lighting.Technology = (_savedTech ~= nil) and _savedTech or Enum.Technology.Compatibility
+            Lighting.GlobalShadows = (_savedShadows ~= nil) and _savedShadows or false
+            Lighting.ShadowSoftness = (_savedSoft ~= nil) and _savedSoft or 1
+            Lighting.EnvironmentDiffuseScale = (_savedDif ~= nil) and _savedDif or 0
+            Lighting.EnvironmentSpecularScale = (_savedSpc ~= nil) and _savedSpc or 0
+        end)
+        notify("Quality: Performance mode enabled", "good")
+    end
+end)
+
 section(pgShaders, "Bloom")
 toggle(pgShaders, "Enable bloom", false, function(v) fxBloom.Enabled = v end)
 slider(pgShaders, "Intensity",  0, 4,   1,    function(v) fxBloom.Intensity = v end)
