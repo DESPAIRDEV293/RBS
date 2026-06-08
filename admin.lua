@@ -1725,6 +1725,16 @@ end)
 local floatOn = false
 local tagBills = {}
 
+-- ===== Tag elements (named pill-plate presets, editable in the Tags panel) =====
+-- Each preset is a friendly name -> Roblox asset id (string). The user fills in
+-- the ids in the Tags panel; defaults are blank so nothing renders until set.
+local TAG_ELEMENT_NAMES = { "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
+local tagElements = {
+    abyss = "", aurora = "", celestial = "", crimson = "", ember = "",
+    neon = "", obsidian = "", shadow = "", solar = "", void = "",
+}
+_G.__SeigeTagElements = tagElements
+
 -- ===== Particle effects (rain / snow / sparkle / nebula) =====
 local lastSpawn = setmetatable({}, { __mode = "k" })
 local NEBULA_COLORS = {
