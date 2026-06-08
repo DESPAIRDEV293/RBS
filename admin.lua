@@ -2143,15 +2143,10 @@ local tagBills = {}
 -- Keep the old names/URLs only so older saved configs and dropdown values do
 -- not error, but do not render any tag-special layer. The special aura layer
 -- was the source of a faint square/box behind tags.
-local TAG_ELEMENT_NAMES = { "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
-local TAG_SPECIAL_BASE = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tagspecials/"
+local TAG_ELEMENT_NAMES = {}
 local TAG_SPECIAL_URLS = {}
-for _, n in ipairs(TAG_ELEMENT_NAMES) do
-    TAG_SPECIAL_URLS[n] = TAG_SPECIAL_BASE .. n .. ".png"
-end
 -- Kept for backward compat with old saved configs that referenced this table.
 local tagElements = {}
-for _, n in ipairs(TAG_ELEMENT_NAMES) do tagElements[n] = "" end
 _G.__SeigeTagElements = tagElements
 _G.__SeigeTagSpecials = TAG_SPECIAL_URLS
 
