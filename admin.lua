@@ -221,10 +221,45 @@ _G.__SeigeSetKill = function(on, fromBroadcast)
     on = on == true
     if _G.__SeigeKilled == on then return end
     _G.__SeigeKilled = on
+    if _G.__SeigeAudit then
+        _G.__SeigeAudit(
+            "toggle:kill_switch",
+            (on and "ON" or "OFF") .. (fromBroadcast and " (received)" or " (local)"),
+            true
+        )
+    end
     for _, fn in ipairs(_G.__SeigeKillListeners) do pcall(fn, on, fromBroadcast) end
 end
 _G.__SeigeOnKill = function(fn)
     if type(fn) == "function" then table.insert(_G.__SeigeKillListeners, fn) end
+end
+
+-- AUDIT LOG · per-client ring buffer of role-gated UI opens, toggles and
+-- command attempts. Each entry records who, when, what, and whether the
+-- action was permitted by the gating layer. The owner panel renders this
+-- list so abuse and unauthorized attempts can be reviewed.
+_G.__SeigeAuditLog = _G.__SeigeAuditLog or {}
+_G.__SeigeAuditListeners = _G.__SeigeAuditListeners or {}
+local AUDIT_MAX = 250
+_G.__SeigeAudit = function(action, detail, allowed)
+    local entry = {
+        t       = os.time(),
+        player  = (LP and LP.Name) or "?",
+        role    = (_G.__SeigeMyRole and _G.__SeigeMyRole()) or "none",
+        action  = tostring(action or ""),
+        detail  = tostring(detail or ""),
+        allowed = allowed ~= false,
+    }
+    table.insert(_G.__SeigeAuditLog, entry)
+    while #_G.__SeigeAuditLog > AUDIT_MAX do table.remove(_G.__SeigeAuditLog, 1) end
+    for _, fn in ipairs(_G.__SeigeAuditListeners) do pcall(fn, entry) end
+end
+_G.__SeigeOnAudit = function(fn)
+    if type(fn) == "function" then table.insert(_G.__SeigeAuditListeners, fn) end
+end
+_G.__SeigeClearAudit = function()
+    _G.__SeigeAuditLog = {}
+    for _, fn in ipairs(_G.__SeigeAuditListeners) do pcall(fn, nil) end
 end
 
 -- Help popup: shows role-specific commands
@@ -260,6 +295,7 @@ local function showRoleHelp()
     if helpGui then pcall(function() helpGui:Destroy() end); helpGui = nil end
     local role = _G.__SeigeMyRole()
     if not role then return end
+    if _G.__SeigeAudit then _G.__SeigeAudit("ui_open:role_help", "role=" .. tostring(role), true) end
     local label = _G.__SeigeRoleLabel(role)
 
     local gui = inst("ScreenGui", nil, {
@@ -3963,6 +3999,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
   ------------------------------------------------------------------
   if _G.__SeigeMyRole() == "nt" then
     local pgNtTags = makeTab("Tags", "✎", "NT Team · edit tag name, color, image")
+    if _G.__SeigeAudit then _G.__SeigeAudit("ui_open:nt_tags_tab", "NT tag editor mounted", true) end
     section(pgNtTags, "Tag editor (NT Team)")
     label(pgNtTags, "Limited editor — you can change tag names, colors and image only. Effects, fonts and other settings are restricted.")
 
@@ -4310,6 +4347,11 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
              " · script users in this server" ..
              (_isOwner and ", role management, broadcast commands" or ""))
     local pgAdmin = makeTab(_tabLabel, _tabIcon, _tabSub)
+    if _G.__SeigeAudit then
+        _G.__SeigeAudit("ui_open:admin_panel",
+            (_isOwner and "owner panel" or (_ntOnly and "nt panel" or "staff/admin panel"))
+            .. " mounted as '" .. _tabLabel .. "'", true)
+    end
 
     -- Banner showing current role + permission summary
     do
@@ -4630,6 +4672,144 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
                 end
             end
             refreshKillUI()
+        end)
+
+        ------------------------------------------------------------------
+        -- AUDIT LOG · live feed of role-gated UI opens, toggles and
+        -- command attempts on this client. Rolling buffer (250 entries).
+        ------------------------------------------------------------------
+        section(pgAdmin, "Audit log")
+        label(pgAdmin, "Live record of role-gated UI opens, toggles and command attempts (player · role · time).")
+
+        local auditCard = inst("Frame", pgAdmin, {
+            Size = UDim2.new(1, -8, 0, 220),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.25,
+            BorderSizePixel = 0,
+        })
+        corner(auditCard, 8); stroke(auditCard, T.acc, 1, 0.35)
+        inst("UIPadding", auditCard, {
+            PaddingTop = UDim.new(0, 10), PaddingBottom = UDim.new(0, 10),
+            PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
+        })
+
+        local auditHeader = inst("Frame", auditCard, {
+            Size = UDim2.new(1, 0, 0, 26),
+            BackgroundTransparency = 1, BorderSizePixel = 0,
+        })
+        local auditCount = inst("TextLabel", auditHeader, {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, -160, 1, 0),
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.acc,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "0 entries",
+        })
+        local auditRefresh = inst("TextButton", auditHeader, {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -82, 0.5, 0), Size = UDim2.new(0, 74, 0, 24),
+            BackgroundColor3 = T.bg3, BackgroundTransparency = 0.1,
+            AutoButtonColor = false, BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
+            Text = "Refresh",
+        })
+        corner(auditRefresh, 6); stroke(auditRefresh, T.line, 1, 0.4)
+        local auditClear = inst("TextButton", auditHeader, {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.new(0, 74, 0, 24),
+            BackgroundColor3 = T.bad, BackgroundTransparency = 0.15,
+            AutoButtonColor = false, BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
+            Text = "Clear",
+        })
+        corner(auditClear, 6); stroke(auditClear, T.line, 1, 0.4)
+
+        local auditScroll = inst("ScrollingFrame", auditCard, {
+            Position = UDim2.new(0, 0, 0, 32),
+            Size = UDim2.new(1, 0, 1, -32),
+            BackgroundColor3 = T.bg, BackgroundTransparency = 0.4,
+            BorderSizePixel = 0,
+            ScrollBarThickness = 3, ScrollBarImageColor3 = T.acc,
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+        })
+        corner(auditScroll, 6)
+        inst("UIListLayout", auditScroll, {
+            Padding = UDim.new(0, 3), SortOrder = Enum.SortOrder.LayoutOrder,
+        })
+        inst("UIPadding", auditScroll, {
+            PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+            PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+        })
+
+        local function _fmtTime(t)
+            local d = os.time() - (t or 0)
+            if d < 5 then return "now"
+            elseif d < 60 then return d .. "s ago"
+            elseif d < 3600 then return math.floor(d/60) .. "m ago"
+            else return math.floor(d/3600) .. "h ago" end
+        end
+
+        local function rebuildAudit()
+            for _, c in ipairs(auditScroll:GetChildren()) do
+                if c:IsA("Frame") then c:Destroy() end
+            end
+            local log = _G.__SeigeAuditLog or {}
+            auditCount.Text = #log .. " entr" .. (#log == 1 and "y" or "ies")
+            if #log == 0 then
+                inst("TextLabel", auditScroll, {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 24),
+                    Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Text = "No events yet.",
+                })
+                return
+            end
+            -- Show newest first
+            for i = #log, 1, -1 do
+                local e = log[i]
+                local row = inst("Frame", auditScroll, {
+                    Size = UDim2.new(1, 0, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    BackgroundColor3 = e.allowed and T.bg2 or T.bad,
+                    BackgroundTransparency = e.allowed and 0.45 or 0.7,
+                    BorderSizePixel = 0,
+                    LayoutOrder = (#log - i) + 1,
+                })
+                corner(row, 4)
+                inst("UIPadding", row, {
+                    PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4),
+                    PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+                })
+                inst("TextLabel", row, {
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 14),
+                    Font = Enum.Font.GothamBold, TextSize = 11,
+                    TextColor3 = e.allowed and T.acc or T.bad,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Text = string.format("%s  ·  %s  ·  %s%s",
+                        e.player or "?", e.role or "?", _fmtTime(e.t),
+                        e.allowed and "" or "  ·  BLOCKED"),
+                })
+                inst("TextLabel", row, {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 0, 0, 16),
+                    Size = UDim2.new(1, 0, 0, 0),
+                    AutomaticSize = Enum.AutomaticSize.Y,
+                    Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.text,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextWrapped = true,
+                    Text = (e.action or "") .. (e.detail ~= "" and ("  —  " .. e.detail) or ""),
+                })
+            end
+        end
+        rebuildAudit()
+        if _G.__SeigeOnAudit then _G.__SeigeOnAudit(function() rebuildAudit() end) end
+        auditRefresh.MouseButton1Click:Connect(rebuildAudit)
+        auditClear.MouseButton1Click:Connect(function()
+            if _G.__SeigeClearAudit then _G.__SeigeClearAudit() end
+            rebuildAudit()
+            notify("Audit log cleared", "good")
         end)
 
         section(pgAdmin, "Roles & permissions")
@@ -10476,10 +10656,16 @@ local function runBarCmd(raw)
     -- Kill switch: when on, lock every script user out of every command
     -- except the owner. Owner is always exempt.
     if _G.__SeigeKilled and LP.Name ~= OWNER_NAME then
+        if _G.__SeigeAudit then _G.__SeigeAudit("cmd_attempt", "!" .. cmd .. " (kill-switch blocked)", false) end
         notify("Script is paused by the owner. Commands disabled.", "bad")
         return
     end
     local h = cmdHandlers[cmd]
+    if _G.__SeigeAudit then
+        local d = "!" .. cmd
+        if arg and arg ~= "" then d = d .. " " .. (arg:len() > 60 and (arg:sub(1, 60) .. "…") or arg) end
+        _G.__SeigeAudit("cmd_attempt", d, h ~= nil)
+    end
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
