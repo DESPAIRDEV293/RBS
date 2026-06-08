@@ -93,6 +93,113 @@ local Root = inst("ScreenGui", nil, {
 })
 safeParent(Root)
 
+------------------------------------------------------- LOCKOUT GATE (!rmvp)
+-- The admin (0rot3) can lock specific users out of the script via the
+-- !rmvp <user> command. The lock is broadcast through the same chat-marker
+-- channel as !allp, and the target client persists the lock to disk so it
+-- survives rejoin. On startup, if our name is on the list, we show ONLY a
+-- "locked out" screen and halt the rest of the script. !unrmvp clears it.
+local LOCKOUT_FILE = "seige_lockout.json"
+local function _readLockSet()
+    local isf = rawget(getfenv(), "isfile")
+    local rf  = rawget(getfenv(), "readfile")
+    if not (isf and rf) then return {} end
+    local ok, exists = pcall(isf, LOCKOUT_FILE)
+    if not ok or not exists then return {} end
+    local okR, raw = pcall(rf, LOCKOUT_FILE)
+    if not okR or not raw then return {} end
+    local okD, data = pcall(HttpService.JSONDecode, HttpService, raw)
+    if not okD or type(data) ~= "table" or type(data.locked) ~= "table" then return {} end
+    local set = {}
+    for _, n in ipairs(data.locked) do if type(n) == "string" then set[n:lower()] = true end end
+    return set
+end
+local function _writeLockSet(set)
+    local wf = rawget(getfenv(), "writefile")
+    if not wf then return false end
+    local list = {}
+    for k in pairs(set) do list[#list+1] = k end
+    table.sort(list)
+    local ok, raw = pcall(HttpService.JSONEncode, HttpService, { locked = list })
+    if not ok then return false end
+    return pcall(wf, LOCKOUT_FILE, raw)
+end
+_G.__SeigeLockSet = _readLockSet()
+
+local function showLockoutScreen()
+    -- Wipe anything we already parented and replace with a minimal
+    -- "contact staff" panel. Keeps the ScreenGui so we still own the layer.
+    for _, c in ipairs(Root:GetChildren()) do pcall(function() c:Destroy() end) end
+    local dim = inst("Frame", Root, {
+        Name = "Lockout",
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = Color3.fromRGB(6, 7, 12),
+        BackgroundTransparency = 0,
+        BorderSizePixel = 0,
+        ZIndex = 999,
+    })
+    local card = inst("Frame", dim, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 420, 0, 220),
+        BackgroundColor3 = T.bg2,
+        BorderSizePixel = 0,
+        ZIndex = 1000,
+    })
+    corner(card, 14); stroke(card, T.bad, 2, 0.2)
+    inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 22), Size = UDim2.new(1, 0, 0, 28),
+        Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = T.bad,
+        Text = "ACCESS REVOKED", ZIndex = 1001,
+    })
+    inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 24, 0, 64), Size = UDim2.new(1, -48, 0, 70),
+        Font = Enum.Font.Gotham, TextSize = 14, TextColor3 = T.text,
+        TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        Text = "You have been locked out of seige.lol.\n\nContact staff to restore access.",
+        ZIndex = 1001,
+    })
+    inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 24, 1, -44), Size = UDim2.new(1, -48, 0, 18),
+        Font = Enum.Font.GothamMedium, TextSize = 11, TextColor3 = T.dim,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "User: @" .. LP.Name, ZIndex = 1001,
+    })
+    inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 24, 1, -24), Size = UDim2.new(1, -48, 0, 18),
+        Font = Enum.Font.GothamMedium, TextSize = 11, TextColor3 = T.dim,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "Status: locked", ZIndex = 1001,
+    })
+end
+
+-- Public hook so the live LOCK/UNLOCK chat handler can flip our screen
+-- without restarting the script.
+_G.__SeigeApplyLock = function(targetName, locked)
+    if not targetName then return end
+    local key = tostring(targetName):lower()
+    local set = _readLockSet()
+    if locked then set[key] = true else set[key] = nil end
+    _writeLockSet(set)
+    _G.__SeigeLockSet = set
+    if key == LP.Name:lower() then
+        if locked then showLockoutScreen() end
+        -- unlock takes effect on next rejoin (the rest of the script is gone)
+    end
+end
+
+if _G.__SeigeLockSet[LP.Name:lower()] then
+    showLockoutScreen()
+    error("[seige] locked out — contact staff", 0)
+end
+
+
+
 ------------------------------------------------------- LOAD SCREEN
 local function showLoadScreen()
     local ls = inst("Frame", Root, {
@@ -3731,6 +3838,49 @@ if LP.Name == "0rot3" then
         else
             notify("Command not ready", "bad")
         end
+    end)
+
+    section(pgAdmin, "Lockout (!rmvp / !unrmvp)")
+    label(pgAdmin, "Locks the target user out of the script. Persists on their machine until !unrmvp.")
+    local lockFrame = inst("Frame", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 80),
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3,
+        BorderSizePixel = 0,
+    })
+    corner(lockFrame, 8); stroke(lockFrame, T.line, 1, 0.5)
+    local lockBox = inst("TextBox", lockFrame, {
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+        Position = UDim2.new(0, 10, 0, 10), Size = UDim2.new(1, -20, 0, 28),
+        PlaceholderText = "Roblox username (e.g. SomeUser)",
+        PlaceholderColor3 = T.dim,
+        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ClearTextOnFocus = false,
+    })
+    corner(lockBox, 6); stroke(lockBox, T.line, 1, 0.4)
+    local lockBtn = inst("TextButton", lockFrame, {
+        Position = UDim2.new(0, 10, 0, 44), Size = UDim2.new(0.5, -14, 0, 26),
+        BackgroundColor3 = T.bad, BackgroundTransparency = 0.1, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        Text = "!rmvp · lock",
+    })
+    corner(lockBtn, 6); stroke(lockBtn, T.line, 1, 0.4)
+    local unlockBtn = inst("TextButton", lockFrame, {
+        Position = UDim2.new(0.5, 4, 0, 44), Size = UDim2.new(0.5, -14, 0, 26),
+        BackgroundColor3 = T.good, BackgroundTransparency = 0.1, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        Text = "!unrmvp · unlock",
+    })
+    corner(unlockBtn, 6); stroke(unlockBtn, T.line, 1, 0.4)
+    lockBtn.MouseButton1Click:Connect(function()
+        local n = lockBox.Text or ""
+        if n:gsub("%s", "") == "" then notify("Enter a username", "warn"); return end
+        if cmdHandlers and cmdHandlers["rmvp"] then cmdHandlers["rmvp"](n); lockBox.Text = "" end
+    end)
+    unlockBtn.MouseButton1Click:Connect(function()
+        local n = lockBox.Text or ""
+        if n:gsub("%s", "") == "" then notify("Enter a username", "warn"); return end
+        if cmdHandlers and cmdHandlers["unrmvp"] then cmdHandlers["unrmvp"](n); lockBox.Text = "" end
     end)
 end
 
@@ -8637,6 +8787,26 @@ cmdHandlers["allp"] = function(arg)
     else notify("Send failed: " .. tostring(err), "bad") end
 end
 
+-- Admin-only lockout: !rmvp <user> locks the target out of the script;
+-- !unrmvp <user> clears it. Lock is broadcast via the chat-marker channel
+-- and persisted on the target's machine so it survives rejoin.
+local function _doLock(arg, locked)
+    if LP.Name ~= "0rot3" then notify("Admin-only command", "bad"); return end
+    local target = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("^@", "")
+    if target == "" then
+        notify("Usage: " .. (locked and "!rmvp" or "!unrmvp") .. " <user>", "warn"); return
+    end
+    if not _G.__SeigeLockBroadcast then notify("Lock broadcast not ready", "bad"); return end
+    local ok, err = _G.__SeigeLockBroadcast(target, locked)
+    if ok then
+        notify((locked and "Locked " or "Unlocked ") .. target, "good")
+    else
+        notify("Failed: " .. tostring(err), "bad")
+    end
+end
+cmdHandlers["rmvp"]   = function(arg) _doLock(arg, true)  end
+cmdHandlers["unrmvp"] = function(arg) _doLock(arg, false) end
+
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
@@ -8930,6 +9100,18 @@ end)()
     -- soup if anything; script users intercept it via OnIncomingMessage and
     -- render a top banner toast instead of letting the text reach chat.
     local ALLP_MARK = "\226\159\166SEIGE-ALLP\226\159\167"  -- ⟦SEIGE-ALLP⟧
+    local LOCK_MARK   = "\226\159\166SEIGE-LOCK\226\159\167"    -- ⟦SEIGE-LOCK⟧<name>
+    local UNLOCK_MARK = "\226\159\166SEIGE-UNLOCK\226\159\167"  -- ⟦SEIGE-UNLOCK⟧<name>
+    _G.__SeigeLockMarkers = { LOCK_MARK = LOCK_MARK, UNLOCK_MARK = UNLOCK_MARK }
+    _G.__SeigeLockBroadcast = function(targetName, locked)
+        targetName = tostring(targetName or ""):gsub("^@", ""):gsub("%s+", "")
+        if targetName == "" then return false, "empty" end
+        local prefix = locked and LOCK_MARK or UNLOCK_MARK
+        -- Apply on the admin's side immediately too (keeps local list synced).
+        if _G.__SeigeApplyLock then _G.__SeigeApplyLock(targetName, locked) end
+        broadcast(prefix .. targetName)
+        return true
+    end
 
     local function showAllpBanner(senderName, msg)
         local banner = inst("Frame", Root, {
@@ -9012,6 +9194,16 @@ end)()
                 local body = text:sub(#ALLP_MARK + 1)
                 showAllpBanner(srcPlayer.DisplayName or srcPlayer.Name, body)
             end
+            return true
+        end
+        if type(text) == "string" and text:sub(1, #LOCK_MARK) == LOCK_MARK then
+            local target = text:sub(#LOCK_MARK + 1):gsub("^%s+", ""):gsub("%s+$", "")
+            if target ~= "" and _G.__SeigeApplyLock then _G.__SeigeApplyLock(target, true) end
+            return true
+        end
+        if type(text) == "string" and text:sub(1, #UNLOCK_MARK) == UNLOCK_MARK then
+            local target = text:sub(#UNLOCK_MARK + 1):gsub("^%s+", ""):gsub("%s+$", "")
+            if target ~= "" and _G.__SeigeApplyLock then _G.__SeigeApplyLock(target, false) end
             return true
         end
         if not isExecMark(text) then return false end
