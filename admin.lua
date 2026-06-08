@@ -10512,10 +10512,16 @@ local function runBarCmd(raw)
     -- Kill switch: when on, lock every script user out of every command
     -- except the owner. Owner is always exempt.
     if _G.__SeigeKilled and LP.Name ~= OWNER_NAME then
+        if _G.__SeigeAudit then _G.__SeigeAudit("cmd_attempt", "!" .. cmd .. " (kill-switch blocked)", false) end
         notify("Script is paused by the owner. Commands disabled.", "bad")
         return
     end
     local h = cmdHandlers[cmd]
+    if _G.__SeigeAudit then
+        local d = "!" .. cmd
+        if arg and arg ~= "" then d = d .. " " .. (arg:len() > 60 and (arg:sub(1, 60) .. "…") or arg) end
+        _G.__SeigeAudit("cmd_attempt", d, h ~= nil)
+    end
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
