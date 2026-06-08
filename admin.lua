@@ -1391,6 +1391,7 @@ local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
 
 
 local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands, executor and rejoin")
+local pgSpotify = makeTab("Spotify", "♫", "Connect your token and control playback")
 local pgThemes  = makeTab("Themes",  "✿", "Customize colors and background")
 local pgShaders = makeTab("Shaders", "☀", "Real post-processing: bloom, blur, DOF, color")
 local pgConfig  = makeTab("Config",  "⚙", "Settings and keybinds")
