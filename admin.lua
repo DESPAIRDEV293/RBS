@@ -6399,7 +6399,7 @@ end)()
 -- ===== Voice helper (uses real Roblox VoiceChat APIs) =====
 -- Exposes _G.__SeigeVoice with: isAvailable, isMuted, setMuted, leave, join,
 -- cycle, summary. Used by both the Voice popout and the !antivc command.
-do
+(function()
     local function tryCall(obj, methods, ...)
         if not obj then return false end
         for _, m in ipairs(methods) do
