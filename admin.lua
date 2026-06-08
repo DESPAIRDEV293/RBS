@@ -1740,8 +1740,8 @@ local function parsePastebin(src)
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
                 if parts[11] and parts[11] ~= "" then entry.font = parts[11] end
                 if parts[12] and parts[12] ~= "" then entry.sweep = parts[12]:lower() end
-        -- Tag specials are intentionally ignored/stripped so old saved values
-        -- cannot bring back the faint square aura behind tags.
+                -- Old tag-special field intentionally ignored/stripped so saved
+                -- values cannot bring back the faint square aura behind tags.
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -3929,7 +3929,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
   ------------------------------------------------------------------
   -- NT TEAM TAGS  ·  limited Tags tab for users with role == "nt"
   -- They can ONLY edit: tag name(s), color (hex), and image (icon).
-  -- No effects, no fonts, no animation/element specials, no pastebin
+  -- No effects, no fonts, no animations, no pastebin
   -- sync, no export. Owner/Admin/Staff still see the full editor above.
   ------------------------------------------------------------------
   if _G.__SeigeMyRole() == "nt" then
@@ -3988,7 +3988,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
         -- Start from existing entry so we preserve fields NT can't edit
-        -- (effects, fonts, element, customText, displayName, outline, etc.).
+        -- (effects, fonts, customText, displayName, outline, etc.).
         local existing = TagDB.entries[key] or {}
         local entry = {}
         for k, v in pairs(existing) do entry[k] = v end
