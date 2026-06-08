@@ -5686,6 +5686,76 @@ do
     end
 end
 
+-- Generic command result window: pops a draggable list of rows so commands
+-- like !taglist, !list, !tagfind etc. show results in a GUI instead of a toast.
+local function _openResultPanel(key, title, rows, opts)
+    opts = opts or {}
+    local empty = opts.empty or "No results."
+    _openPanel(key, title, opts.height or 360, function(body)
+        local header
+        if opts.subtitle then
+            header = inst("TextLabel", body, {
+                BackgroundTransparency = 1, Size = UDim2.new(1, -4, 0, 16),
+                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                TextXAlignment = Enum.TextXAlignment.Left, Text = opts.subtitle,
+            })
+        end
+        local scroll = inst("ScrollingFrame", body, {
+            Size = UDim2.new(1, -4, 1, header and -22 or 0),
+            BackgroundTransparency = 1, BorderSizePixel = 0,
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollBarThickness = 4, ScrollBarImageColor3 = T.line,
+        })
+        inst("UIListLayout", scroll, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+        inst("UIPadding", scroll, { PaddingRight = UDim.new(0, 4) })
+        if not rows or #rows == 0 then
+            inst("TextLabel", scroll, {
+                BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 24),
+                Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.sub,
+                TextXAlignment = Enum.TextXAlignment.Left, Text = empty,
+            })
+            return
+        end
+        for _, r in ipairs(rows) do
+            local row = inst("Frame", scroll, {
+                Size = UDim2.new(1, 0, 0, 26),
+                BackgroundColor3 = T.bg2, BorderSizePixel = 0,
+            })
+            corner(row, 6)
+            inst("UIPadding", row, { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8) })
+            if r.swatch then
+                local sw = inst("Frame", row, {
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    Position = UDim2.new(0, 0, 0.5, 0),
+                    Size = UDim2.new(0, 14, 0, 14),
+                    BackgroundColor3 = r.swatch, BorderSizePixel = 0,
+                })
+                corner(sw, 4); stroke(sw, T.line, 1, 0.4)
+            end
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, r.swatch and 22 or 0, 0, 0),
+                Size = UDim2.new(1, r.swatch and -22 or 0, 1, 0),
+                Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+                TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+                Text = tostring(r.text or r[1] or ""),
+            })
+            if r.right then
+                inst("TextLabel", row, {
+                    AnchorPoint = Vector2.new(1, 0),
+                    Position = UDim2.new(1, 0, 0, 0), Size = UDim2.new(0, 80, 1, 0),
+                    BackgroundTransparency = 1,
+                    Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                    TextXAlignment = Enum.TextXAlignment.Right, Text = tostring(r.right),
+                })
+            end
+        end
+    end)
+end
+_G.__SeigeOpenResultPanel = _openResultPanel
+do return end
+
 -- ===== Help panel: full command reference =====
 (function()
 local HELP_CMDS = {
