@@ -4500,7 +4500,6 @@ _G.__AdminCleanup = function()
     for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
     conns = {}
     killFly()
-    clearEsp()
     clearBills()
     pcall(function() Root:Destroy() end)
     pcall(function() Lighting.Brightness = 1; Lighting.GlobalShadows = true; Lighting.Ambient = Color3.fromRGB(70,70,70) end)
