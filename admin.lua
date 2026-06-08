@@ -98,7 +98,7 @@ local function showLoadScreen()
     local ls = inst("Frame", Root, {
         Name = "LoadScreen",
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(8, 9, 14),
+        BackgroundColor3 = Color3.fromRGB(6, 7, 12),
         BackgroundTransparency = 0,
         BorderSizePixel = 0,
         ZIndex = 500,
@@ -106,22 +106,71 @@ local function showLoadScreen()
     inst("UIGradient", ls, {
         Rotation = 135,
         Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(14, 16, 24)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(6, 7, 12)),
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(14, 16, 26)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(8, 9, 16)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(4, 5, 10)),
         },
     })
+
+    -- subtle vignette glow blob behind the card
+    local glow = inst("Frame", ls, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 700, 0, 700),
+        BackgroundColor3 = T.acc,
+        BackgroundTransparency = 0.85,
+        BorderSizePixel = 0,
+        ZIndex = 500,
+    })
+    corner(glow, 9999)
+    inst("UIGradient", glow, {
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, 0.75),
+            NumberSequenceKeypoint.new(0.5, 0.9),
+            NumberSequenceKeypoint.new(1, 1),
+        },
+        Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, T.acc),
+            ColorSequenceKeypoint.new(1, T.acc2),
+        },
+        Rotation = 0,
+    })
+
+    -- floating particles
+    for i = 1, 18 do
+        local p = inst("Frame", ls, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(math.random(), 0, 1 + math.random() * 0.2, 0),
+            Size = UDim2.new(0, math.random(2, 4), 0, math.random(2, 4)),
+            BackgroundColor3 = (i % 3 == 0) and T.acc2 or T.acc,
+            BackgroundTransparency = 0.5 + math.random() * 0.3,
+            BorderSizePixel = 0,
+            ZIndex = 500,
+        })
+        corner(p, 9999)
+        task.spawn(function()
+            while p.Parent do
+                local dur = 4 + math.random() * 4
+                TweenService:Create(p, TweenInfo.new(dur, Enum.EasingStyle.Linear), {
+                    Position = UDim2.new(math.random(), 0, -0.2, 0),
+                }):Play()
+                task.wait(dur)
+                p.Position = UDim2.new(math.random(), 0, 1.1, 0)
+            end
+        end)
+    end
 
     local card = inst("Frame", ls, {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 360, 0, 180),
+        Size = UDim2.new(0, 440, 0, 260),
         BackgroundColor3 = T.glass,
-        BackgroundTransparency = 0.1,
+        BackgroundTransparency = 0.05,
         BorderSizePixel = 0,
         ZIndex = 501,
     })
-    corner(card, 16)
-    stroke(card, T.acc, 1, 0.5)
+    corner(card, 20)
+    stroke(card, T.acc, 1, 0.35)
     inst("UIGradient", card, {
         Rotation = 120,
         Color = ColorSequence.new{
@@ -130,44 +179,117 @@ local function showLoadScreen()
         },
     })
 
-    local title = inst("TextLabel", card, {
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, 26),
-        Size = UDim2.new(1, 0, 0, 28),
-        Font = Enum.Font.GothamBold,
-        Text = "seige.lol",
-        TextColor3 = T.text,
-        TextSize = 22,
+    -- accent bar at top of card
+    local accentBar = inst("Frame", card, {
+        Position = UDim2.new(0.5, -1, 0, 0),
+        AnchorPoint = Vector2.new(0.5, 0),
+        Size = UDim2.new(0, 0, 0, 2),
+        BackgroundColor3 = T.acc,
+        BorderSizePixel = 0,
+        ZIndex = 503,
+    })
+    inst("UIGradient", accentBar, {
+        Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, T.acc2),
+            ColorSequenceKeypoint.new(1, T.acc),
+        },
+    })
+
+    -- avatar ring (tries to fetch player's headshot)
+    local ring = inst("Frame", card, {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 24),
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = T.bg3,
+        BorderSizePixel = 0,
         ZIndex = 502,
     })
-    local sub = inst("TextLabel", card, {
+    corner(ring, 9999)
+    stroke(ring, T.acc, 2, 0.2)
+    local avatar = inst("ImageLabel", ring, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(1, -6, 1, -6),
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, 56),
+        Image = "",
+        ImageTransparency = 1,
+        ZIndex = 503,
+    })
+    corner(avatar, 9999)
+    task.spawn(function()
+        local ok, img = pcall(function()
+            return Players:GetUserThumbnailAsync(LP.UserId,
+                Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150)
+        end)
+        if ok and img then
+            avatar.Image = img
+            TweenService:Create(avatar, TweenInfo.new(0.5), { ImageTransparency = 0 }):Play()
+        end
+    end)
+
+    local welcome = inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 96),
         Size = UDim2.new(1, 0, 0, 16),
         Font = Enum.Font.Gotham,
-        Text = "Loading admin · " .. ADMIN_BUILD,
+        Text = "WELCOME TO",
         TextColor3 = T.sub,
         TextSize = 11,
+        TextTransparency = 1,
+        ZIndex = 502,
+    })
+    -- letter-space the welcome
+    welcome.Text = "W E L C O M E   T O"
+
+    local title = inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 116),
+        Size = UDim2.new(1, 0, 0, 32),
+        Font = Enum.Font.GothamBold,
+        Text = "Seige Admin",
+        TextColor3 = T.text,
+        TextSize = 26,
+        TextTransparency = 1,
+        ZIndex = 502,
+    })
+    inst("UIGradient", title, {
+        Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, T.text),
+            ColorSequenceKeypoint.new(1, T.acc),
+        },
+    })
+
+    local displayName = LP.DisplayName ~= "" and LP.DisplayName or LP.Name
+    local hello = inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 152),
+        Size = UDim2.new(1, 0, 0, 18),
+        Font = Enum.Font.GothamMedium,
+        Text = "hey, " .. displayName,
+        TextColor3 = T.acc,
+        TextSize = 14,
+        TextTransparency = 1,
         ZIndex = 502,
     })
 
     -- progress bar
     local barBg = inst("Frame", card, {
         AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.new(0.5, 0, 0, 96),
-        Size = UDim2.new(0, 280, 0, 6),
+        Position = UDim2.new(0.5, 0, 0, 188),
+        Size = UDim2.new(0, 320, 0, 4),
         BackgroundColor3 = T.bg3,
+        BackgroundTransparency = 0.3,
         BorderSizePixel = 0,
         ZIndex = 502,
     })
-    corner(barBg, 3)
+    corner(barBg, 2)
     local barFill = inst("Frame", barBg, {
         Size = UDim2.new(0, 0, 1, 0),
         BackgroundColor3 = T.acc,
         BorderSizePixel = 0,
         ZIndex = 503,
     })
-    corner(barFill, 3)
+    corner(barFill, 2)
     inst("UIGradient", barFill, {
         Color = ColorSequence.new{
             ColorSequenceKeypoint.new(0, T.acc2),
@@ -177,23 +299,25 @@ local function showLoadScreen()
 
     local status = inst("TextLabel", card, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, 116),
+        Position = UDim2.new(0, 0, 0, 204),
         Size = UDim2.new(1, 0, 0, 14),
         Font = Enum.Font.Gotham,
         Text = "Initializing…",
         TextColor3 = T.dim,
         TextSize = 10,
+        TextTransparency = 1,
         ZIndex = 502,
     })
 
     local credit = inst("TextLabel", card, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 1, -22),
+        Position = UDim2.new(0, 0, 1, -20),
         Size = UDim2.new(1, 0, 0, 14),
         Font = Enum.Font.Gotham,
-        Text = "made by seige · " .. (LP.Name or ""),
+        Text = "seige.lol · " .. ADMIN_BUILD,
         TextColor3 = T.dim,
         TextSize = 10,
+        TextTransparency = 1,
         ZIndex = 502,
     })
 
@@ -206,30 +330,60 @@ local function showLoadScreen()
         "Ready",
     }
 
-    local function tween(obj, t, props)
-        TweenService:Create(obj, TweenInfo.new(t, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+    local function tw(obj, t, props, style)
+        TweenService:Create(obj,
+            TweenInfo.new(t, style or Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            props):Play()
     end
 
-    -- entrance
-    card.Size = UDim2.new(0, 360, 0, 0)
-    tween(card, 0.35, { Size = UDim2.new(0, 360, 0, 180) })
+    -- entrance: card pops up, then text fades in sequentially
+    card.Size = UDim2.new(0, 440, 0, 0)
+    card.BackgroundTransparency = 1
+    tw(card, 0.45, { Size = UDim2.new(0, 440, 0, 260), BackgroundTransparency = 0.05 }, Enum.EasingStyle.Back)
+    tw(accentBar, 0.6, { Size = UDim2.new(1, -2, 0, 2) })
+    tw(ring, 0.5, { Size = UDim2.new(0, 64, 0, 64) }, Enum.EasingStyle.Back)
+
+    -- breathing glow loop
+    task.spawn(function()
+        while ls.Parent do
+            TweenService:Create(glow, TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+                { BackgroundTransparency = 0.92 }):Play()
+            task.wait(2.4)
+            TweenService:Create(glow, TweenInfo.new(2.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+                { BackgroundTransparency = 0.8 }):Play()
+            task.wait(2.4)
+        end
+    end)
 
     task.spawn(function()
+        task.wait(0.3)
+        tw(welcome, 0.4, { TextTransparency = 0 })
+        task.wait(0.15)
+        tw(title, 0.5, { TextTransparency = 0 })
+        task.wait(0.2)
+        tw(hello, 0.5, { TextTransparency = 0 })
+        task.wait(0.15)
+        tw(status, 0.4, { TextTransparency = 0 })
+        tw(credit, 0.4, { TextTransparency = 0.3 })
+
         for i, label in ipairs(steps) do
             status.Text = label .. "…"
             local pct = i / #steps
-            tween(barFill, 0.25, { Size = UDim2.new(pct, 0, 1, 0) })
-            task.wait(0.22 + math.random() * 0.18)
+            tw(barFill, 0.3, { Size = UDim2.new(pct, 0, 1, 0) })
+            task.wait(0.2 + math.random() * 0.15)
         end
-        task.wait(0.2)
-        tween(ls, 0.4, { BackgroundTransparency = 1 })
-        tween(card, 0.4, { BackgroundTransparency = 1 })
-        for _, d in ipairs(card:GetDescendants()) do
-            if d:IsA("TextLabel") then tween(d, 0.4, { TextTransparency = 1 })
-            elseif d:IsA("Frame") then tween(d, 0.4, { BackgroundTransparency = 1 })
-            elseif d:IsA("UIStroke") then tween(d, 0.4, { Transparency = 1 }) end
+        task.wait(0.35)
+
+        -- exit
+        tw(ls, 0.5, { BackgroundTransparency = 1 })
+        tw(card, 0.45, { BackgroundTransparency = 1, Size = UDim2.new(0, 440, 0, 240) })
+        for _, d in ipairs(ls:GetDescendants()) do
+            if d:IsA("TextLabel") then TweenService:Create(d, TweenInfo.new(0.35), { TextTransparency = 1 }):Play()
+            elseif d:IsA("Frame") then TweenService:Create(d, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
+            elseif d:IsA("ImageLabel") then TweenService:Create(d, TweenInfo.new(0.35), { ImageTransparency = 1 }):Play()
+            elseif d:IsA("UIStroke") then TweenService:Create(d, TweenInfo.new(0.35), { Transparency = 1 }):Play() end
         end
-        task.wait(0.45)
+        task.wait(0.55)
         ls:Destroy()
     end)
 end
