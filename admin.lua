@@ -10386,6 +10386,12 @@ local function runBarCmd(raw)
     local cmd, arg = s:match("^(%S+)%s*(.*)$")
     if not cmd then return end
     cmd = cmd:lower()
+    -- Kill switch: when on, lock every script user out of every command
+    -- except the owner. Owner is always exempt.
+    if _G.__SeigeKilled and LP.Name ~= OWNER_NAME then
+        notify("Script is paused by the owner. Commands disabled.", "bad")
+        return
+    end
     local h = cmdHandlers[cmd]
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
