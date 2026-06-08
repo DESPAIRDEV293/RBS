@@ -5753,7 +5753,7 @@ local function _openResultPanel(key, title, rows, opts)
         end
     end)
 end
-_G.__SeigeOpenResultPanel = _openResultPanel
+_G.__SeigeOpenResultPanel = _openResultPanel;
 
 -- ===== Help panel: full command reference =====
 (function()
