@@ -5937,14 +5937,7 @@ cmdHandlers["night"] = function() pcall(function() game:GetService("Lighting").C
 -- 4) Invisible — hide your character locally (transparent + can't be seen by camera)
 cmdHandlers["invis"] = function()
     local c = LP.Character; if not c then notify("No character", "bad"); return end
-    _G.__InvisOn = not _G.__InvisOn
-    for _, d in ipairs(c:GetDescendants()) do
-        if d:IsA("BasePart") then
-            pcall(function() d.LocalTransparencyModifier = _G.__InvisOn and 1 or 0 end)
-        elseif d:IsA("Decal") or d:IsA("Texture") then
-            pcall(function() d.Transparency = _G.__InvisOn and 1 or 0 end)
-        end
-    end
+    applyInvisState(not _G.__InvisOn)
     notify(_G.__InvisOn and "Invisible (local)" or "Visible", "good")
 end
 cmdHandlers["visible"] = cmdHandlers["invis"]
