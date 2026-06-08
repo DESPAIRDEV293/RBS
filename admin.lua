@@ -4870,7 +4870,7 @@ cmdHandlers["info"] = function()
 end
 
 cmdHandlers["help"] = function()
-    notify("!rj !tprj !r !reset !ws !jp !jump !heal !god !ungod !noclip !clip !fly !unfly !goto !tp !spectate !unspectate !fling !pos !save !load !sit !face !head !bang !unbang !info", "good")
+    notify("!rj !tprj !r !reset !ws !jp !jump !heal !god !ungod !noclip !clip !fly !unfly !goto !tp !to !spectate !unspectate !fling !pos !save !load !sit !face !head !bang !unbang !info", "good")
 end
 
 
