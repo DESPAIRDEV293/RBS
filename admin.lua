@@ -3110,183 +3110,7 @@ button(pgServer, "Copy JobId", function()
     if setclipboard then setclipboard(game.JobId); notify("JobId copied", "good") end
 end)
 
-------------------------------------------------------- SCRIPT DETECTOR
-do
-    section(pgServer, "Detected scripts")
-
-    -- Signatures: { name, kind, key }
-    -- kind = "gui"  → ScreenGui/Folder name match anywhere in CoreGui / PlayerGui
-    -- kind = "glob" → _G or getgenv() key present
-    -- kind = "fn"   → global function present (executor fingerprints)
-    local SIGS = {
-        -- Admin scripts
-        { "AK Admin",          "gui",  "AkAdmin"           },
-        { "AK Admin",          "gui",  "AKADMIN"           },
-        { "AK Admin",          "glob", "AkAdmin"           },
-        { "Novoline",          "gui",  "Novoline"          },
-        { "Novoline",          "gui",  "novoline"          },
-        { "Novoline",          "glob", "Novoline"          },
-        { "Infinite Yield",    "gui",  "IYMain"            },
-        { "Infinite Yield",    "glob", "IY_LOADED"         },
-        { "Nameless Admin",    "gui",  "NamelessAdmin"     },
-        { "CMD-X",             "gui",  "CMDXAdmin"         },
-        { "Reviz Admin",       "gui",  "Reviz"             },
-        { "Homebrew",          "gui",  "Homebrew"          },
-        { "Seige.lol",         "gui",  "SeigeAdminGui"     },
-        -- Hubs / spies
-        { "Owl Hub",           "gui",  "OwlHub"            },
-        { "Dex Explorer",      "gui",  "Dex"               },
-        { "Remote Spy",        "gui",  "RemoteSpy"         },
-        { "SimpleSpy",         "gui",  "SimpleSpy"         },
-        { "Hydroxide",         "glob", "Hydroxide"         },
-        -- Executors
-        { "Synapse X",         "glob", "syn"               },
-        { "Script-Ware",       "fn",   "is_sirhurt_closure"},
-        { "KRNL",              "glob", "KRNL_LOADED"       },
-        { "Fluxus",            "glob", "fluxus"            },
-        { "Wave",              "glob", "Wave"              },
-        { "Solara",            "fn",   "issolara"          },
-        { "Xeno",              "glob", "Xeno"              },
-        { "AWP.gg",            "glob", "AWP"               },
-        { "Codex",             "glob", "Codex"             },
-    }
-
-    local function genv()
-        local ok, g = pcall(function() return getgenv() end)
-        if ok and g then return g end
-        return _G
-    end
-
-    local function scanGuis(needle)
-        local needleL = needle:lower()
-        local roots = { LP:FindFirstChild("PlayerGui") }
-        pcall(function() table.insert(roots, game:GetService("CoreGui")) end)
-        for _, root in ipairs(roots) do
-            if root then
-                local ok, desc = pcall(function() return root:GetDescendants() end)
-                if ok and desc then
-                    for _, d in ipairs(desc) do
-                        if d.Name:lower():find(needleL, 1, true) then
-                            return true, d:GetFullName()
-                        end
-                    end
-                end
-            end
-        end
-        return false
-    end
-
-    local function detectAll()
-        local hits = {}
-        local seen = {}
-        local g = genv()
-        for _, sig in ipairs(SIGS) do
-            local name, kind, key = sig[1], sig[2], sig[3]
-            if not seen[name] then
-                local hit, detail = false, nil
-                if kind == "gui" then
-                    hit, detail = scanGuis(key)
-                elseif kind == "glob" then
-                    if rawget(g, key) ~= nil or rawget(_G, key) ~= nil then
-                        hit = true; detail = "_G." .. key
-                    end
-                elseif kind == "fn" then
-                    if type(rawget(g, key)) == "function" or type(rawget(_G, key)) == "function" then
-                        hit = true; detail = key .. "()"
-                    end
-                end
-                if hit then
-                    seen[name] = true
-                    table.insert(hits, { name = name, detail = detail or key })
-                end
-            end
-        end
-        -- Executor fingerprint via identifyexecutor()
-        local ie = rawget(g, "identifyexecutor") or rawget(_G, "identifyexecutor")
-        if type(ie) == "function" then
-            local ok, n, v = pcall(ie)
-            if ok and n then
-                table.insert(hits, 1, { name = "Executor: " .. tostring(n) .. (v and (" " .. tostring(v)) or ""), detail = "identifyexecutor()" })
-            end
-        end
-        return hits
-    end
-
-    local statusLbl = label(pgServer, "Scanning…")
-    local listFrame = inst("Frame", pgServer, {
-        Size = UDim2.new(1, -8, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.35, BorderSizePixel = 0,
-    })
-    corner(listFrame, 8); stroke(listFrame, T.line, 1, 0.5)
-    inst("UIPadding", listFrame, {
-        PaddingTop = UDim.new(0,6), PaddingBottom = UDim.new(0,6),
-        PaddingLeft = UDim.new(0,8), PaddingRight = UDim.new(0,8),
-    })
-    inst("UIListLayout", listFrame, {
-        SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4),
-    })
-
-    local function refresh()
-        for _, c in ipairs(listFrame:GetChildren()) do
-            if c:IsA("TextLabel") then c:Destroy() end
-        end
-        local hits = detectAll()
-        if #hits == 0 then
-            statusLbl.Text = "No third-party scripts detected"
-            statusLbl.TextColor3 = T.good
-            inst("TextLabel", listFrame, {
-                BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 16),
-                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
-                TextXAlignment = Enum.TextXAlignment.Left, Text = "— clean —",
-            })
-        else
-            statusLbl.Text = "Detected " .. #hits .. " script" .. (#hits > 1 and "s" or "")
-            statusLbl.TextColor3 = T.warn
-            for _, h in ipairs(hits) do
-                local row = inst("TextLabel", listFrame, {
-                    BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 28),
-                    Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = T.text,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Text = "● " .. h.name,
-                    RichText = true,
-                })
-                inst("TextLabel", row, {
-                    BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 14),
-                    Size = UDim2.new(1, -12, 0, 12),
-                    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Text = h.detail,
-                })
-            end
-        end
-    end
-
-    button(pgServer, "Rescan now", refresh)
-    button(pgServer, "Copy detection report", function()
-        local hits = detectAll()
-        local lines = { "[seige.lol] script detection on " .. LP.Name .. " @ " .. os.date("!%Y-%m-%dT%H:%M:%SZ") }
-        if #hits == 0 then
-            table.insert(lines, "  (none)")
-        else
-            for _, h in ipairs(hits) do table.insert(lines, "  • " .. h.name .. "  —  " .. h.detail) end
-        end
-        local txt = table.concat(lines, "\n")
-        if setclipboard then setclipboard(txt); notify("Report copied", "good")
-        else notify("setclipboard unavailable", "warn") end
-    end)
-
-    -- initial + periodic auto-scan
-    task.spawn(function()
-        while statusLbl and statusLbl.Parent do
-            pcall(refresh)
-            task.wait(5)
-        end
-    end)
-end
-
 ------------------------------------------------------- CMDS TAB
-
 section(pgCmds, "Rejoin")
 button(pgCmds, "Rejoin (same server)", function()
     local ok, err = pcall(function()
@@ -4071,9 +3895,7 @@ end
 Win.Visible = false   -- retire the legacy chrome (kept around for compat)
 
 -- ============= TOP PILL ===========================================
-local Pill, iconsRow
-do -- scoped to avoid bumping the top-level local limit
-Pill = inst("Frame", Root, {
+local Pill = inst("Frame", Root, {
     Name = "TopPill",
     AnchorPoint = Vector2.new(0.5, 0),
     Position = UDim2.new(0.5, 0, 0, 14),
@@ -4085,74 +3907,12 @@ Pill = inst("Frame", Root, {
     Active = true,
     ZIndex = 100,
 })
-corner(Pill, 16); stroke(Pill, T.line, 1, 0.4)
-local pillGrad = inst("UIGradient", Pill, {
-    Rotation = 0,
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 90, 160)),
-        ColorSequenceKeypoint.new(0.25, Color3.fromRGB(180, 120, 255)),
-        ColorSequenceKeypoint.new(0.50, Color3.fromRGB(90, 200, 255)),
-        ColorSequenceKeypoint.new(0.75, Color3.fromRGB(120, 255, 200)),
-        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 200, 120)),
-    }),
-    Transparency = NumberSequence.new(0.55),
+corner(Pill, 14); stroke(Pill, T.line, 1, 0.4)
+inst("UIGradient", Pill, {
+    Rotation = 90,
+    Color = ColorSequence.new(T.bg2, T.bg),
+    Transparency = NumberSequence.new(0.08),
 })
--- Animated halo glow behind the pill
-local pillHalo = inst("ImageLabel", Pill, {
-    BackgroundTransparency = 1,
-    Image = "rbxasset://textures/ui/Controls/DropShadow.png",
-    ImageColor3 = Color3.fromRGB(180, 140, 255),
-    ImageTransparency = 0.55,
-    ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(12,12,244,244),
-    Size = UDim2.new(1, 60, 1, 60), Position = UDim2.new(0, -30, 0, -30),
-    ZIndex = 99,
-})
--- Inner shine sweep (animated highlight crossing the pill)
-local pillShine = inst("Frame", Pill, {
-    Name = "Shine",
-    Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
-    ZIndex = 100, ClipsDescendants = false,
-})
-corner(pillShine, 16)
-local shineGrad = inst("UIGradient", pillShine, {
-    Rotation = 25,
-    Transparency = NumberSequence.new({
-        NumberSequenceKeypoint.new(0.0, 1),
-        NumberSequenceKeypoint.new(0.45, 1),
-        NumberSequenceKeypoint.new(0.5, 0.55),
-        NumberSequenceKeypoint.new(0.55, 1),
-        NumberSequenceKeypoint.new(1.0, 1),
-    }),
-    Color = ColorSequence.new(Color3.new(1,1,1)),
-    Offset = Vector2.new(-1, 0),
-})
--- Particle layer
-local pillFx = inst("Frame", Pill, {
-    Name = "Fx", Size = UDim2.new(1, 0, 1, 0),
-    BackgroundTransparency = 1, ZIndex = 102, ClipsDescendants = true,
-})
-corner(pillFx, 16)
-local particles = {}
-for i = 1, 14 do
-    local p = inst("Frame", pillFx, {
-        Size = UDim2.new(0, 3, 0, 3),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 0.2,
-        BorderSizePixel = 0,
-        ZIndex = 103,
-        AnchorPoint = Vector2.new(0.5, 0.5),
-    })
-    corner(p, 4)
-    particles[i] = {
-        node = p,
-        x = math.random(),
-        y = math.random(),
-        vx = 0.08 + math.random() * 0.18,
-        vy = (math.random() - 0.5) * 0.04,
-        sz = 2 + math.random() * 3,
-        hue = math.random(),
-    }
-end
 inst("UIPadding", Pill, {
     PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
     PaddingTop = UDim.new(0, 5),  PaddingBottom = UDim.new(0, 5),
@@ -4185,20 +3945,11 @@ local pingLbl = inst("TextLabel", statBlock, {
 local brandBlock = inst("Frame", Pill, {
     Size = UDim2.new(0, 120, 1, -4), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 101,
 })
-local brandLbl = inst("TextLabel", brandBlock, {
+inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
     Size = UDim2.new(1, 0, 0, 14),
-    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = Color3.new(1,1,1),
+    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
     TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
-})
-local brandGrad = inst("UIGradient", brandLbl, {
-    Rotation = 0,
-    Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 120, 200)),
-        ColorSequenceKeypoint.new(0.50, Color3.fromRGB(140, 200, 255)),
-        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(180, 255, 200)),
-    }),
-    Offset = Vector2.new(0, 0),
 })
 inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
@@ -4208,7 +3959,7 @@ inst("TextLabel", brandBlock, {
 })
 
 -- Icon button row
-iconsRow = inst("Frame", Pill, {
+local iconsRow = inst("Frame", Pill, {
     Size = UDim2.new(0, 0, 1, -4),
     AutomaticSize = Enum.AutomaticSize.X,
     BackgroundTransparency = 1, LayoutOrder = 3, ZIndex = 101,
@@ -4265,48 +4016,6 @@ task.spawn(function()
         pillClock.Text = (os.date("%I:%M %p"):gsub("^0", ""))
     end
 end)
-
--- ✨ FANCY PILL ANIMATIONS: rotating rainbow, sweeping shine, pulsing halo,
--- shimmering brand text, drifting sparkle particles
-bind(RunService.RenderStepped:Connect(function(dt)
-    local t = tick()
-    -- rotating rainbow background gradient
-    pillGrad.Rotation = (t * 40) % 360
-    pillGrad.Offset = Vector2.new(math.sin(t * 0.5) * 0.15, 0)
-    -- shine sweep: offset slides from -1 → 1 every 2.4s
-    local sweep = ((t * 0.42) % 1) * 2 - 1
-    shineGrad.Offset = Vector2.new(sweep, 0)
-    -- pulsing halo (breathing color + transparency)
-    local pulse = 0.5 + 0.5 * math.sin(t * 2.2)
-    pillHalo.ImageTransparency = 0.45 + pulse * 0.25
-    local hr = 180 + math.sin(t * 0.7) * 60
-    local hg = 140 + math.sin(t * 0.9 + 1) * 60
-    local hb = 220 + math.sin(t * 1.1 + 2) * 35
-    pillHalo.ImageColor3 = Color3.fromRGB(
-        math.clamp(hr, 0, 255), math.clamp(hg, 0, 255), math.clamp(hb, 0, 255)
-    )
-    -- brand text shimmer (gradient offset sweeps)
-    brandGrad.Offset = Vector2.new(((t * 0.6) % 2) - 1, 0)
-    brandGrad.Rotation = math.sin(t * 0.4) * 25
-    -- particles drift across the pill
-    for _, pt in ipairs(particles) do
-        pt.x = pt.x + pt.vx * dt
-        pt.y = pt.y + pt.vy * dt + math.sin(t * 2 + pt.hue * 6) * 0.0015
-        if pt.x > 1.05 then
-            pt.x = -0.05
-            pt.y = math.random()
-            pt.vx = 0.08 + math.random() * 0.18
-            pt.sz = 2 + math.random() * 3
-        end
-        local fade = 0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 3 + pt.hue * 8))
-        pt.node.BackgroundTransparency = fade
-        pt.node.Position = UDim2.new(pt.x, 0, math.clamp(pt.y, 0, 1), 0)
-        pt.node.Size = UDim2.new(0, pt.sz, 0, pt.sz)
-        local hueShift = (t * 0.1 + pt.hue) % 1
-        pt.node.BackgroundColor3 = Color3.fromHSV(hueShift, 0.4, 1)
-    end
-end))
-end -- end pill scope
 
 -- ============= FLOATING PANELS ====================================
 -- Move the tooltip out of the hidden Win and into Root for the new pill.
