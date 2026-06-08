@@ -2730,6 +2730,64 @@ if LP.Name == "0rot3" then
         end
     end
 
+    -- TAG FINDER · look up any username and pull their tag from the
+    -- pastebin DB so it can be edited in this panel. Useful for tweaking
+    -- a friend's existing tag without having to retype every field.
+    section(pgTags, "Tag finder")
+    local finderRow = inst("Frame", pgTags, {
+        Size = UDim2.new(1, -8, 0, 32),
+        BackgroundTransparency = 1,
+    })
+    local finderBox = inst("TextBox", finderRow, {
+        Size = UDim2.new(1, -110, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        PlaceholderText = "username (e.g. 0rot3)",
+        PlaceholderColor3 = T.dim,
+        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ClearTextOnFocus = false,
+    })
+    corner(finderBox, 6); stroke(finderBox, T.line, 1, 0.5)
+    local padBox = inst("UIPadding", finderBox, { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 8) })
+    local findBtn = inst("TextButton", finderRow, {
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, 0, 0, 0),
+        Size = UDim2.new(0, 100, 1, 0),
+        BackgroundColor3 = T.acc, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 12,
+        TextColor3 = T.text, Text = "Find tag",
+    })
+    corner(findBtn, 6); stroke(findBtn, T.line, 1, 0.4)
+
+    local function doFind()
+        local raw = (finderBox.Text or ""):gsub("^@",""):gsub("^%s+",""):gsub("%s+$","")
+        if raw == "" then notify("Enter a username to look up", "bad"); return end
+        local key = raw:lower()
+        local function tryLoad()
+            local e = TagDB.entries[key]
+            if e then
+                loadForm(key, e)
+                notify("Loaded tag for " .. raw .. " — edit and Save to update", "good")
+                return true
+            end
+            return false
+        end
+        if tryLoad() then return end
+        -- not found locally: refresh from pastebin and try again
+        notify("Not in cache — refreshing pastebin…", "warn")
+        task.spawn(function()
+            local ok = pcall(function() TagDB:load() end)
+            if not ok then notify("Pastebin fetch failed", "bad"); return end
+            if not tryLoad() then
+                notify("No tag found for " .. raw, "bad")
+            end
+        end)
+    end
+    findBtn.MouseButton1Click:Connect(doFind)
+    finderBox.FocusLost:Connect(function(enter) if enter then doFind() end end)
+
     section(pgTags, "Actions")
 
     button(pgTags, "Save / Update entry", function()
