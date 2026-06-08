@@ -1552,7 +1552,7 @@ local function buildBill(p)
 
     local gui = inst("BillboardGui", pchar(p), {
         Name = "SeigeTagBB", Adornee = head,
-
+        Active = true,
         Size = UDim2.new(0, 240, 0, 50),
         StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0),
         AlwaysOnTop = true, LightInfluence = 0,
