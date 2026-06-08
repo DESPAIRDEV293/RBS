@@ -1733,7 +1733,7 @@ local function parsePastebin(src)
                     end
                     if #tags > 0 then entry.tags = tags end
                 end
-                -- parts[7] used to be textFx; ignored.
+                if parts[7] and parts[7] ~= "" then entry.textFx = parts[7] end
                 if parts[8] and parts[8] ~= "" then entry.customText = parts[8] end
                 if parts[9] and parts[9] ~= "" then entry.customHandle = parts[9] end
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
@@ -1752,7 +1752,7 @@ end
 local function stripTagSpecials(entry)
     if type(entry) ~= "table" then return entry end
     entry.effect = nil
-    entry.textFx = nil
+    -- textFx (typewriter/glitch/rainbow) is kept; it doesn't render a box.
     entry.sweep = nil
     entry.element = nil
     entry.special = nil
@@ -2459,8 +2459,8 @@ local function refreshBill(p)
     -- avatar(5+34) + gap(8) + text + chipBlock + right pad(10)
     local total = 5 + 34 + 8 + textW + chipBlock + 10
     if total < 120 then total = 120 end
-    e.bg.Size  = UDim2.new(0, total, 0, 46)
-    e.gui.Size = UDim2.new(0, total + 24, 0, 58)
+    e.bg.Size  = UDim2.new(1, 0, 1, 0)
+    e.gui.Size = UDim2.new(0, total, 0, 46)
 end
 
 
@@ -2478,25 +2478,21 @@ local function buildBill(p)
     local gui = inst("BillboardGui", pchar(p), {
         Name = "SeigeTagBB", Adornee = head,
         Active = true,
-        Size = UDim2.new(0, 240, 0, 58),
+        Size = UDim2.new(0, 240, 0, 46),
         StudsOffset = Vector3.new(0, 1.7, 0),
         AlwaysOnTop = true, LightInfluence = 0,
     })
 
-    -- Outer drop-shadow glow removed: its 9-slice rectangle showed through
-    -- as a faint square halo behind the rounded pill. Keep an invisible
-    -- ImageLabel stub so existing references (e.glow.ImageColor3 / .ImageTransparency
-    -- in updateBill) still write to a valid property and don't error.
+    -- Invisible stub kept so legacy refs (e.glow.ImageColor3 / .ImageTransparency) don't error.
     local glow = inst("ImageLabel", gui, {
         Name = "glow", BackgroundTransparency = 1, Image = "",
         ImageTransparency = 1, Visible = false,
         Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
     })
 
-    -- Plain rounded Frame: avoids CanvasGroup's faint rectangular compositing
-    -- artifact now that tag-special/effect layers have been fully removed.
+    -- Pill fills the entire BillboardGui so there is no transparent halo around it.
     local bg = inst("Frame", gui, {
-        Size = UDim2.new(1, 0, 0, 46), Position = UDim2.new(0, 0, 0, 6),
+        Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
         BackgroundColor3 = T.bg, BackgroundTransparency = 0.05, BorderSizePixel = 0,
         ClipsDescendants = true,
         ZIndex = 1,
