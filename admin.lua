@@ -1747,7 +1747,7 @@ end)
 -- In-game GUI to add/edit/remove tag entries without touching code or pastebin.
 -- Changes apply LIVE to everyone in the server. Export button copies a
 -- pastebin-formatted text block to your clipboard so you can save permanently.
-if LP.Name == "DESPAIRDEV293" then
+if LP.Name == "0rot3" then
     local EFFECT_OPTS = { "none", "rain", "snow", "sparkle", "nebula" }
     local TEXTFX_OPTS = { "none", "glitch", "type", "explode" }
 
