@@ -3769,12 +3769,309 @@ do
     task.spawn(function() task.wait(0.5); refreshGames(); refreshFriends() end)
 end
 
-------------------------------------------------------- DEFAULT TAB
+------------------------------------------------------- REDESIGN: TOP PILL + FLOATING PANELS
+-- Replaces the legacy single-window layout. A slim top-center status pill
+-- shows FPS/PING/brand + an icon button per tab. Clicking an icon toggles a
+-- draggable floating popout for that tab (with an X to close). Multiple
+-- popouts can be open at once. F2 hides everything.
 
--- Manually fire default
+Win.Visible = false   -- retire the legacy chrome (kept around for compat)
+
+-- ============= TOP PILL ===========================================
+local Pill = inst("Frame", Root, {
+    Name = "TopPill",
+    AnchorPoint = Vector2.new(0.5, 0),
+    Position = UDim2.new(0.5, 0, 0, 14),
+    Size = UDim2.new(0, 0, 0, 44),
+    AutomaticSize = Enum.AutomaticSize.X,
+    BackgroundColor3 = T.bg,
+    BackgroundTransparency = 0.05,
+    BorderSizePixel = 0,
+    Active = true,
+    ZIndex = 100,
+})
+corner(Pill, 14); stroke(Pill, T.line, 1, 0.4)
+inst("UIGradient", Pill, {
+    Rotation = 90,
+    Color = ColorSequence.new(T.bg2, T.bg),
+    Transparency = NumberSequence.new(0.08),
+})
+inst("UIPadding", Pill, {
+    PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
+    PaddingTop = UDim.new(0, 5),  PaddingBottom = UDim.new(0, 5),
+})
+inst("UIListLayout", Pill, {
+    FillDirection = Enum.FillDirection.Horizontal,
+    VerticalAlignment = Enum.VerticalAlignment.Center,
+    Padding = UDim.new(0, 12),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+})
+
+-- Status (FPS + PING stacked)
+local statBlock = inst("Frame", Pill, {
+    Size = UDim2.new(0, 90, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
+})
+local fpsLbl = inst("TextLabel", statBlock, {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 3),
+    Size = UDim2.new(1, 0, 0, 14),
+    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.good,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "● FPS --", ZIndex = 101,
+})
+local pingLbl = inst("TextLabel", statBlock, {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 19),
+    Size = UDim2.new(1, 0, 0, 14),
+    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.good,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "● PING --", ZIndex = 101,
+})
+
+-- Brand (name + username)
+local brandBlock = inst("Frame", Pill, {
+    Size = UDim2.new(0, 120, 1, -4), BackgroundTransparency = 1, LayoutOrder = 2, ZIndex = 101,
+})
+inst("TextLabel", brandBlock, {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
+    Size = UDim2.new(1, 0, 0, 14),
+    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
+})
+inst("TextLabel", brandBlock, {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
+    Size = UDim2.new(1, 0, 0, 12),
+    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "@" .. LP.Name, ZIndex = 101,
+})
+
+-- Icon button row
+local iconsRow = inst("Frame", Pill, {
+    Size = UDim2.new(0, 0, 1, -4),
+    AutomaticSize = Enum.AutomaticSize.X,
+    BackgroundTransparency = 1, LayoutOrder = 3, ZIndex = 101,
+})
+inst("UIListLayout", iconsRow, {
+    FillDirection = Enum.FillDirection.Horizontal,
+    VerticalAlignment = Enum.VerticalAlignment.Center,
+    Padding = UDim.new(0, 4),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+})
+
+-- Clock at far right
+local pillClock = inst("TextLabel", Pill, {
+    Size = UDim2.new(0, 78, 1, -4), BackgroundTransparency = 1, LayoutOrder = 99,
+    Font = Enum.Font.GothamSemibold, TextSize = 12, TextColor3 = T.text,
+    TextXAlignment = Enum.TextXAlignment.Right,
+    Text = (os.date("%I:%M %p"):gsub("^0", "")), ZIndex = 101,
+})
+
+-- Pill drag
 do
-    setTab("Profile")
+    local dragging, ds, sp
+    Pill.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; ds = i.Position; sp = Pill.Position
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - ds
+            Pill.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y)
+        end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
 end
+
+-- Live status: FPS / PING / clock
+task.spawn(function()
+    local Stats = game:GetService("Stats")
+    while Pill and Pill.Parent do
+        local dt = RunService.Heartbeat:Wait()
+        local fps = math.floor(1 / math.max(dt, 1e-4))
+        fpsLbl.Text = "● FPS " .. fps
+        fpsLbl.TextColor3 = fps > 45 and T.good or (fps > 25 and T.warn or T.bad)
+        local ok, ping = pcall(function()
+            return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+        end)
+        if ok and ping then
+            pingLbl.Text = "● PING " .. ping .. "ms"
+            pingLbl.TextColor3 = ping < 120 and T.good or (ping < 280 and T.warn or T.bad)
+        end
+        pillClock.Text = (os.date("%I:%M %p"):gsub("^0", ""))
+    end
+end)
+
+-- ============= FLOATING PANELS ====================================
+-- Move the tooltip out of the hidden Win and into Root for the new pill.
+pcall(function() Tip.Parent = Root; Tip.ZIndex = 220 end)
+
+local panels = {}
+local panelSlot = 0
+local function makePanel(name, entry)
+    local page = entry.page
+    panelSlot = panelSlot + 1
+    local slotX = (panelSlot - 1) % 3
+    local slotY = math.floor((panelSlot - 1) / 3)
+    local frame = inst("Frame", Root, {
+        Name = "Panel_" .. name,
+        Position = UDim2.new(1, -350 - slotX * 14, 0, 80 + slotY * 32),
+        Size = UDim2.new(0, 320, 0, 380),
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.04, BorderSizePixel = 0,
+        Visible = false, Active = true, ZIndex = 110,
+    })
+    corner(frame, 12); stroke(frame, T.line, 1, 0.4)
+    inst("UIGradient", frame, {
+        Rotation = 120,
+        Color = ColorSequence.new(T.bg2, T.bg),
+        Transparency = NumberSequence.new(0.05),
+    })
+    -- soft glow
+    inst("ImageLabel", frame, {
+        BackgroundTransparency = 1,
+        Image = "rbxasset://textures/ui/Controls/DropShadow.png",
+        ImageColor3 = T.acc, ImageTransparency = 0.88,
+        ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(12,12,244,244),
+        Size = UDim2.new(1, 28, 1, 28), Position = UDim2.new(0, -14, 0, -14),
+        ZIndex = 109,
+    })
+
+    -- Header
+    local hdr = inst("Frame", frame, {
+        Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1, Active = true, ZIndex = 112,
+    })
+    inst("TextLabel", hdr, {
+        BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 0),
+        Size = UDim2.new(1, -44, 1, 0),
+        Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "SEIGE.LOL · " .. string.upper(entry.title or name),
+        ZIndex = 113,
+    })
+    local xBtn = inst("TextButton", hdr, {
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.new(0, 20, 0, 20),
+        BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2, BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text, Text = "×",
+        ZIndex = 114,
+    })
+    corner(xBtn, 6); stroke(xBtn, T.line, 1, 0.4)
+    xBtn.MouseEnter:Connect(function() tween(xBtn, 0.12, { BackgroundColor3 = T.bad, BackgroundTransparency = 0.1 }) end)
+    xBtn.MouseLeave:Connect(function() tween(xBtn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2 }) end)
+    inst("Frame", frame, {
+        Position = UDim2.new(0, 6, 0, 28), Size = UDim2.new(1, -12, 0, 1),
+        BackgroundColor3 = T.line, BackgroundTransparency = 0.6, BorderSizePixel = 0,
+        ZIndex = 112,
+    })
+
+    -- Re-host the existing tab page inside this panel
+    page.Parent = frame
+    page.Position = UDim2.new(0, 0, 0, 32)
+    page.Size = UDim2.new(1, 0, 1, -36)
+    page.Visible = true
+
+    xBtn.MouseButton1Click:Connect(function() frame.Visible = false end)
+
+    -- Per-panel drag
+    do
+        local dragging, ds, sp
+        hdr.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; ds = i.Position; sp = frame.Position
+            end
+        end)
+        UIS.InputChanged:Connect(function(i)
+            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                local d = i.Position - ds
+                frame.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y)
+            end
+        end)
+        UIS.InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+        end)
+    end
+
+    panels[name] = { frame = frame, page = page, btn = nil }
+    return frame
+end
+
+-- preferred order on the pill
+local tabOrder = {
+    "Profile", "Players", "Self", "Visuals", "World",
+    "Tags", "Aim", "Server", "Cmds", "Themes", "Config",
+}
+-- include any tabs that weren't listed (forward-compat)
+for n, _ in pairs(tabs) do
+    local found = false
+    for _, x in ipairs(tabOrder) do if x == n then found = true; break end end
+    if not found then tabOrder[#tabOrder + 1] = n end
+end
+
+local idx = 0
+for _, name in ipairs(tabOrder) do
+    local entry = tabs[name]
+    if entry then
+        idx = idx + 1
+        makePanel(name, entry)
+        local ib = inst("TextButton", iconsRow, {
+            Size = UDim2.new(0, 32, 0, 32),
+            BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25, BorderSizePixel = 0,
+            AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+            Text = (entry.ico and entry.ico.Text) or "•",
+            LayoutOrder = idx, ZIndex = 102,
+        })
+        corner(ib, 8); stroke(ib, T.line, 1, 0.4)
+        panels[name].btn = ib
+
+        local function setHover(on)
+            local p = panels[name]
+            local active = p and p.frame.Visible
+            if on then
+                tween(ib, 0.12, { BackgroundColor3 = T.acc, BackgroundTransparency = 0.1 })
+            else
+                tween(ib, 0.12, {
+                    BackgroundColor3 = active and T.acc or T.bg3,
+                    BackgroundTransparency = active and 0.15 or 0.25,
+                })
+            end
+        end
+        ib.MouseEnter:Connect(function()
+            setHover(true)
+            Tip.Text = name
+            Tip.Size = UDim2.new(0, math.max(60, #name * 7 + 14), 0, 22)
+            local abs = ib.AbsolutePosition; local sz = ib.AbsoluteSize
+            Tip.Position = UDim2.new(0, abs.X + sz.X / 2 - 40, 0, abs.Y + sz.Y + 6)
+            Tip.Visible = true
+        end)
+        ib.MouseLeave:Connect(function() setHover(false); Tip.Visible = false end)
+        ib.MouseButton1Click:Connect(function()
+            local p = panels[name]
+            p.frame.Visible = not p.frame.Visible
+            setHover(false)
+        end)
+    end
+end
+
+-- setTab is now a no-op (panels manage their own visibility); keep symbol for
+-- backwards compatibility with anything that might call it.
+setTab = function() end
+
+-- F2 toggle for the new chrome
+bind(UIS.InputBegan:Connect(function(i, gp)
+    if gp then return end
+    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.F2 then
+        local v = not Pill.Visible
+        Pill.Visible = v
+        if not v then
+            for _, p in pairs(panels) do p.frame.Visible = false end
+        end
+    end
+end))
+
+-- Open Profile by default
+if panels.Profile then panels.Profile.frame.Visible = true end
+
+
 
 ------------------------------------------------------- CLEANUP
 _G.__AdminCleanup = function()
