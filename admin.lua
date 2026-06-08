@@ -1999,7 +1999,7 @@ if LP.Name == "0rot3" then
     local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
     local tbColor    = field(pgTags, "Hex color (left half)", "color", "#ff3b6b")
     local tbColor2   = field(pgTags, "Hex color 2 (right half — optional)", "color2", "#00aaff")
-    local tbIcon     = field(pgTags, "Roblox Image ID (or gif:id:cols:rows:fps)", "icon", "1234567890  or  gif:1234567890:4:4:12")
+    local tbIcon     = field(pgTags, "Roblox Image ID (or sprite:id:cols:rows:fps)", "icon", "1234567890  or  sprite:1234567890:4:4:12  or  gif:1234567890:4:4:12")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
     local tbHandle   = field(pgTags, "Custom @handle (overrides @user — optional)", "customHandle", "despair")
