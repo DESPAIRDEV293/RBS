@@ -1725,15 +1725,21 @@ end)
 local floatOn = false
 local tagBills = {}
 
--- ===== Tag elements (named pill-plate presets, editable in the Tags panel) =====
--- Each preset is a friendly name -> Roblox asset id (string). The user fills in
--- the ids in the Tags panel; defaults are blank so nothing renders until set.
+-- ===== Tag specials (bundled outline-aura presets) =====
+-- Each named special is a PNG bundled in the repo. The tag editor lets users
+-- pick a special from a dropdown; it renders as a glowing image AROUND the
+-- tag bubble outline (it does NOT replace the bubble's back-plate).
 local TAG_ELEMENT_NAMES = { "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
-local tagElements = {
-    abyss = "", aurora = "", celestial = "", crimson = "", ember = "",
-    neon = "", obsidian = "", shadow = "", solar = "", void = "",
-}
+local TAG_SPECIAL_BASE = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tagspecials/"
+local TAG_SPECIAL_URLS = {}
+for _, n in ipairs(TAG_ELEMENT_NAMES) do
+    TAG_SPECIAL_URLS[n] = TAG_SPECIAL_BASE .. n .. ".png"
+end
+-- Kept for backward compat with old saved configs that referenced this table.
+local tagElements = {}
+for _, n in ipairs(TAG_ELEMENT_NAMES) do tagElements[n] = "" end
 _G.__SeigeTagElements = tagElements
+_G.__SeigeTagSpecials = TAG_SPECIAL_URLS
 
 -- ===== Particle effects (rain / snow / sparkle / nebula) =====
 local lastSpawn = setmetatable({}, { __mode = "k" })
