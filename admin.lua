@@ -854,6 +854,12 @@ local minBtn = topBtn("—", -72, function()
     Body.Visible = not minimized
 end)
 local helpBtn = topBtn("?", -106, showRoleHelp)
+-- Only role-holders (owner/admin/staff/nt) get the ? help popup; for everyone
+-- else the button has nothing to show, so hide it entirely.
+do
+    local _myR = _G.__SeigeMyRole and _G.__SeigeMyRole() or nil
+    if not (_myR or LP.Name == OWNER_NAME) then helpBtn.Visible = false end
+end
 
 -- Open/close toggle (rightmost in top bar): image icon when open, 3-line hamburger when closed.
 local toggleBtn = inst("TextButton", Top, {
