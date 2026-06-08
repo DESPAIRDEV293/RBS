@@ -3318,6 +3318,7 @@ local execEnabled = false
 toggle(pgCmds, "Show execution bar", false, function(v)
     execEnabled = v
     execFrame.Visible = v
+    if _G.__AdminToggleCmdBar then _G.__AdminToggleCmdBar(v) end
     if _G.__AdminSaveCfg then _G.__AdminSaveCfg() end
 end)
 -- Reorder so executor frame appears under the toggle visually:
