@@ -1741,10 +1741,47 @@ local EFFECT_SPAWN  = { rain = spawnRain, snow = spawnSnow, sparkle = spawnSpark
 
 
 
+-- Stash original Humanoid display settings so we can restore them when a bubble goes away
+local NameHider = {}
+do
+    local origNameDisp = setmetatable({}, { __mode = "k" })
+    function NameHider.hide(p)
+        local ch = pchar(p); if not ch then return end
+        local h = ch:FindFirstChildOfClass("Humanoid"); if not h then return end
+        if origNameDisp[h] == nil then
+            origNameDisp[h] = {
+                ddt  = h.DisplayDistanceType,
+                name = h.NameDisplayDistance,
+                hp   = h.HealthDisplayDistance,
+            }
+        end
+        pcall(function()
+            h.DisplayDistanceType   = Enum.HumanoidDisplayDistanceType.None
+            h.NameDisplayDistance   = 0
+            h.HealthDisplayDistance = 0
+        end)
+    end
+    function NameHider.restore(p)
+        local ch = pchar(p); if not ch then return end
+        local h = ch:FindFirstChildOfClass("Humanoid"); if not h then return end
+        local o = origNameDisp[h]; if not o then return end
+        pcall(function()
+            h.DisplayDistanceType   = o.ddt
+            h.NameDisplayDistance   = o.name
+            h.HealthDisplayDistance = o.hp
+        end)
+        origNameDisp[h] = nil
+    end
+end
+
 local function clearBills()
-    for _, e in pairs(tagBills) do if e.gui then e.gui:Destroy() end end
+    for p, e in pairs(tagBills) do
+        if e.gui then e.gui:Destroy() end
+        pcall(NameHider.restore, p)
+    end
     tagBills = {}
 end
+
 local function measureText(text, font, size)
     local ok, v = pcall(function()
         return TextService:GetTextSize(text or "", size, font, Vector2.new(10000, 100))
@@ -2069,6 +2106,15 @@ local function buildBill(p)
         ZIndex = 50,
     })
     clickBtn.MouseButton1Click:Connect(function()
+        -- click sound (plays for everyone, including LP clicking own tag)
+        pcall(function()
+            local s = Instance.new("Sound")
+            s.SoundId = "rbxassetid://6895079853" -- short UI click
+            s.Volume  = 0.7
+            s.Parent  = game:GetService("SoundService")
+            s:Play()
+            game:GetService("Debris"):AddItem(s, 2)
+        end)
         if p == LP then return end
         local targetHrp = phrp(p)
         local myHrp = hrp()
@@ -2082,6 +2128,7 @@ local function buildBill(p)
         notify("Teleported to " .. p.DisplayName, "good")
     end)
     tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    NameHider.hide(p)
     refreshBill(p)
 end
 local function rebuildBills()
@@ -2261,7 +2308,7 @@ end)
 local function hookCharBill(p)
     bind(p.CharacterAdded:Connect(function()
         task.wait(0.5)
-        if tagBills[p] then pcall(function() tagBills[p].gui:Destroy() end); tagBills[p] = nil end
+        if tagBills[p] then pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end); tagBills[p] = nil end
         -- always build the bubble for LP, for everyone if floatOn,
         -- and for ANY player that has a saved tag entry (so rejoining users
         -- always see their persisted custom tag).
@@ -2514,7 +2561,7 @@ if LP.Name == "0rot3" then
                 -- calling refreshBill is a no-op if no bill exists yet, and the
                 -- spec said "tag username changes don't work" — this is why.
                 if tagBills[p] then
-                    pcall(function() tagBills[p].gui:Destroy() end)
+                    pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                     tagBills[p] = nil
                 end
                 pcall(buildBill, p)
@@ -2601,7 +2648,7 @@ if LP.Name == "0rot3" then
                     if p.Name:lower() == k then
                         TagDB:applyTo(p)
                         if tagBills[p] then
-                            pcall(function() tagBills[p].gui:Destroy() end)
+                            pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                             tagBills[p] = nil
                         end
                         if floatOn or p == LP or TagDB:configFor(p) then pcall(buildBill, p) end
@@ -2694,7 +2741,7 @@ if LP.Name == "0rot3" then
         for _, p in ipairs(Players:GetPlayers()) do
             TagDB:applyTo(p)
             if tagBills[p] then
-                pcall(function() tagBills[p].gui:Destroy() end)
+                pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                 tagBills[p] = nil
             end
             pcall(buildBill, p)
@@ -2708,7 +2755,7 @@ if LP.Name == "0rot3" then
             for _, p in ipairs(Players:GetPlayers()) do
                 TagDB:applyTo(p)
                 if tagBills[p] then
-                    pcall(function() tagBills[p].gui:Destroy() end)
+                    pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                     tagBills[p] = nil
                 end
                 pcall(buildBill, p)
@@ -2999,7 +3046,7 @@ if LP.Name == "0rot3" then
         for _, p in ipairs(Players:GetPlayers()) do
             pcall(function() TagDB:applyTo(p) end)
             if tagBills[p] then
-                pcall(function() tagBills[p].gui:Destroy() end)
+                pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                 tagBills[p] = nil
             end
             pcall(buildBill, p)
@@ -4917,7 +4964,7 @@ do
     section(pgProfile, "Tag")
     button(pgProfile, "Refresh tag", function()
         if tagBills[LP] then
-            pcall(function() tagBills[LP].gui:Destroy() end)
+            pcall(NameHider.restore, LP); pcall(function() tagBills[LP].gui:Destroy() end)
             tagBills[LP] = nil
         end
         pcall(buildBill, LP)
