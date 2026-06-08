@@ -6387,23 +6387,25 @@ for _, name in ipairs(tabOrder) do
         idx = idx + 1
         makePanel(name, entry)
         local imgId = tabImages[name]
+        local WHITE = Color3.fromRGB(255,255,255)
         local ib = inst("TextButton", iconsRow, {
             Size = UDim2.new(0, 32, 0, 32),
-            BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25, BorderSizePixel = 0,
+            BackgroundColor3 = WHITE, BackgroundTransparency = 1, BorderSizePixel = 0,
             AutoButtonColor = false,
-            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = WHITE,
             Text = imgId and "" or ((entry.ico and entry.ico.Text) or "•"),
             LayoutOrder = idx, ZIndex = 102,
         })
-        corner(ib, 8); stroke(ib, T.line, 1, 0.4)
+        corner(ib, 16)
+        local ibImg
         if imgId then
-            inst("ImageLabel", ib, {
+            ibImg = inst("ImageLabel", ib, {
                 BackgroundTransparency = 1,
                 AnchorPoint = Vector2.new(0.5, 0.5),
                 Position = UDim2.new(0.5, 0, 0.5, 0),
                 Size = UDim2.new(0, 18, 0, 18),
                 Image = imgId,
-                ImageColor3 = T.text,
+                ImageColor3 = WHITE,
                 ZIndex = 103,
             })
         end
@@ -6412,13 +6414,18 @@ for _, name in ipairs(tabOrder) do
         local function setHover(on)
             local p = panels[name]
             local active = p and p.frame.Visible
-            if on then
-                tween(ib, 0.12, { BackgroundColor3 = T.acc, BackgroundTransparency = 0.1 })
+            if active then
+                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0 })
+                ib.TextColor3 = Color3.fromRGB(10,10,12)
+                if ibImg then ibImg.ImageColor3 = Color3.fromRGB(10,10,12) end
+            elseif on then
+                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0.82 })
+                ib.TextColor3 = WHITE
+                if ibImg then ibImg.ImageColor3 = WHITE end
             else
-                tween(ib, 0.12, {
-                    BackgroundColor3 = active and T.acc or T.bg3,
-                    BackgroundTransparency = active and 0.15 or 0.25,
-                })
+                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 1 })
+                ib.TextColor3 = WHITE
+                if ibImg then ibImg.ImageColor3 = WHITE end
             end
         end
         ib.MouseEnter:Connect(function()
@@ -6437,6 +6444,38 @@ for _, name in ipairs(tabOrder) do
             setHover(false)
         end)
     end
+end
+
+-- Pill compact toggle (hides stats/icons/clock, leaves a hamburger)
+do
+    local collapsed = false
+    local hidden = { brandBlock, fpsBox, pingBox, iconsRow, clockBox }
+    -- also hide every divider frame in the pill except the toggle itself
+    local dividers = {}
+    for _, ch in ipairs(Pill:GetChildren()) do
+        if ch:IsA("Frame") and ch.Size.X.Offset == 1 then dividers[#dividers+1] = ch end
+    end
+    pillToggle.MouseEnter:Connect(function()
+        tween(pillToggle, 0.12, { BackgroundTransparency = 0.78 })
+    end)
+    pillToggle.MouseLeave:Connect(function()
+        tween(pillToggle, 0.12, { BackgroundTransparency = 0.88 })
+    end)
+    pillToggle.MouseButton1Click:Connect(function()
+        collapsed = not collapsed
+        for _, f in ipairs(hidden) do f.Visible = not collapsed end
+        for _, d in ipairs(dividers) do d.Visible = not collapsed end
+        if collapsed then
+            pillToggleImg.Visible = false
+            pillToggle.Text = "≡"
+            for _, p in pairs(panels) do
+                if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
+            end
+        else
+            pillToggle.Text = ""
+            pillToggleImg.Visible = true
+        end
+    end)
 end
 
 -- setTab is now a no-op (panels manage their own visibility); keep symbol for
