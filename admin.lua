@@ -1742,6 +1742,7 @@ local function parsePastebin(src)
                 if parts[13] and parts[13] ~= "" then entry.textColor = parts[13] end
                 if parts[14] and parts[14] ~= "" then entry.textOutline = parts[14] end
                 if parts[15] and parts[15] ~= "" then entry.avatarOutline = parts[15] end
+                if parts[16] and parts[16] ~= "" then entry.showChip = parts[16] end
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -3453,6 +3454,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         end
         if form.avatarOutline == "Off" then
             entry.avatarOutline = "off"
+        end
+        if form.showChip == "On" then
+            entry.showChip = "on"
         end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
