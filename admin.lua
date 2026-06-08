@@ -4339,8 +4339,14 @@ end)()
 
 -- preferred order on the pill
 local tabOrder = {
-    "Profile", "Players", "Self", "Visuals", "World",
+    "Profile", "Players", "Self", "World",
     "Tags", "Server", "Cmds", "Themes", "Shaders", "Detector", "Config",
+}
+-- Per-tab image icons (rbxassetid). Images should be white on transparent bg.
+local tabImages = {
+    Profile = "rbxassetid://87697251489549",   -- user
+    Players = "rbxassetid://85934990670048",   -- users
+    Shaders = "rbxassetid://107400785814105",  -- striped ball
 }
 -- include any tabs that weren't listed (forward-compat)
 for n, _ in pairs(tabs) do
@@ -4355,15 +4361,27 @@ for _, name in ipairs(tabOrder) do
     if entry then
         idx = idx + 1
         makePanel(name, entry)
+        local imgId = tabImages[name]
         local ib = inst("TextButton", iconsRow, {
             Size = UDim2.new(0, 32, 0, 32),
             BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25, BorderSizePixel = 0,
             AutoButtonColor = false,
             Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
-            Text = (entry.ico and entry.ico.Text) or "•",
+            Text = imgId and "" or ((entry.ico and entry.ico.Text) or "•"),
             LayoutOrder = idx, ZIndex = 102,
         })
         corner(ib, 8); stroke(ib, T.line, 1, 0.4)
+        if imgId then
+            inst("ImageLabel", ib, {
+                BackgroundTransparency = 1,
+                AnchorPoint = Vector2.new(0.5, 0.5),
+                Position = UDim2.new(0.5, 0, 0.5, 0),
+                Size = UDim2.new(0, 18, 0, 18),
+                Image = imgId,
+                ImageColor3 = T.text,
+                ZIndex = 103,
+            })
+        end
         panels[name].btn = ib
 
         local function setHover(on)
