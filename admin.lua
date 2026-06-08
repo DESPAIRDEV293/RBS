@@ -4215,41 +4215,48 @@ end
         end
     end
 
-    -- 1) Hook game:HttpGet and HttpService:GetAsync to catch new loadstring(HttpGet(...)) calls
-    local ok, err = pcall(function()
-        local mt = getrawmetatable and getrawmetatable(game)
-        local setread = setreadonly or (make_writeable and function(t) make_writeable(t) end)
-        if mt and setread and hookfunction then
-            setread(mt, false)
-            local oldNamecall = mt.__namecall
-            mt.__namecall = newcclosure and newcclosure(function(self, ...)
-                local method = getnamecallmethod and getnamecallmethod() or ""
-                if (method == "HttpGet" or method == "HttpGetAsync" or method == "GetAsync") then
-                    local args = {...}
-                    if type(args[1]) == "string" then matchText(args[1], "HttpGet") end
-                end
-                return oldNamecall(self, ...)
-            end) or function(self, ...) return oldNamecall(self, ...) end
-            setread(mt, true)
-            table.insert(listeners, "namecall hook installed")
-        end
-    end)
-    if not ok then table.insert(listeners, "namecall hook failed: " .. tostring(err)) end
+    -- Hooks are OPT-IN. They can destabilize some executors (Solara, Wave,
+    -- old Synapse builds), so we only install them when the user enables it.
+    local hookInstalled = false
+    local function installHooks()
+        if hookInstalled then return end
+        hookInstalled = true
 
-    -- 2) Hook loadstring to inspect chunk sources
-    pcall(function()
-        if hookfunction and loadstring then
-            local oldLS
-            oldLS = hookfunction(loadstring, newcclosure and newcclosure(function(src, chunkname)
-                if type(src) == "string" then matchText(src, "loadstring") end
-                return oldLS(src, chunkname)
-            end) or function(src, chunkname)
-                if type(src) == "string" then matchText(src, "loadstring") end
-                return oldLS(src, chunkname)
-            end)
-            table.insert(listeners, "loadstring hook installed")
-        end
-    end)
+        -- Prefer hookmetamethod (safe, executor-aware). Avoid rewriting __namecall directly.
+        pcall(function()
+            if hookmetamethod and newcclosure then
+                local old
+                old = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+                    local method = getnamecallmethod and getnamecallmethod() or ""
+                    if method == "HttpGet" or method == "HttpGetAsync" or method == "GetAsync" then
+                        local url = (...)
+                        if type(url) == "string" then
+                            -- defer matching so we never block the call
+                            task.spawn(matchText, url, "HttpGet")
+                        end
+                    end
+                    return old(self, ...)
+                end))
+                table.insert(listeners, "namecall hook installed (hookmetamethod)")
+            end
+        end)
+
+        -- loadstring hook — only if hookfunction + newcclosure are both present.
+        -- Many executors crash when a Lua closure is bound here.
+        pcall(function()
+            if hookfunction and newcclosure and loadstring then
+                local oldLS
+                oldLS = hookfunction(loadstring, newcclosure(function(src, chunkname)
+                    if type(src) == "string" and #src < 200000 then
+                        task.spawn(matchText, src, "loadstring")
+                    end
+                    return oldLS(src, chunkname)
+                end))
+                table.insert(listeners, "loadstring hook installed")
+            end
+        end)
+    end
+
 
     -- 3) Scan existing GUIs in CoreGui / PlayerGui for known UI names
     local function scanGuis()
@@ -4273,39 +4280,47 @@ end
 
     -- 4) Scan running LocalScripts/ModuleScripts via getscripts/getloadedmodules
     local function scanScripts()
+        -- Intentionally skip getgc() — it returns thousands of objects and
+        -- crashes/freezes many executors. getscripts + getloadedmodules only.
         local lists = {}
         if getscripts       then pcall(function() lists[#lists+1] = getscripts()       end) end
-        if getgc            then pcall(function() lists[#lists+1] = getgc(true)        end) end
         if getloadedmodules then pcall(function() lists[#lists+1] = getloadedmodules() end) end
         for _, list in ipairs(lists) do
-            for _, obj in ipairs(list) do
-                pcall(function()
-                    if typeof and typeof(obj) == "Instance" then
-                        matchText(obj.Name, "Script: " .. obj.ClassName)
-                        if obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
-                            -- some executors expose .Source; ignore if not available
-                            local src = rawget and rawget(obj, "Source") or nil
-                            if type(src) == "string" then matchText(src, "Script: " .. obj.Name) end
+            if type(list) == "table" then
+                for _, obj in ipairs(list) do
+                    pcall(function()
+                        if typeof and typeof(obj) == "Instance" then
+                            matchText(obj.Name, "Script: " .. obj.ClassName)
                         end
-                    end
-                end)
+                    end)
+                end
             end
         end
     end
 
-    button(pgDetect, "Rescan now", function()
-        scanGuis(); scanScripts()
+    statusLbl:set("Status: idle — hooks OFF (enable below to watch new scripts)")
+
+    toggle(pgDetect, "Enable HttpGet / loadstring hooks (advanced — may crash some executors)", false, function(v)
+        if v then
+            installHooks()
+            statusLbl:set("Status: hooks active — " .. (#listeners > 0 and table.concat(listeners, ", ") or "no hooks available in this executor"))
+        else
+            statusLbl:set("Status: hooks were enabled this session — rejoin to fully remove")
+        end
+    end)
+
+    button(pgDetect, "Rescan now (GUIs + scripts)", function()
+        pcall(scanGuis); pcall(scanScripts)
         statusLbl:set("Status: rescan complete (" .. os.date("%H:%M:%S") .. ")")
     end)
     button(pgDetect, "Clear detections", function()
         detected = {}
-        statusLbl:set("Status: cleared — still watching")
+        statusLbl:set("Status: cleared")
         refresh()
     end)
 
-    -- 5) Periodic background scan (GUI only — cheap)
     local autoOn = true
-    toggle(pgDetect, "Auto-scan GUIs every 5s", true, function(v) autoOn = v end)
+    toggle(pgDetect, "Auto-scan GUIs every 5s (safe)", true, function(v) autoOn = v end)
     task.spawn(function()
         while true do
             task.wait(5)
@@ -4313,12 +4328,13 @@ end
         end
     end)
 
-    -- initial pass
+    -- initial passive scan only
     task.spawn(function()
         task.wait(1)
         pcall(scanGuis); pcall(scanScripts)
     end)
 end)()
+
 
 
 
