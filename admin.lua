@@ -2493,11 +2493,9 @@ local function buildBill(p)
         Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
     })
 
-    -- CanvasGroup (not Frame) so descendants (image fill, shine, under-shade)
-    -- are composited and masked by UICorner. A plain
-    -- Frame's ClipsDescendants only clips to a rectangle, which is why
-    -- effects used to leak into the square corners of the pill.
-    local bg = inst("CanvasGroup", gui, {
+    -- Plain rounded Frame: avoids CanvasGroup's faint rectangular compositing
+    -- artifact now that tag-special/effect layers have been fully removed.
+    local bg = inst("Frame", gui, {
         Size = UDim2.new(1, 0, 0, 46), Position = UDim2.new(0, 0, 0, 6),
         BackgroundColor3 = T.bg, BackgroundTransparency = 0.05, BorderSizePixel = 0,
         ClipsDescendants = true,
@@ -2553,6 +2551,7 @@ local function buildBill(p)
         BorderSizePixel = 0,
         ZIndex = 3,
     })
+    corner(underShade, 16)
     inst("UIGradient", underShade, {
         Rotation = 90,
         Transparency = NumberSequence.new({
