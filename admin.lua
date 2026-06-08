@@ -1448,7 +1448,7 @@ local pgSkybox  = makeTab("Skybox",  "☁", "Skybox presets and atmosphere")
 local pgMisc    = makeTab("Misc",    "⋯", "Other tools and experimental features")
 -- Aliases — content for these older tabs now lives inside the Misc tab.
 local pgWorld   = pgMisc
-local pgThemes  = pgMisc
+local pgThemes  = pgConfig  -- Themes/colors live under the Settings (Config) tab
 local pgDetect  = pgMisc
 
 ------------------------------------------------------- HELPERS
@@ -5651,13 +5651,13 @@ local Pill = inst("Frame", Root, {
     Position = UDim2.new(0.5, 0, 0, 14),
     Size = UDim2.new(0, 0, 0, 44),
     AutomaticSize = Enum.AutomaticSize.X,
-    BackgroundColor3 = Color3.fromRGB(10, 10, 12),
+    BackgroundColor3 = T.bg,
     BackgroundTransparency = 0.02,
     BorderSizePixel = 0,
     Active = true,
     ZIndex = 100,
 })
-corner(Pill, 14); stroke(Pill, Color3.fromRGB(255,255,255), 1, 0.78)
+corner(Pill, 14); stroke(Pill, T.text, 1, 0.78)
 inst("UIPadding", Pill, {
     PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
     PaddingTop = UDim.new(0, 5),  PaddingBottom = UDim.new(0, 5),
@@ -5672,7 +5672,7 @@ inst("UIListLayout", Pill, {
 -- helper: thin vertical divider between sections of the bar
 local function pillDivider(order)
     local d = inst("Frame", Pill, {
-        Size = UDim2.new(0, 1, 1, -10), BackgroundColor3 = Color3.fromRGB(255,255,255),
+        Size = UDim2.new(0, 1, 1, -10), BackgroundColor3 = T.text,
         BackgroundTransparency = 0.82, BorderSizePixel = 0,
         LayoutOrder = order, ZIndex = 101,
     })
@@ -5687,7 +5687,7 @@ inst("UIPadding", brandBlock, { PaddingLeft = UDim.new(0,6), PaddingRight = UDim
 inst("TextLabel", brandBlock, {
     BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
     Size = UDim2.new(1, 0, 0, 14),
-    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = Color3.fromRGB(255,255,255),
+    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
     TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
 })
 inst("TextLabel", brandBlock, {
@@ -5718,7 +5718,7 @@ corner(fpsDot, 3)
 inst("TextLabel", fpsBox, {
     Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(0, 28, 1, 0),
     BackgroundTransparency = 1,
-    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = Color3.fromRGB(255,255,255),
+    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.text,
     TextXAlignment = Enum.TextXAlignment.Left, Text = "FPS", ZIndex = 102,
 })
 local fpsLbl = inst("TextLabel", fpsBox, {
@@ -5737,7 +5737,7 @@ corner(pingDot, 3)
 inst("TextLabel", pingBox, {
     Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(0, 30, 1, 0),
     BackgroundTransparency = 1,
-    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = Color3.fromRGB(255,255,255),
+    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.text,
     TextXAlignment = Enum.TextXAlignment.Left, Text = "PING", ZIndex = 102,
 })
 local pingLbl = inst("TextLabel", pingBox, {
@@ -5766,18 +5766,18 @@ pillDivider(95)
 
 -- Hide/show toggle (compacts the bar to a hamburger) — before clock
 local pillToggle = inst("TextButton", Pill, {
-    Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = Color3.fromRGB(255,255,255),
+    Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = T.text,
     BackgroundTransparency = 0.88, BorderSizePixel = 0, AutoButtonColor = false,
-    Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = Color3.fromRGB(255,255,255),
+    Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
     Text = "", LayoutOrder = 96, ZIndex = 102,
 })
-corner(pillToggle, 8); stroke(pillToggle, Color3.fromRGB(255,255,255), 1, 0.65)
+corner(pillToggle, 8); stroke(pillToggle, T.text, 1, 0.65)
 local pillToggleImg = inst("ImageLabel", pillToggle, {
     BackgroundTransparency = 1,
     AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
     Size = UDim2.new(0, 18, 0, 18),
     Image = "rbxassetid://106620609396373",
-    ImageColor3 = Color3.fromRGB(255,255,255), ZIndex = 103,
+    ImageColor3 = T.text, ZIndex = 103,
 })
 
 -- Clock pill at far right (time + date)
@@ -5789,7 +5789,7 @@ inst("UIPadding", clockBox, { PaddingLeft = UDim.new(0,6), PaddingRight = UDim.n
 local pillClock = inst("TextLabel", clockBox, {
     Position = UDim2.new(0, 0, 0, 3), Size = UDim2.new(1, 0, 0, 14),
     BackgroundTransparency = 1,
-    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = Color3.fromRGB(255,255,255),
+    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
     TextXAlignment = Enum.TextXAlignment.Right,
     Text = (os.date("%I:%M %p"):gsub("^0", "")), ZIndex = 101,
 })
@@ -6387,7 +6387,7 @@ for _, name in ipairs(tabOrder) do
         idx = idx + 1
         makePanel(name, entry)
         local imgId = tabImages[name]
-        local WHITE = Color3.fromRGB(255,255,255)
+        local WHITE = T.text
         local ib = inst("TextButton", iconsRow, {
             Size = UDim2.new(0, 32, 0, 32),
             BackgroundColor3 = WHITE, BackgroundTransparency = 1, BorderSizePixel = 0,
@@ -6416,8 +6416,8 @@ for _, name in ipairs(tabOrder) do
             local active = p and p.frame.Visible
             if active then
                 tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0 })
-                ib.TextColor3 = Color3.fromRGB(10,10,12)
-                if ibImg then ibImg.ImageColor3 = Color3.fromRGB(10,10,12) end
+                ib.TextColor3 = T.bg
+                if ibImg then ibImg.ImageColor3 = T.bg end
             elseif on then
                 tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0.82 })
                 ib.TextColor3 = WHITE
@@ -6492,7 +6492,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
             for _, p in pairs(panels) do
                 if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
                 if p.btn then
-                    tween(p.btn, 0.12, { BackgroundColor3 = Color3.fromRGB(255,255,255), BackgroundTransparency = 1 })
+                    tween(p.btn, 0.12, { BackgroundColor3 = T.text, BackgroundTransparency = 1 })
                 end
             end
         end
