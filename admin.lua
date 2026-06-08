@@ -4347,6 +4347,11 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
              " · script users in this server" ..
              (_isOwner and ", role management, broadcast commands" or ""))
     local pgAdmin = makeTab(_tabLabel, _tabIcon, _tabSub)
+    if _G.__SeigeAudit then
+        _G.__SeigeAudit("ui_open:admin_panel",
+            (_isOwner and "owner panel" or (_ntOnly and "nt panel" or "staff/admin panel"))
+            .. " mounted as '" .. _tabLabel .. "'", true)
+    end
 
     -- Banner showing current role + permission summary
     do
