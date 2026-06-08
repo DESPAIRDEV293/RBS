@@ -2215,9 +2215,35 @@ local function applyTextFx(e, t, dt)
 end
 bind(RunService.Heartbeat:Connect(function(dt)
     local t = tick()
+    local anim = _G.__SeigeBubbleAnim or "None"
+    local amt  = tonumber(_G.__SeigeBubbleAmt) or 0.5
     for _, e in pairs(tagBills) do
         if e.textFx and e.gui and e.gui.Parent then
             pcall(applyTextFx, e, t, dt)
+        end
+        -- ----- Bubble animation (Themes tab) -----
+        if anim ~= "None" and e.bg and e.bg.Parent then
+            local sc = e.bg:FindFirstChildOfClass("UIScale")
+            if not sc then sc = Instance.new("UIScale"); sc.Scale = 1; sc.Parent = e.bg end
+            local phase = (e.base or 0) + t
+            if anim == "Bounce" then
+                sc.Scale = 1 + math.abs(math.sin(phase * 3)) * 0.15 * amt
+            elseif anim == "Pulse" then
+                sc.Scale = 1 + math.sin(phase * 4) * 0.08 * amt
+            elseif anim == "Float" then
+                pcall(function()
+                    e.bg.Position = UDim2.new(0.5, 0, 0, math.sin(phase * 2) * 6 * amt)
+                end)
+            elseif anim == "Wobble" then
+                pcall(function() e.bg.Rotation = math.sin(phase * 3) * 6 * amt end)
+            elseif anim == "Shake" then
+                pcall(function()
+                    e.bg.Position = UDim2.new(0.5, math.sin(phase * 30) * 2 * amt, 0, math.cos(phase * 27) * 2 * amt)
+                end)
+            elseif anim == "Heartbeat" then
+                local b = math.sin(phase * 6); b = b * b
+                sc.Scale = 1 + b * 0.18 * amt
+            end
         end
     end
 end))
@@ -4172,6 +4198,89 @@ button(pgThemes, "Reset to default", function()
     end
 end)
 
+-- =============================================================
+-- ===== Typography & Animation customisation ==================
+-- =============================================================
+;(function()
+    section(pgThemes, "Typography")
+
+    -- Build font list from the actual Enum so we never reference missing fonts.
+    local FONT_PREF = {
+        "GothamBold","Gotham","GothamMedium","GothamSemibold","GothamBlack",
+        "BuilderSans","BuilderSansBold","BuilderSansExtraBold","BuilderSansMedium",
+        "SourceSans","SourceSansBold","SourceSansSemibold","SourceSansLight",
+        "Roboto","RobotoMono","Code","Highway","Arial","ArialBold",
+        "Bodoni","Garamond","Cartoon","Fantasy","Antique","Legacy",
+        "Oswald","Merriweather","Nunito","Ubuntu","Jura","Kalam",
+        "Creepster","DenkOne","Fondamento","Inconsolata","LuckiestGuy",
+        "PatrickHand","PermanentMarker","Sarpanch","Michroma",
+    }
+    local FONTS = {}
+    for _, n in ipairs(FONT_PREF) do
+        if pcall(function() return Enum.Font[n] end) and Enum.Font[n] then
+            table.insert(FONTS, n)
+        end
+    end
+    table.insert(FONTS, 1, "Default (mixed)")
+
+    -- Snapshot every text element's *original* font + size once, so font/size
+    -- changes can be re-applied without compounding.
+    local fontBaseline = {}
+    local function snapshot(d)
+        if fontBaseline[d] then return end
+        if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
+            fontBaseline[d] = { font = d.Font, size = d.TextSize }
+        end
+    end
+    for _, d in ipairs(Root:GetDescendants()) do snapshot(d) end
+    Root.DescendantAdded:Connect(snapshot)
+
+    _G.__SeigeFontOverride = _G.__SeigeFontOverride or "Default (mixed)"
+    _G.__SeigeFontScale    = _G.__SeigeFontScale    or 1.0
+
+    local function applyTypography()
+        local override = _G.__SeigeFontOverride
+        local scale    = tonumber(_G.__SeigeFontScale) or 1.0
+        local enumFont = (override ~= "Default (mixed)") and Enum.Font[override] or nil
+        for d, base in pairs(fontBaseline) do
+            if d.Parent then
+                pcall(function()
+                    d.Font     = enumFont or base.font
+                    d.TextSize = math.max(8, math.floor(base.size * scale + 0.5))
+                end)
+            end
+        end
+    end
+    _G.__SeigeApplyTypography = applyTypography
+
+    dropdown(pgThemes, "UI font family", FONTS, function(v)
+        _G.__SeigeFontOverride = v; applyTypography(); saveCfg()
+    end)
+    slider(pgThemes, "Text size (%)", 60, 180, 100, function(v)
+        _G.__SeigeFontScale = v / 100; applyTypography()
+    end)
+
+    section(pgThemes, "Bubble animations  (player tags)")
+    local BUBBLE = { "None", "Bounce", "Pulse", "Float", "Wobble", "Shake", "Heartbeat" }
+    _G.__SeigeBubbleAnim = _G.__SeigeBubbleAnim or "None"
+    dropdown(pgThemes, "Tag bubble animation", BUBBLE, function(v)
+        _G.__SeigeBubbleAnim = v; saveCfg()
+    end)
+    slider(pgThemes, "Bubble anim intensity", 0, 100, 50, function(v)
+        _G.__SeigeBubbleAmt = v / 100
+    end)
+
+    section(pgThemes, "Page / panel animations")
+    local PAGE = { "None", "Fade", "Scale", "Slide-down", "Slide-up", "Slide-right", "Flip", "Bounce" }
+    _G.__SeigePageAnim = _G.__SeigePageAnim or "Fade"
+    dropdown(pgThemes, "Panel open animation", PAGE, function(v)
+        _G.__SeigePageAnim = v; saveCfg()
+    end)
+    slider(pgThemes, "Animation speed (ms)", 80, 700, 240, function(v)
+        _G.__SeigePageAnimSpeed = v / 1000
+    end)
+end)()
+
 -- Restore saved theme/background/exec preferences after all UI exists.
 task.spawn(function()
     pcall(loadCfg)
@@ -4959,6 +5068,96 @@ pcall(function() Tip.Parent = Root; Tip.ZIndex = 220 end)
 
 local panels = {}
 local panelSlot = 0
+
+-- Animated visibility transition for any panel frame.
+-- Respects _G.__SeigePageAnim and _G.__SeigePageAnimSpeed set in Themes tab.
+_G.__SeigeAnimPanel = function(frame, show)
+    if not frame then return end
+    local style = _G.__SeigePageAnim or "Fade"
+    local dur   = tonumber(_G.__SeigePageAnimSpeed) or 0.24
+    if style == "None" then frame.Visible = show; return end
+    -- Capture the "rest" geometry once; we tween from/to it on each toggle.
+    if not frame:GetAttribute("__restPos") then
+        frame:SetAttribute("__restPos",  true)
+        frame:SetAttribute("__restPosX", frame.Position.X.Offset)
+        frame:SetAttribute("__restPosY", frame.Position.Y.Offset)
+        frame:SetAttribute("__restPosXS", frame.Position.X.Scale)
+        frame:SetAttribute("__restPosYS", frame.Position.Y.Scale)
+    end
+    local px, py = frame:GetAttribute("__restPosX"), frame:GetAttribute("__restPosY")
+    local pxs, pys = frame:GetAttribute("__restPosXS"), frame:GetAttribute("__restPosYS")
+    local restPos = UDim2.new(pxs, px, pys, py)
+
+    local scaleObj = frame:FindFirstChildOfClass("UIScale")
+    if not scaleObj then
+        scaleObj = Instance.new("UIScale"); scaleObj.Scale = 1; scaleObj.Parent = frame
+    end
+
+    local function tweenInto(props, easing, dir, time)
+        TweenService:Create(frame, TweenInfo.new(time or dur, easing or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
+    end
+
+    if show then
+        frame.Visible = true
+        frame.BackgroundTransparency = 1
+        frame.Position = restPos
+        scaleObj.Scale = 1
+        if style == "Fade" then
+            tweenInto({ BackgroundTransparency = 0.04 })
+        elseif style == "Scale" then
+            scaleObj.Scale = 0.85
+            tweenInto({ BackgroundTransparency = 0.04 })
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        elseif style == "Slide-down" then
+            frame.Position = UDim2.new(pxs, px, pys, py - 40)
+            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+        elseif style == "Slide-up" then
+            frame.Position = UDim2.new(pxs, px, pys, py + 40)
+            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+        elseif style == "Slide-right" then
+            frame.Position = UDim2.new(pxs, px - 60, pys, py)
+            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+        elseif style == "Flip" then
+            scaleObj.Scale = 0.01
+            tweenInto({ BackgroundTransparency = 0.04 })
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        elseif style == "Bounce" then
+            scaleObj.Scale = 0.6
+            tweenInto({ BackgroundTransparency = 0.04 })
+            TweenService:Create(scaleObj, TweenInfo.new(dur * 1.3, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        else
+            frame.BackgroundTransparency = 0.04
+        end
+    else
+        if style == "Fade" then
+            tweenInto({ BackgroundTransparency = 1 })
+        elseif style == "Scale" then
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.85 }):Play()
+            tweenInto({ BackgroundTransparency = 1 })
+        elseif style == "Slide-down" then
+            tweenInto({ Position = UDim2.new(pxs, px, pys, py + 40), BackgroundTransparency = 1 })
+        elseif style == "Slide-up" then
+            tweenInto({ Position = UDim2.new(pxs, px, pys, py - 40), BackgroundTransparency = 1 })
+        elseif style == "Slide-right" then
+            tweenInto({ Position = UDim2.new(pxs, px + 60, pys, py), BackgroundTransparency = 1 })
+        elseif style == "Flip" then
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Scale = 0.01 }):Play()
+            tweenInto({ BackgroundTransparency = 1 })
+        elseif style == "Bounce" then
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0.6 }):Play()
+            tweenInto({ BackgroundTransparency = 1 })
+        end
+        task.delay(dur + 0.02, function()
+            if frame and frame.Parent then
+                frame.Visible = false
+                frame.Position = restPos
+                if scaleObj then scaleObj.Scale = 1 end
+                frame.BackgroundTransparency = 0.04
+            end
+        end)
+    end
+end
+
 local function makePanel(name, entry)
     local page = entry.page
     panelSlot = panelSlot + 1
@@ -5023,7 +5222,7 @@ local function makePanel(name, entry)
     page.Visible = true
 
     xBtn.MouseButton1Click:Connect(function()
-        frame.Visible = false
+        if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(frame, false) else frame.Visible = false end
         local btn = panels[name] and panels[name].btn
         if btn then
             tween(btn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25 })
@@ -5437,7 +5636,8 @@ for _, name in ipairs(tabOrder) do
         ib.MouseLeave:Connect(function() setHover(false); Tip.Visible = false end)
         ib.MouseButton1Click:Connect(function()
             local p = panels[name]
-            p.frame.Visible = not p.frame.Visible
+            local newVis = not p.frame.Visible
+            if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, newVis) else p.frame.Visible = newVis end
             setHover(false)
         end)
     end
@@ -5455,7 +5655,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
         Pill.Visible = v
         if not v then
             for _, p in pairs(panels) do
-                p.frame.Visible = false
+                if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
                 if p.btn then
                     tween(p.btn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25 })
                 end
