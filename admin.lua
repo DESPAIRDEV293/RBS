@@ -5561,20 +5561,68 @@ slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
 end)
 
 section(pgConfig, "World Image (Skybox)")
-label(pgConfig, "Upload your own cubed skybox — 6 face asset IDs")
+label(pgConfig, "6 cubed faces — paste a Roblox asset id/URL, or a local file path from your PC")
 do
     local Lighting = game:GetService("Lighting")
+    -- executor helpers (optional; safely probed)
+    local _readfile     = rawget(getfenv(), "readfile")     or readfile
+    local _isfile       = rawget(getfenv(), "isfile")       or isfile
+    local _getcustom    = (getcustomasset or getsynasset
+                          or (syn and syn.queue_on_teleport and syn.request and getsynasset)
+                          or nil)
+
+    local function isLocalPath(v)
+        if type(v) ~= "string" or v == "" then return false end
+        -- treat as local file if it has an image extension and exists on disk
+        if not v:lower():match("%.png$") and not v:lower():match("%.jpe?g$")
+           and not v:lower():match("%.bmp$") and not v:lower():match("%.tga$") then
+            return false
+        end
+        if _isfile then
+            local ok, exists = pcall(_isfile, v)
+            return ok and exists
+        end
+        return true
+    end
+
     local function norm(v)
-        v = tostring(v or ""):gsub("%s+", "")
+        v = tostring(v or ""):gsub("^%s+", ""):gsub("%s+$", "")
         if v == "" then return "" end
+        -- local file from PC
+        if isLocalPath(v) then
+            if not _getcustom then
+                notify("Your executor does not support local file uploads (getcustomasset)", "warn")
+                return ""
+            end
+            local ok, url = pcall(_getcustom, v)
+            if ok and type(url) == "string" then return url end
+            notify("Failed to load local file: " .. v, "err")
+            return ""
+        end
+        -- bare numeric asset id
         if v:match("^%d+$") then return "rbxassetid://" .. v end
+        -- catalog/library URL → extract id
+        local id = v:match("[?&]id=(%d+)") or v:match("/(%d+)/?$")
+        if id then return "rbxassetid://" .. id end
         return v
     end
+
     local faces = { Up = "", Dn = "", Lf = "", Rt = "", Ft = "", Bk = "" }
     local labels = { Up = "Top (Up)", Dn = "Bottom (Down)", Lf = "Left", Rt = "Right", Ft = "Front", Bk = "Back" }
     for _, k in ipairs({ "Up", "Dn", "Lf", "Rt", "Ft", "Bk" }) do
-        textbox(pgConfig, labels[k] .. " asset id or URL", function(v) faces[k] = norm(v) end)
+        textbox(pgConfig, labels[k] .. " — asset id / URL / PC file path", function(v)
+            faces[k] = norm(v)
+        end)
     end
+
+    button(pgConfig, "Apply To All Faces (single image)", function()
+        -- copies the Top value into every face for quick single-image skies
+        local v = faces.Up
+        if v == "" then notify("Fill the Top field first", "warn") return end
+        faces.Dn, faces.Lf, faces.Rt, faces.Ft, faces.Bk = v, v, v, v, v
+        notify("Copied Top to all faces", "ok")
+    end)
+
     button(pgConfig, "Apply Skybox", function()
         for _, c in ipairs(Lighting:GetChildren()) do
             if c:IsA("Sky") then c:Destroy() end
