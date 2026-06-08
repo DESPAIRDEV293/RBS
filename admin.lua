@@ -4151,6 +4151,14 @@ bind(UIS.InputEnded:Connect(function(i)
     if i.KeyCode == Enum.KeyCode.Q then flyKeys.down = false end
 end))
 
+-- Invis toggle keybind (default F7)
+bind(UIS.InputBegan:Connect(function(i, gp)
+    if gp then return end
+    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == (_G.__InvisKey or Enum.KeyCode.F7) then
+        cmdHandlers["invis"]()
+    end
+end))
+
 ------------------------------------------------------- PROFILE TAB (redesigned)
 do
     -- ============ HERO CARD: big centered avatar, name, @user ============
