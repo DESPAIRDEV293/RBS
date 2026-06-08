@@ -2299,10 +2299,8 @@ local function parseGifSpec(raw)
 end
 
 -- ===== Tag special animations =====
--- Each named special drives the `specialStroke` (UIStroke on the rounded
--- pill bg) so the effect always wraps the bubble shape and never appears
--- as a square. Loops are token-guarded so re-applying or removing the
--- special cancels the previous coroutine cleanly.
+-- Disabled: old special-aura rendering could leave a faint square/box behind
+-- tags. These helpers remain only as no-op compatibility hooks.
 local function _animLoop(e, token, runFrame)
     if _G.__SeigeReducedMotion then
         return
@@ -3581,18 +3579,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             end
         end
     end
-
-    -- Tag specials: bundled outline-aura presets. Users pick one from the
-    -- "Tag special" dropdown above; the script renders the matching bundled
-    -- PNG around the bubble. No asset IDs to fill in anymore.
-    section(pgTags, "Tag specials")
-    label(pgTags, "Pick a tag special above (abyss, aurora, celestial, crimson, ember, neon, obsidian, shadow, solar, void). Each renders a glowing effect around the tag outline.")
-
-    -- Debug overlay: shows the active special and whether its animation
-    -- loop is running or cancelled, floated above every tag bubble.
-    toggle(pgTags, "Show tag-special debug overlay", false, function(v)
-        if _G.__SeigeSetTagDebug then _G.__SeigeSetTagDebug(v) end
-    end)
 
     -- list of current entries
     local listSec = section(pgTags, "Current tags")
