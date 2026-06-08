@@ -1773,7 +1773,7 @@ local function buildBill(p)
         Name = "SeigeTagBB", Adornee = head,
         Active = true,
         Size = UDim2.new(0, 240, 0, 50),
-        StudsOffsetWorldSpace = Vector3.new(0, 3.2, 0),
+        StudsOffset = Vector3.new(0, 1.6, 0),
         AlwaysOnTop = true, LightInfluence = 0,
     })
     local bg = inst("Frame", gui, {
@@ -1888,8 +1888,8 @@ bind(RunService.Heartbeat:Connect(function()
     local t = tick()
     for p, e in pairs(tagBills) do
         if e.gui and e.gui.Parent then
-            local y = 3.2 + math.sin(t * 2 + e.base) * 0.25
-            e.gui.StudsOffsetWorldSpace = Vector3.new(0, y, 0)
+            -- tag stays locked to the head (no independent bob); it bounces naturally with the avatar's animation
+            e.gui.StudsOffsetWorldSpace = Vector3.new(0, 0, 0)
             e.stroke.Transparency = 0.2 + (math.sin(t * 3 + e.base) + 1) * 0.1
         end
     end
