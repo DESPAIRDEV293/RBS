@@ -9,29 +9,8 @@
 --   tags         : optional array of short labels shown in the side chip ({"Owner"}, ...)
 --
 -- IMPORTANT: keys are case-insensitive @Name (not DisplayName).
+--
+-- Database intentionally empty — every user (including the owner) creates
+-- their tag from scratch in the in-game Tags panel.
 
-return {
-    -- ===== Owner / dev =====
-    ["0rot3"] = {
-        color = "#7896ff",
-        effect = "nebula",
-        tags = { "Owner" },
-    },
-
-    -- ===== Examples — edit / remove freely =====
-    ["Roblox"] = {
-        color = "#ff5577",
-        effect = "sparkle",
-        tags = { "Staff" },
-    },
-    ["Builderman"] = {
-        color = "#60dc96",
-        effect = "rain",
-        tags = { "Legend" },
-    },
-    ["Stickmasterluke"] = {
-        color = "#ffffff",
-        effect = "snow",
-        tags = { "OG" },
-    },
-}
+return {}
