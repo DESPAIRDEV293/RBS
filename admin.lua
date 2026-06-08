@@ -1577,18 +1577,16 @@ end
 --   2) TAGS_DB_URL        — the legacy tags.lua on GitHub (Lua table).
 --
 -- Pastebin line format (one player per line, pipe-separated):
---   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3 | textFx | customText | customHandle | outline | font
+--   username | displayName | #hexcolor | ignored | icon | tag1,tag2,tag3 | ignored | customText | customHandle | outline | font
 --
 --   - Only `username` is required. Leave any field blank to skip it (keep the |).
 --   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
 --               to split the bubble in half (left/right), e.g. #ff3b6b/#00aaff,
 --               OR an advanced fill spec like grad:#a,#b@90 or image:1234567890
---   - effect: rain | snow | sparkle | nebula   (or blank for none)
 --   - icon:   Roblox image ID (raw number, e.g. 1234567890), OR an animated
 --             sprite-sheet spec "gif:assetId:cols:rows:fps[:sheetSize]"
 --             e.g. gif:1234567890:4:4:12   (16-frame 4x4 sheet at 12 fps;
 --             sheetSize defaults to 1024)
---   - textFx: glitch | type | explode   (or blank for none)
 --   - customText:   optional override for the right-side chip text (owner-only)
 --   - customHandle: optional override for the "@name" line on the tag (owner-only).
 --                   Anyone without an entry shows the anonymous "user" / "@user".
@@ -1725,7 +1723,8 @@ local function parsePastebin(src)
                 local entry = {}
                 if parts[2] and parts[2] ~= "" then entry.displayName = parts[2] end
                 if parts[3] and parts[3] ~= "" then entry.color = parts[3] end
-                if parts[4] and parts[4] ~= "" then entry.effect = parts[4]:lower() end
+                -- Old effect/special fields are intentionally ignored so they
+                -- cannot render square translucent layers behind the tag pill.
                 if parts[5] and parts[5] ~= "" then entry.icon = parts[5] end
                 if parts[6] and parts[6] ~= "" then
                     local tags = {}
@@ -1734,12 +1733,12 @@ local function parsePastebin(src)
                     end
                     if #tags > 0 then entry.tags = tags end
                 end
-                if parts[7] and parts[7] ~= "" then entry.textFx = parts[7]:lower() end
+                -- parts[7] used to be textFx; ignored.
                 if parts[8] and parts[8] ~= "" then entry.customText = parts[8] end
                 if parts[9] and parts[9] ~= "" then entry.customHandle = parts[9] end
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
                 if parts[11] and parts[11] ~= "" then entry.font = parts[11] end
-                if parts[12] and parts[12] ~= "" then entry.sweep = parts[12]:lower() end
+                -- parts[12] used to be sweep; ignored.
                 -- Old unused 13th field intentionally ignored/stripped so saved
                 -- values cannot bring back the faint square aura behind tags.
                 entries[user:lower()] = entry
