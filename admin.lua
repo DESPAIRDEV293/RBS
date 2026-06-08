@@ -1802,7 +1802,7 @@ if LP.Name == "DESPAIRDEV293" then
     local tbUser     = field(pgTags, "Username (required)", "username", "DESPAIRDEV293")
     local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
     local tbColor    = field(pgTags, "Hex color", "color", "#ff3b6b")
-    local tbIcon     = field(pgTags, "Icon URL / asset id", "icon", "rbxassetid://123 or https://...")
+    local tbIcon     = field(pgTags, "Roblox Image ID", "icon", "1234567890")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
 
     -- effect dropdown
