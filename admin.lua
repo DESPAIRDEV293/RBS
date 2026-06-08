@@ -2546,16 +2546,16 @@ local function buildBill(p)
     })
 
     -- Invisible stub kept so legacy refs (e.glow.ImageColor3 / .ImageTransparency) don't error.
-    local glow = inst("ImageLabel", gui, {
-        Name = "glow", BackgroundTransparency = 1, Image = "",
-        ImageTransparency = 1, Visible = false,
-        Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
+    local glow = inst("Frame", gui, {
+        Name = "glow", BackgroundTransparency = 1, BorderSizePixel = 0,
+        Visible = false, Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
     })
 
-    -- Pill fills the entire BillboardGui so there is no transparent halo around it.
+    -- Pill is the only visible layer behind the tag content. Fully opaque so
+    -- nothing reads as a transparent rectangle behind/around the pill.
     local bg = inst("Frame", gui, {
         Size = UDim2.new(1, 0, 1, 0), Position = UDim2.new(0, 0, 0, 0),
-        BackgroundColor3 = T.bg, BackgroundTransparency = 0.05, BorderSizePixel = 0,
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0, BorderSizePixel = 0,
         ClipsDescendants = true,
         ZIndex = 1,
     })
@@ -2566,7 +2566,6 @@ local function buildBill(p)
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(40,40,52), Color3.fromRGB(14,14,18)),
     })
-    -- image fill layer (sits above gradient, below particles via ZIndex)
     local bgImg = inst("ImageLabel", bg, {
         Name = "bgImg",
         Size = UDim2.new(1, 0, 1, 0),
@@ -2579,44 +2578,16 @@ local function buildBill(p)
     })
     corner(bgImg, 23)
 
-    -- Glossy top-shine highlight (above bg/image, below text)
+    -- Invisible stubs for legacy refs to e.shine / e.underShade in refreshBill.
     local shine = inst("Frame", bg, {
-        Name = "shine",
-        Size = UDim2.new(1, -4, 0, 18),
-        Position = UDim2.new(0, 2, 0, 1),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 0.5,
-        BorderSizePixel = 0,
-        ZIndex = 3,
+        Name = "shine", BackgroundTransparency = 1, BorderSizePixel = 0,
+        Visible = false, Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
     })
-    corner(shine, 18)
-    inst("UIGradient", shine, {
-        Rotation = 90,
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0.55),
-            NumberSequenceKeypoint.new(1, 1),
-        }),
+    local underShade = inst("Frame", bg, {
+        Name = "underShade", BackgroundTransparency = 1, BorderSizePixel = 0,
+        Visible = false, Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
     })
 
-    -- Bottom subtle inner shadow for depth
-    local underShade = inst("Frame", bg, {
-        Name = "underShade",
-        AnchorPoint = Vector2.new(0, 1),
-        Size = UDim2.new(1, 0, 0, 16),
-        Position = UDim2.new(0, 0, 1, 0),
-        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-        BackgroundTransparency = 0.55,
-        BorderSizePixel = 0,
-        ZIndex = 3,
-    })
-    corner(underShade, 16)
-    inst("UIGradient", underShade, {
-        Rotation = 90,
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 1),
-            NumberSequenceKeypoint.new(1, 0.55),
-        }),
-    })
 
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 5, 0.5, -17),
