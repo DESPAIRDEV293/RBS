@@ -180,9 +180,23 @@ _G.__SeigeMyRole = function()
     if LP.Name == OWNER_NAME then return "owner" end
     return _G.__SeigeRoleMap[LP.Name:lower()]
 end
+-- KILL SWITCH · owner-only global pause. When ON, every script user except
+-- the owner is locked out of commands and role permissions. Owner is always
+-- exempt. The flag is mirrored via chat broadcast (see KILL_MARK below) so
+-- a single owner toggle propagates to every script user in the server.
+_G.__SeigeKilled = _G.__SeigeKilled == true
+local function _isOwnerLocal() return LP and LP.Name == OWNER_NAME end
+
 _G.__SeigeCan = function(action)
     local r = _G.__SeigeMyRole()
     if not r then return false end
+    -- Owner can always do everything, kill switch or not.
+    if r == "owner" then
+        local p = ROLE_PERMS[r]
+        return p and p[action] == true
+    end
+    -- Non-owners are completely gated when the kill switch is on.
+    if _G.__SeigeKilled then return false end
     local p = ROLE_PERMS[r]
     return p and p[action] == true
 end
@@ -201,6 +215,18 @@ _G.__SeigeSetRole = function(name, role)
 end
 _G.__SeigeRoleLabel = function(r) return ROLE_LABELS[r] or "—" end
 
+-- Listeners for kill-switch state changes (UI binds here to refresh).
+_G.__SeigeKillListeners = _G.__SeigeKillListeners or {}
+_G.__SeigeSetKill = function(on, fromBroadcast)
+    on = on == true
+    if _G.__SeigeKilled == on then return end
+    _G.__SeigeKilled = on
+    for _, fn in ipairs(_G.__SeigeKillListeners) do pcall(fn, on, fromBroadcast) end
+end
+_G.__SeigeOnKill = function(fn)
+    if type(fn) == "function" then table.insert(_G.__SeigeKillListeners, fn) end
+end
+
 -- Help popup: shows role-specific commands
 local HELP_COMMANDS = {
     { perms = {"staff_cmd"}, cmd = "!bring <user>",         desc = "Teleport a script user to you" },
@@ -210,6 +236,11 @@ local HELP_COMMANDS = {
     { perms = {"staff_cmd"}, cmd = "!ping <user>",          desc = "Flash target's screen + bell sound" },
     { perms = {"staff_cmd"}, cmd = "!whois <user>",         desc = "Show local info about a player" },
     { perms = {"staff_cmd"}, cmd = "!list",                 desc = "List all detected script users" },
+    { perms = {"staff_cmd"}, cmd = "!pm <user> <msg>",      desc = "Private banner toast to one script user only" },
+    { perms = {"staff_cmd"}, cmd = "!alert <msg>",          desc = "Yellow warning toast to every script user" },
+    { perms = {"staff_cmd"}, cmd = "!view <user>",          desc = "Spectate the camera of any player" },
+    { perms = {"staff_cmd"}, cmd = "!unview",               desc = "Restore your own camera after !view" },
+    { perms = {"staff_cmd"}, cmd = "!nearby",               desc = "List script users within 80 studs of you" },
     { perms = {"bringall"},  cmd = "!bringall",             desc = "Teleport every script user to you" },
     { perms = {"freeze"},    cmd = "!freeze <user>",        desc = "Anchor the target script user" },
     { perms = {"freeze"},    cmd = "!unfreeze <user>",      desc = "Unanchor the target script user" },
@@ -4514,6 +4545,86 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
     -- permissions follow the role table at the top of the script.
     ------------------------------------------------------------------
     if _G.__SeigeCan("manage_roles") then
+        ------------------------------------------------------------------
+        -- KILL SWITCH · global pause for every non-owner script user.
+        -- When ON, every staff/admin/nt user is locked out of every
+        -- command and every gated permission until the owner toggles
+        -- it back off. Owner stays fully functional either way.
+        ------------------------------------------------------------------
+        section(pgAdmin, "Kill switch")
+        label(pgAdmin, "Pause the whole script for every user except you (0rot3). Useful in emergencies.")
+
+        local killCard = inst("Frame", pgAdmin, {
+            Size = UDim2.new(1, -8, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.25,
+            BorderSizePixel = 0,
+        })
+        corner(killCard, 8); stroke(killCard, T.bad, 1.5, 0.35)
+        inst("UIPadding", killCard, {
+            PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12),
+            PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14),
+        })
+        inst("UIListLayout", killCard, { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
+
+        local killStatus = inst("TextLabel", killCard, {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+            Font = Enum.Font.GothamBold, TextSize = 14,
+            TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextWrapped = true,
+            Text = "Status: ACTIVE — every script user can run commands",
+            LayoutOrder = 1,
+        })
+        local killHint = inst("TextLabel", killCard, {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextWrapped = true,
+            Text = "Toggling this broadcasts the new state to every script user via chat marker.",
+            LayoutOrder = 2,
+        })
+        local killToggle = inst("TextButton", killCard, {
+            Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 3,
+            BackgroundColor3 = T.good, BackgroundTransparency = 0.1, AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = T.text,
+            BorderSizePixel = 0,
+            Text = "Activate kill switch",
+        })
+        corner(killToggle, 8); stroke(killToggle, T.line, 1, 0.4)
+
+        local function refreshKillUI()
+            local on = _G.__SeigeKilled == true
+            if on then
+                killStatus.Text = "Status: PAUSED — only the owner can run commands"
+                killStatus.TextColor3 = T.bad
+                killToggle.Text = "Deactivate kill switch"
+                killToggle.BackgroundColor3 = T.bad
+            else
+                killStatus.Text = "Status: ACTIVE — every script user can run commands"
+                killStatus.TextColor3 = T.good
+                killToggle.Text = "Activate kill switch"
+                killToggle.BackgroundColor3 = T.good
+            end
+        end
+        refreshKillUI()
+        if _G.__SeigeOnKill then _G.__SeigeOnKill(function() refreshKillUI() end) end
+        killToggle.MouseButton1Click:Connect(function()
+            local target = not (_G.__SeigeKilled == true)
+            if _G.__SeigeKillBroadcast then
+                local ok, err = _G.__SeigeKillBroadcast(target)
+                if ok then
+                    notify(target and "Kill switch ACTIVATED — all non-owner users paused"
+                                   or "Kill switch deactivated — users resumed", target and "warn" or "good")
+                else
+                    notify("Kill switch failed: " .. tostring(err), "bad")
+                end
+            end
+            refreshKillUI()
+        end)
+
         section(pgAdmin, "Roles & permissions")
         label(pgAdmin, "Click any staff card to manage them. Owner (0rot3) is hardcoded and cannot be changed.")
 
@@ -10157,6 +10268,94 @@ cmdHandlers["list"] = function()
 end
 
 -- =====================================================================
+-- STAFF COMMANDS · 5 additional commands available to staff/admin/owner
+-- Light-touch oversight tools: private messaging, soft alerts, spectating
+-- and proximity scans. All gated through _staffGate("!cmd").
+-- =====================================================================
+
+-- 1) !pm <user> <msg> — private banner toast to a single script user
+cmdHandlers["pm"] = function(arg)
+    if not _staffGate("!pm") then return end
+    local s = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local user, msg = s:match("^(%S+)%s+(.+)$")
+    if not user or not msg then notify("Usage: !pm <user> <msg>", "warn"); return end
+    if _G.__SeigePmSend then
+        local ok, err = _G.__SeigePmSend(user, msg)
+        if ok then notify("PM sent to @" .. user:gsub("^@",""), "good")
+        else notify("PM failed: " .. tostring(err), "bad") end
+    end
+end
+
+-- 2) !alert <msg> — yellow warning toast for every script user in the server
+cmdHandlers["alert"] = function(arg)
+    if not _staffGate("!alert") then return end
+    local msg = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if msg == "" then notify("Usage: !alert <msg>", "warn"); return end
+    if _G.__SeigeAlertSend then
+        local ok, err = _G.__SeigeAlertSend(msg)
+        if ok then notify("Alert broadcast to all script users", "good")
+        else notify("Alert failed: " .. tostring(err), "bad") end
+    end
+end
+
+-- 3) !view <user> — spectate a player's camera (local-only effect)
+local _savedCamSubject
+cmdHandlers["view"] = function(arg)
+    if not _staffGate("!view") then return end
+    local t = tostring(arg or ""):gsub("^%s+",""):gsub("%s+$",""):gsub("^@","")
+    if t == "" then notify("Usage: !view <user>", "warn"); return end
+    local target
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Name:lower():sub(1, #t) == t:lower() then target = p; break end
+    end
+    if not target or not target.Character then notify("Player not found or no character", "warn"); return end
+    local hum = target.Character:FindFirstChildOfClass("Humanoid")
+    if not hum then notify("Target has no Humanoid", "warn"); return end
+    local cam = workspace.CurrentCamera
+    if cam then
+        if not _savedCamSubject then _savedCamSubject = cam.CameraSubject end
+        cam.CameraSubject = hum
+        notify("Spectating @" .. target.Name .. " — use !unview to restore", "good")
+    end
+end
+
+-- 4) !unview — restore your own camera after !view
+cmdHandlers["unview"] = function()
+    if not _staffGate("!unview") then return end
+    local cam = workspace.CurrentCamera
+    if cam then
+        local myHum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+        cam.CameraSubject = _savedCamSubject or myHum
+        _savedCamSubject = nil
+        notify("Camera restored", "good")
+    end
+end
+
+-- 5) !nearby — list script users within 80 studs of you
+cmdHandlers["nearby"] = function()
+    if not _staffGate("!nearby") then return end
+    local myChar = LP.Character
+    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then notify("You have no character yet", "warn"); return end
+    local reg = _G.__SeigeScriptUsers or {}
+    local rows = {}
+    for _, info in pairs(reg) do
+        local plr = Players:GetPlayerByUserId(info.userId)
+        if plr and plr ~= LP and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local d = (plr.Character.HumanoidRootPart.Position - myHRP.Position).Magnitude
+            if d <= 80 then rows[#rows+1] = { name = plr.Name, dist = d } end
+        end
+    end
+    table.sort(rows, function(a, b) return a.dist < b.dist end)
+    if #rows == 0 then notify("No script users within 80 studs", "warn"); return end
+    local parts = {}
+    for _, r in ipairs(rows) do parts[#parts+1] = ("@%s (%dst)"):format(r.name, math.floor(r.dist)) end
+    notify(("%d nearby script user%s: %s"):format(#rows, #rows==1 and "" or "s", table.concat(parts, ", ")), "good")
+end
+
+
+
+-- =====================================================================
 -- NT TAG COMMANDS (5) · available to NT Team, Admin, Owner
 -- Read-only lookup tools for tag verification and database browsing.
 -- =====================================================================
@@ -10267,6 +10466,12 @@ local function runBarCmd(raw)
     local cmd, arg = s:match("^(%S+)%s*(.*)$")
     if not cmd then return end
     cmd = cmd:lower()
+    -- Kill switch: when on, lock every script user out of every command
+    -- except the owner. Owner is always exempt.
+    if _G.__SeigeKilled and LP.Name ~= OWNER_NAME then
+        notify("Script is paused by the owner. Commands disabled.", "bad")
+        return
+    end
     local h = cmdHandlers[cmd]
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
@@ -10592,6 +10797,9 @@ end)()
     local WARN_MARK   = "\226\159\166SEIGE-WARN\226\159\167"    -- <target>|<sender>|<msg>
     local SHOUT_MARK  = "\226\159\166SEIGE-SHOUT\226\159\167"   -- <sender>|<msg>
     local PING_MARK   = "\226\159\166SEIGE-PING\226\159\167"    -- <target>|<sender>
+    local PM_MARK     = "\226\159\166SEIGE-PM\226\159\167"      -- <target>|<sender>|<msg>
+    local ALERT_MARK  = "\226\159\166SEIGE-ALERT\226\159\167"   -- <sender>|<msg>
+    local KILL_MARK   = "\226\159\166SEIGE-KILL\226\159\167"    -- 1|0  (owner-only sender)
 
     local function _cleanName(s)
         return tostring(s or ""):gsub("^@", ""):gsub("^%s+", ""):gsub("%s+$", "")
@@ -10635,6 +10843,31 @@ end)()
         broadcast(PING_MARK .. targetName .. "|" .. LP.Name)
         return true
     end
+    _G.__SeigePmSend = function(targetName, msg)
+        targetName = _cleanName(targetName)
+        msg = tostring(msg or ""):gsub("[\r\n]+", " ")
+        if targetName == "" then return false, "empty target" end
+        if msg == "" then return false, "empty message" end
+        if #msg > 240 then msg = msg:sub(1, 240) end
+        broadcast(PM_MARK .. targetName .. "|" .. LP.Name .. "|" .. msg)
+        return true
+    end
+    _G.__SeigeAlertSend = function(msg)
+        msg = tostring(msg or ""):gsub("[\r\n]+", " ")
+        if msg == "" then return false, "empty" end
+        if #msg > 200 then msg = msg:sub(1, 200) end
+        broadcast(ALERT_MARK .. LP.Name .. "|" .. msg)
+        return true
+    end
+    -- Owner-only kill switch broadcast. The receiver checks that the sender
+    -- is the owner before honoring the flag.
+    _G.__SeigeKillBroadcast = function(on)
+        if not _isOwnerLocal() then return false, "owner only" end
+        broadcast(KILL_MARK .. (on and "1" or "0"))
+        _G.__SeigeSetKill(on, false)
+        return true
+    end
+
 
     -- Local helpers (effects applied when WE are the target)
     local function _ourHRP()
@@ -10699,11 +10932,42 @@ end)()
         end)
         notify("Ping from @" .. (senderName or "staff"), "warn")
     end
+    local function _showAlertToast(senderName, msg)
+        local box = inst("Frame", Root, {
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, 24),
+            Size = UDim2.new(0, 440, 0, 64),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.05,
+            BorderSizePixel = 0, ZIndex = 60,
+        })
+        corner(box, 12); stroke(box, T.warn or T.acc, 1.5, 0.15)
+        inst("Frame", box, {
+            Size = UDim2.new(0, 4, 1, -16), Position = UDim2.new(0, 8, 0, 8),
+            BackgroundColor3 = T.warn or T.acc, BorderSizePixel = 0, ZIndex = 61,
+        })
+        inst("TextLabel", box, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 22, 0, 6), Size = UDim2.new(1, -32, 0, 18),
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.warn or T.acc,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "ALERT · " .. (senderName or "staff"), ZIndex = 61,
+        })
+        inst("TextLabel", box, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 22, 0, 26), Size = UDim2.new(1, -32, 0, 34),
+            Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = T.text,
+            TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            Text = msg or "", ZIndex = 61,
+        })
+        task.delay(8, function() if box.Parent then box:Destroy() end end)
+    end
 
     -- Expose marker constants + dispatcher used by handleText below
     _G.__SeigeStaffMarkers = {
         BRING = BRING_MARK, FREEZE = FREEZE_MARK, WARN = WARN_MARK,
         SHOUT = SHOUT_MARK, PING = PING_MARK,
+        PM = PM_MARK, ALERT = ALERT_MARK, KILL = KILL_MARK,
     }
     _G.__SeigeStaffHandle = function(text)
         if type(text) ~= "string" then return false end
@@ -10746,6 +11010,29 @@ end)()
             if target and target:lower():gsub("%s+","") == LP.Name:lower() then
                 _flashPing(sender)
             end
+            return true
+        end
+        if text:sub(1, #PM_MARK) == PM_MARK then
+            local body = text:sub(#PM_MARK + 1)
+            local target, sender, msg = body:match("^([^|]+)|([^|]+)|(.*)$")
+            if target and target:lower():gsub("%s+","") == LP.Name:lower() then
+                showAllpBanner("PM · " .. (sender or "staff"), msg or "")
+            end
+            return true
+        end
+        if text:sub(1, #ALERT_MARK) == ALERT_MARK then
+            local body = text:sub(#ALERT_MARK + 1)
+            local sender, msg = body:match("^([^|]+)|(.*)$")
+            if sender then _showAlertToast(sender, msg or "") end
+            return true
+        end
+        if text:sub(1, #KILL_MARK) == KILL_MARK then
+            -- Kill switch propagation. Sender verification happens in handleText
+            -- which has access to srcPlayer; if we got here directly we still
+            -- honor the flag only when the local player is NOT the owner-issued
+            -- sender check happens at the handleText layer below.
+            local body = text:sub(#KILL_MARK + 1)
+            _G.__SeigeSetKill(body == "1", true)
             return true
         end
         return false
@@ -10859,6 +11146,10 @@ end)()
                 end
             end
             return true
+        end
+        -- Kill switch is owner-only: drop the marker silently if a non-owner chats it.
+        if type(text) == "string" and text:sub(1, #KILL_MARK) == KILL_MARK then
+            if srcPlayer and srcPlayer.Name ~= OWNER_NAME then return true end
         end
         if _G.__SeigeStaffHandle and _G.__SeigeStaffHandle(text) then return true end
         if not isExecMark(text) then return false end
