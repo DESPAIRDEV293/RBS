@@ -10092,7 +10092,7 @@ end)()
     local showAllpBanner  -- forward decl (used by staff WARN handler below)
 
     ------------------------------------------------------------------
-    -- STAFF COMMANDS  ·  10 commands available to staff/admin/owner.
+    -- STAFF COMMANDS  ·  8 commands available to staff/admin/owner.
     -- These piggy-back on the same chat-marker broadcast channel as
     -- !allp / !usay. Only script users react to the markers; non-script
     -- users see the marker filtered/stripped from chat.
