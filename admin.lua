@@ -4088,6 +4088,47 @@ task.spawn(function()
     end
 end)
 
+-- ✨ FANCY PILL ANIMATIONS: rotating rainbow, sweeping shine, pulsing halo,
+-- shimmering brand text, drifting sparkle particles
+bind(RunService.RenderStepped:Connect(function(dt)
+    local t = tick()
+    -- rotating rainbow background gradient
+    pillGrad.Rotation = (t * 40) % 360
+    pillGrad.Offset = Vector2.new(math.sin(t * 0.5) * 0.15, 0)
+    -- shine sweep: offset slides from -1 → 1 every 2.4s
+    local sweep = ((t * 0.42) % 1) * 2 - 1
+    shineGrad.Offset = Vector2.new(sweep, 0)
+    -- pulsing halo (breathing color + transparency)
+    local pulse = 0.5 + 0.5 * math.sin(t * 2.2)
+    pillHalo.ImageTransparency = 0.45 + pulse * 0.25
+    local hr = 180 + math.sin(t * 0.7) * 60
+    local hg = 140 + math.sin(t * 0.9 + 1) * 60
+    local hb = 220 + math.sin(t * 1.1 + 2) * 35
+    pillHalo.ImageColor3 = Color3.fromRGB(
+        math.clamp(hr, 0, 255), math.clamp(hg, 0, 255), math.clamp(hb, 0, 255)
+    )
+    -- brand text shimmer (gradient offset sweeps)
+    brandGrad.Offset = Vector2.new(((t * 0.6) % 2) - 1, 0)
+    brandGrad.Rotation = math.sin(t * 0.4) * 25
+    -- particles drift across the pill
+    for _, pt in ipairs(particles) do
+        pt.x = pt.x + pt.vx * dt
+        pt.y = pt.y + pt.vy * dt + math.sin(t * 2 + pt.hue * 6) * 0.0015
+        if pt.x > 1.05 then
+            pt.x = -0.05
+            pt.y = math.random()
+            pt.vx = 0.08 + math.random() * 0.18
+            pt.sz = 2 + math.random() * 3
+        end
+        local fade = 0.2 + 0.5 * (0.5 + 0.5 * math.sin(t * 3 + pt.hue * 8))
+        pt.node.BackgroundTransparency = fade
+        pt.node.Position = UDim2.new(pt.x, 0, math.clamp(pt.y, 0, 1), 0)
+        pt.node.Size = UDim2.new(0, pt.sz, 0, pt.sz)
+        local hueShift = (t * 0.1 + pt.hue) % 1
+        pt.node.BackgroundColor3 = Color3.fromHSV(hueShift, 0.4, 1)
+    end
+end))
+
 -- ============= FLOATING PANELS ====================================
 -- Move the tooltip out of the hidden Win and into Root for the new pill.
 pcall(function() Tip.Parent = Root; Tip.ZIndex = 220 end)
