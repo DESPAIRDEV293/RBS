@@ -4130,6 +4130,7 @@ bind(RunService.RenderStepped:Connect(function(dt)
         pt.node.BackgroundColor3 = Color3.fromHSV(hueShift, 0.4, 1)
     end
 end))
+end -- end pill scope
 
 -- ============= FLOATING PANELS ====================================
 -- Move the tooltip out of the hidden Win and into Root for the new pill.
