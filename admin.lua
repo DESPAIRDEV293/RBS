@@ -5896,6 +5896,7 @@ end)
 pcall(function() Tip.Parent = Root; Tip.ZIndex = 220 end)
 
 local panels = {}
+_G.__SeigePanels = panels
 local panelSlot = 0
 
 -- Animated visibility transition for any panel frame.
