@@ -10838,6 +10838,29 @@ end)()
             end
             return true
         end
+        if text:sub(1, #PM_MARK) == PM_MARK then
+            local body = text:sub(#PM_MARK + 1)
+            local target, sender, msg = body:match("^([^|]+)|([^|]+)|(.*)$")
+            if target and target:lower():gsub("%s+","") == LP.Name:lower() then
+                showAllpBanner("PM · " .. (sender or "staff"), msg or "")
+            end
+            return true
+        end
+        if text:sub(1, #ALERT_MARK) == ALERT_MARK then
+            local body = text:sub(#ALERT_MARK + 1)
+            local sender, msg = body:match("^([^|]+)|(.*)$")
+            if sender then _showAlertToast(sender, msg or "") end
+            return true
+        end
+        if text:sub(1, #KILL_MARK) == KILL_MARK then
+            -- Kill switch propagation. Sender verification happens in handleText
+            -- which has access to srcPlayer; if we got here directly we still
+            -- honor the flag only when the local player is NOT the owner-issued
+            -- sender check happens at the handleText layer below.
+            local body = text:sub(#KILL_MARK + 1)
+            _G.__SeigeSetKill(body == "1", true)
+            return true
+        end
         return false
     end
 
