@@ -853,15 +853,19 @@ end
 --   2) TAGS_DB_URL        — the legacy tags.lua on GitHub (Lua table).
 --
 -- Pastebin line format (one player per line, pipe-separated):
---   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3
+--   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3 | textFx | customText
 --
 --   - Only `username` is required. Leave any field blank to skip it (keep the |).
+--   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
+--               to split the bubble in half (left/right), e.g. #ff3b6b/#00aaff
 --   - effect: rain | snow | sparkle | nebula   (or blank for none)
 --   - icon:   Roblox image ID (raw number, e.g. 1234567890)
+--   - textFx: glitch | type | explode   (or blank for none)
+--   - customText: optional override for the right-side chip text (owner-only feature)
 --   - Lines starting with # or // are comments. Blank lines are ignored.
 --
 -- Example paste:
---   DESPAIRDEV293 | Despair | #ff3b6b | nebula |  | Owner,Dev
+--   DESPAIRDEV293 | Despair | #ff3b6b/#00aaff | nebula |  | Owner,Dev | glitch | VIP
 --   Builderman    | Builderman | #00aaff | sparkle | 156 | Roblox
 --
 -- To change tags: edit the paste, hit Save, rejoin (or wait for next load).
@@ -872,7 +876,9 @@ local TagDB = { entries = {} }
 local function parseColor(c)
     if typeof(c) == "Color3" then return c end
     if type(c) == "string" then
-        local hex = c:gsub("#",""):gsub("%s","")
+        -- accept "#aaa/#bbb" — use the first one
+        local first = c:match("([^/]+)")
+        local hex = (first or c):gsub("#",""):gsub("%s","")
         if #hex == 6 then
             local r = tonumber(hex:sub(1,2), 16)
             local g = tonumber(hex:sub(3,4), 16)
@@ -880,6 +886,13 @@ local function parseColor(c)
             if r and g and b then return Color3.fromRGB(r, g, b) end
         end
     end
+end
+-- returns (c1, c2) where c2 may be nil. Accepts "#aaa", "#aaa/#bbb"
+local function parseColorPair(c)
+    if type(c) ~= "string" then return parseColor(c), nil end
+    local a, b = c:match("([^/]+)/([^/]+)")
+    if a and b then return parseColor(a), parseColor(b) end
+    return parseColor(c), nil
 end
 function TagDB:configFor(p)
     if not p then return nil end
@@ -917,6 +930,7 @@ local function parsePastebin(src)
                     if #tags > 0 then entry.tags = tags end
                 end
                 if parts[7] and parts[7] ~= "" then entry.textFx = parts[7]:lower() end
+                if parts[8] and parts[8] ~= "" then entry.customText = parts[8] end
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -1449,18 +1463,38 @@ local function refreshBill(p)
 
 
 
-    -- Side chip / color
-    local dbColor = cfg and parseColor(cfg.color)
+    -- Side chip / color (supports single hex or "#aaa/#bbb" split)
+    local c1, c2 = nil, nil
+    if cfg and cfg.color then c1, c2 = parseColorPair(cfg.color) end
     local txt = Tags:summary(p.UserId)
+    -- owner-only custom chip text override
+    if cfg and cfg.customText and cfg.customText ~= "" then txt = cfg.customText end
     if txt ~= "" then
         e.sh.Visible = true
         e.stat.Text = txt:gsub(",", " • ")
-        local c = dbColor or tagColor(p)
+        local c = c1 or tagColor(p)
         e.stroke.Color = c; e.dot.BackgroundColor3 = c
     else
         e.sh.Visible = false
-        local c = dbColor or (p == LP and T.good or T.acc)
+        local c = c1 or (p == LP and T.good or T.acc)
         e.stroke.Color = c; e.dot.BackgroundColor3 = c
+    end
+    -- Two-color split bubble background (left half c1, right half c2)
+    if e.bgGrad then
+        if c1 and c2 then
+            e.bgGrad.Rotation = 0
+            e.bgGrad.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0,    c1),
+                ColorSequenceKeypoint.new(0.499, c1),
+                ColorSequenceKeypoint.new(0.5,  c2),
+                ColorSequenceKeypoint.new(1,    c2),
+            })
+            e.bg.BackgroundTransparency = 0
+        else
+            e.bgGrad.Rotation = 90
+            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18))
+            e.bg.BackgroundTransparency = 0.1
+        end
     end
 
     -- Effect change
@@ -1536,7 +1570,7 @@ local function buildBill(p)
     })
 
     local st = stroke(bg, T.acc, 1.4, 0.3)
-    inst("UIGradient", bg, {
+    local bgGrad = inst("UIGradient", bg, {
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18)),
     })
@@ -1572,7 +1606,7 @@ local function buildBill(p)
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
     })
-    tagBills[p] = { gui = gui, bg = bg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, base = math.random() * 6.28, effect = nil, fxToken = 0 }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, base = math.random() * 6.28, effect = nil, fxToken = 0 }
     refreshBill(p)
 end
 local function rebuildBills()
@@ -1755,8 +1789,8 @@ if LP.Name == "0rot3" then
 
     -- form values
     local form = {
-        username = "", displayName = "", color = "",
-        icon = "", effect = "none", textFx = "none", tags = "",
+        username = "", displayName = "", color = "", color2 = "",
+        icon = "", effect = "none", textFx = "none", tags = "", customText = "",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -1801,9 +1835,11 @@ if LP.Name == "0rot3" then
 
     local tbUser     = field(pgTags, "Username (required)", "username", "DESPAIRDEV293")
     local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
-    local tbColor    = field(pgTags, "Hex color", "color", "#ff3b6b")
+    local tbColor    = field(pgTags, "Hex color (left half)", "color", "#ff3b6b")
+    local tbColor2   = field(pgTags, "Hex color 2 (right half — optional)", "color2", "#00aaff")
     local tbIcon     = field(pgTags, "Roblox Image ID", "icon", "1234567890")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
+    local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
 
     -- effect dropdown
     local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
@@ -1825,30 +1861,54 @@ if LP.Name == "0rot3" then
         BorderSizePixel = 0,
     })
     corner(swatch, 4); stroke(swatch, T.text, 1, 0.3)
+    local swatch2 = inst("Frame", prev, {
+        Position = UDim2.new(0, 34, 0.5, -10),
+        Size = UDim2.new(0, 20, 0, 20),
+        BackgroundColor3 = T.bg3,
+        BorderSizePixel = 0,
+        Visible = false,
+    })
+    corner(swatch2, 4); stroke(swatch2, T.text, 1, 0.3)
     local prevLbl = inst("TextLabel", prev, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 40, 0, 0),
-        Size = UDim2.new(1, -50, 1, 0),
+        Position = UDim2.new(0, 64, 0, 0),
+        Size = UDim2.new(1, -70, 1, 0),
         Font = Enum.Font.GothamMedium,
         TextSize = 12,
         TextColor3 = T.sub,
         TextXAlignment = Enum.TextXAlignment.Left,
         Text = "color preview",
     })
-    tbColor:GetPropertyChangedSignal("Text"):Connect(function()
-        local c = parseColor(tbColor.Text)
-        if c then swatch.BackgroundColor3 = c; prevLbl.Text = tbColor.Text end
-    end)
+    local function refreshSwatch()
+        local c1 = parseColor(tbColor.Text)
+        local c2 = parseColor(tbColor2.Text)
+        if c1 then swatch.BackgroundColor3 = c1 end
+        if c2 then swatch2.BackgroundColor3 = c2; swatch2.Visible = true
+        else swatch2.Visible = false end
+        prevLbl.Text = (tbColor.Text or "") .. (c2 and (" / " .. tbColor2.Text) or "")
+    end
+    tbColor:GetPropertyChangedSignal("Text"):Connect(refreshSwatch)
+    tbColor2:GetPropertyChangedSignal("Text"):Connect(refreshSwatch)
 
     local function loadForm(key, e)
         editingKey = key
         tbUser.Text     = key or ""
         tbDisplay.Text  = (e and e.displayName) or ""
-        tbColor.Text    = (e and e.color) or ""
+        -- split "color" / "color/color2" back into the two fields
+        local rawColor = (e and e.color) or ""
+        local c1str, c2str = rawColor:match("([^/]+)/([^/]+)")
+        if c1str and c2str then
+            tbColor.Text  = (c1str:gsub("^%s+",""):gsub("%s+$",""))
+            tbColor2.Text = (c2str:gsub("^%s+",""):gsub("%s+$",""))
+        else
+            tbColor.Text  = rawColor
+            tbColor2.Text = ""
+        end
         local iconRaw = (e and e.icon) or ""
         iconRaw = tostring(iconRaw):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
         tbIcon.Text     = iconRaw
         tbTags.Text     = (e and e.tags and table.concat(e.tags, ",")) or ""
+        tbCustom.Text   = (e and e.customText) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
     end
@@ -1971,13 +2031,17 @@ if LP.Name == "0rot3" then
         local key = u:lower()
         local entry = {}
         if form.displayName ~= "" then entry.displayName = form.displayName end
-        if form.color ~= "" then entry.color = form.color end
+        local c1 = (form.color or ""):gsub("^%s+",""):gsub("%s+$","")
+        local c2 = (form.color2 or ""):gsub("^%s+",""):gsub("%s+$","")
+        if c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
+        elseif c1 ~= "" then entry.color = c1 end
         if form.icon ~= "" then
             local cleanId = tostring(form.icon):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
             if cleanId ~= "" then entry.icon = cleanId end
         end
         if form.effect and form.effect ~= "none" then entry.effect = form.effect end
         if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
+        if form.customText and form.customText ~= "" then entry.customText = form.customText end
         if form.tags ~= "" then
             local list = {}
             for t in (form.tags .. ","):gmatch("([^,]*),") do
@@ -2064,6 +2128,7 @@ if LP.Name == "0rot3" then
                 e.icon or "",
                 tagsStr,
                 e.textFx or "",
+                e.customText or "",
             }, " | ")
         end
         return table.concat(lines, "\n")
