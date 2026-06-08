@@ -7034,7 +7034,9 @@ end)()
 ;(function()
     local TextChat = game:GetService("TextChatService")
     local Players  = game:GetService("Players")
-    local MARKER   = "\u{200B}[SEIGE-EXEC]\u{200B}"
+    -- Plain printable marker; survives Roblox text filtering better than zero-width chars.
+    local TAG_EXEC = "::seige-exec::"
+    local TAG_HERE = "::seige-here::"
 
     -- Bottom-left stack
     local ExecNotif = inst("Frame", Root, {
@@ -7062,7 +7064,6 @@ end)()
             Size = UDim2.new(0, 3, 1, -10), Position = UDim2.new(0, 5, 0, 5),
             BackgroundColor3 = T.good, BorderSizePixel = 0,
         })
-        -- Avatar thumbnail
         local av = inst("ImageLabel", card, {
             Size = UDim2.new(0, 40, 0, 40),
             Position = UDim2.new(0, 14, 0, 8),
@@ -7101,57 +7102,71 @@ end)()
         showExecNotif(uid, plr.DisplayName, plr.Name)
     end
 
-    -- Suppress the marker locally and surface the notification
+    -- Send a marker through whichever chat path is available
+    local function broadcast(text)
+        local ok = pcall(function()
+            local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
+                or TextChat.TextChannels:GetChildren()[1]
+            if ch then ch:SendAsync(text) end
+        end)
+        if not ok then
+            pcall(function()
+                game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents", 3)
+                    :WaitForChild("SayMessageRequest"):FireServer(text, "All")
+            end)
+        end
+    end
+
+    -- Respond to a foreign EXEC by announcing our presence so the new user sees us
+    local function echoPresence()
+        task.delay(0.4 + math.random() * 0.8, function() broadcast(TAG_HERE) end)
+    end
+
+    local function handleText(text, srcPlayer)
+        if type(text) ~= "string" then return false end
+        local isExec = text:find(TAG_EXEC, 1, true) ~= nil
+        local isHere = text:find(TAG_HERE, 1, true) ~= nil
+        if not (isExec or isHere) then return false end
+        if srcPlayer and srcPlayer ~= LP then
+            pingFromUser(srcPlayer)
+            if isExec then echoPresence() end
+        end
+        return true
+    end
+
+    -- Suppress markers locally and surface the notification
     pcall(function()
         TextChat.OnIncomingMessage = function(msg)
             local txt = msg and msg.Text or ""
-            if type(txt) == "string" and txt:find(MARKER, 1, true) then
+            local src = msg and msg.TextSource
+            local plr = src and Players:GetPlayerByUserId(src.UserId) or nil
+            if handleText(txt, plr) then
                 local props = Instance.new("TextChatMessageProperties")
                 props.Text = ""
                 props.PrefixText = ""
-                local src = msg.TextSource
-                if src then
-                    local plr = Players:GetPlayerByUserId(src.UserId)
-                    if plr and plr ~= LP then pingFromUser(plr) end
-                end
                 return props
             end
             return nil
         end
     end)
 
-    -- Legacy chat fallback
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP then
-            bind(p.Chatted:Connect(function(m)
-                if m:find(MARKER, 1, true) then pingFromUser(p) end
-            end))
-        end
+    -- Legacy chat fallback (server-replicated, immune to TextChat filter quirks)
+    local function hookChatted(p)
+        bind(p.Chatted:Connect(function(m) handleText(m, p) end))
     end
-    bind(Players.PlayerAdded:Connect(function(p)
-        bind(p.Chatted:Connect(function(m)
-            if m:find(MARKER, 1, true) then pingFromUser(p) end
-        end))
-    end))
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP then hookChatted(p) end
+    end
+    bind(Players.PlayerAdded:Connect(hookChatted))
 
-    -- Broadcast our own execution
+    -- Broadcast our own execution and show our own card immediately
+    showExecNotif(LP.UserId, LP.DisplayName, LP.Name)
     task.spawn(function()
         task.wait(0.5)
-        local sent = pcall(function()
-            local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
-                or TextChat.TextChannels:GetChildren()[1]
-            if ch then ch:SendAsync(MARKER) end
-        end)
-        if not sent then
-            pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents", 3)
-                    :WaitForChild("SayMessageRequest"):FireServer(MARKER, "All")
-            end)
-        end
-        -- Always show our own card locally
-        showExecNotif(LP.UserId, LP.DisplayName, LP.Name)
+        broadcast(TAG_EXEC)
     end)
 end)()
+
 
 
 ------------------------------------------------------- CLEANUP
