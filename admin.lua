@@ -513,53 +513,60 @@ local Body = inst("Frame", Win, {
     BackgroundTransparency = 1,
 })
 
-topBtn("✕", -4, function()
+local closeBtn = topBtn("✕", -38, function()
     if _G.__AdminCleanup then _G.__AdminCleanup() end
 end)
-topBtn("—", -38, function()
+local minBtn = topBtn("—", -72, function()
     minimized = not minimized
     tween(Win, 0.18, { Size = minimized and UDim2.new(0,620,0,44) or UDim2.new(0,620,0,440) })
     Body.Visible = not minimized
 end)
 
--- Floating open/close toggle: image icon when open, 3-line hamburger when closed.
-local toggleBtn = inst("TextButton", Root, {
-    AnchorPoint = Vector2.new(1, 0),
-    Position = UDim2.new(1, -14, 0, 14),
-    Size = UDim2.new(0, 40, 0, 40),
-    BackgroundColor3 = T.bg2,
-    BackgroundTransparency = 0.2,
+-- Open/close toggle (rightmost in top bar): image icon when open, 3-line hamburger when closed.
+local toggleBtn = inst("TextButton", Top, {
+    AnchorPoint = Vector2.new(1, 0.5),
+    Position = UDim2.new(1, -4, 0.5, 0),
+    Size = UDim2.new(0, 28, 0, 28),
+    BackgroundColor3 = T.bg3,
+    BackgroundTransparency = 0.3,
     AutoButtonColor = false,
     Text = "",
-    Font = Enum.Font.GothamBold, TextSize = 20, TextColor3 = T.text,
-    ZIndex = 200,
+    Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = T.text,
+    ZIndex = 5,
 })
-corner(toggleBtn, 10); stroke(toggleBtn, T.line, 1, 0.4)
+corner(toggleBtn, 8); stroke(toggleBtn, T.line, 1, 0.4)
 local toggleImg = inst("ImageLabel", toggleBtn, {
     BackgroundTransparency = 1,
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.5, 0, 0.5, 0),
-    Size = UDim2.new(0, 22, 0, 22),
+    Size = UDim2.new(0, 18, 0, 18),
     Image = "rbxassetid://106620609396373",
     ImageColor3 = T.text,
-    ZIndex = 201,
+    ZIndex = 6,
 })
+toggleBtn.MouseEnter:Connect(function() tween(toggleBtn, 0.15, {BackgroundColor3 = T.acc, BackgroundTransparency = 0.2}) end)
+toggleBtn.MouseLeave:Connect(function() tween(toggleBtn, 0.15, {BackgroundColor3 = T.bg3, BackgroundTransparency = 0.3}) end)
+
 local guiHidden = false
-local function setToggleHamburger(on)
-    if on then
+local prevMinimized = false
+toggleBtn.MouseButton1Click:Connect(function()
+    guiHidden = not guiHidden
+    if guiHidden then
+        prevMinimized = minimized
+        Body.Visible = false
+        closeBtn.Visible = false
+        minBtn.Visible = false
+        tween(Win, 0.18, { Size = UDim2.new(0, 44, 0, 36) })
         toggleImg.Visible = false
         toggleBtn.Text = "≡"
     else
         toggleBtn.Text = ""
         toggleImg.Visible = true
+        closeBtn.Visible = true
+        minBtn.Visible = true
+        tween(Win, 0.18, { Size = prevMinimized and UDim2.new(0,620,0,44) or UDim2.new(0,620,0,440) })
+        Body.Visible = not prevMinimized
     end
-end
-toggleBtn.MouseEnter:Connect(function() tween(toggleBtn, 0.15, {BackgroundColor3 = T.acc, BackgroundTransparency = 0.15}) end)
-toggleBtn.MouseLeave:Connect(function() tween(toggleBtn, 0.15, {BackgroundColor3 = T.bg2, BackgroundTransparency = 0.2}) end)
-toggleBtn.MouseButton1Click:Connect(function()
-    guiHidden = not guiHidden
-    Win.Visible = not guiHidden
-    setToggleHamburger(guiHidden)
 end)
 
 -- Drag
