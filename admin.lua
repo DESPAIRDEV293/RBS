@@ -5722,6 +5722,10 @@ do
     local function _animOpen(win)
         local scaleObj = win:FindFirstChildOfClass("UIScale")
             or inst("UIScale", win, { Scale = 0.85 })
+        if _G.__SeigeReducedMotion then
+            scaleObj.Scale = 1
+            return
+        end
         scaleObj.Scale = 0.85
         local prevBT = win.BackgroundTransparency
         win.BackgroundTransparency = 1
@@ -5731,6 +5735,11 @@ do
             { Scale = 1 }):Play()
     end
     local function _animClose(gui, win, onDone)
+        if _G.__SeigeReducedMotion then
+            if gui and gui.Parent then gui:Destroy() end
+            if onDone then onDone() end
+            return
+        end
         local scaleObj = win:FindFirstChildOfClass("UIScale")
             or inst("UIScale", win, { Scale = 1 })
         TweenService:Create(scaleObj, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
