@@ -2710,20 +2710,6 @@ local function refreshBill(p)
         end
     end
 
-    -- Tag specials disabled: ignore saved `element` values and force-remove
-    -- every special layer so no faint square/box can render behind the pill.
-    if e.specialStroke then
-        if e.specialKey ~= nil and _G.__SeigeStopSpecialAnim then
-            _G.__SeigeStopSpecialAnim(e)
-        elseif _resetAura then
-            _resetAura(e)
-        end
-        e.specialKey = nil
-    end
-
-
-
-
     -- Effect change
     local newEffect = cfg and cfg.effect
     if newEffect ~= e.effect then
@@ -2762,7 +2748,6 @@ local function refreshBill(p)
     local total = 5 + 34 + 8 + textW + chipBlock + 10
     if total < 120 then total = 120 end
     e.bg.Size  = UDim2.new(0, total, 0, 46)
-    if e.specialBorder then e.specialBorder.Size = e.specialBorder.Visible and UDim2.new(0, total, 0, 46) or UDim2.new(0, 0, 0, 0) end
     e.gui.Size = UDim2.new(0, total + 24, 0, 58)
 end
 
