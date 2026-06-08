@@ -7227,7 +7227,7 @@ end)()
     showExecNotif(LP.UserId, LP.DisplayName, LP.Name)
     task.spawn(function()
         task.wait(0.5)
-        broadcast(TAG_EXEC)
+        broadcast(PUBLIC_MARK)
     end)
 end)()
 
