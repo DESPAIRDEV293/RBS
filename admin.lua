@@ -2406,6 +2406,7 @@ do
 end
 
 
+local function measureText(text, font, size)
     local ok, v = pcall(function()
         return TextService:GetTextSize(text or "", size, font, Vector2.new(10000, 100))
     end)
