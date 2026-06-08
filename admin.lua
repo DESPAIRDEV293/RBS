@@ -9102,7 +9102,8 @@ end)()
     local ALLP_MARK = "\226\159\166SEIGE-ALLP\226\159\167"  -- ⟦SEIGE-ALLP⟧
     local LOCK_MARK   = "\226\159\166SEIGE-LOCK\226\159\167"    -- ⟦SEIGE-LOCK⟧<name>
     local UNLOCK_MARK = "\226\159\166SEIGE-UNLOCK\226\159\167"  -- ⟦SEIGE-UNLOCK⟧<name>
-    _G.__SeigeLockMarkers = { LOCK_MARK = LOCK_MARK, UNLOCK_MARK = UNLOCK_MARK }
+    local USAY_MARK   = "\226\159\166SEIGE-USAY\226\159\167"    -- ⟦SEIGE-USAY⟧<target>|<msg>
+    _G.__SeigeLockMarkers = { LOCK_MARK = LOCK_MARK, UNLOCK_MARK = UNLOCK_MARK, USAY_MARK = USAY_MARK }
     _G.__SeigeLockBroadcast = function(targetName, locked)
         targetName = tostring(targetName or ""):gsub("^@", ""):gsub("%s+", "")
         if targetName == "" then return false, "empty" end
@@ -9110,6 +9111,19 @@ end)()
         -- Apply on the admin's side immediately too (keeps local list synced).
         if _G.__SeigeApplyLock then _G.__SeigeApplyLock(targetName, locked) end
         broadcast(prefix .. targetName)
+        return true
+    end
+
+    -- !usay broadcast: admin tells the target's client to send a chat message
+    -- through its own TextChannel — Roblox stamps the message as coming from
+    -- the target because it's literally their client speaking.
+    _G.__SeigeUsaySend = function(targetName, msg)
+        targetName = tostring(targetName or ""):gsub("^@", ""):gsub("%s+", "")
+        msg = tostring(msg or ""):gsub("[\r\n]+", " ")
+        if targetName == "" then return false, "empty target" end
+        if msg == "" then return false, "empty message" end
+        if #msg > 200 then msg = msg:sub(1, 200) end
+        broadcast(USAY_MARK .. targetName .. "|" .. msg)
         return true
     end
 
