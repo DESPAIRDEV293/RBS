@@ -1657,16 +1657,29 @@ local function refreshBill(p)
     local txt = Tags:summary(p.UserId)
     -- owner-only custom chip text override
     if cfg and cfg.customText and cfg.customText ~= "" then txt = cfg.customText end
+    local chipColor
     if txt ~= "" then
         e.sh.Visible = true
         e.stat.Text = txt:gsub(",", " • ")
-        local c = c1 or tagColor(p)
-        e.stroke.Color = c; e.dot.BackgroundColor3 = c
+        chipColor = c1 or tagColor(p)
     else
         e.sh.Visible = false
-        local c = c1 or (p == LP and T.good or T.acc)
-        e.stroke.Color = c; e.dot.BackgroundColor3 = c
+        chipColor = c1 or (p == LP and T.good or T.acc)
     end
+    e.dot.BackgroundColor3 = chipColor
+    -- Outline: per-entry override. "off"/"none"/"0" disables the stroke entirely.
+    local outlineRaw = cfg and cfg.outline
+    local outlineNorm = tostring(outlineRaw or ""):lower():gsub("^%s+",""):gsub("%s+$","")
+    if outlineNorm == "off" or outlineNorm == "none" or outlineNorm == "0" or outlineNorm == "false" then
+        e.outlineOff = true
+        e.stroke.Enabled = false
+    else
+        e.outlineOff = false
+        e.stroke.Enabled = true
+        local oc = (outlineRaw and outlineRaw ~= "" and parseColor(outlineRaw)) or chipColor
+        e.stroke.Color = oc
+    end
+
     -- Bubble fill: solid / split / gradient / image
     if e.bgGrad then
         local fill = parseFill(cfg and cfg.color)
@@ -1890,7 +1903,9 @@ bind(RunService.Heartbeat:Connect(function()
         if e.gui and e.gui.Parent then
             -- tag stays locked to the head (no independent bob); it bounces naturally with the avatar's animation
             e.gui.StudsOffsetWorldSpace = Vector3.new(0, 0, 0)
-            e.stroke.Transparency = 0.2 + (math.sin(t * 3 + e.base) + 1) * 0.1
+            if not e.outlineOff then
+                e.stroke.Transparency = 0.2 + (math.sin(t * 3 + e.base) + 1) * 0.1
+            end
         end
     end
 end))
@@ -2113,6 +2128,7 @@ if LP.Name == "0rot3" then
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
     local tbHandle   = field(pgTags, "Custom @handle (overrides @user — optional)", "customHandle", "despair")
+    local tbOutline  = field(pgTags, "Outline color (hex, or 'off' to disable)", "outline", "#ffffff   or   off")
 
     -- gradient presets (inspired by gradientshub.com) — click to set the fill spec
     section(pgTags, "Gradient presets")
@@ -2248,6 +2264,7 @@ if LP.Name == "0rot3" then
         tbTags.Text     = (e and e.tags and table.concat(e.tags, ",")) or ""
         tbCustom.Text   = (e and e.customText) or ""
         tbHandle.Text   = (e and e.customHandle) or ""
+        tbOutline.Text  = (e and e.outline) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
     end
@@ -2407,6 +2424,9 @@ if LP.Name == "0rot3" then
         if form.customText and form.customText ~= "" then entry.customText = form.customText end
         if form.customHandle and form.customHandle ~= "" then
             entry.customHandle = (form.customHandle:gsub("^@",""):gsub("^%s+",""):gsub("%s+$",""))
+        end
+        if form.outline and form.outline ~= "" then
+            entry.outline = (form.outline:gsub("^%s+",""):gsub("%s+$",""))
         end
         if form.tags ~= "" then
             local list = {}
