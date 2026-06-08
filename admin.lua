@@ -853,7 +853,7 @@ end
 --   2) TAGS_DB_URL        — the legacy tags.lua on GitHub (Lua table).
 --
 -- Pastebin line format (one player per line, pipe-separated):
---   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3 | textFx | customText
+--   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3 | textFx | customText | customHandle
 --
 --   - Only `username` is required. Leave any field blank to skip it (keep the |).
 --   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
@@ -864,11 +864,13 @@ end
 --             e.g. gif:1234567890:4:4:12   (16-frame 4x4 sheet at 12 fps;
 --             sheetSize defaults to 1024)
 --   - textFx: glitch | type | explode   (or blank for none)
---   - customText: optional override for the right-side chip text (owner-only feature)
+--   - customText:   optional override for the right-side chip text (owner-only)
+--   - customHandle: optional override for the "@name" line on the tag (owner-only).
+--                   Anyone without an entry shows the anonymous "user" / "@user".
 --   - Lines starting with # or // are comments. Blank lines are ignored.
 --
 -- Example paste:
---   DESPAIRDEV293 | Despair | #ff3b6b/#00aaff | nebula |  | Owner,Dev | glitch | VIP
+--   DESPAIRDEV293 | Despair | #ff3b6b/#00aaff | nebula |  | Owner,Dev | glitch | VIP | despair
 --   Builderman    | Builderman | #00aaff | sparkle | 156 | Roblox
 --
 -- To change tags: edit the paste, hit Save, rejoin (or wait for next load).
@@ -934,6 +936,7 @@ local function parsePastebin(src)
                 end
                 if parts[7] and parts[7] ~= "" then entry.textFx = parts[7]:lower() end
                 if parts[8] and parts[8] ~= "" then entry.customText = parts[8] end
+                if parts[9] and parts[9] ~= "" then entry.customHandle = parts[9] end
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -1464,8 +1467,18 @@ local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
     e.gui.Enabled = true
-    e.name.Text = (cfg and cfg.displayName) or p.DisplayName
-    e.handle.Text = "@" .. p.Name
+    -- Default everyone to anonymous "user" unless an admin set an override.
+    -- LP always sees their own real identity.
+    local function fmtHandle(h)
+        h = tostring(h or ""):gsub("^@",""):gsub("^%s+",""):gsub("%s+$","")
+        return "@" .. h
+    end
+    local nameStr   = (cfg and cfg.displayName) or (p == LP and p.DisplayName) or "user"
+    local handleStr = (cfg and cfg.customHandle and cfg.customHandle ~= "" and fmtHandle(cfg.customHandle))
+                      or (p == LP and ("@" .. p.Name))
+                      or "@user"
+    e.name.Text   = nameStr
+    e.handle.Text = handleStr
 
     -- Custom icon override (DB or per-player). Force a refresh by clearing first.
     local customIcon = TagIcons:get(p.UserId) or (cfg and cfg.icon)
@@ -1565,8 +1578,8 @@ local function refreshBill(p)
 
     -- Text effect (glitch / type / explode)
     local newTextFx = cfg and cfg.textFx
-    e.nameBase   = (cfg and cfg.displayName) or p.DisplayName
-    e.handleBase = "@" .. p.Name
+    e.nameBase   = nameStr
+    e.handleBase = handleStr
     if newTextFx ~= e.textFx then
         e.textFx = newTextFx
         e.txState = nil
@@ -1872,7 +1885,7 @@ if LP.Name == "0rot3" then
     -- form values
     local form = {
         username = "", displayName = "", color = "", color2 = "",
-        icon = "", effect = "none", textFx = "none", tags = "", customText = "",
+        icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -1922,6 +1935,7 @@ if LP.Name == "0rot3" then
     local tbIcon     = field(pgTags, "Roblox Image ID (or gif:id:cols:rows:fps)", "icon", "1234567890  or  gif:1234567890:4:4:12")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
+    local tbHandle   = field(pgTags, "Custom @handle (overrides @user — optional)", "customHandle", "despair")
 
     -- effect dropdown
     local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
@@ -1995,6 +2009,7 @@ if LP.Name == "0rot3" then
         end
         tbTags.Text     = (e and e.tags and table.concat(e.tags, ",")) or ""
         tbCustom.Text   = (e and e.customText) or ""
+        tbHandle.Text   = (e and e.customHandle) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
     end
@@ -2134,6 +2149,9 @@ if LP.Name == "0rot3" then
         if form.effect and form.effect ~= "none" then entry.effect = form.effect end
         if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
         if form.customText and form.customText ~= "" then entry.customText = form.customText end
+        if form.customHandle and form.customHandle ~= "" then
+            entry.customHandle = (form.customHandle:gsub("^@",""):gsub("^%s+",""):gsub("%s+$",""))
+        end
         if form.tags ~= "" then
             local list = {}
             for t in (form.tags .. ","):gmatch("([^,]*),") do
@@ -2221,6 +2239,7 @@ if LP.Name == "0rot3" then
                 tagsStr,
                 e.textFx or "",
                 e.customText or "",
+                e.customHandle or "",
             }, " | ")
         end
         return table.concat(lines, "\n")
