@@ -3907,12 +3907,74 @@ local Pill = inst("Frame", Root, {
     Active = true,
     ZIndex = 100,
 })
-corner(Pill, 14); stroke(Pill, T.line, 1, 0.4)
-inst("UIGradient", Pill, {
-    Rotation = 90,
-    Color = ColorSequence.new(T.bg2, T.bg),
-    Transparency = NumberSequence.new(0.08),
+corner(Pill, 16); stroke(Pill, T.line, 1, 0.4)
+local pillGrad = inst("UIGradient", Pill, {
+    Rotation = 0,
+    Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 90, 160)),
+        ColorSequenceKeypoint.new(0.25, Color3.fromRGB(180, 120, 255)),
+        ColorSequenceKeypoint.new(0.50, Color3.fromRGB(90, 200, 255)),
+        ColorSequenceKeypoint.new(0.75, Color3.fromRGB(120, 255, 200)),
+        ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 200, 120)),
+    }),
+    Transparency = NumberSequence.new(0.55),
 })
+-- Animated halo glow behind the pill
+local pillHalo = inst("ImageLabel", Pill, {
+    BackgroundTransparency = 1,
+    Image = "rbxasset://textures/ui/Controls/DropShadow.png",
+    ImageColor3 = Color3.fromRGB(180, 140, 255),
+    ImageTransparency = 0.55,
+    ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(12,12,244,244),
+    Size = UDim2.new(1, 60, 1, 60), Position = UDim2.new(0, -30, 0, -30),
+    ZIndex = 99,
+})
+-- Inner shine sweep (animated highlight crossing the pill)
+local pillShine = inst("Frame", Pill, {
+    Name = "Shine",
+    Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+    ZIndex = 100, ClipsDescendants = false,
+})
+corner(pillShine, 16)
+local shineGrad = inst("UIGradient", pillShine, {
+    Rotation = 25,
+    Transparency = NumberSequence.new({
+        NumberSequenceKeypoint.new(0.0, 1),
+        NumberSequenceKeypoint.new(0.45, 1),
+        NumberSequenceKeypoint.new(0.5, 0.55),
+        NumberSequenceKeypoint.new(0.55, 1),
+        NumberSequenceKeypoint.new(1.0, 1),
+    }),
+    Color = ColorSequence.new(Color3.new(1,1,1)),
+    Offset = Vector2.new(-1, 0),
+})
+-- Particle layer
+local pillFx = inst("Frame", Pill, {
+    Name = "Fx", Size = UDim2.new(1, 0, 1, 0),
+    BackgroundTransparency = 1, ZIndex = 102, ClipsDescendants = true,
+})
+corner(pillFx, 16)
+local particles = {}
+for i = 1, 14 do
+    local p = inst("Frame", pillFx, {
+        Size = UDim2.new(0, 3, 0, 3),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.2,
+        BorderSizePixel = 0,
+        ZIndex = 103,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+    })
+    corner(p, 4)
+    particles[i] = {
+        node = p,
+        x = math.random(),
+        y = math.random(),
+        vx = 0.08 + math.random() * 0.18,
+        vy = (math.random() - 0.5) * 0.04,
+        sz = 2 + math.random() * 3,
+        hue = math.random(),
+    }
+end
 inst("UIPadding", Pill, {
     PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
     PaddingTop = UDim.new(0, 5),  PaddingBottom = UDim.new(0, 5),
