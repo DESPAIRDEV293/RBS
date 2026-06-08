@@ -4583,14 +4583,17 @@ cmdBox.FocusLost:Connect(function(enter)
     if enter then runBarCmd(t) end
 end)
 
+local function setCmdBar(v)
+    cmdBar.Visible = v
+    if v then cmdBox:CaptureFocus() else cmdBox.Text = "" end
+end
+_G.__AdminToggleCmdBar = setCmdBar
+
 bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
-    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.F6 then
-        cmdBar.Visible = not cmdBar.Visible
-        if cmdBar.Visible then
-            cmdBox:CaptureFocus()
-        else
-            cmdBox.Text = ""
+    if i.UserInputType == Enum.UserInputType.Keyboard then
+        if i.KeyCode == Enum.KeyCode.F6 or i.KeyCode == Enum.KeyCode.Semicolon then
+            setCmdBar(not cmdBar.Visible)
         end
     end
 end))
