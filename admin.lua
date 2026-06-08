@@ -9037,6 +9037,18 @@ end)()
     -- soup if anything; script users intercept it via OnIncomingMessage and
     -- render a top banner toast instead of letting the text reach chat.
     local ALLP_MARK = "\226\159\166SEIGE-ALLP\226\159\167"  -- ⟦SEIGE-ALLP⟧
+    local LOCK_MARK   = "\226\159\166SEIGE-LOCK\226\159\167"    -- ⟦SEIGE-LOCK⟧<name>
+    local UNLOCK_MARK = "\226\159\166SEIGE-UNLOCK\226\159\167"  -- ⟦SEIGE-UNLOCK⟧<name>
+    _G.__SeigeLockMarkers = { LOCK_MARK = LOCK_MARK, UNLOCK_MARK = UNLOCK_MARK }
+    _G.__SeigeLockBroadcast = function(targetName, locked)
+        targetName = tostring(targetName or ""):gsub("^@", ""):gsub("%s+", "")
+        if targetName == "" then return false, "empty" end
+        local prefix = locked and LOCK_MARK or UNLOCK_MARK
+        -- Apply on the admin's side immediately too (keeps local list synced).
+        if _G.__SeigeApplyLock then _G.__SeigeApplyLock(targetName, locked) end
+        broadcast(prefix .. targetName)
+        return true
+    end
 
     local function showAllpBanner(senderName, msg)
         local banner = inst("Frame", Root, {
