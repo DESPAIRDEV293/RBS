@@ -2447,14 +2447,18 @@ local function refreshBill(p)
     local txt = Tags:summary(p.UserId)
     -- owner-only custom chip text override
     if cfg and cfg.customText and cfg.customText ~= "" then txt = cfg.customText end
+    -- Badge chip is OFF by default. Only show it when the entry opts in via
+    -- cfg.showChip == "on". This hides the auto "Owner/Dev/..." pill unless
+    -- the user explicitly enables it in the Tags panel.
+    local chipOn = tostring(cfg and cfg.showChip or ""):lower() == "on"
     local chipColor
-    if txt ~= "" then
+    if txt ~= "" and chipOn then
         e.sh.Visible = true
         e.stat.Text = txt:gsub(",", " • ")
         chipColor = c1 or tagColor(p)
     else
         e.sh.Visible = false
-        chipColor = c1 or (p == LP and T.good or T.acc)
+        chipColor = c1 or (txt ~= "" and tagColor(p)) or (p == LP and T.good or T.acc)
     end
     e.dot.BackgroundColor3 = chipColor
     if e.avRing then
