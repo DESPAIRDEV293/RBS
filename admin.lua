@@ -3231,6 +3231,7 @@ if LP.Name == "0rot3" then
                 e.outline or "",
                 e.font or "",
                 e.sweep or "",
+                e.element or "",
             }, " | ")
         end
         return table.concat(lines, "\n")
