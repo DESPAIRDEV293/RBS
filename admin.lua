@@ -7691,6 +7691,10 @@ slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
     s.Scale = v
 end)
 
+toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, function(v)
+    _G.__SeigeReducedMotion = v
+end)
+
 section(pgShaders, "World Image (Skybox)")
 label(pgShaders, "6 cubed faces — paste a Roblox asset id/URL, or a local image file path from your PC")
 do
