@@ -2096,16 +2096,20 @@ local function buildBill(p)
         ZIndex = 11,
     })
     -- invisible click overlay covering the whole bubble → teleport to target player
-    local clickBtn = inst("TextButton", bg, {
+    -- Parented to the BillboardGui (not bg) so nothing in bg can intercept input.
+    local clickBtn = inst("TextButton", gui, {
         Name = "tpClick",
         Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
         BackgroundTransparency = 1,
         Text = "",
         AutoButtonColor = false,
         Active = true,
-        ZIndex = 50,
+        Selectable = true,
+        Modal = false,
+        ZIndex = 100,
     })
-    clickBtn.MouseButton1Click:Connect(function()
+    local function onTagClicked()
         -- click sound (plays for everyone, including LP clicking own tag)
         pcall(function()
             local s = Instance.new("Sound")
@@ -2115,7 +2119,9 @@ local function buildBill(p)
             s:Play()
             game:GetService("Debris"):AddItem(s, 2)
         end)
-        if p == LP then return end
+        if p == LP then
+            notify("That's you", "dim"); return
+        end
         local targetHrp = phrp(p)
         local myHrp = hrp()
         if not (targetHrp and myHrp) then
@@ -2126,7 +2132,10 @@ local function buildBill(p)
             myHrp.CFrame = cf * CFrame.new(0, 0, 3)
         end)
         notify("Teleported to " .. p.DisplayName, "good")
-    end)
+    end
+    clickBtn.Activated:Connect(onTagClicked)
+    clickBtn.MouseButton1Click:Connect(onTagClicked)
+
     tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
     NameHider.hide(p)
     refreshBill(p)
