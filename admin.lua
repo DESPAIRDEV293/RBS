@@ -1948,6 +1948,10 @@ local function refreshBill(p)
         local oc = (outlineRaw and outlineRaw ~= "" and parseColor(outlineRaw)) or chipColor
         e.stroke.Color = oc
     end
+    -- Metal sweep toggle
+    if e.sweep then
+        e.sweep.Visible = (cfg and cfg.sweep) == true
+    end
 
     -- Bubble fill: solid / split / gradient / image
     if e.bgGrad then
