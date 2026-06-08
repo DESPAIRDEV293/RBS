@@ -2832,6 +2832,9 @@ if LP.Name == "0rot3" then
         fontDD.set((e and e.font) or "Default")
         sweepDD.set((e and e.sweep) or "on")
         form.sweep = (e and e.sweep) or "on"
+        local el = (e and e.element) or "none"
+        elementDD.set(el)
+        form.element = el
     end
 
     local function clearForm() loadForm(nil, nil) end
