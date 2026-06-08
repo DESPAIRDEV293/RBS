@@ -5429,127 +5429,158 @@ cmdHandlers["bring"] = function(arg)
 end
 
 -- ================================================================
--- Reanim: classic character-swap "reanimate" + animation playback.
--- !reanim            -> reanimate (swap to fake body; puppet replicates)
--- !reanim <id> [spd] -> play an Animation / KeyframeSequence asset id
--- !reanim stop / !unreanim -> stop reanim AND any playing tracks
+-- Reanim: free the humanoid from default animations and play custom
+-- Animation assets or KeyframeSequences on it. Works on R6 and R15.
+-- Disables the default "Animate" LocalScript so idle/walk/jump don't
+-- override your custom anims. Animations played on the real humanoid
+-- replicate to other players.
+--
+-- !reanim                -> enable reanim (kills default animate)
+-- !reanim <id> [speed]   -> play Animation/KeyframeSequence asset id
+-- !reanim stop / !unreanim -> stop tracks AND restore default animate
 -- ================================================================
-_G.__ReanimTracks = _G.__ReanimTracks or {}
-
-local function reanimHum()
-    -- Prefer the puppet (real body) for animation playback so tracks
-    -- replicate to other players; fall back to local humanoid.
-    local puppet = _G.__ReanimReal
-    if puppet and puppet.Parent then
-        local h = puppet:FindFirstChildOfClass("Humanoid")
-        if h then return h end
-    end
-    return getHum()
-end
+_G.__ReanimTracks   = _G.__ReanimTracks   or {}
+_G.__ReanimAnimateSrc = _G.__ReanimAnimateSrc or nil   -- saved clone of Animate
 
 local function stopAllReanimTracks()
-    for _, tr in ipairs(_G.__ReanimTracks) do pcall(function() tr:Stop(); tr:Destroy() end) end
+    for _, tr in ipairs(_G.__ReanimTracks) do pcall(function() tr:Stop(0); tr:Destroy() end) end
     _G.__ReanimTracks = {}
-    local h = reanimHum()
+    local h = getHum()
     if h then
         local animator = h:FindFirstChildOfClass("Animator")
         if animator then
-            for _, t in ipairs(animator:GetPlayingAnimationTracks()) do pcall(function() t:Stop() end) end
+            for _, t in ipairs(animator:GetPlayingAnimationTracks()) do pcall(function() t:Stop(0) end) end
         end
         pcall(function()
-            for _, t in ipairs(h:GetPlayingAnimationTracks()) do pcall(function() t:Stop() end) end
+            for _, t in ipairs(h:GetPlayingAnimationTracks()) do pcall(function() t:Stop(0) end) end
         end)
     end
 end
 
-local function startReanim()
-    if _G.__ReanimActive then notify("Already reanimated", "warn"); return end
-    local real = LP.Character
-    local rhum = real and real:FindFirstChildOfClass("Humanoid")
-    local rhrp = real and real:FindFirstChild("HumanoidRootPart")
-    if not (real and rhum and rhrp) then notify("No character", "bad"); return end
-
-    real.Archivable = true
-    pcall(function() rhum.BreakJointsOnDeath = false end)
-    pcall(function() rhum.RequiresNeck = false end)
-
-    -- Build fake (visible body the player drives)
-    local fake = real:Clone()
-    fake.Name = LP.Name
-    for _, d in ipairs(fake:GetDescendants()) do
-        if d:IsA("BasePart") then d.CanCollide = false; d.Massless = true end
+-- Strip the default Animate localscript so it stops overriding tracks
+local function killDefaultAnimate(char)
+    if not char then return end
+    local a = char:FindFirstChild("Animate")
+    if a then
+        if not _G.__ReanimAnimateSrc then
+            pcall(function() a.Archivable = true; _G.__ReanimAnimateSrc = a:Clone() end)
+        end
+        pcall(function() a.Disabled = true end)
+        pcall(function() a:Destroy() end)
     end
-    -- Hide real body parts visually (the puppet) — keep them in world to drive replication
-    for _, d in ipairs(real:GetDescendants()) do
-        if d:IsA("BasePart") then
-            pcall(function() d.Transparency = 1; d.CanCollide = false; d.Massless = true end)
-        elseif d:IsA("Decal") or d:IsA("Texture") then
-            pcall(function() d.Transparency = 1 end)
+    -- stop any leftover playing tracks (idle/walk/jump)
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        local animator = hum:FindFirstChildOfClass("Animator")
+        if animator then
+            for _, t in ipairs(animator:GetPlayingAnimationTracks()) do pcall(function() t:Stop(0) end) end
         end
     end
+end
 
-    fake.Parent = Workspace
-    LP.Character = fake
-    Workspace.CurrentCamera.CameraSubject = fake:FindFirstChildOfClass("Humanoid")
+local function restoreDefaultAnimate(char)
+    if not char or not _G.__ReanimAnimateSrc then return end
+    if char:FindFirstChild("Animate") then return end
+    local clone = _G.__ReanimAnimateSrc:Clone()
+    clone.Disabled = false
+    clone.Parent = char
+end
 
-    -- Keep the puppet glued to the fake every frame so animations look right on the server
-    local conn
-    conn = RunService.Heartbeat:Connect(function()
-        if not _G.__ReanimActive then conn:Disconnect(); return end
-        local fhrp = fake:FindFirstChild("HumanoidRootPart")
-        local pphrp = real and real:FindFirstChild("HumanoidRootPart")
-        if fhrp and pphrp then pcall(function() pphrp.CFrame = fhrp.CFrame end) end
-    end)
+local function startReanim()
+    if _G.__ReanimActive then notify("Reanim already on", "warn"); return end
+    local char = LP.Character
+    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+    if not (char and hum) then notify("No character", "bad"); return end
 
-    -- If the puppet gets reset by the game, end reanim cleanly
-    rhum.Died:Connect(function() if _G.__ReanimActive then _G.__StopReanim() end end)
+    pcall(function() hum.BreakJointsOnDeath = false end)
+    -- Ensure an Animator exists (needed in some games)
+    if not hum:FindFirstChildOfClass("Animator") then
+        pcall(function() Instance.new("Animator", hum) end)
+    end
+    killDefaultAnimate(char)
+
+    -- Re-strip Animate every respawn while reanim is on
+    if not _G.__ReanimRespawnConn then
+        _G.__ReanimRespawnConn = LP.CharacterAdded:Connect(function(c)
+            if not _G.__ReanimActive then return end
+            task.wait(0.4)
+            local h = c:FindFirstChildOfClass("Humanoid")
+            if h and not h:FindFirstChildOfClass("Animator") then
+                pcall(function() Instance.new("Animator", h) end)
+            end
+            killDefaultAnimate(c)
+        end)
+    end
 
     _G.__ReanimActive = true
-    _G.__ReanimReal  = real
-    _G.__ReanimFake  = fake
-    _G.__ReanimConn  = conn
-    notify("Reanimated. Play with !reanim <animId>", "good")
+    notify("Reanim ON — humanoid freed. Play with !reanim <id>", "good")
 end
 
 _G.__StopReanim = function()
-    if not _G.__ReanimActive then return end
+    if not _G.__ReanimActive then
+        stopAllReanimTracks(); return
+    end
     _G.__ReanimActive = false
     stopAllReanimTracks()
-    if _G.__ReanimConn then pcall(function() _G.__ReanimConn:Disconnect() end); _G.__ReanimConn = nil end
-    if _G.__ReanimFake then pcall(function() _G.__ReanimFake:Destroy() end); _G.__ReanimFake = nil end
-    _G.__ReanimReal = nil
-    -- Force respawn
-    pcall(function() LP:LoadCharacter() end)
-    notify("Reanim stopped (respawning)", "good")
+    if _G.__ReanimRespawnConn then
+        pcall(function() _G.__ReanimRespawnConn:Disconnect() end)
+        _G.__ReanimRespawnConn = nil
+    end
+    restoreDefaultAnimate(LP.Character)
+    notify("Reanim OFF", "good")
+end
+
+-- Resolve "id" or "rbxassetid://id" or full asset URL
+local function resolveAssetId(s)
+    if not s then return nil end
+    local n = s:match("(%d+)")
+    return n and ("rbxassetid://" .. n) or nil
 end
 
 local function playAnimId(arg)
-    local idPart, speedPart = arg:match("^(%S+)%s*(.*)$")
-    local speed = tonumber(speedPart) or 1
-    local id = idPart and (idPart:match("(%d+)") or idPart)
-    if not id then notify("Bad anim id", "bad"); return end
-    local h = reanimHum(); if not h then notify("No humanoid", "bad"); return end
+    arg = (arg or ""):gsub("^%s+",""):gsub("%s+$","")
+    local idPart, rest = arg:match("^(%S+)%s*(.*)$")
+    local speed = tonumber(rest) or 1
+    local assetUri = resolveAssetId(idPart or "")
+    if not assetUri then notify("Bad anim id", "bad"); return end
+    local hum = getHum(); if not hum then notify("No humanoid", "bad"); return end
+
+    -- Auto-enable reanim so the default Animate script doesn't fight us
+    if not _G.__ReanimActive then startReanim() end
+
+    -- Ensure animator
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if not animator then
+        pcall(function() animator = Instance.new("Animator", hum) end)
+        animator = hum:FindFirstChildOfClass("Animator")
+    end
 
     local function loadAndPlay(animationId)
         local anim = Instance.new("Animation"); anim.AnimationId = animationId
-        local animator = h:FindFirstChildOfClass("Animator")
-        local track = animator and animator:LoadAnimation(anim) or h:LoadAnimation(anim)
-        track:Play(); track:AdjustSpeed(speed)
+        local track = animator and animator:LoadAnimation(anim) or hum:LoadAnimation(anim)
+        track.Priority = Enum.AnimationPriority.Action4 or Enum.AnimationPriority.Action
+        track.Looped = true
+        track:Play(0)
+        track:AdjustSpeed(speed)
         return track
     end
 
-    local ok, track = pcall(loadAndPlay, "rbxassetid://" .. tostring(id))
+    -- 1) Try as a regular Animation asset
+    local ok, track = pcall(loadAndPlay, assetUri)
     if ok and typeof(track) == "Instance" then
         table.insert(_G.__ReanimTracks, track)
-        notify("Reanim " .. id .. " @x" .. speed, "good"); return
+        notify("Playing " .. assetUri .. " @x" .. speed, "good"); return
     end
 
-    -- KeyframeSequence fallback (register then play)
+    -- 2) Fallback: load asset as KeyframeSequence, register, then play
+    local idNum = tonumber(assetUri:match("(%d+)"))
     local ksOk, ks = pcall(function()
         if typeof(getobjects) == "function" then
-            local o = getobjects("rbxassetid://" .. tostring(id)); return o and o[1]
+            local o = getobjects(assetUri); return o and o[1]
+        elseif typeof(GetObjects) == "function" then
+            local o = GetObjects(assetUri); return o and o[1]
         else
-            local m = game:GetService("InsertService"):LoadAsset(tonumber(id))
+            local m = game:GetService("InsertService"):LoadAsset(idNum)
             return m and m:FindFirstChildOfClass("KeyframeSequence", true)
         end
     end)
@@ -5561,11 +5592,11 @@ local function playAnimId(arg)
             local ok2, tr = pcall(loadAndPlay, hash)
             if ok2 and typeof(tr) == "Instance" then
                 table.insert(_G.__ReanimTracks, tr)
-                notify("Reanim (KFS) " .. id .. " @x" .. speed, "good"); return
+                notify("Playing KFS " .. idNum .. " @x" .. speed, "good"); return
             end
         end
     end
-    notify("Reanim play failed: " .. tostring(track), "bad")
+    notify("Play failed: " .. tostring(track), "bad")
 end
 
 cmdHandlers["reanim"] = function(arg)
@@ -5574,9 +5605,9 @@ cmdHandlers["reanim"] = function(arg)
     if arg == "stop" or arg == "off" then _G.__StopReanim(); return end
     playAnimId(arg)
 end
-cmdHandlers["anim"]     = function(arg) playAnimId((arg or ""):gsub("^%s+","")) end
+cmdHandlers["anim"]     = function(arg) playAnimId(arg or "") end
 cmdHandlers["unreanim"] = function() _G.__StopReanim() end
-cmdHandlers["stopanim"] = function() stopAllReanimTracks(); notify("Anim tracks stopped", "good") end
+cmdHandlers["stopanim"] = function() stopAllReanimTracks(); notify("Tracks stopped", "good") end
 
 cmdHandlers["pos"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
