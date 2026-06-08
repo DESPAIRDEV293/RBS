@@ -7291,6 +7291,216 @@ cmdHandlers["circle"] = cmdHandlers["cir"]
 cmdHandlers["uncir"] = function() _seigeCircleStop(); notify("Circle stopped", "good") end
 cmdHandlers["uncircle"] = cmdHandlers["uncir"]
 
+-- !stalk — opens a picker; "Listen" then tracks position + mic + chat for the target.
+_G.__SeigeStalk = _G.__SeigeStalk or { target = nil, lastChat = "", chatConn = nil, conns = {}, gui = nil }
+local function _seigeStalkStop()
+    local S = _G.__SeigeStalk
+    for _, c in ipairs(S.conns) do pcall(function() c:Disconnect() end) end
+    S.conns = {}
+    if S.chatConn then pcall(function() S.chatConn:Disconnect() end); S.chatConn = nil end
+    if S.gui then pcall(function() S.gui:Destroy() end); S.gui = nil end
+    if S.highlight then pcall(function() S.highlight:Destroy() end); S.highlight = nil end
+    if S.target then
+        local h = hum(); if h then Workspace.CurrentCamera.CameraSubject = h end
+    end
+    S.target, S.lastChat = nil, ""
+end
+local function _seigeStalkStart(target)
+    _seigeStalkStop()
+    local S = _G.__SeigeStalk
+    S.target = target
+    S.lastChat = ""
+    -- Listen for chat
+    S.chatConn = target.Chatted:Connect(function(msg) S.lastChat = msg end)
+    -- ESP highlight
+    local ch = target.Character
+    if ch then
+        local hl = Instance.new("Highlight")
+        hl.Name = "__SeigeStalkHL"
+        hl.FillColor = Color3.fromRGB(255, 80, 80)
+        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hl.FillTransparency = 0.6
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.Adornee = ch
+        hl.Parent = ch
+        S.highlight = hl
+    end
+    -- Spectate camera
+    do
+        local c = target.Character
+        local h = c and c:FindFirstChildOfClass("Humanoid")
+        if h then Workspace.CurrentCamera.CameraSubject = h end
+    end
+    -- HUD
+    local gui = inst("ScreenGui", nil, {
+        Name = "SeigeStalkHUD", IgnoreGuiInset = true, ResetOnSpawn = false,
+        DisplayOrder = 230, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+    })
+    safeParent(gui); S.gui = gui
+    local win = inst("Frame", gui, {
+        AnchorPoint = Vector2.new(1, 0),
+        Position = UDim2.new(1, -14, 0, 80),
+        Size = UDim2.new(0, 280, 0, 150),
+        BackgroundColor3 = T.bg, BorderSizePixel = 0,
+    })
+    corner(win, 10); stroke(win, T.line, 1, 0.3)
+    local bar = inst("Frame", win, {
+        Size = UDim2.new(1, 0, 0, 26), BackgroundColor3 = T.bg2, BorderSizePixel = 0,
+    })
+    corner(bar, 10)
+    inst("TextLabel", bar, {
+        BackgroundTransparency = 1, Position = UDim2.new(0, 10, 0, 0),
+        Size = UDim2.new(1, -40, 1, 0), Font = Enum.Font.GothamBold, TextSize = 12,
+        TextColor3 = T.text, TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "🔍 Stalking @" .. target.Name,
+    })
+    local close = inst("TextButton", bar, {
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0),
+        Size = UDim2.new(0, 20, 0, 20), BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+        Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = T.text, Text = "✕",
+    })
+    corner(close, 5)
+    close.MouseButton1Click:Connect(function() _seigeStalkStop(); notify("Stalk stopped", "good") end)
+    local function mkLine(y, label)
+        local f = inst("TextLabel", win, {
+            BackgroundTransparency = 1, Position = UDim2.new(0, 10, 0, y),
+            Size = UDim2.new(1, -20, 0, 18), Font = Enum.Font.Gotham, TextSize = 12,
+            TextColor3 = T.sub, TextXAlignment = Enum.TextXAlignment.Left,
+            Text = label, TextWrapped = false, TextTruncate = Enum.TextTruncate.AtEnd,
+        })
+        return f
+    end
+    local lblPos  = mkLine(32, "Position: —")
+    local lblDist = mkLine(52, "Distance: —")
+    local lblMic  = mkLine(72, "🎤 Mic: idle")
+    local lblChat = inst("TextLabel", win, {
+        BackgroundTransparency = 1, Position = UDim2.new(0, 10, 0, 94),
+        Size = UDim2.new(1, -20, 0, 50), Font = Enum.Font.Gotham, TextSize = 12,
+        TextColor3 = T.text, TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true,
+        Text = "💬 (no chat yet)",
+    })
+    -- drag bar
+    do
+        local dragging, sp, sm
+        bar.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; sp = win.Position; sm = i.Position
+            end
+        end)
+        UIS.InputChanged:Connect(function(i)
+            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                local d = i.Position - sm
+                win.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y)
+            end
+        end)
+        UIS.InputEnded:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+        end)
+    end
+    -- Detect "speaking": look for a playing Sound in the player's character (VoiceChat sounds).
+    local function isSpeaking(tc)
+        if not tc then return false end
+        for _, d in ipairs(tc:GetDescendants()) do
+            if d:IsA("Sound") and d.IsPlaying and d.Playing then
+                local nm = (d.Name or ""):lower()
+                if nm:find("voice") or nm == "" or d.SoundId == "" then return true end
+            end
+        end
+        return false
+    end
+    table.insert(S.conns, RunService.Heartbeat:Connect(function()
+        local t = S.target
+        if not t or not t.Parent then _seigeStalkStop(); return end
+        local tc = t.Character
+        local thrp = tc and tc:FindFirstChild("HumanoidRootPart")
+        if thrp then
+            local p = thrp.Position
+            lblPos.Text = string.format("Position: %d, %d, %d", math.floor(p.X), math.floor(p.Y), math.floor(p.Z))
+            local me = hrp()
+            if me then
+                lblDist.Text = string.format("Distance: %d studs", math.floor((me.Position - p).Magnitude))
+            end
+        end
+        if isSpeaking(tc) then
+            lblMic.Text = "🎤 Mic: SPEAKING"
+            lblMic.TextColor3 = T.good or Color3.fromRGB(120, 240, 140)
+        else
+            lblMic.Text = "🎤 Mic: idle"
+            lblMic.TextColor3 = T.sub
+        end
+        lblChat.Text = (S.lastChat ~= "" and ("💬 " .. S.lastChat)) or "💬 (no chat yet)"
+    end))
+end
+
+local function _openStalkPanel()
+    _openPanel("stalk", "Stalk  ·  pick a player to listen to", 360, function(body)
+        local scroll = inst("ScrollingFrame", body, {
+            Size = UDim2.new(1, 0, 0, 220), BackgroundColor3 = T.bg2, BorderSizePixel = 0,
+            CanvasSize = UDim2.new(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollBarThickness = 4, ScrollBarImageColor3 = T.line,
+        })
+        corner(scroll, 6)
+        inst("UIListLayout", scroll, { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder })
+        inst("UIPadding", scroll, { PaddingTop = UDim.new(0, 4), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4) })
+        local selected
+        local statusLbl = inst("TextLabel", body, {
+            BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 16),
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+            TextXAlignment = Enum.TextXAlignment.Left, Text = "  Pick a player, then click Listen.",
+        })
+        local rowsByPlr = {}
+        local function refresh()
+            for _, c in ipairs(scroll:GetChildren()) do
+                if c:IsA("TextButton") then c:Destroy() end
+            end
+            rowsByPlr = {}
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LP then
+                    local btn = inst("TextButton", scroll, {
+                        Size = UDim2.new(1, -8, 0, 24), BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+                        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+                        Text = "  @" .. p.Name .. "  (" .. (p.DisplayName or p.Name) .. ")",
+                        TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false,
+                    })
+                    corner(btn, 4)
+                    rowsByPlr[p] = btn
+                    btn.MouseButton1Click:Connect(function()
+                        selected = p
+                        for op, ob in pairs(rowsByPlr) do
+                            ob.BackgroundColor3 = (op == p) and (T.accent or Color3.fromRGB(80, 140, 255)) or T.bg3
+                        end
+                        statusLbl.Text = "  Selected: @" .. p.Name
+                    end)
+                end
+            end
+        end
+        refresh()
+        button(body, "Refresh list", refresh)
+        button(body, "🔍 Listen", function()
+            if not selected or not selected.Parent then notify("Pick a player first", "warn"); return end
+            _seigeStalkStart(selected)
+            notify("Stalking @" .. selected.Name, "good")
+        end)
+        button(body, "Stop stalking (!unstalk)", function()
+            _seigeStalkStop(); notify("Stalk stopped", "good")
+        end)
+    end)
+end
+
+cmdHandlers["stalk"] = function(arg)
+    if arg and arg ~= "" then
+        local target = findPlr(arg)
+        if not target then notify("Player not found", "bad"); return end
+        _seigeStalkStart(target)
+        notify("Stalking @" .. target.Name, "good")
+    else
+        _openStalkPanel()
+    end
+end
+cmdHandlers["unstalk"] = function() _seigeStalkStop(); notify("Stalk stopped", "good") end
+
+
 -- ---------- extended chat commands ----------
 local function getHum()
     local c = LP.Character
