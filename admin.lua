@@ -5964,10 +5964,22 @@ local function makePanel(name, entry)
         Visible = false, Active = true, ZIndex = 110,
     })
     corner(frame, 12); stroke(frame, T.line, 1, 0.4)
+    frame.ClipsDescendants = true
     inst("UIGradient", frame, {
         Rotation = 120,
         Color = ColorSequence.new(T.bg2, T.bg),
         Transparency = NumberSequence.new(0.05),
+    })
+    -- User-supplied panel background image (set via Themes tab)
+    local bgImg = inst("ImageLabel", frame, {
+        Name = "__SeigeBgImg",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        ScaleType = Enum.ScaleType.Crop,
+        Image = "",
+        ImageTransparency = 1,
+        ZIndex = 110,
     })
     -- soft glow
     inst("ImageLabel", frame, {
