@@ -2504,6 +2504,18 @@ local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
     e.gui.Enabled = true
+
+    -- Baseline reset every refresh: re-enable stroke and restore opaque bg so
+    -- per-entry overrides (outline/fill/textColor/aura) always start from a
+    -- known state. The blocks below then apply whatever the config specifies.
+    -- Aura teardown happens here too so a removed aura cleanly hands the pill
+    -- back to the normal stroke + fill renderers.
+    if e.auraStop and not Auras.canonical(cfg and cfg.aura) then
+        pcall(e.auraStop); e.auraStop = nil; e.auraName = nil
+    end
+    if e.stroke then e.stroke.Enabled = true end
+    if e.bg then e.bg.BackgroundTransparency = 0 end
+
     -- Default everyone to anonymous "user" unless an admin set an override.
     -- LP always sees their own real identity.
     local function fmtHandle(h)
