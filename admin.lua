@@ -1436,6 +1436,27 @@ local function measureText(text, font, size)
     return #(text or "") * size * 0.55
 end
 
+-- Parse a gif/sprite-sheet spec from the icon field.
+-- Accepted format: "gif:assetId:cols:rows:fps[:sheetSize]"
+--   sheetSize defaults to 1024 (most uploaded sheets are 1024x1024).
+-- Returns table { id, cols, rows, fps, size, frames, fw, fh } or nil.
+local function parseGifSpec(raw)
+    if type(raw) ~= "string" then return nil end
+    local lower = raw:lower()
+    if lower:sub(1, 4) ~= "gif:" then return nil end
+    local id, cols, rows, fps, size = raw:match("^[gG][iI][fF]:(%d+):(%d+):(%d+):(%d+):?(%d*)$")
+    if not (id and cols and rows and fps) then return nil end
+    cols = tonumber(cols); rows = tonumber(rows); fps = tonumber(fps)
+    size = (size ~= "" and tonumber(size)) or 1024
+    if cols < 1 or rows < 1 or fps < 1 then return nil end
+    return {
+        id = id, cols = cols, rows = rows, fps = fps, size = size,
+        frames = cols * rows,
+        fw = math.floor(size / cols),
+        fh = math.floor(size / rows),
+    }
+end
+
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
@@ -1446,18 +1467,53 @@ local function refreshBill(p)
     -- Custom icon override (DB or per-player). Force a refresh by clearing first.
     local customIcon = TagIcons:get(p.UserId) or (cfg and cfg.icon)
     if e.av then
-        local target
-        if customIcon then
-            target = resolveIconUrl(customIcon)
+        local gifSpec = parseGifSpec(customIcon)
+        if gifSpec then
+            -- start (or restart) sprite-sheet animation
+            local key = "gif:" .. gifSpec.id .. ":" .. gifSpec.cols .. "x" .. gifSpec.rows .. "@" .. gifSpec.fps .. ":" .. gifSpec.size
+            if e.gifKey ~= key then
+                e.gifKey = key
+                e.gifToken = (e.gifToken or 0) + 1
+                local myToken = e.gifToken
+                local img = "rbxassetid://" .. gifSpec.id
+                pcall(function() e.av.Image = "" end)
+                pcall(function() e.av.Image = img end)
+                e.av.ImageTransparency = 0
+                e.av.ScaleType = Enum.ScaleType.Crop
+                e.av.ImageRectSize = Vector2.new(gifSpec.fw, gifSpec.fh)
+                task.spawn(function()
+                    local frame = 0
+                    local delayTime = 1 / gifSpec.fps
+                    while e.gifToken == myToken and e.av and e.av.Parent do
+                        local col = frame % gifSpec.cols
+                        local row = math.floor(frame / gifSpec.cols) % gifSpec.rows
+                        e.av.ImageRectOffset = Vector2.new(col * gifSpec.fw, row * gifSpec.fh)
+                        frame = (frame + 1) % gifSpec.frames
+                        task.wait(delayTime)
+                    end
+                end)
+            end
         else
-            pcall(function()
-                target = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
-            end)
-        end
-        if target and target ~= "" and e.av.Image ~= target then
-            pcall(function() e.av.Image = "" end)
-            pcall(function() e.av.Image = target end)
-            e.av.ImageTransparency = 0
+            -- static image path — cancel any running gif loop and reset rect
+            if e.gifKey then
+                e.gifKey = nil
+                e.gifToken = (e.gifToken or 0) + 1
+                e.av.ImageRectOffset = Vector2.new(0, 0)
+                e.av.ImageRectSize = Vector2.new(0, 0)
+            end
+            local target
+            if customIcon then
+                target = resolveIconUrl(customIcon)
+            else
+                pcall(function()
+                    target = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+                end)
+            end
+            if target and target ~= "" and e.av.Image ~= target then
+                pcall(function() e.av.Image = "" end)
+                pcall(function() e.av.Image = target end)
+                e.av.ImageTransparency = 0
+            end
         end
     end
 
