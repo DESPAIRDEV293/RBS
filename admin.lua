@@ -3111,10 +3111,6 @@ button(pgCmds, "!jump",                                      function() _runCmd(
 button(pgCmds, "!heal",                                      function() _runCmd("!heal") end)
 button(pgCmds, "!god",                                       function() _runCmd("!god") end)
 button(pgCmds, "!ungod",                                     function() _runCmd("!ungod") end)
-button(pgCmds, "!noclip",                                    function() _runCmd("!noclip") end)
-button(pgCmds, "!clip",                                      function() _runCmd("!clip") end)
-button(pgCmds, "!fly",                                       function() _runCmd("!fly") end)
-button(pgCmds, "!unfly",                                     function() _runCmd("!unfly") end)
 button(pgCmds, "!unspectate",                                function() _runCmd("!unspectate") end)
 button(pgCmds, "!pos",                                       function() _runCmd("!pos") end)
 button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
@@ -3124,17 +3120,73 @@ button(pgCmds, "!help",                                      function() _runCmd(
 button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
 button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
 
--- Numeric commands open a slider popup
-button(pgCmds, "!ws / !speed  —  slider", function()
-    _openSliders("WalkSpeed  ·  !ws", "!ws", {
-        { label = "Speed", lo = 0, hi = 200, default = 16 },
-    })
+-- ===== Popout panels (replace standalone toggles) =====
+button(pgCmds, "Movement  —  walk + jump", function()
+    _openPanel("movement", "Movement  ·  Walk & Jump", 200, function(body)
+        local h = hum()
+        slider(body, "Walk speed", 0, 200, (h and h.WalkSpeed) or 16, function(v)
+            local hh = hum(); if hh then hh.WalkSpeed = v end
+            _runCmd("!ws " .. tostring(math.floor(v + 0.5)))
+        end)
+        slider(body, "Jump power", 0, 500, (h and h.JumpPower) or 50, function(v)
+            local hh = hum(); if hh then hh.JumpPower = v; hh.UseJumpPower = true end
+            _runCmd("!jp " .. tostring(math.floor(v + 0.5)))
+        end)
+        slider(body, "Hip height", 0, 10, (h and h.HipHeight) or 2, function(v)
+            local hh = hum(); if hh then hh.HipHeight = v end
+        end)
+        toggle(body, "Infinite jump", infJump, function(s) infJump = s end)
+    end)
 end)
-button(pgCmds, "!jp  —  slider", function()
-    _openSliders("JumpPower  ·  !jp", "!jp", {
-        { label = "Jump Power", lo = 0, hi = 500, default = 50 },
-    })
+
+button(pgCmds, "Fly  —  toggle + speed", function()
+    _openPanel("fly", "Fly  ·  E up · Q down · WASD", 170, function(body)
+        toggle(body, "Fly enabled", flying, function(s)
+            if s then startFly() else killFly() end
+        end)
+        slider(body, "Fly speed", 10, 300, flySpeed, function(v) flySpeed = v end)
+        button(body, "Stop fly", function() killFly() end)
+    end)
 end)
+
+button(pgCmds, "Noclip  —  toggle", function()
+    _openPanel("noclip", "Noclip  ·  walk through walls", 130, function(body)
+        toggle(body, "Noclip enabled", noclip, function(s) noclip = s end)
+        button(body, "Re-enable collisions (clip)", function()
+            noclip = false
+            local c = char(); if c then for _, p in ipairs(c:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = true end
+            end end
+        end)
+    end)
+end)
+
+button(pgCmds, "Anti-AFK  —  toggle", function()
+    _openPanel("antiafk", "Anti-AFK  ·  prevent kick", 110, function(body)
+        toggle(body, "Anti-AFK enabled", antiAfk, function(s)
+            antiAfk = s
+            if s then notify("Anti-AFK active", "good") end
+        end)
+    end)
+end)
+
+button(pgCmds, "Character  —  reset / refresh / click-TP", function()
+    _openPanel("character", "Character", 170, function(body)
+        button(body, "Reset character", function()
+            local h = hum(); if h then h.Health = 0 end
+        end)
+        button(body, "Refresh (TP to same spot)", function()
+            local h = hrp(); if not h then return end
+            local cf = h.CFrame
+            LP.Character:BreakJoints()
+            task.wait(0.6)
+            LP.CharacterAdded:Wait():WaitForChild("HumanoidRootPart").CFrame = cf
+        end)
+        toggle(body, "Click teleport (Ctrl + click)", clickTp, function(s) clickTp = s end)
+    end)
+end)
+
+
 
 -- Player-target commands open the bar prefilled
 button(pgCmds, "!goto / !tp <player>",  function() _openCmd("!goto ") end)
