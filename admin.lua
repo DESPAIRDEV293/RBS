@@ -2264,6 +2264,124 @@ local function parseGifSpec(raw)
     }
 end
 
+-- ===== Tag special animations =====
+-- Each named special gets its own loop driving aura.ImageTransparency,
+-- ImageColor3, Rotation, and/or scale so the outline visibly comes alive.
+-- Loops are token-guarded so re-applying or removing the special cancels
+-- the previous coroutine cleanly.
+local function _animLoop(e, token, runFrame)
+    task.spawn(function()
+        local t0 = os.clock()
+        while e.aura and e.aura.Parent and e.specialAnimToken == token do
+            local t = os.clock() - t0
+            local ok = pcall(runFrame, t)
+            if not ok then break end
+            RunService.Heartbeat:Wait()
+        end
+    end)
+end
+
+local function _resetAura(e, baseSize, basePos)
+    if not e.aura then return end
+    e.aura.Rotation = 0
+    e.aura.ImageTransparency = 0
+    e.aura.ImageColor3 = Color3.new(1, 1, 1)
+    e.aura.Size = baseSize or UDim2.new(1, 16, 0, 56)
+    e.aura.Position = basePos or UDim2.new(0, -8, 0, 1)
+end
+
+local SPECIAL_ANIMS = {
+    abyss = function(e, t)
+        -- slow deep breathing
+        local k = (math.sin(t * 1.4) + 1) * 0.5
+        e.aura.ImageTransparency = 0.15 + k * 0.45
+        e.aura.ImageColor3 = Color3.fromRGB(120 + k * 40, 140 + k * 40, 220)
+    end,
+    aurora = function(e, t)
+        -- color cycling through aurora hues
+        local h = (t * 0.08) % 1
+        e.aura.ImageColor3 = Color3.fromHSV(h, 0.55, 1)
+        e.aura.ImageTransparency = 0.1 + math.sin(t * 2) * 0.15
+    end,
+    celestial = function(e, t)
+        -- gentle twinkle + drift
+        local k = (math.sin(t * 3.2) + 1) * 0.5
+        e.aura.ImageTransparency = 0.05 + k * 0.35
+        e.aura.ImageColor3 = Color3.fromRGB(220 + k * 35, 230 + k * 25, 255)
+    end,
+    crimson = function(e, t)
+        -- heartbeat: two quick beats + rest
+        local phase = (t * 1.1) % 1
+        local pulse
+        if phase < 0.15 then pulse = phase / 0.15
+        elseif phase < 0.30 then pulse = 1 - (phase - 0.15) / 0.15
+        elseif phase < 0.45 then pulse = (phase - 0.30) / 0.15
+        elseif phase < 0.60 then pulse = 1 - (phase - 0.45) / 0.15
+        else pulse = 0 end
+        e.aura.ImageTransparency = 0.5 - pulse * 0.45
+        e.aura.ImageColor3 = Color3.fromRGB(255, 60 + pulse * 60, 80 + pulse * 40)
+    end,
+    ember = function(e, t)
+        -- fast flicker like flame
+        local flick = math.noise(t * 6, 0, 0)
+        e.aura.ImageTransparency = 0.2 + (flick + 0.5) * 0.4
+        e.aura.ImageColor3 = Color3.fromRGB(255, 130 + flick * 60, 40 + flick * 30)
+    end,
+    neon = function(e, t)
+        -- snappy on/off blink (sharp square-ish wave)
+        local s = math.sin(t * 4.5)
+        e.aura.ImageTransparency = s > 0 and 0 or 0.55
+        e.aura.ImageColor3 = Color3.fromHSV(((t * 0.5) % 1), 1, 1)
+    end,
+    obsidian = function(e, t)
+        -- slow heavy pulse, dark
+        local k = (math.sin(t * 1.0) + 1) * 0.5
+        e.aura.ImageTransparency = 0.25 + k * 0.4
+        e.aura.ImageColor3 = Color3.fromRGB(70 + k * 40, 70 + k * 40, 90 + k * 40)
+    end,
+    shadow = function(e, t)
+        -- smoky fade with slow drift in scale
+        local k = (math.sin(t * 1.6) + 1) * 0.5
+        e.aura.ImageTransparency = 0.3 + k * 0.5
+        e.aura.ImageColor3 = Color3.fromRGB(40 + k * 30, 40 + k * 30, 50 + k * 30)
+        e.aura.Size = UDim2.new(1, 16 + k * 6, 0, 56 + k * 4)
+        e.aura.Position = UDim2.new(0, -8 - k * 3, 0, 1 - k * 2)
+    end,
+    solar = function(e, t)
+        -- rotating flare + bright pulse
+        e.aura.Rotation = (t * 30) % 360
+        local k = (math.sin(t * 2.4) + 1) * 0.5
+        e.aura.ImageTransparency = 0.05 + k * 0.35
+        e.aura.ImageColor3 = Color3.fromRGB(255, 200 + k * 50, 80 + k * 60)
+    end,
+    void = function(e, t)
+        -- slow counter-rotation + transparency wave
+        e.aura.Rotation = -((t * 12) % 360)
+        local k = (math.sin(t * 0.9) + 1) * 0.5
+        e.aura.ImageTransparency = 0.2 + k * 0.5
+        e.aura.ImageColor3 = Color3.fromRGB(140 - k * 40, 80 - k * 30, 180 - k * 30)
+    end,
+}
+
+function _G.__SeigeStartSpecialAnim(e, key)
+    if not e or not e.aura then return end
+    e.specialAnimToken = (e.specialAnimToken or 0) + 1
+    local baseSize = UDim2.new(1, 16, 0, 56)
+    local basePos  = UDim2.new(0, -8, 0, 1)
+    _resetAura(e, baseSize, basePos)
+    local fn = SPECIAL_ANIMS[key]
+    if not fn then return end
+    _animLoop(e, e.specialAnimToken, function(t) fn(e, t) end)
+end
+
+function _G.__SeigeStopSpecialAnim(e)
+    if not e then return end
+    e.specialAnimToken = (e.specialAnimToken or 0) + 1
+    _resetAura(e)
+end
+
+
+
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
