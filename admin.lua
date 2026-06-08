@@ -6277,6 +6277,112 @@ end))
 if panels.Profile then panels.Profile.frame.Visible = true end
 
 
+------------------------------------------------------- SPOTIFY
+do
+    local httpReq = (syn and syn.request)
+        or rawget(getfenv(), "http_request")
+        or rawget(getfenv(), "request")
+        or (fluxus and fluxus.request)
+        or (http and http.request)
+    local function spReq(method, path, token, body)
+        if not httpReq then return nil, "Your executor lacks an HTTP request function" end
+        local url = path:sub(1,4) == "http" and path or ("https://api.spotify.com/v1" .. path)
+        local headers = { ["Authorization"] = "Bearer " .. token }
+        if body then headers["Content-Type"] = "application/json" end
+        local ok, res = pcall(httpReq, { Url = url, Method = method, Headers = headers, Body = body })
+        if not ok or not res then return nil, "Request failed" end
+        return res.StatusCode or res.status_code or 0, res.Body or res.body or ""
+    end
+
+    section(pgSpotify, "Spotify Connect")
+    label(pgSpotify, "Paste a Spotify OAuth token (see Spotify Web API docs).")
+    local token = ""
+    local readToken = function() local ok, t = pcall(function() return (readfile and readfile("seige_spotify.txt")) or "" end) if ok and t then token = t end end
+    pcall(readToken)
+    local nowPlaying = label(pgSpotify, token ~= "" and "Token loaded — press Connect to verify" or "Not connected")
+    textbox(pgSpotify, "Spotify access token (BQ…)", function(v)
+        token = (v or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        pcall(function() if writefile then writefile("seige_spotify.txt", token) end end)
+        notify("Token saved", "good")
+    end)
+    button(pgSpotify, "Connect / verify token", function()
+        if token == "" then notify("Paste a token first", "bad"); return end
+        local status, body = spReq("GET", "/me", token)
+        if status == 200 then
+            local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
+            local who = (ok and data and (data.display_name or data.id)) or "you"
+            nowPlaying:set("Connected as " .. tostring(who))
+            notify("Spotify connected: " .. tostring(who), "good")
+        else
+            nowPlaying:set("Auth failed (" .. tostring(status) .. ")")
+            notify("Token rejected (" .. tostring(status) .. ") — get a fresh one", "bad")
+        end
+    end)
+    button(pgSpotify, "Open token helper (developer.spotify.com)", function()
+        if setclipboard then pcall(setclipboard, "https://developer.spotify.com/console/get-current-user/") end
+        notify("URL copied: developer.spotify.com/console — Get Token w/ user-modify-playback-state", "good")
+    end)
+
+    section(pgSpotify, "Playback")
+    local nowTrack = label(pgSpotify, "—")
+    button(pgSpotify, "▶  Play",  function() local s = spReq("PUT",  "/me/player/play",  token); if s and s >= 400 then notify("Play failed " .. s, "bad") end end)
+    button(pgSpotify, "❚❚ Pause", function() local s = spReq("PUT",  "/me/player/pause", token); if s and s >= 400 then notify("Pause failed " .. s, "bad") end end)
+    button(pgSpotify, "⏭  Next",  function() local s = spReq("POST", "/me/player/next",  token); if s and s >= 400 then notify("Next failed " .. s, "bad") end end)
+    button(pgSpotify, "⏮  Previous", function() local s = spReq("POST", "/me/player/previous", token); if s and s >= 400 then notify("Prev failed " .. s, "bad") end end)
+    slider(pgSpotify, "Volume", 0, 100, 60, function(v)
+        if token == "" then return end
+        spReq("PUT", "/me/player/volume?volume_percent=" .. tostring(math.floor(v + 0.5)), token)
+    end)
+
+    section(pgSpotify, "Search & play")
+    textbox(pgSpotify, "Search a track (artist — title)", function(q)
+        if token == "" then notify("Connect first", "bad"); return end
+        q = (q or ""):gsub("^%s+",""):gsub("%s+$","")
+        if q == "" then return end
+        local enc = q:gsub("([^%w%-%._~])", function(c) return string.format("%%%02X", c:byte()) end)
+        local status, body = spReq("GET", "/search?type=track&limit=1&q=" .. enc, token)
+        if status ~= 200 then notify("Search failed " .. tostring(status), "bad"); return end
+        local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
+        local items = ok and data and data.tracks and data.tracks.items
+        local first = items and items[1]
+        if not first then notify("No results", "warn"); return end
+        local uri = first.uri
+        local artist = (first.artists and first.artists[1] and first.artists[1].name) or "?"
+        local play, perr = spReq("PUT", "/me/player/play", token, HttpService:JSONEncode({ uris = { uri } }))
+        if play and play >= 400 then
+            notify("Open Spotify on a device first (" .. tostring(play) .. ")", "bad")
+        else
+            notify("Playing: " .. artist .. " — " .. (first.name or "?"), "good")
+            nowTrack:set(artist .. " — " .. (first.name or "?"))
+        end
+    end)
+    textbox(pgSpotify, "Or paste a spotify URI / URL", function(v)
+        if token == "" then notify("Connect first", "bad"); return end
+        v = (v or ""):gsub("^%s+",""):gsub("%s+$","")
+        local uri = v
+        local id = v:match("track/([%w]+)")
+        if id then uri = "spotify:track:" .. id end
+        local play = spReq("PUT", "/me/player/play", token, HttpService:JSONEncode({ uris = { uri } }))
+        if play and play >= 400 then notify("Play failed " .. tostring(play), "bad") else notify("Playing " .. uri, "good") end
+    end)
+
+    -- Periodic now-playing refresh
+    task.spawn(function()
+        while pgSpotify.Parent do
+            if token ~= "" then
+                local s, b = spReq("GET", "/me/player/currently-playing", token)
+                if s == 200 and b and #b > 0 then
+                    local ok, d = pcall(function() return HttpService:JSONDecode(b) end)
+                    if ok and d and d.item then
+                        local artist = (d.item.artists and d.item.artists[1] and d.item.artists[1].name) or "?"
+                        nowTrack:set((d.is_playing and "▶ " or "❚❚ ") .. artist .. " — " .. (d.item.name or "?"))
+                    end
+                end
+            end
+            task.wait(5)
+        end
+    end)
+end
 
 
 ------------------------------------------------------- CLEANUP
