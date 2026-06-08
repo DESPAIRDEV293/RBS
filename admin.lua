@@ -5196,7 +5196,7 @@ local function makePanel(name, entry)
     page.Visible = true
 
     xBtn.MouseButton1Click:Connect(function()
-        frame.Visible = false
+        if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(frame, false) else frame.Visible = false end
         local btn = panels[name] and panels[name].btn
         if btn then
             tween(btn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25 })
