@@ -2211,7 +2211,9 @@ if LP.Name == "0rot3" then
         applyToMatchingPlayer(u)
         rebuildList()
         clearForm()
-        notify("Saved tag for " .. u, "good")
+        local sok, serr = TagDB:saveLocal()
+        if sok then notify("Saved tag for " .. u .. " (persisted)", "good")
+        else notify("Saved tag for " .. u .. " — local save failed: " .. tostring(serr), "warn") end
     end)
 
     button(pgTags, "Clear form / new entry", function() clearForm() end)
