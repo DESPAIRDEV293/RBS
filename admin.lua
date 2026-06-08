@@ -1439,122 +1439,13 @@ bind(LP.Idled:Connect(function()
 end))
 
 ------------------------------------------------------- VISUALS TAB
-section(pgShaders, "ESP")
-local espOn, espFilter = false, "All"
-local espNames, espDist, espHealth = true, true, true
-local espBoxes = {} -- [player] = { hl, bb, lblName, lblDist, hpFill }
-
-local function clearEsp()
-    for _, e in pairs(espBoxes) do
-        if e.hl then e.hl:Destroy() end
-        if e.bb then e.bb:Destroy() end
-    end
-    espBoxes = {}
-end
-local function shouldEsp(p)
+-- (ESP removed)
+local function shouldTarget(p)
     if p == LP then return false end
     if Tags:has(p.UserId, "Ignore") then return false end
-    if espFilter == "Friends" then return Tags:has(p.UserId, "Friend") end
-    if espFilter == "Targets" then return Tags:has(p.UserId, "Target") end
-    if espFilter == "Tagged"  then return next(Tags:get(p.UserId)) ~= nil end
     return true
 end
-local function buildEspFor(p)
-    if not espOn or not shouldEsp(p) or not pchar(p) then return end
-    if espBoxes[p] then return end
-    local c = pchar(p)
-    local color = tagColor(p)
-    local hl = Instance.new("Highlight")
-    hl.Adornee = c
-    hl.FillTransparency = 0.6
-    hl.OutlineColor = color; hl.FillColor = color
-    hl.Parent = c
-    local head = c:FindFirstChild("Head")
-    local bb, lblName, lblDist, hpFill
-    if head then
-        bb = Instance.new("BillboardGui", c)
-        bb.Adornee = head
-        bb.Size = UDim2.new(0, 160, 0, 40)
-        bb.StudsOffset = Vector3.new(0, 2.8, 0)
-        bb.AlwaysOnTop = true
-        lblName = inst("TextLabel", bb, {
-            BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 14),
-            Font = Enum.Font.GothamBold,
-            TextSize = 12,
-            TextColor3 = color,
-            TextStrokeTransparency = 0.5,
-            Text = p.DisplayName,
-        })
-        lblDist = inst("TextLabel", bb, {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 0, 0, 14),
-            Size = UDim2.new(1, 0, 0, 12),
-            Font = Enum.Font.Gotham,
-            TextSize = 10,
-            TextColor3 = T.sub,
-            TextStrokeTransparency = 0.5,
-            Text = "",
-        })
-        local hpBg = inst("Frame", bb, {
-            Position = UDim2.new(0.2, 0, 0, 30),
-            Size = UDim2.new(0.6, 0, 0, 4),
-            BackgroundColor3 = Color3.fromRGB(40, 40, 50),
-            BorderSizePixel = 0,
-        })
-        corner(hpBg, 2)
-        hpFill = inst("Frame", hpBg, {
-            Size = UDim2.new(1, 0, 1, 0),
-            BackgroundColor3 = T.good,
-            BorderSizePixel = 0,
-        })
-        corner(hpFill, 2)
-    end
-    espBoxes[p] = { hl = hl, bb = bb, lblName = lblName, lblDist = lblDist, hpFill = hpFill }
-end
-local function rebuildEsp()
-    clearEsp()
-    if not espOn then return end
-    for _, p in ipairs(Players:GetPlayers()) do buildEspFor(p) end
-end
 
-toggle(pgShaders, "ESP", false, function(s) espOn = s; rebuildEsp() end)
-dropdown(pgShaders, "ESP filter", { "All", "Friends", "Targets", "Tagged" }, function(o) espFilter = o; rebuildEsp() end)
-toggle(pgShaders, "Show names", true, function(s) espNames = s end)
-toggle(pgShaders, "Show distance", true, function(s) espDist = s end)
-toggle(pgShaders, "Show health bar", true, function(s) espHealth = s end)
-button(pgShaders, "Refresh ESP", rebuildEsp)
-
-bind(RunService.RenderStepped:Connect(function()
-    if not espOn then return end
-    local myH = hrp()
-    for p, e in pairs(espBoxes) do
-        if e.bb then
-            if e.lblName then e.lblName.Visible = espNames; e.lblName.TextColor3 = tagColor(p) end
-            if e.lblDist then
-                e.lblDist.Visible = espDist
-                if myH and phrp(p) then
-                    e.lblDist.Text = math.floor((myH.Position - phrp(p).Position).Magnitude) .. "m"
-                end
-            end
-            if e.hpFill then
-                e.hpFill.Parent.Visible = espHealth
-                local h = pchar(p) and pchar(p):FindFirstChildOfClass("Humanoid")
-                if h then
-                    local f = math.clamp(h.Health / math.max(1, h.MaxHealth), 0, 1)
-                    e.hpFill.Size = UDim2.new(f, 0, 1, 0)
-                    e.hpFill.BackgroundColor3 = f > 0.5 and T.good or (f > 0.25 and T.warn or T.bad)
-                end
-            end
-        end
-    end
-end))
-bind(Players.PlayerAdded:Connect(function(p)
-    bind(p.CharacterAdded:Connect(function() task.wait(0.5); if espOn then buildEspFor(p) end end))
-end))
-for _, p in ipairs(Players:GetPlayers()) do
-    bind(p.CharacterAdded:Connect(function() task.wait(0.5); if espOn then buildEspFor(p) end end))
-end
 
 section(pgShaders, "Camera & Lighting")
 slider(pgShaders, "Field of view", 30, 120, 70, function(v) cam.FieldOfView = v end)
