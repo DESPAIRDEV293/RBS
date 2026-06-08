@@ -4111,6 +4111,7 @@ end
         { name = "Reviz Admin",           patterns = { "Reviz%.lua", "reviz admin" }, gui = { "RevizAdmin" } },
         { name = "Nameless Admin",        patterns = { "Nameless Admin", "nameless%-admin" }, gui = { "NamelessAdmin" } },
         { name = "SEIGE.LOL (this)",      patterns = { "DESPAIRDEV293", "roblox%-script%-buddy", "seige%.lol" }, gui = { "SeigeAdmin", "Admin_v" } },
+        { name = "ScriptBlox script",     patterns = { "scriptblox%.com", "scriptbloxapi", "rawscripts%.net" }, gui = {} },
     }
 
     local detected = {}      -- name -> { source, url, time }
