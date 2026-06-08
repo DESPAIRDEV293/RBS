@@ -3999,6 +3999,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
   ------------------------------------------------------------------
   if _G.__SeigeMyRole() == "nt" then
     local pgNtTags = makeTab("Tags", "✎", "NT Team · edit tag name, color, image")
+    if _G.__SeigeAudit then _G.__SeigeAudit("ui_open:nt_tags_tab", "NT tag editor mounted", true) end
     section(pgNtTags, "Tag editor (NT Team)")
     label(pgNtTags, "Limited editor — you can change tag names, colors and image only. Effects, fonts and other settings are restricted.")
 
