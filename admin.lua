@@ -2472,6 +2472,7 @@ if LP.Name == "0rot3" then
                 local sok, serr = TagDB:saveLocal()
                 if sok then notify("Removed tag entry: " .. k .. " (persisted)", "warn")
                 else notify("Removed entry, but local save failed: " .. tostring(serr), "bad") end
+                if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
             end)
         end
         if #keys == 0 then
