@@ -2725,6 +2725,9 @@ if LP.Name == "0rot3" then
         if form.outline and form.outline ~= "" then
             entry.outline = (form.outline:gsub("^%s+",""):gsub("%s+$",""))
         end
+        if form.font and form.font ~= "" and form.font ~= "Default" then
+            entry.font = form.font
+        end
         if form.tags ~= "" then
             local list = {}
             for t in (form.tags .. ","):gmatch("([^,]*),") do
