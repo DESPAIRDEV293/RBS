@@ -2824,32 +2824,36 @@ local function refreshBill(p)
 
 
 
-    -- Auto-size bubble to text content. We measure both the display name
-    -- and the @handle (always using the FULL strings, never the in-progress
-    -- text from a typewriter/glitch effect) so the pill snugly hugs the
-    -- longest of the two lines.
+    -- Auto-size bubble to hug the visible text. Measure the FULL display name
+    -- + @handle (not the in-progress typewriter/glitch text) so the pill stays
+    -- snug even mid-animation. No artificial minimum so short names like
+    -- "user / @user" render as a small pill instead of a wide rectangle.
     local nameFull   = e.baseName or e.name.Text   or ""
     local handleFull = handleStr  or e.handle.Text or ""
     local nameW   = measureText(nameFull,   e.name.Font   or Enum.Font.GothamBold, 14)
     local handleW = measureText(handleFull, e.handle.Font or Enum.Font.Gotham,     10)
     local textW   = math.ceil(math.max(nameW, handleW))
-    -- give the label frames a little breathing room so text effects that
-    -- temporarily widen the string (glitch chars, shake jitter) don't clip.
-    e.name.Size   = UDim2.new(0, textW + 8, 0, 18)
-    e.handle.Size = UDim2.new(0, textW + 8, 0, 14)
+    -- breathing room for text-fx jitter (glitch chars, shake)
+    e.name.Size   = UDim2.new(0, textW + 6, 0, 18)
+    e.handle.Size = UDim2.new(0, textW + 6, 0, 14)
 
     local chipBlock = 0
-    if e.sh.Visible then
+    if e.sh and e.sh.Visible then
         local statW = measureText(e.stat.Text, Enum.Font.GothamBold, 10)
-        local shW   = math.ceil(statW + 28)
-        e.sh.Size   = UDim2.new(0, shW, 0, 24)
-        chipBlock   = shW + 8
+        local shW   = math.ceil(statW + 22)
+        e.sh.Size   = UDim2.new(0, shW, 0, 22)
+        chipBlock   = shW + 6
     end
 
-    -- layout: leftPad(5) + avatar(34) + gap(8) + text + chipBlock + rightPad(10)
-    -- No artificial minimum — pill hugs the text width so short names like
-    -- "user / @user" don't render with a giant empty trailing area.
-    local total = 5 + 34 + 8 + math.max(textW, 24) + chipBlock + 10
+    -- Layout: leftPad(4) + avatar(34) + gap(6) + text + chipBlock + rightPad(8)
+    local total = 4 + 34 + 6 + textW + chipBlock + 8
+    -- Reposition labels so they start tight after the avatar (override the
+    -- 46px hardcoded offset from buildBill's initial placement).
+    if e.name   then e.name.Position   = UDim2.new(0, 44, 0, 4)  end
+    if e.handle then e.handle.Position = UDim2.new(0, 44, 0, 24) end
+    e.nameBasePos   = e.name   and e.name.Position   or e.nameBasePos
+    e.handleBasePos = e.handle and e.handle.Position or e.handleBasePos
+
     e.bg.Size  = UDim2.new(1, 0, 1, 0)
     e.gui.Size = UDim2.new(0, total, 0, 46)
 end
