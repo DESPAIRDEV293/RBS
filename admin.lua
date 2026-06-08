@@ -5839,17 +5839,18 @@ task.spawn(function()
             lastFps = math.floor(frames / elapsed + 0.5)
             frames = 0
             windowStart = now
-            fpsLbl.Text = "● FPS " .. lastFps
+            fpsLbl.Text = tostring(lastFps)
             fpsLbl.TextColor3 = lastFps > 45 and T.good or (lastFps > 25 and T.warn or T.bad)
         end
         local ok, ping = pcall(function()
             return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
         end)
         if ok and ping then
-            pingLbl.Text = "● PING " .. ping .. "ms"
-            pingLbl.TextColor3 = ping < 120 and T.good or (ping < 280 and T.warn or T.bad)
+            pingLbl.Text = ping .. " ms"
+            pingLbl.TextColor3 = ping < 120 and T.warn or (ping < 280 and T.warn or T.bad)
         end
         pillClock.Text = (os.date("%I:%M %p"):gsub("^0", ""))
+        pillDate.Text  = os.date("%a %b %d")
     end
     pcall(function() rsConn:Disconnect() end)
 end)
