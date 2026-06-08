@@ -3450,8 +3450,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- per-tag font (dafont-style picks)
     local TAG_FONT_OPTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
-    -- metal sweep highlight on/off (per tag)
-    local sweepDD = dropdown(pgTags, "Metal sweep animation", { "on", "off" }, function(v) form.sweep = v end)
+    -- metal sweep animation has been removed; keep a no-op shim so the rest
+    -- of the panel (which references sweepDD.set) doesn't error.
+    local sweepDD = { set = function() end }
     -- per-tag tag special (outline aura effect around the bubble). "none" = no aura.
     local ELEMENT_OPTS = { "none", "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
     local elementDD = dropdown(pgTags, "Tag special (outline effect)", ELEMENT_OPTS, function(v) form.element = v end)
