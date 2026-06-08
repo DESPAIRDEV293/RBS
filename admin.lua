@@ -2215,8 +2215,9 @@ if LP.Name == "0rot3" then
         elseif c1 ~= "" then entry.color = c1 end
         if form.icon ~= "" then
             local raw = tostring(form.icon):gsub("^%s+",""):gsub("%s+$","")
-            if raw:lower():sub(1, 4) == "gif:" then
-                -- keep gif sprite-sheet spec as-is
+            local lower = raw:lower()
+            if lower:sub(1, 4) == "gif:" or lower:sub(1, 7) == "sprite:" then
+                -- keep gif/sprite sheet spec as-is (supports raw id or rbxassetid:// in id segment)
                 entry.icon = raw
             else
                 local cleanId = raw:gsub("rbxassetid://", ""):gsub("%D", "")
