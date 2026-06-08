@@ -3474,12 +3474,11 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             form.showChip = label; showChipDD.set(label)
         end
         do
-            local label = (e and e.aura and require == require and (function()
-                for _, n in ipairs({"Ember","Frost","Lightning","Void","Aurora","Crimson","Royal","Toxic","Phantom","Solar"}) do
-                    if tostring(e.aura):lower() == n:lower() then return n end
-                end
-                return "Off"
-            end)()) or "Off"
+            local label = "Off"
+            local raw = e and e.aura and tostring(e.aura):lower() or ""
+            for _, n in ipairs({"Ember","Frost","Lightning","Void","Aurora","Crimson","Royal","Toxic","Phantom","Solar"}) do
+                if raw == n:lower() then label = n; break end
+            end
             form.aura = label; auraDD.set(label)
         end
     end
