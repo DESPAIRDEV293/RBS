@@ -4113,7 +4113,7 @@ local function makePanel(name, entry)
 end
 
 -------------------------------------------------- DETECTOR (other scripts)
-do
+;(function()
     -- Known script signatures: name -> patterns to match in URLs / source / GUI names
     local KNOWN = {
         { name = "AKADMIN (absent.wtf)",  patterns = { "absent%.wtf", "AKADMIN" }, gui = { "AKAdmin", "AKADMIN" } },
