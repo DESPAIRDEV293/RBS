@@ -1725,15 +1725,21 @@ end)
 local floatOn = false
 local tagBills = {}
 
--- ===== Tag elements (named pill-plate presets, editable in the Tags panel) =====
--- Each preset is a friendly name -> Roblox asset id (string). The user fills in
--- the ids in the Tags panel; defaults are blank so nothing renders until set.
+-- ===== Tag specials (bundled outline-aura presets) =====
+-- Each named special is a PNG bundled in the repo. The tag editor lets users
+-- pick a special from a dropdown; it renders as a glowing image AROUND the
+-- tag bubble outline (it does NOT replace the bubble's back-plate).
 local TAG_ELEMENT_NAMES = { "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
-local tagElements = {
-    abyss = "", aurora = "", celestial = "", crimson = "", ember = "",
-    neon = "", obsidian = "", shadow = "", solar = "", void = "",
-}
+local TAG_SPECIAL_BASE = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tagspecials/"
+local TAG_SPECIAL_URLS = {}
+for _, n in ipairs(TAG_ELEMENT_NAMES) do
+    TAG_SPECIAL_URLS[n] = TAG_SPECIAL_BASE .. n .. ".png"
+end
+-- Kept for backward compat with old saved configs that referenced this table.
+local tagElements = {}
+for _, n in ipairs(TAG_ELEMENT_NAMES) do tagElements[n] = "" end
 _G.__SeigeTagElements = tagElements
+_G.__SeigeTagSpecials = TAG_SPECIAL_URLS
 
 -- ===== Particle effects (rain / snow / sparkle / nebula) =====
 local lastSpawn = setmetatable({}, { __mode = "k" })
@@ -2096,18 +2102,24 @@ local function refreshBill(p)
         end
     end
 
-    -- Tag element overlay: if the tag entry picks a named element preset and
-    -- the user has wired up an asset id for that name in the Tags panel, paint
-    -- it on top of the bubble fill (it acts as a back-plate / pill skin).
-    do
+    -- Tag special (outline aura): if the tag entry picks a named special, fetch
+    -- the bundled PNG and render it AROUND the bubble outline (does not replace
+    -- the bubble fill). Hidden when no special / "none" is selected.
+    if e.aura then
         local elName = cfg and cfg.element
-        local elId = elName and tagElements[tostring(elName):lower()]
-        if e.bgImg and elId and elId ~= "" then
-            local img = elId:match("^%d+$") and ("rbxassetid://" .. elId) or elId
-            e.bgImg.Image = img
-            e.bgImg.ImageTransparency = 0
-            e.bgImg.Visible = true
-            e.bg.BackgroundTransparency = 1
+        local key = (elName and tostring(elName):lower()) or nil
+        if key and key ~= "" and key ~= "none" and TAG_SPECIAL_URLS[key] then
+            if e.specialKey ~= key then
+                e.specialKey = key
+                local resolved = resolveIconUrl(TAG_SPECIAL_URLS[key]) or TAG_SPECIAL_URLS[key]
+                e.aura.Image = resolved
+            end
+            e.aura.Visible = true
+            e.aura.ImageTransparency = 0
+        else
+            e.specialKey = nil
+            e.aura.Visible = false
+            e.aura.Image = ""
         end
     end
 
@@ -2185,6 +2197,20 @@ local function buildBill(p)
         SliceCenter = Rect.new(12, 12, 244, 244),
         Size = UDim2.new(1, 24, 0, 60),
         Position = UDim2.new(0, -12, 0, 2),
+        ZIndex = 0,
+    })
+
+    -- Tag special aura: bundled outline effect that wraps the bubble.
+    -- Sits behind the pill but in front of the soft glow. Hidden by default.
+    local aura = inst("ImageLabel", gui, {
+        Name = "specialAura",
+        BackgroundTransparency = 1,
+        Image = "",
+        ImageTransparency = 0,
+        ScaleType = Enum.ScaleType.Fit,
+        Size = UDim2.new(1, 56, 1, 36),
+        Position = UDim2.new(0, -28, 0, -10),
+        Visible = false,
         ZIndex = 0,
     })
 
@@ -2400,7 +2426,7 @@ local function buildBill(p)
         cd.MouseClick:Connect(function() onTagClicked() end)
     end)
 
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, aura = aura, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil, specialKey = nil }
     _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
@@ -2756,9 +2782,9 @@ if LP.Name == "0rot3" then
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
     -- metal sweep highlight on/off (per tag)
     local sweepDD = dropdown(pgTags, "Metal sweep animation", { "on", "off" }, function(v) form.sweep = v end)
-    -- per-tag element preset (back-plate skin). "none" = no overlay.
+    -- per-tag tag special (outline aura effect around the bubble). "none" = no aura.
     local ELEMENT_OPTS = { "none", "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
-    local elementDD = dropdown(pgTags, "Tag element (back-plate preset)", ELEMENT_OPTS, function(v) form.element = v end)
+    local elementDD = dropdown(pgTags, "Tag special (outline effect)", ELEMENT_OPTS, function(v) form.element = v end)
 
 
 
@@ -2870,52 +2896,11 @@ if LP.Name == "0rot3" then
         end
     end
 
-    -- Tag elements: editable asset IDs per named preset. Each row exposes one
-    -- of the 10 element slots; entering a Roblox asset id (or rbxassetid URL)
-    -- makes that element available as a back-plate skin in the dropdown above.
-    section(pgTags, "Tag elements")
-    label(pgTags, "Paste a Roblox asset id (numbers) or rbxassetid://... per element. Leave blank to disable.")
-    for _, elName in ipairs(TAG_ELEMENT_NAMES) do
-        local row = inst("Frame", pgTags, {
-            Size = UDim2.new(1, -8, 0, 48),
-            BackgroundColor3 = T.bg2,
-            BackgroundTransparency = 0.3,
-            BorderSizePixel = 0,
-        })
-        corner(row, 8); stroke(row, T.line, 1, 0.5)
-        inst("TextLabel", row, {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0, 4),
-            Size = UDim2.new(1, -20, 0, 14),
-            Font = Enum.Font.GothamBold,
-            TextSize = 10,
-            TextColor3 = T.dim,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Text = string.upper(elName),
-        })
-        local tb = inst("TextBox", row, {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0, 20),
-            Size = UDim2.new(1, -20, 0, 22),
-            PlaceholderText = "1234567890  or  rbxassetid://1234567890",
-            PlaceholderColor3 = T.dim,
-            Font = Enum.Font.Gotham,
-            TextSize = 12,
-            TextColor3 = T.text,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Text = tagElements[elName] or "",
-            ClearTextOnFocus = false,
-        })
-        tb.FocusLost:Connect(function()
-            tagElements[elName] = tb.Text or ""
-            if _G.__AdminSaveCfg then pcall(_G.__AdminSaveCfg) end
-            -- repaint any live bubbles using this element
-            for _, p in ipairs(Players:GetPlayers()) do
-                if tagBills[p] then pcall(refreshBill, p) end
-            end
-            notify("Tag element '" .. elName .. "' updated", "good")
-        end)
-    end
+    -- Tag specials: bundled outline-aura presets. Users pick one from the
+    -- "Tag special" dropdown above; the script renders the matching bundled
+    -- PNG around the bubble. No asset IDs to fill in anymore.
+    section(pgTags, "Tag specials")
+    label(pgTags, "Pick a tag special above (abyss, aurora, celestial, crimson, ember, neon, obsidian, shadow, solar, void). Each renders a glowing effect around the tag outline.")
 
     -- list of current entries
     local listSec = section(pgTags, "Current tags")
