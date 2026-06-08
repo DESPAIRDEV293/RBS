@@ -3086,7 +3086,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
         icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
-        font = "Default", sweep = "on", element = "none",
+        font = "Default", sweep = "on",
         textColor = "", textOutline = "",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
@@ -3222,12 +3222,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- metal sweep animation has been removed; keep a no-op shim so the rest
     -- of the panel (which references sweepDD.set) doesn't error.
     local sweepDD = { set = function() end }
-    -- Tag specials were removed because their aura layer caused a faint box behind tags.
-    local elementDD = { set = function() form.element = "none" end }
-
-    -- Give the Tag panel's dropdowns more room: longer labels (e.g. "Tag
-    -- special (outline effect)") and longer option values (e.g. "celestial",
-    -- "obsidian") were getting clipped at the default 140px button width.
+    -- Give the Tag panel's dropdowns more room; longer option values were
+    -- getting clipped at the default 140px button width.
     -- The dropdown helper returns a controller (not the Frame), so walk
     -- pgTags' children and resize any frame that matches the dropdown shape
     -- (a TextButton anchored to the right edge).
@@ -3345,8 +3341,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         fontDD.set((e and e.font) or "Default")
         sweepDD.set((e and e.sweep) or "on")
         form.sweep = (e and e.sweep) or "on"
-        elementDD.set("none")
-        form.element = "none"
     end
 
     local function clearForm() loadForm(nil, nil) end
@@ -3589,7 +3583,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             entry.font = form.font
         end
         if form.sweep == "off" then entry.sweep = "off" end
-        entry.element = nil
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
