@@ -8503,6 +8503,18 @@ cmdHandlers["help"] = function()
     if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() else notify("Help panel not ready", "warn") end
 end
 
+-- Admin-only broadcast: send a private banner message to every script user
+-- in this server. Non-script users see nothing (marker is filtered out of chat).
+cmdHandlers["allp"] = function(arg)
+    if LP.Name ~= "0rot3" then notify("!allp is admin-only", "bad"); return end
+    local msg = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if msg == "" then notify("Usage: !allp <message>", "warn"); return end
+    if not _G.__SeigeAllpSend then notify("Broadcast not ready", "bad"); return end
+    local ok, err = _G.__SeigeAllpSend(msg)
+    if ok then notify("Sent to all script users", "good")
+    else notify("Send failed: " .. tostring(err), "bad") end
+end
+
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
