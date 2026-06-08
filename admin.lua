@@ -995,6 +995,7 @@ function TagDB:load()
             if count > 0 then
                 self.entries = entries
                 print(("[Tags] Pastebin DB loaded — %d entries"):format(count))
+                self:mergeLocal()
                 return
             end
         end
@@ -1005,17 +1006,23 @@ function TagDB:load()
     pcall(function()
         src = game:HttpGet(TAGS_DB_URL .. "?v=" .. tostring(os.time()))
     end)
-    if not src then warn("[Tags] DB fetch failed"); return end
+    if not src then
+        warn("[Tags] DB fetch failed — using local overrides only")
+        self.entries = {}
+        self:mergeLocal()
+        return
+    end
     local fn, err = loadstring(src)
-    if not fn then warn("[Tags] compile: " .. tostring(err)); return end
+    if not fn then warn("[Tags] compile: " .. tostring(err)); self.entries = {}; self:mergeLocal(); return end
     local ok, data = pcall(fn)
     if not ok or type(data) ~= "table" then
-        warn("[Tags] eval failed: " .. tostring(data)); return
+        warn("[Tags] eval failed: " .. tostring(data)); self.entries = {}; self:mergeLocal(); return
     end
     local entries = {}
     for k, v in pairs(data) do entries[tostring(k):lower()] = v end
     self.entries = entries
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
+    self:mergeLocal()
 end
 
 
