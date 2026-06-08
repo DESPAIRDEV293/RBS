@@ -6453,7 +6453,7 @@ end)
 
 ------------------------------------------------------- AIM TAB (camera lock)
 section(pgCmds, "Aim assist (camera lock)")
-local execFrame, execEnabled, saveCfg, loadCfg, cToHex, applyPanelBg, applyIconImages, bgState, panelBgState, bgImgBox, ROLE_ORDER, roleRows
+
 ;(function()
 local aimOn, aimFov, aimSmooth = false, 100, 0.25
 local aimVisOnly = true
@@ -7995,7 +7995,7 @@ end)()
 Win.Visible = false   -- retire the legacy chrome (kept around for compat)
 
 -- ============= TOP PILL ===========================================
-local Pill, brandBlock, fpsBox, pingBox, iconsRow, pillToggle, pillToggleImg, clockBox
+
 ;(function()
 Pill = inst("Frame", Root, {
     Name = "TopPill",
@@ -8727,7 +8727,7 @@ end)()
 
 
 -- preferred order on the pill
-local idx, cmdBar, cmdBox, cmdHandlers, findPlr, getHum, _seigeCircleStart, _seigeCircleStop
+
 ;(function()
 local tabOrder = {
     "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Skybox", "Misc",
