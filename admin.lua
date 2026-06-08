@@ -4790,6 +4790,20 @@ button(pgThemes, "Clear background", function()
 end)
 label(pgThemes, "Tip: paste an asset id (numbers only) or full URL. GIFs require an animated asset.")
 
+section(pgThemes, "Panel background (per-panel image)")
+local panelBgBox = textbox(pgThemes, "Panel image asset id or URL", function(v)
+    panelBgState.image = v; applyPanelBg(); saveCfg()
+    notify(v == "" and "Panel background cleared" or "Panel background updated", "good")
+end)
+slider(pgThemes, "Panel image opacity", 0, 1, 0.5, function(v)
+    panelBgState.trans = 1 - v
+    applyPanelBg(); saveCfg()
+end)
+button(pgThemes, "Clear panel backgrounds", function()
+    panelBgState.image = ""; applyPanelBg(); saveCfg(); notify("Panel backgrounds cleared", "good")
+end)
+label(pgThemes, "Applies to every floating panel (Profile, Cmds, Shaders, ...).")
+
 section(pgThemes, "Presets")
 local PRESETS = {
     ["Midnight (default)"] = {
