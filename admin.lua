@@ -945,6 +945,44 @@ local function parsePastebin(src)
     return entries, count
 end
 
+-- Local persistence: any tag the owner saves/deletes in the in-game panel is
+-- written to disk so it survives rejoin even if the pastebin doesn't have it.
+-- Local overrides take priority over the pastebin entry for the same username.
+local TAGS_LOCAL_FILE = "seige_tags_overrides.json"
+function TagDB:saveLocal()
+    local writefile = rawget(getfenv(), "writefile")
+    if not writefile then return false, "writefile not available" end
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(self.entries or {}) end)
+    if not ok then return false, tostring(encoded) end
+    local wok, werr = pcall(writefile, TAGS_LOCAL_FILE, encoded)
+    if not wok then return false, tostring(werr) end
+    return true
+end
+function TagDB:loadLocal()
+    local isfile   = rawget(getfenv(), "isfile")
+    local readfile = rawget(getfenv(), "readfile")
+    if not (isfile and readfile) then return nil end
+    local okExists, exists = pcall(isfile, TAGS_LOCAL_FILE)
+    if not (okExists and exists) then return nil end
+    local okRead, raw = pcall(readfile, TAGS_LOCAL_FILE)
+    if not okRead or type(raw) ~= "string" or raw == "" then return nil end
+    local okDec, data = pcall(function() return HttpService:JSONDecode(raw) end)
+    if not okDec or type(data) ~= "table" then return nil end
+    local out = {}
+    for k, v in pairs(data) do
+        if type(v) == "table" then out[tostring(k):lower()] = v end
+    end
+    return out
+end
+function TagDB:mergeLocal()
+    local local_ = self:loadLocal()
+    if not local_ then return 0 end
+    local n = 0
+    for k, v in pairs(local_) do self.entries[k] = v; n = n + 1 end
+    if n > 0 then print(("[Tags] merged %d local override(s)"):format(n)) end
+    return n
+end
+
 function TagDB:load()
     -- Try Pastebin source first (easy-edit text format)
     if TAGS_PASTEBIN_URL ~= "" then
@@ -957,6 +995,7 @@ function TagDB:load()
             if count > 0 then
                 self.entries = entries
                 print(("[Tags] Pastebin DB loaded — %d entries"):format(count))
+                self:mergeLocal()
                 return
             end
         end
@@ -967,17 +1006,23 @@ function TagDB:load()
     pcall(function()
         src = game:HttpGet(TAGS_DB_URL .. "?v=" .. tostring(os.time()))
     end)
-    if not src then warn("[Tags] DB fetch failed"); return end
+    if not src then
+        warn("[Tags] DB fetch failed — using local overrides only")
+        self.entries = {}
+        self:mergeLocal()
+        return
+    end
     local fn, err = loadstring(src)
-    if not fn then warn("[Tags] compile: " .. tostring(err)); return end
+    if not fn then warn("[Tags] compile: " .. tostring(err)); self.entries = {}; self:mergeLocal(); return end
     local ok, data = pcall(fn)
     if not ok or type(data) ~= "table" then
-        warn("[Tags] eval failed: " .. tostring(data)); return
+        warn("[Tags] eval failed: " .. tostring(data)); self.entries = {}; self:mergeLocal(); return
     end
     local entries = {}
     for k, v in pairs(data) do entries[tostring(k):lower()] = v end
     self.entries = entries
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
+    self:mergeLocal()
 end
 
 
@@ -2109,6 +2154,7 @@ if LP.Name == "0rot3" then
                     end
                 end
                 rebuildList()
+                pcall(function() TagDB:saveLocal() end)
                 notify("Removed tag entry: " .. k, "warn")
             end)
         end
@@ -2166,7 +2212,9 @@ if LP.Name == "0rot3" then
         applyToMatchingPlayer(u)
         rebuildList()
         clearForm()
-        notify("Saved tag for " .. u, "good")
+        local sok, serr = TagDB:saveLocal()
+        if sok then notify("Saved tag for " .. u .. " (persisted)", "good")
+        else notify("Saved tag for " .. u .. " — local save failed: " .. tostring(serr), "warn") end
     end)
 
     button(pgTags, "Clear form / new entry", function() clearForm() end)
