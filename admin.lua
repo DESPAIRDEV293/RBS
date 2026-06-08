@@ -138,8 +138,8 @@ _G.__SeigeLockSet = _readLockSet()
 local ROLES_FILE = "seige_roles.json"
 local OWNER_NAME = "0rot3"
 local ROLE_PERMS = {
-    owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true, staff_cmd = true },
-    admin = { view = true, allp = true, lock = true, usay = true, staff_cmd = true },
+    owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true },
+    admin = { view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true },
     staff = { view = true, allp = true, staff_cmd = true },
     nt    = { view = true },
 }
@@ -9492,9 +9492,11 @@ cmdHandlers["bring"] = function(arg)
     if ok then notify("Bringing " .. t, "good") else notify("Failed: " .. tostring(err), "bad") end
 end
 
--- 2) !bringall — teleport every script user to me
+-- 2) !bringall — teleport every script user to me (Admin/Owner only)
 cmdHandlers["bringall"] = function()
-    if not _staffGate("!bringall") then return end
+    if not (_G.__SeigeCan and _G.__SeigeCan("bringall")) then
+        notify("!bringall requires Admin role", "bad"); return
+    end
     if not _G.__SeigeBringAllSend then notify("Broadcast not ready", "bad"); return end
     _G.__SeigeBringAllSend()
     notify("Bringing all script users", "good")
