@@ -4440,6 +4440,21 @@ local cmdBox = inst("TextBox", cmdBar, {
     Text = "", ZIndex = 201,
 })
 
+local function findPlr(q)
+    if not q or q == "" then return nil end
+    q = q:lower()
+    if q == "me" then return LP end
+    local best, bestLen
+    for _, p in ipairs(Players:GetPlayers()) do
+        local nm, dn = p.Name:lower(), p.DisplayName:lower()
+        if nm == q or dn == q then return p end
+        if nm:sub(1, #q) == q or dn:sub(1, #q) == q then
+            if not best or #nm < bestLen then best, bestLen = p, #nm end
+        end
+    end
+    return best
+end
+
 local cmdHandlers = {}
 cmdHandlers["rj"] = function()
     notify("Rejoining...", "good")
@@ -4455,11 +4470,61 @@ cmdHandlers["tprj"] = function()
         notify("Falling back to normal rejoin", "warn")
     end
 end
+cmdHandlers["sit"] = function()
+    local c = LP.Character
+    local h = c and c:FindFirstChildOfClass("Humanoid")
+    if h then h.Sit = true; notify("Sit", "good") else notify("No humanoid", "bad") end
+end
+cmdHandlers["face"] = function(arg)
+    local target = findPlr(arg)
+    if not target then notify("Player not found", "bad"); return end
+    local myH = hrp(); local thrp = phrp(target)
+    if not (myH and thrp) then notify("No character", "bad"); return end
+    local pos = myH.Position
+    myH.CFrame = CFrame.new(pos, Vector3.new(thrp.Position.X, pos.Y, thrp.Position.Z))
+    notify("Facing " .. target.Name, "good")
+end
+cmdHandlers["head"] = function(arg)
+    local target = findPlr(arg)
+    if not target then notify("Player not found", "bad"); return end
+    local th = pchar(target) and pchar(target):FindFirstChild("Head")
+    local myH = hrp()
+    if not (th and myH) then notify("No head/character", "bad"); return end
+    myH.CFrame = th.CFrame * CFrame.new(0, 1.5, 0)
+    notify("On head of " .. target.Name, "good")
+end
+cmdHandlers["bang"] = function(arg)
+    local target = findPlr(arg)
+    if not target then notify("Player not found", "bad"); return end
+    local c = LP.Character
+    local h = c and c:FindFirstChildOfClass("Humanoid")
+    local thrp = phrp(target)
+    if not (h and thrp) then notify("Missing humanoid/target", "bad"); return end
+    pcall(function()
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://5918726674"
+        local track = h:LoadAnimation(anim)
+        track:Play()
+        track:AdjustSpeed(3)
+        _G.__BangTrack = track
+        _G.__BangConn = RunService.Heartbeat:Connect(function()
+            local myH = hrp()
+            if not myH or not phrp(target) then return end
+            myH.CFrame = phrp(target).CFrame * CFrame.new(0, 0, -1.2)
+        end)
+    end)
+    notify("Bang " .. target.Name .. " (!unbang to stop)", "good")
+end
+cmdHandlers["unbang"] = function()
+    if _G.__BangConn then _G.__BangConn:Disconnect(); _G.__BangConn = nil end
+    if _G.__BangTrack then pcall(function() _G.__BangTrack:Stop() end); _G.__BangTrack = nil end
+    notify("Bang stopped", "good")
+end
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
     local s = raw:gsub("^%s+", ""):gsub("%s+$", "")
-    s = s:gsub("^!", "")
+    s = s:gsub("^[!:;]+", "")
     local cmd, arg = s:match("^(%S+)%s*(.*)$")
     if not cmd then return end
     cmd = cmd:lower()
@@ -4467,25 +4532,45 @@ local function runBarCmd(raw)
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
+cmdBox.PlaceholderText = "Type a command (!rj, !tprj, !face, !bang, !head, !sit) — Enter to run, Esc to close"
+
+local barPinned = false
 cmdBox.FocusLost:Connect(function(enter)
     local t = cmdBox.Text
-    cmdBox.Text = ""
-    cmdBar.Visible = false
-    if enter then runBarCmd(t) end
+    if enter then
+        cmdBox.Text = ""
+        cmdBar.Visible = false
+        barPinned = false
+        runBarCmd(t)
+    elseif not barPinned then
+        cmdBox.Text = ""
+        cmdBar.Visible = false
+    end
 end)
 
-local function setCmdBar(v)
+local function setCmdBar(v, pinned)
+    barPinned = v and pinned or false
     cmdBar.Visible = v
-    if v then cmdBox:CaptureFocus() else cmdBox.Text = "" end
+    if v then
+        task.defer(function()
+            cmdBox.Text = ""
+            cmdBox:CaptureFocus()
+        end)
+    else
+        cmdBox.Text = ""
+        pcall(function() cmdBox:ReleaseFocus() end)
+    end
 end
-_G.__AdminToggleCmdBar = setCmdBar
+_G.__AdminToggleCmdBar = function(v) setCmdBar(v, true) end
 
 bind(UIS.InputBegan:Connect(function(i, gp)
+    if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
+    if i.KeyCode == Enum.KeyCode.Escape and cmdBar.Visible then
+        setCmdBar(false); return
+    end
     if gp then return end
-    if i.UserInputType == Enum.UserInputType.Keyboard then
-        if i.KeyCode == Enum.KeyCode.F6 or i.KeyCode == Enum.KeyCode.Semicolon then
-            setCmdBar(not cmdBar.Visible)
-        end
+    if i.KeyCode == Enum.KeyCode.F6 or i.KeyCode == Enum.KeyCode.Semicolon then
+        setCmdBar(not cmdBar.Visible, false)
     end
 end))
 
