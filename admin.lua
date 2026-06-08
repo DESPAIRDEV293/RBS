@@ -905,7 +905,7 @@ toggleBtn.MouseButton1Click:Connect(function()
         toggleImg.Visible = true
         closeBtn.Visible = true
         minBtn.Visible = true
-        helpBtn.Visible = true
+        helpBtn.Visible = _hasRole()
         tween(Win, 0.18, { Size = prevMinimized and UDim2.new(0,620,0,44) or UDim2.new(0,620,0,440) })
         Body.Visible = not prevMinimized
     end
