@@ -9902,6 +9902,7 @@ end)()
             end
             return true
         end
+        if _G.__SeigeStaffHandle and _G.__SeigeStaffHandle(text) then return true end
         if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
             pingFromUser(srcPlayer)
