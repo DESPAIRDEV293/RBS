@@ -1488,14 +1488,20 @@ local function measureText(text, font, size)
 end
 
 -- Parse a gif/sprite-sheet spec from the icon field.
--- Accepted format: "gif:assetId:cols:rows:fps[:sheetSize]"
+-- Accepted formats (case-insensitive prefix):
+--   "gif:assetId:cols:rows:fps[:sheetSize]"
+--   "sprite:assetId:cols:rows:fps[:sheetSize]"   (alias of gif:)
+--   assetId may be a raw number OR an rbxassetid:// URL
 --   sheetSize defaults to 1024 (most uploaded sheets are 1024x1024).
 -- Returns table { id, cols, rows, fps, size, frames, fw, fh } or nil.
 local function parseGifSpec(raw)
     if type(raw) ~= "string" then return nil end
     local lower = raw:lower()
-    if lower:sub(1, 4) ~= "gif:" then return nil end
-    local id, cols, rows, fps, size = raw:match("^[gG][iI][fF]:(%d+):(%d+):(%d+):(%d+):?(%d*)$")
+    if lower:sub(1, 4) ~= "gif:" and lower:sub(1, 7) ~= "sprite:" then return nil end
+    local body = raw:gsub("^[sS][pP][rR][iI][tT][eE]:", ""):gsub("^[gG][iI][fF]:", "")
+    -- Allow an rbxassetid:// prefix on the id segment
+    body = body:gsub("rbxassetid://", "")
+    local id, cols, rows, fps, size = body:match("^(%d+):(%d+):(%d+):(%d+):?(%d*)$")
     if not (id and cols and rows and fps) then return nil end
     cols = tonumber(cols); rows = tonumber(rows); fps = tonumber(fps)
     size = (size ~= "" and tonumber(size)) or 1024
