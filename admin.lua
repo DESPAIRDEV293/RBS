@@ -3705,7 +3705,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         for _, k in ipairs(keys) do
             local e = TagDB.entries[k]
             local tagsStr = (e.tags and table.concat(e.tags, ",")) or ""
-            lines[#lines+1] = table.concat({
+            local fields = {
                 k,
                 e.displayName or "",
                 e.color or "",
@@ -3719,10 +3719,18 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 e.font or "",
                 e.sweep or "",
                 e.element or "",
-            }, " | ")
+            }
+            -- Trim trailing empty fields so each row stays compact like the
+            -- legacy entries (e.g. eyk_a). The loader pads missing tail fields
+            -- with empty strings, so dropping them here is round-trip safe.
+            while #fields > 1 and (fields[#fields] == nil or fields[#fields] == "") do
+                fields[#fields] = nil
+            end
+            lines[#lines+1] = table.concat(fields, " | ")
         end
         return table.concat(lines, "\n")
     end
+
 
     button(pgTags, "Copy export to clipboard", function()
         local txt = buildExport()
