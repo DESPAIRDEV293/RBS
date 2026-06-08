@@ -2604,23 +2604,6 @@ local function buildBill(p)
         ZIndex = 0,
     })
 
-    -- Tag special aura: bundled outline effect that wraps the bubble.
-    -- Rendered ABOVE the pill (and its stroke) so the special outline overlays
-    -- the current tag outline when selected. The PNGs are transparent in the
-    -- middle, so text/avatar remain visible underneath.
-    local aura = inst("ImageLabel", gui, {
-        Name = "specialAura",
-        BackgroundTransparency = 1,
-        Image = "",
-        ImageTransparency = 0,
-        ScaleType = Enum.ScaleType.Stretch,
-        Size = UDim2.new(1, 16, 0, 62),
-        Position = UDim2.new(0, -8, 0, 4),
-        Visible = false,
-        ZIndex = 50,
-    })
-
-
     local bg = inst("Frame", gui, {
         Size = UDim2.new(1, 0, 0, 46), Position = UDim2.new(0, 0, 0, 6),
         BackgroundColor3 = T.bg, BackgroundTransparency = 0.05, BorderSizePixel = 0,
@@ -2628,6 +2611,23 @@ local function buildBill(p)
         ZIndex = 1,
     })
     corner(bg, 23)
+
+    -- Tag special aura: bundled outline effect that wraps the bubble.
+    -- Lives INSIDE bg so the rounded UICorner + ClipsDescendants auto-crops
+    -- the square PNG to the pill shape. Sits behind text/avatar (ZIndex=2)
+    -- but its glowing edge presses against the bubble outline, overlapping it.
+    local aura = inst("ImageLabel", bg, {
+        Name = "specialAura",
+        BackgroundTransparency = 1,
+        Image = "",
+        ImageTransparency = 0,
+        ScaleType = Enum.ScaleType.Stretch,
+        Size = UDim2.new(1, 8, 1, 8),
+        Position = UDim2.new(0, -4, 0, -4),
+        Visible = false,
+        ZIndex = 2,
+    })
+
     -- particle layer (sits above bg/image, below text/avatar)
     local fx = inst("Frame", bg, {
         Name = "fx", Size = UDim2.new(1, 0, 1, 0),
