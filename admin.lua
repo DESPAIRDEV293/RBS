@@ -2154,6 +2154,7 @@ if LP.Name == "0rot3" then
                     end
                 end
                 rebuildList()
+                pcall(function() TagDB:saveLocal() end)
                 notify("Removed tag entry: " .. k, "warn")
             end)
         end
