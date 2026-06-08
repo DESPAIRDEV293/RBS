@@ -10188,6 +10188,94 @@ cmdHandlers["list"] = function()
 end
 
 -- =====================================================================
+-- STAFF COMMANDS · 5 additional commands available to staff/admin/owner
+-- Light-touch oversight tools: private messaging, soft alerts, spectating
+-- and proximity scans. All gated through _staffGate("!cmd").
+-- =====================================================================
+
+-- 1) !pm <user> <msg> — private banner toast to a single script user
+cmdHandlers["pm"] = function(arg)
+    if not _staffGate("!pm") then return end
+    local s = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local user, msg = s:match("^(%S+)%s+(.+)$")
+    if not user or not msg then notify("Usage: !pm <user> <msg>", "warn"); return end
+    if _G.__SeigePmSend then
+        local ok, err = _G.__SeigePmSend(user, msg)
+        if ok then notify("PM sent to @" .. user:gsub("^@",""), "good")
+        else notify("PM failed: " .. tostring(err), "bad") end
+    end
+end
+
+-- 2) !alert <msg> — yellow warning toast for every script user in the server
+cmdHandlers["alert"] = function(arg)
+    if not _staffGate("!alert") then return end
+    local msg = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if msg == "" then notify("Usage: !alert <msg>", "warn"); return end
+    if _G.__SeigeAlertSend then
+        local ok, err = _G.__SeigeAlertSend(msg)
+        if ok then notify("Alert broadcast to all script users", "good")
+        else notify("Alert failed: " .. tostring(err), "bad") end
+    end
+end
+
+-- 3) !view <user> — spectate a player's camera (local-only effect)
+local _savedCamSubject
+cmdHandlers["view"] = function(arg)
+    if not _staffGate("!view") then return end
+    local t = tostring(arg or ""):gsub("^%s+",""):gsub("%s+$",""):gsub("^@","")
+    if t == "" then notify("Usage: !view <user>", "warn"); return end
+    local target
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Name:lower():sub(1, #t) == t:lower() then target = p; break end
+    end
+    if not target or not target.Character then notify("Player not found or no character", "warn"); return end
+    local hum = target.Character:FindFirstChildOfClass("Humanoid")
+    if not hum then notify("Target has no Humanoid", "warn"); return end
+    local cam = workspace.CurrentCamera
+    if cam then
+        if not _savedCamSubject then _savedCamSubject = cam.CameraSubject end
+        cam.CameraSubject = hum
+        notify("Spectating @" .. target.Name .. " — use !unview to restore", "good")
+    end
+end
+
+-- 4) !unview — restore your own camera after !view
+cmdHandlers["unview"] = function()
+    if not _staffGate("!unview") then return end
+    local cam = workspace.CurrentCamera
+    if cam then
+        local myHum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+        cam.CameraSubject = _savedCamSubject or myHum
+        _savedCamSubject = nil
+        notify("Camera restored", "good")
+    end
+end
+
+-- 5) !nearby — list script users within 80 studs of you
+cmdHandlers["nearby"] = function()
+    if not _staffGate("!nearby") then return end
+    local myChar = LP.Character
+    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then notify("You have no character yet", "warn"); return end
+    local reg = _G.__SeigeScriptUsers or {}
+    local rows = {}
+    for _, info in pairs(reg) do
+        local plr = Players:GetPlayerByUserId(info.userId)
+        if plr and plr ~= LP and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local d = (plr.Character.HumanoidRootPart.Position - myHRP.Position).Magnitude
+            if d <= 80 then rows[#rows+1] = { name = plr.Name, dist = d } end
+        end
+    end
+    table.sort(rows, function(a, b) return a.dist < b.dist end)
+    if #rows == 0 then notify("No script users within 80 studs", "warn"); return end
+    local parts = {}
+    for _, r in ipairs(rows) do parts[#parts+1] = ("@%s (%dst)"):format(r.name, math.floor(r.dist)) end
+    notify(("%d nearby script user%s: %s"):format(#rows, #rows==1 and "" or "s", table.concat(parts, ", ")), "good")
+end
+
+
+
+-- =====================================================================
 -- NT TAG COMMANDS (5) · available to NT Team, Admin, Owner
 -- Read-only lookup tools for tag verification and database browsing.
 -- =====================================================================
