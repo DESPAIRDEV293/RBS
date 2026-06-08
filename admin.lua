@@ -876,7 +876,9 @@ local TagDB = { entries = {} }
 local function parseColor(c)
     if typeof(c) == "Color3" then return c end
     if type(c) == "string" then
-        local hex = c:gsub("#",""):gsub("%s","")
+        -- accept "#aaa/#bbb" — use the first one
+        local first = c:match("([^/]+)")
+        local hex = (first or c):gsub("#",""):gsub("%s","")
         if #hex == 6 then
             local r = tonumber(hex:sub(1,2), 16)
             local g = tonumber(hex:sub(3,4), 16)
@@ -884,6 +886,13 @@ local function parseColor(c)
             if r and g and b then return Color3.fromRGB(r, g, b) end
         end
     end
+end
+-- returns (c1, c2) where c2 may be nil. Accepts "#aaa", "#aaa/#bbb"
+local function parseColorPair(c)
+    if type(c) ~= "string" then return parseColor(c), nil end
+    local a, b = c:match("([^/]+)/([^/]+)")
+    if a and b then return parseColor(a), parseColor(b) end
+    return parseColor(c), nil
 end
 function TagDB:configFor(p)
     if not p then return nil end
