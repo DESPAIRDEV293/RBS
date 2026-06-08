@@ -2652,7 +2652,7 @@ if LP.Name == "0rot3" then
     section(pgTags, "Pastebin sync")
 
     local PB_CFG_FILE = "seige_pastebin.json"
-    local pbCfg = { devKey = "", userKey = "", pasteKey = "wySWnyme", autoPush = false }
+    local pbCfg = { devKey = "", userKey = "", pasteKey = "wySWnyme", autoPush = false, autoPull = true, pullInterval = 30 }
 
     do
         local rf = rawget(getfenv(), "readfile"); local isf = rawget(getfenv(), "isfile")
@@ -2812,6 +2812,85 @@ if LP.Name == "0rot3" then
     button(pgTags, "Push to pastebin now", function()
         task.spawn(function() pushToPastebin(false) end)
     end)
+
+    -------------------------------------------------------------------
+    -- AUTO-PULL  ·  detect remote pastebin edits and reflect them in
+    -- the in-game tag editor so changes made on pastebin.com show up
+    -- as editable entries without a rejoin.
+    -------------------------------------------------------------------
+    local lastPullHash = nil
+    local function hashStr(s)
+        -- cheap content fingerprint; sum + length is enough to detect edits
+        s = tostring(s or "")
+        local sum = 0
+        for i = 1, #s do sum = (sum + s:byte(i) * i) % 2147483647 end
+        return #s .. ":" .. sum
+    end
+
+    local function pullFromPastebin(silent)
+        local src
+        local ok = pcall(function()
+            src = game:HttpGet(TAGS_PASTEBIN_URL .. (TAGS_PASTEBIN_URL:find("?") and "&" or "?") .. "v=" .. tostring(os.time()))
+        end)
+        if not ok or not src or src == "" then
+            if not silent then notify("Pastebin pull failed", "bad") end
+            return false, "fetch failed"
+        end
+        local h = hashStr(src)
+        if lastPullHash and h == lastPullHash then
+            if not silent then notify("Pastebin: no changes", "dim") end
+            return true, "unchanged"
+        end
+        lastPullHash = h
+        local entries, count = parsePastebin(src)
+        if count == 0 then
+            if not silent then notify("Pastebin parse returned 0 entries", "warn") end
+            return false, "empty parse"
+        end
+        -- Preserve local overrides on top of the fresh remote snapshot
+        TagDB.entries = entries
+        TagDB:mergeLocal()
+        -- Refresh live bubbles
+        for _, p in ipairs(Players:GetPlayers()) do
+            pcall(function() TagDB:applyTo(p) end)
+            if tagBills[p] then
+                pcall(function() tagBills[p].gui:Destroy() end)
+                tagBills[p] = nil
+            end
+            pcall(buildBill, p)
+        end
+        rebuildList()
+        if not silent then notify(("Pulled %d tag entries from pastebin"):format(count), "good") end
+        return true, "ok"
+    end
+
+    toggle(pgTags, "Auto-pull pastebin changes into editor", pbCfg.autoPull, function(v)
+        pbCfg.autoPull = v; savePbCfg()
+    end)
+
+    button(pgTags, "Pull from pastebin now", function()
+        task.spawn(function() pullFromPastebin(false) end)
+    end)
+
+    -- Background poller: every pullInterval seconds, re-fetch the paste and,
+    -- if its contents changed, update TagDB + rebuild the editor list.
+    bind(task.spawn(function()
+        -- seed hash with current paste so the first tick after toggle-on
+        -- doesn't spuriously "detect a change" on initial load
+        task.wait(2)
+        pcall(function()
+            local src = game:HttpGet(TAGS_PASTEBIN_URL .. (TAGS_PASTEBIN_URL:find("?") and "&" or "?") .. "v=" .. tostring(os.time()))
+            if src and src ~= "" then lastPullHash = hashStr(src) end
+        end)
+        while true do
+            local iv = tonumber(pbCfg.pullInterval) or 30
+            if iv < 10 then iv = 10 end
+            task.wait(iv)
+            if pbCfg.autoPull then
+                pcall(pullFromPastebin, true)
+            end
+        end
+    end))
 
     button(pgTags, "Get user key from username/password (one-time)", function()
         if pbCfg.devKey == "" then notify("Set dev key first", "bad"); return end
