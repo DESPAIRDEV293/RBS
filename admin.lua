@@ -3337,11 +3337,10 @@ button(pgCmds, "!heal",                                      function() _runCmd(
 button(pgCmds, "!god",                                       function() _runCmd("!god") end)
 button(pgCmds, "!ungod",                                     function() _runCmd("!ungod") end)
 button(pgCmds, "!unspectate",                                function() _runCmd("!unspectate") end)
-button(pgCmds, "!pos",                                       function() _runCmd("!pos") end)
 button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
 button(pgCmds, "!load  —  load saved position",              function() _runCmd("!load") end)
 button(pgCmds, "!info",                                      function() _runCmd("!info") end)
-button(pgCmds, "!help",                                      function() _runCmd("!help") end)
+button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end end)
 button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
 button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
 
