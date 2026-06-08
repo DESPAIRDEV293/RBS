@@ -4032,7 +4032,7 @@ inst("TextLabel", brandBlock, {
 })
 
 -- Icon button row
-local iconsRow = inst("Frame", Pill, {
+iconsRow = inst("Frame", Pill, {
     Size = UDim2.new(0, 0, 1, -4),
     AutomaticSize = Enum.AutomaticSize.X,
     BackgroundTransparency = 1, LayoutOrder = 3, ZIndex = 101,
