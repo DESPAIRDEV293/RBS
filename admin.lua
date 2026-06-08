@@ -295,6 +295,7 @@ local function showRoleHelp()
     if helpGui then pcall(function() helpGui:Destroy() end); helpGui = nil end
     local role = _G.__SeigeMyRole()
     if not role then return end
+    if _G.__SeigeAudit then _G.__SeigeAudit("ui_open:role_help", "role=" .. tostring(role), true) end
     local label = _G.__SeigeRoleLabel(role)
 
     local gui = inst("ScreenGui", nil, {
