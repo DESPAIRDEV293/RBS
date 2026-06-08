@@ -3190,6 +3190,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         font = "Default",
         textColor = "", textOutline = "",
         textFx = "None", avatarOutline = "On", showChip = "Off",
+        aura = "Off",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
