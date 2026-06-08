@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PastebinKeyRouteImport } from './routes/pastebin-key'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicPastebinRouteImport } from './routes/api/public/pastebin'
 
 const PastebinKeyRoute = PastebinKeyRouteImport.update({
   id: '/pastebin-key',
@@ -22,31 +23,40 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPastebinRoute = ApiPublicPastebinRouteImport.update({
+  id: '/api/public/pastebin',
+  path: '/api/public/pastebin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/api/public/pastebin': typeof ApiPublicPastebinRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/api/public/pastebin': typeof ApiPublicPastebinRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/api/public/pastebin': typeof ApiPublicPastebinRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/pastebin-key'
+  fullPaths: '/' | '/pastebin-key' | '/api/public/pastebin'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/pastebin-key'
-  id: '__root__' | '/' | '/pastebin-key'
+  to: '/' | '/pastebin-key' | '/api/public/pastebin'
+  id: '__root__' | '/' | '/pastebin-key' | '/api/public/pastebin'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PastebinKeyRoute: typeof PastebinKeyRoute
+  ApiPublicPastebinRoute: typeof ApiPublicPastebinRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/pastebin': {
+      id: '/api/public/pastebin'
+      path: '/api/public/pastebin'
+      fullPath: '/api/public/pastebin'
+      preLoaderRoute: typeof ApiPublicPastebinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PastebinKeyRoute: PastebinKeyRoute,
+  ApiPublicPastebinRoute: ApiPublicPastebinRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
