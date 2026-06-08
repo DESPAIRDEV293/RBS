@@ -2985,7 +2985,7 @@ local function buildBill(p)
         cd.MouseClick:Connect(function() onTagClicked() end)
     end)
 
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, aura = aura, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil, specialKey = nil }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, aura = aura, debugLbl = debugLbl, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil, specialKey = nil }
     _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
