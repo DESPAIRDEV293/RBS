@@ -4795,7 +4795,10 @@ loadCfg = function()
     if type(data.panelBg) == "table" then
         panelBgState.image = data.panelBg.image or ""
         panelBgState.trans = tonumber(data.panelBg.trans) or 0.5
+        panelBgState.panels = (type(data.panelBg.panels) == "table") and data.panelBg.panels or {}
+        panelBgState.icons = (type(data.panelBg.icons) == "table") and data.panelBg.icons or {}
         applyPanelBg()
+        pcall(applyIconImages)
     end
 end
 
