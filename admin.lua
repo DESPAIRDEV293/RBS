@@ -4318,7 +4318,7 @@ end
         task.wait(1)
         pcall(scanGuis); pcall(scanScripts)
     end)
-end
+end)()
 
 
 
