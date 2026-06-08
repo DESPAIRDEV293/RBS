@@ -6524,7 +6524,49 @@ for _, name in ipairs(tabOrder) do
     end
 end
 
--- Pill compact toggle (hides stats/icons/clock, leaves a hamburger)
+-- Per-panel image + per-icon image controls (in Themes/Settings page)
+do
+    local names = {}
+    for _, n in ipairs(tabOrder) do
+        if panels[n] then names[#names+1] = n end
+    end
+    if #names > 0 then
+        section(pgThemes, "Per-panel background image")
+        local sel = names[1]
+        dropdown(pgThemes, "Target panel", names, function(v) sel = v end)
+        textbox(pgThemes, "Image asset id / URL (blank = use global)", function(v)
+            panelBgState.panels[sel] = panelBgState.panels[sel] or {}
+            panelBgState.panels[sel].image = v
+            applyPanelBg(); saveCfg()
+            notify((v == "" and "Cleared image for " or "Updated image for ") .. sel, "good")
+        end)
+        slider(pgThemes, "Opacity (selected panel)", 0, 1, 0.5, function(v)
+            panelBgState.panels[sel] = panelBgState.panels[sel] or {}
+            panelBgState.panels[sel].trans = 1 - v
+            applyPanelBg(); saveCfg()
+        end)
+        button(pgThemes, "Reset selected panel", function()
+            panelBgState.panels[sel] = nil; applyPanelBg(); saveCfg()
+            notify("Reset " .. sel, "good")
+        end)
+
+        section(pgThemes, "Per-icon image")
+        local selI = names[1]
+        dropdown(pgThemes, "Target icon", names, function(v) selI = v end)
+        textbox(pgThemes, "Icon image asset id / URL (blank = default)", function(v)
+            panelBgState.icons[selI] = v
+            applyIconImages(); saveCfg()
+            notify((v == "" and "Reset icon " or "Updated icon ") .. selI, "good")
+        end)
+        button(pgThemes, "Reset selected icon", function()
+            panelBgState.icons[selI] = nil; applyIconImages(); saveCfg()
+            notify("Reset icon " .. selI, "good")
+        end)
+        label(pgThemes, "Tip: per-panel image overrides the global panel background.")
+    end
+end
+
+
 do
     local collapsed = false
     local hidden = { brandBlock, fpsBox, pingBox, iconsRow, clockBox }
