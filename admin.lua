@@ -6185,6 +6185,77 @@ cmdHandlers["say"] = function(arg)
     end
 end
 
+-- !baseplate — extend the map under your feet (with bottom-left yes/no confirm)
+(function()
+    local function confirm(question, onYes, onNo)
+        local gui = inst("ScreenGui", nil, {
+            Name = "SeigeConfirm", IgnoreGuiInset = true, ResetOnSpawn = false,
+            DisplayOrder = 250, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        })
+        safeParent(gui)
+        local card = inst("Frame", gui, {
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 16, 1, -16),
+            Size = UDim2.new(0, 280, 0, 92),
+            BackgroundColor3 = T.bg, BorderSizePixel = 0,
+        })
+        corner(card, 10); stroke(card, T.line, 1, 0.3)
+        inst("TextLabel", card, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 12, 0, 8), Size = UDim2.new(1, -24, 0, 44),
+            Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = T.text,
+            TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top, Text = question,
+        })
+        local function mkBtn(label, x, color, fn)
+            local b = inst("TextButton", card, {
+                Position = UDim2.new(0, x, 1, -34), Size = UDim2.new(0, 120, 0, 26),
+                BackgroundColor3 = color, BorderSizePixel = 0, AutoButtonColor = true,
+                Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text, Text = label,
+            })
+            corner(b, 6); stroke(b, T.line, 1, 0.4)
+            b.MouseButton1Click:Connect(function() gui:Destroy(); if fn then pcall(fn) end end)
+        end
+        mkBtn("Yes", 12,  T.acc, onYes)
+        mkBtn("No",  148, T.bg3, onNo)
+        task.delay(15, function() if gui and gui.Parent then gui:Destroy() end end)
+    end
+
+    local function doExtend()
+        local h = hrp()
+        if not h then notify("No character — stand somewhere first", "bad"); return end
+        local prev = workspace:FindFirstChild("SeigeBaseplate")
+        local size, step
+        if prev and prev:IsA("BasePart") then
+            step = math.min(prev.Size.X * 2, 16384)
+            size = Vector3.new(step, 1, step)
+        else
+            size = Vector3.new(2048, 1, 2048)
+        end
+        local plate = prev or Instance.new("Part")
+        plate.Name = "SeigeBaseplate"
+        plate.Anchored = true
+        plate.CanCollide = true
+        plate.TopSurface = Enum.SurfaceType.Smooth
+        plate.BottomSurface = Enum.SurfaceType.Smooth
+        plate.Material = Enum.Material.SmoothPlastic
+        plate.Color = Color3.fromRGB(80, 90, 110)
+        plate.Size = size
+        plate.CFrame = CFrame.new(h.Position.X, h.Position.Y - 6, h.Position.Z)
+        plate.Parent = workspace
+        notify(string.format("Baseplate extended to %dx%d studs", size.X, size.Z), "good")
+    end
+
+    cmdHandlers["baseplate"] = function()
+        local prev = workspace:FindFirstChild("SeigeBaseplate")
+        local q = prev
+            and "A baseplate already exists. Extend it further (doubles size, recenters under you)?"
+            or "Extend the map? This drops a 2048x2048 baseplate under you (local only)."
+        confirm(q, doExtend, function() notify("Cancelled", "warn") end)
+    end
+end)()
+
+
 cmdHandlers["save"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
     _G.__SavedCF = h.CFrame; notify("Position saved", "good")
