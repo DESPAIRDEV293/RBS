@@ -1550,7 +1550,7 @@ local function buildBill(p)
     })
 
     local st = stroke(bg, T.acc, 1.4, 0.3)
-    inst("UIGradient", bg, {
+    local bgGrad = inst("UIGradient", bg, {
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18)),
     })
