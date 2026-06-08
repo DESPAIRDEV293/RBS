@@ -2363,6 +2363,13 @@ local SPECIAL_ANIMS = {
     end,
 }
 
+local function _setDebug(e, text, color)
+    if not e or not e.debugLbl then return end
+    e.debugLbl.Text = text
+    if color then e.debugLbl.TextColor3 = color end
+    e.debugLbl.Visible = _G.__SeigeTagDebug == true
+end
+
 function _G.__SeigeStartSpecialAnim(e, key)
     if not e or not e.aura then return end
     e.specialAnimToken = (e.specialAnimToken or 0) + 1
@@ -2370,14 +2377,50 @@ function _G.__SeigeStartSpecialAnim(e, key)
     local basePos  = UDim2.new(0, -8, 0, 1)
     _resetAura(e, baseSize, basePos)
     local fn = SPECIAL_ANIMS[key]
-    if not fn then return end
-    _animLoop(e, e.specialAnimToken, function(t) fn(e, t) end)
+    if not fn then
+        _setDebug(e, "special: " .. tostring(key) .. " · no anim", Color3.fromRGB(255, 200, 120))
+        return
+    end
+    _setDebug(e, "special: " .. key .. " · running", Color3.fromRGB(180, 255, 180))
+    local myToken = e.specialAnimToken
+    _animLoop(e, myToken, function(t) fn(e, t) end)
+    -- mark cancelled once token advances (start of next call or stop)
+    task.spawn(function()
+        while e.specialAnimToken == myToken do RunService.Heartbeat:Wait() end
+        if e.specialKey == nil then
+            _setDebug(e, "special: none", Color3.fromRGB(180, 180, 180))
+        end
+    end)
 end
 
 function _G.__SeigeStopSpecialAnim(e)
     if not e then return end
     e.specialAnimToken = (e.specialAnimToken or 0) + 1
     _resetAura(e)
+    _setDebug(e, "special: none · cancelled", Color3.fromRGB(255, 160, 160))
+    -- briefly show "cancelled" then fade to "none"
+    task.delay(1.2, function()
+        if e and e.specialKey == nil then
+            _setDebug(e, "special: none", Color3.fromRGB(180, 180, 180))
+        end
+    end)
+end
+
+-- Flip the debug overlay on/off across every live bubble.
+function _G.__SeigeSetTagDebug(on)
+    _G.__SeigeTagDebug = on and true or false
+    local bills = _G.__SeigeTagBills
+    if not bills then return end
+    for _, e in pairs(bills) do
+        if e and e.debugLbl then
+            if _G.__SeigeTagDebug then
+                if (e.debugLbl.Text or "") == "" then e.debugLbl.Text = "special: none" end
+                e.debugLbl.Visible = true
+            else
+                e.debugLbl.Visible = false
+            end
+        end
+    end
 end
 
 
