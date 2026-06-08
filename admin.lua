@@ -856,10 +856,11 @@ end)
 local helpBtn = topBtn("?", -106, showRoleHelp)
 -- Only role-holders (owner/admin/staff/nt) get the ? help popup; for everyone
 -- else the button has nothing to show, so hide it entirely.
-do
+local function _hasRole()
     local _myR = _G.__SeigeMyRole and _G.__SeigeMyRole() or nil
-    if not (_myR or LP.Name == OWNER_NAME) then helpBtn.Visible = false end
+    return (_myR or LP.Name == OWNER_NAME) == true
 end
+if not _hasRole() then helpBtn.Visible = false end
 
 -- Open/close toggle (rightmost in top bar): image icon when open, 3-line hamburger when closed.
 local toggleBtn = inst("TextButton", Top, {
@@ -904,7 +905,7 @@ toggleBtn.MouseButton1Click:Connect(function()
         toggleImg.Visible = true
         closeBtn.Visible = true
         minBtn.Visible = true
-        helpBtn.Visible = true
+        helpBtn.Visible = _hasRole()
         tween(Win, 0.18, { Size = prevMinimized and UDim2.new(0,620,0,44) or UDim2.new(0,620,0,440) })
         Body.Visible = not prevMinimized
     end
