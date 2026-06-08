@@ -2363,6 +2363,13 @@ local SPECIAL_ANIMS = {
     end,
 }
 
+local function _setDebug(e, text, color)
+    if not e or not e.debugLbl then return end
+    e.debugLbl.Text = text
+    if color then e.debugLbl.TextColor3 = color end
+    e.debugLbl.Visible = _G.__SeigeTagDebug == true
+end
+
 function _G.__SeigeStartSpecialAnim(e, key)
     if not e or not e.aura then return end
     e.specialAnimToken = (e.specialAnimToken or 0) + 1
@@ -2370,14 +2377,50 @@ function _G.__SeigeStartSpecialAnim(e, key)
     local basePos  = UDim2.new(0, -8, 0, 1)
     _resetAura(e, baseSize, basePos)
     local fn = SPECIAL_ANIMS[key]
-    if not fn then return end
-    _animLoop(e, e.specialAnimToken, function(t) fn(e, t) end)
+    if not fn then
+        _setDebug(e, "special: " .. tostring(key) .. " · no anim", Color3.fromRGB(255, 200, 120))
+        return
+    end
+    _setDebug(e, "special: " .. key .. " · running", Color3.fromRGB(180, 255, 180))
+    local myToken = e.specialAnimToken
+    _animLoop(e, myToken, function(t) fn(e, t) end)
+    -- mark cancelled once token advances (start of next call or stop)
+    task.spawn(function()
+        while e.specialAnimToken == myToken do RunService.Heartbeat:Wait() end
+        if e.specialKey == nil then
+            _setDebug(e, "special: none", Color3.fromRGB(180, 180, 180))
+        end
+    end)
 end
 
 function _G.__SeigeStopSpecialAnim(e)
     if not e then return end
     e.specialAnimToken = (e.specialAnimToken or 0) + 1
     _resetAura(e)
+    _setDebug(e, "special: none · cancelled", Color3.fromRGB(255, 160, 160))
+    -- briefly show "cancelled" then fade to "none"
+    task.delay(1.2, function()
+        if e and e.specialKey == nil then
+            _setDebug(e, "special: none", Color3.fromRGB(180, 180, 180))
+        end
+    end)
+end
+
+-- Flip the debug overlay on/off across every live bubble.
+function _G.__SeigeSetTagDebug(on)
+    _G.__SeigeTagDebug = on and true or false
+    local bills = _G.__SeigeTagBills
+    if not bills then return end
+    for _, e in pairs(bills) do
+        if e and e.debugLbl then
+            if _G.__SeigeTagDebug then
+                if (e.debugLbl.Text or "") == "" then e.debugLbl.Text = "special: none" end
+                e.debugLbl.Visible = true
+            else
+                e.debugLbl.Visible = false
+            end
+        end
+    end
 end
 
 
@@ -2753,9 +2796,31 @@ local function buildBill(p)
         Size = UDim2.new(1, 16, 0, 56),
         Position = UDim2.new(0, -8, 0, 1),
         Visible = false,
-        ZIndex = 0,
+        -- Above bg (ZIndex 1) and its UIStroke so the aura glow visibly
+        -- overlaps the bubble outline, but below avatar/text (ZIndex 10+).
+        ZIndex = 8,
     })
     corner(aura, 26)
+
+    -- Debug overlay: shows the active special name + loop state when
+    -- _G.__SeigeTagDebug is true. Toggled from the Tags panel.
+    local debugLbl = inst("TextLabel", gui, {
+        Name = "specialDebug",
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 0.35,
+        BorderSizePixel = 0,
+        AnchorPoint = Vector2.new(0.5, 1),
+        Position = UDim2.new(0.5, 0, 0, 2),
+        Size = UDim2.new(0, 180, 0, 16),
+        Font = Enum.Font.Code,
+        TextSize = 11,
+        TextColor3 = Color3.fromRGB(180, 255, 180),
+        Text = "special: none",
+        Visible = false,
+        ZIndex = 120,
+    })
+    corner(debugLbl, 4)
+
 
 
     -- particle layer (sits above bg/image, below text/avatar)
@@ -2963,7 +3028,7 @@ local function buildBill(p)
         cd.MouseClick:Connect(function() onTagClicked() end)
     end)
 
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, aura = aura, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil, specialKey = nil }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, aura = aura, debugLbl = debugLbl, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil, specialKey = nil }
     _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
@@ -3511,6 +3576,12 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- PNG around the bubble. No asset IDs to fill in anymore.
     section(pgTags, "Tag specials")
     label(pgTags, "Pick a tag special above (abyss, aurora, celestial, crimson, ember, neon, obsidian, shadow, solar, void). Each renders a glowing effect around the tag outline.")
+
+    -- Debug overlay: shows the active special and whether its animation
+    -- loop is running or cancelled, floated above every tag bubble.
+    toggle(pgTags, "Show tag-special debug overlay", false, function(v)
+        if _G.__SeigeSetTagDebug then _G.__SeigeSetTagDebug(v) end
+    end)
 
     -- list of current entries
     local listSec = section(pgTags, "Current tags")
