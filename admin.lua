@@ -3768,7 +3768,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     section(pgTags, "GitHub sync")
 
     local PB_CFG_FILE = "seige_pastebin.json"
-    local pbCfg = { autoPush = false, autoPull = true, pullInterval = 30 }
+    local pbCfg = { autoPush = true, autoPull = true, pullInterval = 30 }
 
     do
         local rf = rawget(getfenv(), "readfile"); local isf = rawget(getfenv(), "isfile")
