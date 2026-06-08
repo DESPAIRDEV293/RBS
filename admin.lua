@@ -3918,7 +3918,7 @@ inst("UIPadding", Pill, {
 inst("UIListLayout", Pill, {
     FillDirection = Enum.FillDirection.Horizontal,
     VerticalAlignment = Enum.VerticalAlignment.Center,
-    Padding = UDim.new(0, 12),
+    Padding = UDim.new(0, 4),
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
 
