@@ -1216,7 +1216,7 @@ local pgSelf    = makeTab("Self",    "✦", "Character, speed, flight, jump")
 local pgVisuals = makeTab("Visuals", "◐", "ESP, lighting and fullbright")
 local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
 -- Tags tab removed — now managed via the script database (tags.lua)
-local pgAim     = makeTab("Aim",     "✚", "Aim assist and silent aim")
+-- Aim moved to Cmds tab as commands (pgAim retained as hidden frame for legacy refs)
 
 local pgServer  = makeTab("Server",  "≡", "Server hop and rejoin")
 local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands, executor and rejoin")
@@ -2984,7 +2984,7 @@ end)
 
 
 ------------------------------------------------------- AIM TAB (camera lock)
-section(pgAim, "Camera lock")
+section(pgCmds, "Aim assist (camera lock)")
 local aimOn, aimFov, aimSmooth = false, 100, 0.25
 local aimVisOnly = true
 local aimKey = "RightMouseButton"
@@ -3016,11 +3016,40 @@ local function findTarget()
     end
     return best
 end
-toggle(pgAim, "Camera lock (hold key)", false, function(s) aimOn = s end)
-slider(pgAim, "FOV radius (px)", 20, 400, 100, function(v) aimFov = v end)
-slider(pgAim, "Smoothness", 0, 1, 0.25, function(v) aimSmooth = v end)
-toggle(pgAim, "Visible targets only", true, function(s) aimVisOnly = s end)
-dropdown(pgAim, "Trigger button", { "RightMouseButton", "Q", "E", "Always" }, function(o) aimKey = o end)
+-- Aim controls rendered as commands inside the Cmds tab
+button(pgCmds, "/aim — toggle camera lock", function()
+    aimOn = not aimOn
+    notify("Aim " .. (aimOn and "ON" or "OFF"), aimOn and "good" or "warn")
+end)
+button(pgCmds, "/aimvis — toggle visible-only", function()
+    aimVisOnly = not aimVisOnly
+    notify("Visible-only " .. (aimVisOnly and "ON" or "OFF"), "good")
+end)
+slider(pgCmds, "/fov — FOV radius (px)", 20, 400, 100, function(v) aimFov = v end)
+slider(pgCmds, "/smooth — aim smoothness", 0, 1, 0.25, function(v) aimSmooth = v end)
+dropdown(pgCmds, "/aimkey — trigger button", { "RightMouseButton", "Q", "E", "Always" }, function(o) aimKey = o end)
+
+-- Chat command hooks: ;aim, ;unaim, ;fov N, ;smooth N, ;aimkey X, ;aimvis
+local function handleAimChat(msg)
+    msg = (msg or ""):lower()
+    local cmd, arg = msg:match("^[;/](%S+)%s*(.*)$")
+    if not cmd then return end
+    if cmd == "aim" then aimOn = true; notify("Aim ON", "good")
+    elseif cmd == "unaim" then aimOn = false; notify("Aim OFF", "warn")
+    elseif cmd == "aimvis" then aimVisOnly = not aimVisOnly; notify("Visible-only " .. (aimVisOnly and "ON" or "OFF"), "good")
+    elseif cmd == "fov" then local n = tonumber(arg); if n then aimFov = math.clamp(n,20,400); notify("FOV " .. aimFov, "good") end
+    elseif cmd == "smooth" then local n = tonumber(arg); if n then aimSmooth = math.clamp(n,0,1); notify("Smooth " .. aimSmooth, "good") end
+    elseif cmd == "aimkey" then
+        local k = arg:gsub("^%l", string.upper)
+        if k == "Rmb" or k == "Rightmousebutton" then aimKey = "RightMouseButton"
+        elseif k == "Q" or k == "E" or k == "Always" then aimKey = k
+        else return end
+        notify("Aim key: " .. aimKey, "good")
+    end
+end
+pcall(function()
+    LP.Chatted:Connect(handleAimChat)
+end)
 
 -- FOV circle
 local fovGui = inst("ScreenGui", Root, { Name = "AimFov", IgnoreGuiInset = true })
@@ -3476,6 +3505,11 @@ local tintBox = textbox(pgShaders, "Tint hex (#ffffff)", function(s)
         local ok, c = pcall(function() return Color3.fromHex(h) end)
         if ok then fxColor.TintColor = c end
     end
+end)
+button(pgShaders, "Clear tint (reset to white)", function()
+    fxColor.TintColor = Color3.new(1, 1, 1)
+    if tintBox then tintBox.Text = "" end
+    notify("Tint cleared", "good")
 end)
 
 section(pgShaders, "Depth of field")
@@ -4080,7 +4114,7 @@ end
 -- preferred order on the pill
 local tabOrder = {
     "Profile", "Players", "Self", "Visuals", "World",
-    "Tags", "Aim", "Server", "Cmds", "Themes", "Shaders", "Config",
+    "Tags", "Server", "Cmds", "Themes", "Shaders", "Config",
 }
 -- include any tabs that weren't listed (forward-compat)
 for n, _ in pairs(tabs) do
