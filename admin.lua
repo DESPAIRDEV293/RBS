@@ -1044,6 +1044,16 @@ local function _animPageSwap(page, show)
     if not page then return end
     local sc = page:FindFirstChildOfClass("UIScale")
         or inst("UIScale", page, { Scale = 1 })
+    if _G.__SeigeReducedMotion then
+        if show then
+            page.Visible = true
+            sc.Scale = 1
+        else
+            page.Visible = false
+            sc.Scale = 1
+        end
+        return
+    end
     if show then
         page.Visible = true
         sc.Scale = 0.96
