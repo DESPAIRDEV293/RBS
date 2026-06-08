@@ -1391,6 +1391,7 @@ local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
 
 
 local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands, executor and rejoin")
+local pgSpotify = makeTab("Spotify", "♫", "Connect your token and control playback")
 local pgThemes  = makeTab("Themes",  "✿", "Customize colors and background")
 local pgShaders = makeTab("Shaders", "☀", "Real post-processing: bloom, blur, DOF, color")
 local pgConfig  = makeTab("Config",  "⚙", "Settings and keybinds")
@@ -3326,6 +3327,116 @@ do
     end
 end
 
+-- ===== Help panel: full command reference =====
+(function()
+local HELP_CMDS = {
+    { "Rejoin & teleport", {
+        { "!rj", "Rejoin the same place (new server)" },
+        { "!tprj", "Rejoin THIS server and restore your position via queue_on_teleport" },
+        { "!hop", "Teleport to a random public server" },
+    }},
+    { "Character", {
+        { "!reset / !r / !respawn", "Kill your character to respawn" },
+        { "!jump", "Force a jump" },
+        { "!heal", "Heal to max health" },
+        { "!god / !ungod", "Toggle godmode (server-side via reset trick)" },
+        { "!sit", "Force sit" },
+        { "!size <n>", "Scale your character (e.g. !size 2)" },
+        { "!invis", "Hide your character locally (toggle / keybind via popout)" },
+        { "!ghost", "Semi-transparent + noclip" },
+        { "!hatspin", "Spin/break accessories (flings nearby)" },
+    }},
+    { "Movement", {
+        { "!ws <n>", "Set walk speed (0–200)" },
+        { "!jp <n>", "Set jump power (0–500)" },
+        { "!fly / !unfly", "Toggle fly (WASD + E/Q, Shift = boost)" },
+        { "!noclip / !clip", "Walk through walls" },
+        { "!freecam", "Detach camera (WASD/EQ + Shift)" },
+    }},
+    { "Teleport / target", {
+        { "!goto <player>", "Teleport to a player" },
+        { "!tp <player>", "Same as !goto" },
+        { "!to <player>", "Bring a player to you" },
+        { "!spectate <player>", "Spectate a player" },
+        { "!unspectate", "Stop spectating" },
+        { "!face <player>", "Face a player" },
+        { "!head <player>", "Stand on their head" },
+        { "!fling <player>", "Fling a player" },
+    }},
+    { "Animations", {
+        { "!reanim", "Free the humanoid for custom animations" },
+        { "!unreanim", "Stop reanim" },
+        { "!reanim <id> [speed]", "Play an animation asset id" },
+        { "!reanimurl <url> [speed]", "Fetch + play .txt/.json keyframe data" },
+        { "!reanimdata <raw>", "Play pasted JSON/Lua keyframe data" },
+        { "!stopanim", "Stop all reanim tracks" },
+        { "!bang <player>", "Roblox classic" },
+        { "!unbang", "Stop" },
+    }},
+    { "Position", {
+        { "!save", "Save current position" },
+        { "!load", "Teleport back to saved position" },
+    }},
+    { "World / lighting", {
+        { "!fullbright", "Flat max ambient" },
+        { "!day / !night", "Time of day shortcuts" },
+        { "!time <0-24>", "Set ClockTime" },
+        { "!esp", "Highlight all players through walls" },
+    }},
+    { "Misc", {
+        { "!nameedit", "Open the name-spoof panel" },
+        { "!say <message>", "Send a chat message" },
+        { "!info", "Server info" },
+        { "!help", "Open this panel" },
+    }},
+}
+
+local function _openHelpPanel()
+    _openPanel("help", "Help  ·  All commands", 480, function(body)
+        local scroll = inst("ScrollingFrame", body, {
+            Size = UDim2.new(1, -4, 1, 0),
+            BackgroundTransparency = 1, BorderSizePixel = 0,
+            ScrollBarThickness = 4, ScrollBarImageColor3 = T.acc,
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+        })
+        inst("UIListLayout", scroll, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+        inst("UIPadding", scroll, { PaddingRight = UDim.new(0, 6) })
+        for _, group in ipairs(HELP_CMDS) do
+            local hdr = inst("TextLabel", scroll, {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, -8, 0, 22),
+                Font = Enum.Font.GothamBold, TextSize = 11,
+                TextColor3 = T.dim, TextXAlignment = Enum.TextXAlignment.Left,
+                Text = string.upper(group[1]),
+            })
+            for _, row in ipairs(group[2]) do
+                local cmd, desc = row[1], row[2]
+                local f = inst("Frame", scroll, {
+                    Size = UDim2.new(1, -8, 0, 36),
+                    BackgroundColor3 = T.bg2, BackgroundTransparency = 0.35, BorderSizePixel = 0,
+                })
+                corner(f, 6); stroke(f, T.line, 1, 0.6)
+                inst("TextLabel", f, {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 10, 0, 2), Size = UDim2.new(1, -20, 0, 16),
+                    Font = Enum.Font.Code, TextSize = 12, TextColor3 = T.acc,
+                    TextXAlignment = Enum.TextXAlignment.Left, Text = cmd,
+                })
+                inst("TextLabel", f, {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 10, 0, 18), Size = UDim2.new(1, -20, 0, 16),
+                    Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                    TextXAlignment = Enum.TextXAlignment.Left, Text = desc, TextTruncate = Enum.TextTruncate.AtEnd,
+                })
+            end
+        end
+    end)
+end
+_G.__SeigeOpenHelp = _openHelpPanel
+end)()
+
 button(pgCmds, "Open Command Bar (F6)", function() _openCmd("!") end)
 
 -- No-arg commands run immediately
@@ -3337,11 +3448,10 @@ button(pgCmds, "!heal",                                      function() _runCmd(
 button(pgCmds, "!god",                                       function() _runCmd("!god") end)
 button(pgCmds, "!ungod",                                     function() _runCmd("!ungod") end)
 button(pgCmds, "!unspectate",                                function() _runCmd("!unspectate") end)
-button(pgCmds, "!pos",                                       function() _runCmd("!pos") end)
 button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
 button(pgCmds, "!load  —  load saved position",              function() _runCmd("!load") end)
 button(pgCmds, "!info",                                      function() _runCmd("!info") end)
-button(pgCmds, "!help",                                      function() _runCmd("!help") end)
+button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end end)
 button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
 button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
 
@@ -5302,7 +5412,19 @@ cmdHandlers["rj"] = function()
     pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
 end
 cmdHandlers["tprj"] = function()
-    notify("Teleport rejoin (same server)...", "good")
+    local h = hrp()
+    if h then
+        local c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12 = h.CFrame:GetComponents()
+        local restore = string.format(
+            "task.spawn(function() local p=game:GetService('Players').LocalPlayer local cf=CFrame.new(%.4f,%.4f,%.4f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f) local function apply(c) local r=c:WaitForChild('HumanoidRootPart',10) if r then task.wait(0.4) for i=1,8 do pcall(function() r.CFrame=cf end) task.wait(0.15) end end end local c=p.Character or p.CharacterAdded:Wait() apply(c) p.CharacterAdded:Connect(apply) end)",
+            c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12)
+        local q = (syn and syn.queue_on_teleport)
+            or rawget(getfenv(), "queue_on_teleport")
+            or (fluxus and fluxus.queue_on_teleport)
+            or (getgenv and getgenv().queue_on_teleport)
+        if q then pcall(q, restore) else notify("Your executor lacks queue_on_teleport — position won't restore", "warn") end
+    end
+    notify("Teleport rejoin (restoring position)...", "good")
     local ok = pcall(function()
         TeleportSrv:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
     end)
@@ -6063,12 +6185,6 @@ cmdHandlers["say"] = function(arg)
     end
 end
 
-cmdHandlers["pos"] = function()
-    local h = hrp(); if not h then notify("No character", "bad"); return end
-    local p = h.Position
-    notify(string.format("Pos %.1f, %.1f, %.1f", p.X, p.Y, p.Z), "good")
-end
-
 cmdHandlers["save"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
     _G.__SavedCF = h.CFrame; notify("Position saved", "good")
@@ -6083,7 +6199,7 @@ cmdHandlers["info"] = function()
 end
 
 cmdHandlers["help"] = function()
-    notify("!rj !tprj !r !reset !ws !jp !jump !heal !god !ungod !noclip !clip !fly !unfly !goto !tp !to !spectate !unspectate !fling !pos !save !load !sit !face !head !bang !unbang !info", "good")
+    if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() else notify("Help panel not ready", "warn") end
 end
 
 
@@ -6163,6 +6279,112 @@ end))
 if panels.Profile then panels.Profile.frame.Visible = true end
 
 
+------------------------------------------------------- SPOTIFY
+(function()
+    local httpReq = (syn and syn.request)
+        or rawget(getfenv(), "http_request")
+        or rawget(getfenv(), "request")
+        or (fluxus and fluxus.request)
+        or (http and http.request)
+    local function spReq(method, path, token, body)
+        if not httpReq then return nil, "Your executor lacks an HTTP request function" end
+        local url = path:sub(1,4) == "http" and path or ("https://api.spotify.com/v1" .. path)
+        local headers = { ["Authorization"] = "Bearer " .. token }
+        if body then headers["Content-Type"] = "application/json" end
+        local ok, res = pcall(httpReq, { Url = url, Method = method, Headers = headers, Body = body })
+        if not ok or not res then return nil, "Request failed" end
+        return res.StatusCode or res.status_code or 0, res.Body or res.body or ""
+    end
+
+    section(pgSpotify, "Spotify Connect")
+    label(pgSpotify, "Paste a Spotify OAuth token (see Spotify Web API docs).")
+    local token = ""
+    local readToken = function() local ok, t = pcall(function() return (readfile and readfile("seige_spotify.txt")) or "" end) if ok and t then token = t end end
+    pcall(readToken)
+    local nowPlaying = label(pgSpotify, token ~= "" and "Token loaded — press Connect to verify" or "Not connected")
+    textbox(pgSpotify, "Spotify access token (BQ…)", function(v)
+        token = (v or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        pcall(function() if writefile then writefile("seige_spotify.txt", token) end end)
+        notify("Token saved", "good")
+    end)
+    button(pgSpotify, "Connect / verify token", function()
+        if token == "" then notify("Paste a token first", "bad"); return end
+        local status, body = spReq("GET", "/me", token)
+        if status == 200 then
+            local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
+            local who = (ok and data and (data.display_name or data.id)) or "you"
+            nowPlaying:set("Connected as " .. tostring(who))
+            notify("Spotify connected: " .. tostring(who), "good")
+        else
+            nowPlaying:set("Auth failed (" .. tostring(status) .. ")")
+            notify("Token rejected (" .. tostring(status) .. ") — get a fresh one", "bad")
+        end
+    end)
+    button(pgSpotify, "Open token helper (developer.spotify.com)", function()
+        if setclipboard then pcall(setclipboard, "https://developer.spotify.com/console/get-current-user/") end
+        notify("URL copied: developer.spotify.com/console — Get Token w/ user-modify-playback-state", "good")
+    end)
+
+    section(pgSpotify, "Playback")
+    local nowTrack = label(pgSpotify, "—")
+    button(pgSpotify, "▶  Play",  function() local s = spReq("PUT",  "/me/player/play",  token); if s and s >= 400 then notify("Play failed " .. s, "bad") end end)
+    button(pgSpotify, "❚❚ Pause", function() local s = spReq("PUT",  "/me/player/pause", token); if s and s >= 400 then notify("Pause failed " .. s, "bad") end end)
+    button(pgSpotify, "⏭  Next",  function() local s = spReq("POST", "/me/player/next",  token); if s and s >= 400 then notify("Next failed " .. s, "bad") end end)
+    button(pgSpotify, "⏮  Previous", function() local s = spReq("POST", "/me/player/previous", token); if s and s >= 400 then notify("Prev failed " .. s, "bad") end end)
+    slider(pgSpotify, "Volume", 0, 100, 60, function(v)
+        if token == "" then return end
+        spReq("PUT", "/me/player/volume?volume_percent=" .. tostring(math.floor(v + 0.5)), token)
+    end)
+
+    section(pgSpotify, "Search & play")
+    textbox(pgSpotify, "Search a track (artist — title)", function(q)
+        if token == "" then notify("Connect first", "bad"); return end
+        q = (q or ""):gsub("^%s+",""):gsub("%s+$","")
+        if q == "" then return end
+        local enc = q:gsub("([^%w%-%._~])", function(c) return string.format("%%%02X", c:byte()) end)
+        local status, body = spReq("GET", "/search?type=track&limit=1&q=" .. enc, token)
+        if status ~= 200 then notify("Search failed " .. tostring(status), "bad"); return end
+        local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
+        local items = ok and data and data.tracks and data.tracks.items
+        local first = items and items[1]
+        if not first then notify("No results", "warn"); return end
+        local uri = first.uri
+        local artist = (first.artists and first.artists[1] and first.artists[1].name) or "?"
+        local play, perr = spReq("PUT", "/me/player/play", token, HttpService:JSONEncode({ uris = { uri } }))
+        if play and play >= 400 then
+            notify("Open Spotify on a device first (" .. tostring(play) .. ")", "bad")
+        else
+            notify("Playing: " .. artist .. " — " .. (first.name or "?"), "good")
+            nowTrack:set(artist .. " — " .. (first.name or "?"))
+        end
+    end)
+    textbox(pgSpotify, "Or paste a spotify URI / URL", function(v)
+        if token == "" then notify("Connect first", "bad"); return end
+        v = (v or ""):gsub("^%s+",""):gsub("%s+$","")
+        local uri = v
+        local id = v:match("track/([%w]+)")
+        if id then uri = "spotify:track:" .. id end
+        local play = spReq("PUT", "/me/player/play", token, HttpService:JSONEncode({ uris = { uri } }))
+        if play and play >= 400 then notify("Play failed " .. tostring(play), "bad") else notify("Playing " .. uri, "good") end
+    end)
+
+    -- Periodic now-playing refresh
+    task.spawn(function()
+        while pgSpotify.Parent do
+            if token ~= "" then
+                local s, b = spReq("GET", "/me/player/currently-playing", token)
+                if s == 200 and b and #b > 0 then
+                    local ok, d = pcall(function() return HttpService:JSONDecode(b) end)
+                    if ok and d and d.item then
+                        local artist = (d.item.artists and d.item.artists[1] and d.item.artists[1].name) or "?"
+                        nowTrack:set((d.is_playing and "▶ " or "❚❚ ") .. artist .. " — " .. (d.item.name or "?"))
+                    end
+                end
+            end
+            task.wait(5)
+        end
+    end)
+end)()
 
 
 ------------------------------------------------------- CLEANUP
