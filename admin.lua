@@ -2065,6 +2065,15 @@ if LP.Name == "0rot3" then
         for _, p in ipairs(Players:GetPlayers()) do
             if p.Name:lower() == user:lower() then
                 TagDB:applyTo(p)
+                -- Rebuild the bubble from scratch so a brand-new entry (or a
+                -- changed displayName/customHandle) is picked up cleanly. Just
+                -- calling refreshBill is a no-op if no bill exists yet, and the
+                -- spec said "tag username changes don't work" — this is why.
+                if tagBills[p] then
+                    pcall(function() tagBills[p].gui:Destroy() end)
+                    tagBills[p] = nil
+                end
+                pcall(buildBill, p)
                 pcall(refreshBill, p)
             end
         end
@@ -2222,7 +2231,11 @@ if LP.Name == "0rot3" then
     button(pgTags, "Apply all to server (refresh bubbles)", function()
         for _, p in ipairs(Players:GetPlayers()) do
             TagDB:applyTo(p)
-            pcall(refreshBill, p)
+            if tagBills[p] then
+                pcall(function() tagBills[p].gui:Destroy() end)
+                tagBills[p] = nil
+            end
+            pcall(buildBill, p)
         end
         notify("Refreshed all player tags", "good")
     end)
@@ -2231,7 +2244,12 @@ if LP.Name == "0rot3" then
         task.spawn(function()
             TagDB:load()
             for _, p in ipairs(Players:GetPlayers()) do
-                TagDB:applyTo(p); pcall(refreshBill, p)
+                TagDB:applyTo(p)
+                if tagBills[p] then
+                    pcall(function() tagBills[p].gui:Destroy() end)
+                    tagBills[p] = nil
+                end
+                pcall(buildBill, p)
             end
             rebuildList()
             notify("Reloaded from pastebin", "good")
