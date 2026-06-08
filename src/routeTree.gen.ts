@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PastebinKeyRouteImport } from './routes/pastebin-key'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPastebinRouteImport } from './routes/api/pastebin'
 
 const PastebinKeyRoute = PastebinKeyRouteImport.update({
   id: '/pastebin-key',
@@ -22,31 +23,40 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPastebinRoute = ApiPastebinRouteImport.update({
+  id: '/api/pastebin',
+  path: '/api/pastebin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/api/pastebin': typeof ApiPastebinRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/api/pastebin': typeof ApiPastebinRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/api/pastebin': typeof ApiPastebinRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/pastebin-key'
+  fullPaths: '/' | '/pastebin-key' | '/api/pastebin'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/pastebin-key'
-  id: '__root__' | '/' | '/pastebin-key'
+  to: '/' | '/pastebin-key' | '/api/pastebin'
+  id: '__root__' | '/' | '/pastebin-key' | '/api/pastebin'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PastebinKeyRoute: typeof PastebinKeyRoute
+  ApiPastebinRoute: typeof ApiPastebinRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,13 +75,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/pastebin': {
+      id: '/api/pastebin'
+      path: '/api/pastebin'
+      fullPath: '/api/pastebin'
+      preLoaderRoute: typeof ApiPastebinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PastebinKeyRoute: PastebinKeyRoute,
+  ApiPastebinRoute: ApiPastebinRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
