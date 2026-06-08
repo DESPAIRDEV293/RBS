@@ -3895,6 +3895,7 @@ end
 Win.Visible = false   -- retire the legacy chrome (kept around for compat)
 
 -- ============= TOP PILL ===========================================
+local Pill, iconsRow
 do -- scoped to avoid bumping the top-level local limit
 local Pill = inst("Frame", Root, {
     Name = "TopPill",
