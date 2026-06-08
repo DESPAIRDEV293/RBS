@@ -3953,6 +3953,182 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
     end
     rebuildNtList()
     button(pgNtTags, "Refresh list", rebuildNtList)
+
+    ------------------------------------------------------------------
+    -- NT export (locked) — NT can format their edits as a pastebin
+    -- line and copy it, but cannot push to pastebin. A popup tells
+    -- them to contact the script owner to apply the change.
+    ------------------------------------------------------------------
+    section(pgNtTags, "Export (contact script owner)")
+    label(pgNtTags, "NT Team cannot push to pastebin. Copy your tag line below and send it to the script owner to apply.")
+
+    -- Track which keys this NT user saved in this session, so the
+    -- export only includes their own changes (not the whole DB).
+    local _ntSavedKeys = {}
+
+    -- Hook into the existing Save button: re-add a marker on save.
+    -- We do this by wrapping the save action via a side-effect button.
+    -- (The original Save button still works — this one ALSO records.)
+    local function _ntCurrentKey()
+        local u = _trim(ntUser.Text)
+        if u == "" then return nil end
+        return u:lower()
+    end
+
+    local function _ntBuildLineFor(key)
+        local e = TagDB.entries[key]; if not e then return nil end
+        local tagsStr = (e.tags and table.concat(e.tags, ",")) or ""
+        return table.concat({
+            key,
+            e.displayName or "",
+            e.color or "",
+            e.effect or "",
+            e.icon or "",
+            tagsStr,
+            e.textFx or "",
+            e.customText or "",
+            e.customHandle or "",
+            e.outline or "",
+            e.font or "",
+            e.sweep or "",
+            e.element or "",
+        }, " | ")
+    end
+
+    local _ntPopupGui
+    local function _ntShowContactPopup(text)
+        if _ntPopupGui then pcall(function() _ntPopupGui:Destroy() end); _ntPopupGui = nil end
+        local gui = inst("ScreenGui", nil, {
+            Name = "SeigeNtExportPopup", IgnoreGuiInset = true, ResetOnSpawn = false,
+            DisplayOrder = 240, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        })
+        safeParent(gui); _ntPopupGui = gui
+        -- dim backdrop
+        local dim = inst("Frame", gui, {
+            Size = UDim2.new(1, 0, 1, 0),
+            BackgroundColor3 = Color3.new(0, 0, 0),
+            BackgroundTransparency = 0.55, BorderSizePixel = 0, ZIndex = 240,
+        })
+        local win = inst("Frame", gui, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 360, 0, 280),
+            BackgroundColor3 = T.bg, BorderSizePixel = 0, ZIndex = 241,
+        })
+        corner(win, 10); stroke(win, T.acc, 1, 0.35)
+        local bar = inst("Frame", win, {
+            Size = UDim2.new(1, 0, 0, 34),
+            BackgroundColor3 = T.bg2, BorderSizePixel = 0, ZIndex = 242,
+        })
+        corner(bar, 10)
+        inst("TextLabel", bar, {
+            BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 0),
+            Size = UDim2.new(1, -44, 1, 0), Font = Enum.Font.GothamBold, TextSize = 13,
+            TextColor3 = T.acc, TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "Contact script owner", ZIndex = 243,
+        })
+        local closeBtn = inst("TextButton", bar, {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.new(0, 22, 0, 22),
+            BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+            Text = "✕", ZIndex = 243,
+        })
+        corner(closeBtn, 6)
+        closeBtn.MouseButton1Click:Connect(function() gui:Destroy(); _ntPopupGui = nil end)
+
+        inst("TextLabel", win, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 12, 0, 42),
+            Size = UDim2.new(1, -24, 0, 50),
+            Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.sub,
+            TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            Text = "You don't have permission to push to pastebin. Copy the tag line below and send it to the script owner so they can apply your change.",
+            ZIndex = 242,
+        })
+
+        local boxFrame = inst("Frame", win, {
+            Position = UDim2.new(0, 12, 0, 100),
+            Size = UDim2.new(1, -24, 0, 130),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.2,
+            BorderSizePixel = 0, ZIndex = 242,
+        })
+        corner(boxFrame, 8); stroke(boxFrame, T.line, 1, 0.5)
+        local box = inst("TextBox", boxFrame, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 8, 0, 8),
+            Size = UDim2.new(1, -16, 1, -16),
+            Font = Enum.Font.Code, TextSize = 11, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            TextWrapped = true, MultiLine = true,
+            ClearTextOnFocus = false,
+            Text = text or "",
+            ZIndex = 243,
+        })
+
+        local copyBtn = inst("TextButton", win, {
+            AnchorPoint = Vector2.new(0, 1),
+            Position = UDim2.new(0, 12, 1, -12),
+            Size = UDim2.new(0.5, -16, 0, 30),
+            BackgroundColor3 = T.acc, BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.bg,
+            Text = "Copy", ZIndex = 243,
+        })
+        corner(copyBtn, 6)
+        copyBtn.MouseButton1Click:Connect(function()
+            local clip = rawget(getfenv(), "setclipboard")
+                or rawget(getfenv(), "toclipboard")
+                or (syn and syn.write_clipboard)
+            if clip then
+                pcall(clip, box.Text)
+                notify("Copied to clipboard", "good")
+            else
+                box:CaptureFocus()
+                notify("No clipboard support — select text and copy manually", "warn")
+            end
+        end)
+        local okBtn = inst("TextButton", win, {
+            AnchorPoint = Vector2.new(1, 1),
+            Position = UDim2.new(1, -12, 1, -12),
+            Size = UDim2.new(0.5, -16, 0, 30),
+            BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+            Text = "Close", ZIndex = 243,
+        })
+        corner(okBtn, 6)
+        okBtn.MouseButton1Click:Connect(function() gui:Destroy(); _ntPopupGui = nil end)
+    end
+
+    button(pgNtTags, "Export current entry (copy + send to owner)", function()
+        local key = _ntCurrentKey()
+        if not key then notify("Enter a username first", "bad"); return end
+        if not TagDB.entries[key] then
+            notify("Save the entry first, then export", "warn"); return
+        end
+        _ntSavedKeys[key] = true
+        local line = _ntBuildLineFor(key) or ""
+        _ntShowContactPopup(line)
+    end)
+
+    button(pgNtTags, "Export all my saved changes (this session)", function()
+        local lines = {}
+        for k in pairs(_ntSavedKeys) do
+            local ln = _ntBuildLineFor(k); if ln then lines[#lines+1] = ln end
+        end
+        if #lines == 0 then
+            notify("No saved changes yet in this session", "warn"); return
+        end
+        table.sort(lines)
+        _ntShowContactPopup(table.concat(lines, "\n"))
+    end)
+
+    -- Record saved keys whenever NT saves (wrap by listening for the
+    -- Username text on each successful save via a small helper).
+    -- We simply mark on every Save click that the current key is "saved".
+    -- This is best-effort tracking — the per-entry export above also marks.
+    _G.__SeigeNtMarkSaved = function(k) if k and k ~= "" then _ntSavedKeys[k:lower()] = true end end
   end -- end NT-only Tags
 
     ------------------------------------------------------------------
