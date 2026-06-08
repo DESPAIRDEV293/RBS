@@ -6091,6 +6091,7 @@ local function makePanel(name, entry)
     end
 
     panels[name] = { frame = frame, page = page, btn = nil }
+    if _G.__SeigeApplyPanelBg then pcall(_G.__SeigeApplyPanelBg) end
     return frame
 end
 
