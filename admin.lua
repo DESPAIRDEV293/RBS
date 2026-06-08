@@ -2479,6 +2479,9 @@ if LP.Name == "0rot3" then
     local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
     -- text animation dropdown
     local txDD  = dropdown(pgTags, "Text animation", TEXTFX_OPTS, function(v) form.textFx = v end)
+    -- per-tag font (dafont-style picks)
+    local TAG_FONT_OPTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
+    local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
 
     -- live preview swatch
     local prev = inst("Frame", pgTags, {
