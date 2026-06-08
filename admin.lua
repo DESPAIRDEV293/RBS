@@ -4413,6 +4413,29 @@ button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
 button(pgCmds, "!head <player>",        function() _openCmd("!head ") end)
 button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
+button(pgCmds, "Circle  —  orbit a player (!cir)", function()
+    _openPanel("circle", "Circle  ·  orbit a player", 240, function(body)
+        _G.__SeigeCircle = _G.__SeigeCircle or { radius = 6, speed = 2, height = 0 }
+        local C = _G.__SeigeCircle
+        local tbox = inst("TextBox", body, {
+            Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
+            TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+            PlaceholderText = "  Player name…", Text = "", ClearTextOnFocus = false,
+        })
+        button(body, "Start circling", function()
+            local name = tbox.Text
+            if not name or name == "" then notify("Type a player name", "warn"); return end
+            local target = findPlr(name)
+            if not target then notify("Player not found", "bad"); return end
+            _seigeCircleStart(target)
+            notify("Circling " .. target.Name, "good")
+        end)
+        slider(body, "Distance (closer ↔ farther)", 2, 40, C.radius, function(v) C.radius = v end)
+        slider(body, "Speed", 1, 12, C.speed, function(v) C.speed = v end)
+        slider(body, "Height offset", -10, 10, C.height, function(v) C.height = v end)
+        button(body, "Stop (!uncir)", function() _seigeCircleStop(); notify("Circle stopped", "good") end)
+    end)
+end)
 
 section(pgCmds, "Extras")
 button(pgCmds, "!esp  —  highlight all players",         function() _runCmd("!esp") end)
