@@ -1217,7 +1217,7 @@ local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
 -- Tags tab removed — now managed via the script database (tags.lua)
 -- Aim moved to Cmds tab as commands (pgAim retained as hidden frame for legacy refs)
 
-local pgServer  = makeTab("Server",  "≡", "Server hop and rejoin")
+
 local pgCmds    = makeTab("Cmds",    "⌘", "Quick commands, executor and rejoin")
 local pgThemes  = makeTab("Themes",  "✿", "Customize colors and background")
 local pgShaders = makeTab("Shaders", "✷", "Real post-processing: bloom, blur, DOF, color")
@@ -3047,34 +3047,6 @@ bind(RunService.RenderStepped:Connect(function()
     end
 end))
 
-------------------------------------------------------- SERVER TAB
-
-------------------------------------------------------- SERVER TAB
-section(pgServer, "Server")
-button(pgServer, "Rejoin server", function()
-    pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
-end)
-button(pgServer, "Server hop (random public)", function()
-    local ok, res = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet(
-            "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        ))
-    end)
-    if ok and res and res.data then
-        local options = {}
-        for _, s in ipairs(res.data) do
-            if s.playing and s.maxPlayers and s.playing < s.maxPlayers and s.id ~= game.JobId then
-                table.insert(options, s.id)
-            end
-        end
-        if #options > 0 then
-            TeleportSrv:TeleportToPlaceInstance(game.PlaceId, options[math.random(1, #options)], LP)
-        else notify("No servers found", "warn") end
-    else notify("Server list unavailable", "bad") end
-end)
-button(pgServer, "Copy JobId", function()
-    if setclipboard then setclipboard(game.JobId); notify("JobId copied", "good") end
-end)
 
 ------------------------------------------------------- CMDS TAB
 section(pgCmds, "Command bar (F6)  ·  !rj  !tprj")
@@ -4409,7 +4381,7 @@ end)()
 -- preferred order on the pill
 local tabOrder = {
     "Profile", "Players", "Self", "World",
-    "Tags", "Server", "Cmds", "Themes", "Shaders", "Detector", "Config",
+    "Tags", "Cmds", "Themes", "Shaders", "Detector", "Config",
 }
 -- Per-tab image icons (rbxassetid). Images should be white on transparent bg.
 local tabImages = {
