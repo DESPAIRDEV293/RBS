@@ -3070,6 +3070,7 @@ end)
 
 -- Player-target commands open the bar prefilled
 button(pgCmds, "!goto / !tp <player>",  function() _openCmd("!goto ") end)
+button(pgCmds, "!to <player>",           function() _openCmd("!to ") end)
 button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
 button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
@@ -4634,12 +4635,19 @@ local function findPlr(q)
     if not q or q == "" then return nil end
     q = q:lower()
     if q == "me" then return LP end
-    local best, bestLen
+    local best, bestScore
     for _, p in ipairs(Players:GetPlayers()) do
         local nm, dn = p.Name:lower(), p.DisplayName:lower()
         if nm == q or dn == q then return p end
+        -- prefix match scores highest, substring match scores medium
+        local score
         if nm:sub(1, #q) == q or dn:sub(1, #q) == q then
-            if not best or #nm < bestLen then best, bestLen = p, #nm end
+            score = 100 - #nm  -- shorter name = better
+        elseif nm:find(q, 1, true) or dn:find(q, 1, true) then
+            score = 10 - #nm
+        end
+        if score and (not bestScore or score > bestScore) then
+            best, bestScore = p, score
         end
     end
     return best
@@ -4810,6 +4818,13 @@ cmdHandlers["goto"] = function(arg)
 end
 cmdHandlers["tp"] = cmdHandlers["goto"]
 
+cmdHandlers["to"] = function(arg)
+    local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
+    local thrp, myH = phrp(target), hrp()
+    if not (thrp and myH) then notify("No character", "bad"); return end
+    myH.CFrame = thrp.CFrame * CFrame.new(0,0,3); notify("Teleported to " .. target.Name, "good")
+end
+
 cmdHandlers["spectate"] = function(arg)
     local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
     local c = target.Character; local h = c and c:FindFirstChildOfClass("Humanoid")
@@ -4855,7 +4870,7 @@ cmdHandlers["info"] = function()
 end
 
 cmdHandlers["help"] = function()
-    notify("!rj !tprj !r !reset !ws !jp !jump !heal !god !ungod !noclip !clip !fly !unfly !goto !tp !spectate !unspectate !fling !pos !save !load !sit !face !head !bang !unbang !info", "good")
+    notify("!rj !tprj !r !reset !ws !jp !jump !heal !god !ungod !noclip !clip !fly !unfly !goto !tp !to !spectate !unspectate !fling !pos !save !load !sit !face !head !bang !unbang !info", "good")
 end
 
 
@@ -4870,7 +4885,7 @@ local function runBarCmd(raw)
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
-cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !god !goto !spectate !fling !heal !save !load !help"
+cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !god !goto !to !spectate !fling !heal !save !load !help"
 
 -- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command
 pcall(function()
