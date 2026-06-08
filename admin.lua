@@ -1566,10 +1566,6 @@ toggle(pgShaders, "Fullbright", false, function(s)
         Lighting.Brightness = 1; Lighting.GlobalShadows = true; Lighting.Ambient = Color3.fromRGB(70,70,70)
     end
 end)
-toggle(pgShaders, "Low graphics (fog off, shadows off)", false, function(s)
-    Lighting.FogEnd = s and 1e6 or 1000
-    Lighting.GlobalShadows = not s
-end)
 
 ------------------------------------------------------- WORLD TAB
 section(pgWorld, "Environment")
