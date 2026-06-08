@@ -2585,17 +2585,21 @@ local function buildBill(p)
 
     -- Tag special aura: bundled outline effect that wraps the bubble.
     -- Sits behind the pill but in front of the soft glow. Hidden by default.
+    -- Stretched and clipped to the pill shape so the PNG conforms to the
+    -- rounded GUI instead of showing as a square behind it.
     local aura = inst("ImageLabel", gui, {
         Name = "specialAura",
         BackgroundTransparency = 1,
         Image = "",
         ImageTransparency = 0,
-        ScaleType = Enum.ScaleType.Fit,
-        Size = UDim2.new(1, 56, 1, 36),
-        Position = UDim2.new(0, -28, 0, -10),
+        ScaleType = Enum.ScaleType.Stretch,
+        Size = UDim2.new(1, 12, 0, 58),
+        Position = UDim2.new(0, -6, 0, 0),
         Visible = false,
         ZIndex = 0,
     })
+    corner(aura, 23)
+
 
     local bg = inst("Frame", gui, {
         Size = UDim2.new(1, 0, 0, 46), Position = UDim2.new(0, 0, 0, 6),
