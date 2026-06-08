@@ -3671,46 +3671,37 @@ button(pgCmds, "!say <message>",                         function() _openCmd("!s
 button(pgCmds, "!baseplate  —  extend the map",          function() _runCmd("!baseplate") end)
 
 button(pgCmds, "Voice  —  anti-ban + mute", function()
-    _openPanel("voice", "Voice  ·  anti-ban + mic", 230, function(body)
-        local function getVoice()
-            local s
-            pcall(function() s = game:FindService("VoiceChatInternal") end)
-            if not s then pcall(function() s = game:GetService("VoiceChatService") end) end
-            return s
-        end
+    _openPanel("voice", "Voice  ·  anti-ban + mic", 260, function(body)
+        local V = _G.__SeigeVoice
+        if not V then notify("Voice helper not ready", "warn"); return end
         _G.__SeigeAntiVC = _G.__SeigeAntiVC or { on = false, interval = 25 }
+
+        local statusLbl = inst("TextLabel", body, {
+            BackgroundTransparency = 1, Size = UDim2.new(1, -8, 0, 16),
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+            TextXAlignment = Enum.TextXAlignment.Left, Text = "  " .. V.summary(),
+        })
+        local function refresh() statusLbl.Text = "  " .. V.summary() end
 
         toggle(body, "Anti voice-chat ban (auto-cycle)", _G.__SeigeAntiVC.on, function(s)
             if s == _G.__SeigeAntiVC.on then return end
-            _runCmd("!antivc")
+            _runCmd("!antivc"); task.wait(0.1); refresh()
         end)
         slider(body, "Cycle interval (sec)", 8, 90, _G.__SeigeAntiVC.interval or 25, function(v)
             _G.__SeigeAntiVC.interval = v
         end)
         button(body, "Cycle voice now (leave + rejoin)", function()
-            if _G.__SeigeCycleVoice then _G.__SeigeCycleVoice() else notify("Voice helper not ready", "warn") end
+            V.cycle(); refresh()
         end)
-        toggle(body, "Force mute mic", false, function(s)
-            pcall(function() if LP and LP.SetMuted then LP:SetMuted(s) end end)
+        toggle(body, "Force mute mic", V.isMuted(), function(s)
+            V.setMuted(s); refresh()
             notify(s and "Mic muted" or "Mic live", "good")
         end)
         button(body, "Disconnect voice (leave channel)", function()
-            local svc = getVoice(); if not svc then notify("No voice service", "bad"); return end
-            pcall(function()
-                for _, m in ipairs({ "LeaveChannel", "leaveChannel", "Leave" }) do
-                    if typeof(svc[m]) == "function" then svc[m](svc); break end
-                end
-            end)
-            notify("Voice left", "good")
+            V.leave(); refresh(); notify("Voice left", "good")
         end)
         button(body, "Reconnect voice (rejoin channel)", function()
-            local svc = getVoice(); if not svc then notify("No voice service", "bad"); return end
-            pcall(function()
-                for _, m in ipairs({ "JoinChannel", "joinChannel", "Join" }) do
-                    if typeof(svc[m]) == "function" then svc[m](svc); break end
-                end
-            end)
-            notify("Voice rejoined", "good")
+            V.join(); refresh(); notify("Voice rejoined", "good")
         end)
     end)
 end)
