@@ -4545,6 +4545,86 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
     -- permissions follow the role table at the top of the script.
     ------------------------------------------------------------------
     if _G.__SeigeCan("manage_roles") then
+        ------------------------------------------------------------------
+        -- KILL SWITCH · global pause for every non-owner script user.
+        -- When ON, every staff/admin/nt user is locked out of every
+        -- command and every gated permission until the owner toggles
+        -- it back off. Owner stays fully functional either way.
+        ------------------------------------------------------------------
+        section(pgAdmin, "Kill switch")
+        label(pgAdmin, "Pause the whole script for every user except you (0rot3). Useful in emergencies.")
+
+        local killCard = inst("Frame", pgAdmin, {
+            Size = UDim2.new(1, -8, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.25,
+            BorderSizePixel = 0,
+        })
+        corner(killCard, 8); stroke(killCard, T.bad, 1.5, 0.35)
+        inst("UIPadding", killCard, {
+            PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12),
+            PaddingLeft = UDim.new(0, 14), PaddingRight = UDim.new(0, 14),
+        })
+        inst("UIListLayout", killCard, { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
+
+        local killStatus = inst("TextLabel", killCard, {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+            Font = Enum.Font.GothamBold, TextSize = 14,
+            TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextWrapped = true,
+            Text = "Status: ACTIVE — every script user can run commands",
+            LayoutOrder = 1,
+        })
+        local killHint = inst("TextLabel", killCard, {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextWrapped = true,
+            Text = "Toggling this broadcasts the new state to every script user via chat marker.",
+            LayoutOrder = 2,
+        })
+        local killToggle = inst("TextButton", killCard, {
+            Size = UDim2.new(1, 0, 0, 36), LayoutOrder = 3,
+            BackgroundColor3 = T.good, BackgroundTransparency = 0.1, AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = T.text,
+            BorderSizePixel = 0,
+            Text = "Activate kill switch",
+        })
+        corner(killToggle, 8); stroke(killToggle, T.line, 1, 0.4)
+
+        local function refreshKillUI()
+            local on = _G.__SeigeKilled == true
+            if on then
+                killStatus.Text = "Status: PAUSED — only the owner can run commands"
+                killStatus.TextColor3 = T.bad
+                killToggle.Text = "Deactivate kill switch"
+                killToggle.BackgroundColor3 = T.bad
+            else
+                killStatus.Text = "Status: ACTIVE — every script user can run commands"
+                killStatus.TextColor3 = T.good
+                killToggle.Text = "Activate kill switch"
+                killToggle.BackgroundColor3 = T.good
+            end
+        end
+        refreshKillUI()
+        if _G.__SeigeOnKill then _G.__SeigeOnKill(function() refreshKillUI() end) end
+        killToggle.MouseButton1Click:Connect(function()
+            local target = not (_G.__SeigeKilled == true)
+            if _G.__SeigeKillBroadcast then
+                local ok, err = _G.__SeigeKillBroadcast(target)
+                if ok then
+                    notify(target and "Kill switch ACTIVATED — all non-owner users paused"
+                                   or "Kill switch deactivated — users resumed", target and "warn" or "good")
+                else
+                    notify("Kill switch failed: " .. tostring(err), "bad")
+                end
+            end
+            refreshKillUI()
+        end)
+
         section(pgAdmin, "Roles & permissions")
         label(pgAdmin, "Click any staff card to manage them. Owner (0rot3) is hardcoded and cannot be changed.")
 
