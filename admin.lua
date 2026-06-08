@@ -5353,12 +5353,29 @@ cmdHandlers["bring"] = function(arg)
     end)
 end
 
--- ---------- Reanim: play animation / keyframe sequence ids on your character ----------
+-- ================================================================
+-- Reanim: classic character-swap "reanimate" + animation playback.
+-- !reanim            -> reanimate (swap to fake body; puppet replicates)
+-- !reanim <id> [spd] -> play an Animation / KeyframeSequence asset id
+-- !reanim stop / !unreanim -> stop reanim AND any playing tracks
+-- ================================================================
 _G.__ReanimTracks = _G.__ReanimTracks or {}
-local function stopAllReanim()
+
+local function reanimHum()
+    -- Prefer the puppet (real body) for animation playback so tracks
+    -- replicate to other players; fall back to local humanoid.
+    local puppet = _G.__ReanimReal
+    if puppet and puppet.Parent then
+        local h = puppet:FindFirstChildOfClass("Humanoid")
+        if h then return h end
+    end
+    return getHum()
+end
+
+local function stopAllReanimTracks()
     for _, tr in ipairs(_G.__ReanimTracks) do pcall(function() tr:Stop(); tr:Destroy() end) end
     _G.__ReanimTracks = {}
-    local h = getHum()
+    local h = reanimHum()
     if h then
         local animator = h:FindFirstChildOfClass("Animator")
         if animator then
@@ -5370,67 +5387,94 @@ local function stopAllReanim()
     end
 end
 
--- Loads the full AK-style reanim system (separate reanim.lua module in this repo).
--- Pins to the latest commit SHA so it bypasses GitHub raw caching, like loader.lua does.
-local function loadReanimSystem()
-    if _G.__ReanimSystemLoaded then notify("Reanim system already loaded", "warn"); return end
-    notify("Loading reanim system...", "good")
-    task.spawn(function()
-        local OWNER, REPO, BRANCH, FILE = "DESPAIRDEV293", "roblox-script-buddy", "main", "reanim.lua"
-        local sha
-        pcall(function()
-            local api = game:HttpGet(("https://api.github.com/repos/%s/%s/commits/%s"):format(OWNER, REPO, BRANCH))
-            sha = api:match('"sha"%s*:%s*"([a-f0-9]+)"')
-        end)
-        local url = sha
-            and ("https://raw.githubusercontent.com/%s/%s/%s/%s"):format(OWNER, REPO, sha, FILE)
-            or  ("https://raw.githubusercontent.com/%s/%s/%s/%s"):format(OWNER, REPO, BRANCH, FILE)
-        local ok, src = pcall(function() return game:HttpGet(url) end)
-        if not ok or type(src) ~= "string" then notify("Reanim fetch failed", "bad"); return end
-        local fn, err = loadstring(src)
-        if not fn then notify("Reanim compile error: " .. tostring(err), "bad"); return end
-        local rok, rerr = pcall(fn)
-        if not rok then notify("Reanim runtime error: " .. tostring(rerr), "bad"); return end
-        _G.__ReanimSystemLoaded = true
-        notify("Reanim system loaded", "good")
+local function startReanim()
+    if _G.__ReanimActive then notify("Already reanimated", "warn"); return end
+    local real = LP.Character
+    local rhum = real and real:FindFirstChildOfClass("Humanoid")
+    local rhrp = real and real:FindFirstChild("HumanoidRootPart")
+    if not (real and rhum and rhrp) then notify("No character", "bad"); return end
+
+    real.Archivable = true
+    pcall(function() rhum.BreakJointsOnDeath = false end)
+    pcall(function() rhum.RequiresNeck = false end)
+
+    -- Build fake (visible body the player drives)
+    local fake = real:Clone()
+    fake.Name = LP.Name
+    for _, d in ipairs(fake:GetDescendants()) do
+        if d:IsA("BasePart") then d.CanCollide = false; d.Massless = true end
+    end
+    -- Hide real body parts visually (the puppet) — keep them in world to drive replication
+    for _, d in ipairs(real:GetDescendants()) do
+        if d:IsA("BasePart") then
+            pcall(function() d.Transparency = 1; d.CanCollide = false; d.Massless = true end)
+        elseif d:IsA("Decal") or d:IsA("Texture") then
+            pcall(function() d.Transparency = 1 end)
+        end
+    end
+
+    fake.Parent = Workspace
+    LP.Character = fake
+    Workspace.CurrentCamera.CameraSubject = fake:FindFirstChildOfClass("Humanoid")
+
+    -- Keep the puppet glued to the fake every frame so animations look right on the server
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        if not _G.__ReanimActive then conn:Disconnect(); return end
+        local fhrp = fake:FindFirstChild("HumanoidRootPart")
+        local pphrp = real and real:FindFirstChild("HumanoidRootPart")
+        if fhrp and pphrp then pcall(function() pphrp.CFrame = fhrp.CFrame end) end
     end)
+
+    -- If the puppet gets reset by the game, end reanim cleanly
+    rhum.Died:Connect(function() if _G.__ReanimActive then _G.__StopReanim() end end)
+
+    _G.__ReanimActive = true
+    _G.__ReanimReal  = real
+    _G.__ReanimFake  = fake
+    _G.__ReanimConn  = conn
+    notify("Reanimated. Play with !reanim <animId>", "good")
 end
 
-cmdHandlers["reanim"] = function(arg)
-    arg = (arg or ""):gsub("^%s+",""):gsub("%s+$","")
-    if arg == "" or arg == "load" or arg == "start" or arg == "open" then
-        loadReanimSystem(); return
-    end
-    if arg == "stop" or arg == "off" then
-        stopAllReanim(); notify("Reanim stopped", "good"); return
-    end
+_G.__StopReanim = function()
+    if not _G.__ReanimActive then return end
+    _G.__ReanimActive = false
+    stopAllReanimTracks()
+    if _G.__ReanimConn then pcall(function() _G.__ReanimConn:Disconnect() end); _G.__ReanimConn = nil end
+    if _G.__ReanimFake then pcall(function() _G.__ReanimFake:Destroy() end); _G.__ReanimFake = nil end
+    _G.__ReanimReal = nil
+    -- Force respawn
+    pcall(function() LP:LoadCharacter() end)
+    notify("Reanim stopped (respawning)", "good")
+end
+
+local function playAnimId(arg)
     local idPart, speedPart = arg:match("^(%S+)%s*(.*)$")
     local speed = tonumber(speedPart) or 1
-    local id = idPart:match("(%d+)") or idPart
-    local h = getHum(); if not h then notify("No humanoid", "bad"); return end
+    local id = idPart and (idPart:match("(%d+)") or idPart)
+    if not id then notify("Bad anim id", "bad"); return end
+    local h = reanimHum(); if not h then notify("No humanoid", "bad"); return end
 
-    local ok, trackOrErr = pcall(function()
-        local anim = Instance.new("Animation")
-        anim.AnimationId = "rbxassetid://" .. tostring(id)
+    local function loadAndPlay(animationId)
+        local anim = Instance.new("Animation"); anim.AnimationId = animationId
         local animator = h:FindFirstChildOfClass("Animator")
         local track = animator and animator:LoadAnimation(anim) or h:LoadAnimation(anim)
         track:Play(); track:AdjustSpeed(speed)
         return track
-    end)
-
-    if ok and typeof(trackOrErr) == "Instance" then
-        table.insert(_G.__ReanimTracks, trackOrErr)
-        notify("Reanim " .. id .. " @x" .. speed, "good")
-        return
     end
 
-    -- Fallback: load KeyframeSequence asset, register, then play
+    local ok, track = pcall(loadAndPlay, "rbxassetid://" .. tostring(id))
+    if ok and typeof(track) == "Instance" then
+        table.insert(_G.__ReanimTracks, track)
+        notify("Reanim " .. id .. " @x" .. speed, "good"); return
+    end
+
+    -- KeyframeSequence fallback (register then play)
     local ksOk, ks = pcall(function()
         if typeof(getobjects) == "function" then
             local o = getobjects("rbxassetid://" .. tostring(id)); return o and o[1]
         else
-            local IS = game:GetService("InsertService")
-            local m = IS:LoadAsset(tonumber(id))
+            local m = game:GetService("InsertService"):LoadAsset(tonumber(id))
             return m and m:FindFirstChildOfClass("KeyframeSequence", true)
         end
     end)
@@ -5439,20 +5483,25 @@ cmdHandlers["reanim"] = function(arg)
             return game:GetService("KeyframeSequenceProvider"):RegisterKeyframeSequence(ks)
         end)
         if regOk and hash then
-            local anim = Instance.new("Animation"); anim.AnimationId = hash
-            local animator = h:FindFirstChildOfClass("Animator")
-            local track = animator and animator:LoadAnimation(anim) or h:LoadAnimation(anim)
-            track:Play(); track:AdjustSpeed(speed)
-            table.insert(_G.__ReanimTracks, track)
-            notify("Reanim (KFS) " .. id .. " @x" .. speed, "good")
-            return
+            local ok2, tr = pcall(loadAndPlay, hash)
+            if ok2 and typeof(tr) == "Instance" then
+                table.insert(_G.__ReanimTracks, tr)
+                notify("Reanim (KFS) " .. id .. " @x" .. speed, "good"); return
+            end
         end
     end
-    notify("Reanim failed: " .. tostring(trackOrErr), "bad")
+    notify("Reanim play failed: " .. tostring(track), "bad")
 end
-cmdHandlers["anim"] = cmdHandlers["reanim"]
-cmdHandlers["unreanim"] = function() stopAllReanim(); notify("Reanim stopped", "good") end
-cmdHandlers["stopanim"] = cmdHandlers["unreanim"]
+
+cmdHandlers["reanim"] = function(arg)
+    arg = (arg or ""):gsub("^%s+",""):gsub("%s+$","")
+    if arg == "" or arg == "on" or arg == "start" then startReanim(); return end
+    if arg == "stop" or arg == "off" then _G.__StopReanim(); return end
+    playAnimId(arg)
+end
+cmdHandlers["anim"]     = function(arg) playAnimId((arg or ""):gsub("^%s+","")) end
+cmdHandlers["unreanim"] = function() _G.__StopReanim() end
+cmdHandlers["stopanim"] = function() stopAllReanimTracks(); notify("Anim tracks stopped", "good") end
 
 cmdHandlers["pos"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
