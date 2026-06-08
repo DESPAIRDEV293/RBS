@@ -2575,12 +2575,19 @@ local function refreshBill(p)
         end
     end
 
-    -- Auto-size bubble to text content
-    local nameW   = measureText(e.name.Text,   Enum.Font.GothamBold, 14)
-    local handleW = measureText(e.handle.Text, Enum.Font.Gotham,     10)
+    -- Auto-size bubble to text content. We measure both the display name
+    -- and the @handle (always using the FULL strings, never the in-progress
+    -- text from a typewriter/glitch effect) so the pill snugly hugs the
+    -- longest of the two lines.
+    local nameFull   = e.baseName or e.name.Text   or ""
+    local handleFull = handleStr  or e.handle.Text or ""
+    local nameW   = measureText(nameFull,   e.name.Font   or Enum.Font.GothamBold, 14)
+    local handleW = measureText(handleFull, e.handle.Font or Enum.Font.Gotham,     10)
     local textW   = math.ceil(math.max(nameW, handleW))
-    e.name.Size   = UDim2.new(0, textW + 4, 0, 18)
-    e.handle.Size = UDim2.new(0, textW + 4, 0, 14)
+    -- give the label frames a little breathing room so text effects that
+    -- temporarily widen the string (glitch chars, shake jitter) don't clip.
+    e.name.Size   = UDim2.new(0, textW + 8, 0, 18)
+    e.handle.Size = UDim2.new(0, textW + 8, 0, 14)
 
     local chipBlock = 0
     if e.sh.Visible then
@@ -2590,9 +2597,10 @@ local function refreshBill(p)
         chipBlock   = shW + 8
     end
 
-    -- avatar(5+34) + gap(8) + text + chipBlock + right pad(10)
-    local total = 5 + 34 + 8 + textW + chipBlock + 10
-    if total < 120 then total = 120 end
+    -- layout: leftPad(5) + avatar(34) + gap(8) + text + chipBlock + rightPad(10)
+    -- No artificial minimum — pill hugs the text width so short names like
+    -- "user / @user" don't render with a giant empty trailing area.
+    local total = 5 + 34 + 8 + math.max(textW, 24) + chipBlock + 10
     e.bg.Size  = UDim2.new(1, 0, 1, 0)
     e.gui.Size = UDim2.new(0, total, 0, 46)
 end
