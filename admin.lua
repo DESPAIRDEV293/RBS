@@ -3593,6 +3593,167 @@ button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp t
 button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
 button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
 
+-- ===== Performance: FPS booster + Ping booster (in one popout) =====
+do
+    -- Save originals once so toggling off restores them
+    local saved
+    local function snapshot()
+        if saved then return end
+        saved = {
+            qLevel = pcall(function() return settings().Rendering.QualityLevel end) and settings().Rendering.QualityLevel,
+            lagSim = pcall(function() return settings().Network.IncomingReplicationLag end) and settings().Network.IncomingReplicationLag,
+            shadows = Lighting.GlobalShadows,
+            fogEnd = Lighting.FogEnd,
+            fogStart = Lighting.FogStart,
+            brightness = Lighting.Brightness,
+            envDif = Lighting.EnvironmentDiffuseScale,
+            envSpc = Lighting.EnvironmentSpecularScale,
+            streamPause = pcall(function() return workspace.StreamingPauseMode end) and workspace.StreamingPauseMode,
+        }
+    end
+
+    local fpsOn, pingOn = false, false
+    local fpsToken = 0
+
+    local function setFpsCap(v)
+        local s = rawget(getfenv(), "setfpscap")
+            or (rawget(getfenv(), "syn") and syn and syn.set_fps_cap)
+        if type(s) == "function" then pcall(s, v); return true end
+        return false
+    end
+
+    local function applyFps(on)
+        snapshot()
+        if on then
+            -- Uncap fps via executor
+            setFpsCap(0)  -- 0 = unlimited on most executors
+            -- Drop graphics quality to bare minimum
+            pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+            pcall(function() Lighting.GlobalShadows = false end)
+            pcall(function() Lighting.FogEnd = 1e6 end)
+            pcall(function() Lighting.FogStart = 1e6 end)
+            pcall(function() Lighting.EnvironmentDiffuseScale = 0 end)
+            pcall(function() Lighting.EnvironmentSpecularScale = 0 end)
+            -- Kill expensive effects
+            for _, v in ipairs(Lighting:GetDescendants()) do
+                if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("BloomEffect")
+                   or v:IsA("SunRaysEffect") or v:IsA("DepthOfFieldEffect")
+                   or v:IsA("ColorCorrectionEffect") then
+                    pcall(function() v.Enabled = false end)
+                end
+            end
+            -- Strip heavy workspace effects (particles, smoke, fire, trails, meshes' textures)
+            task.spawn(function()
+                local tok = fpsToken + 1; fpsToken = tok
+                for _, v in ipairs(workspace:GetDescendants()) do
+                    if tok ~= fpsToken then return end
+                    if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke")
+                       or v:IsA("Fire") or v:IsA("Sparkles") then
+                        pcall(function() v.Enabled = false end)
+                    elseif v:IsA("Explosion") then
+                        pcall(function() v.BlastPressure = 0; v.BlastRadius = 0 end)
+                    elseif v:IsA("MeshPart") then
+                        pcall(function() v.RenderFidelity = Enum.RenderFidelity.Performance end)
+                    end
+                end
+            end)
+            -- Periodically re-apply (some games reset settings)
+            task.spawn(function()
+                local tok = fpsToken
+                while fpsOn and tok == fpsToken do
+                    setFpsCap(0)
+                    pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+                    task.wait(5)
+                end
+            end)
+        else
+            fpsToken = fpsToken + 1
+            -- Restore
+            setFpsCap(240)
+            if saved then
+                pcall(function() if saved.qLevel then settings().Rendering.QualityLevel = saved.qLevel end end)
+                pcall(function() Lighting.GlobalShadows = saved.shadows end)
+                pcall(function() Lighting.FogEnd = saved.fogEnd end)
+                pcall(function() Lighting.FogStart = saved.fogStart end)
+                pcall(function() Lighting.EnvironmentDiffuseScale = saved.envDif end)
+                pcall(function() Lighting.EnvironmentSpecularScale = saved.envSpc end)
+            end
+        end
+    end
+
+    local function applyPing(on)
+        snapshot()
+        if on then
+            -- Push network as hard as the client allows
+            pcall(function() settings().Network.IncomingReplicationLag = 0 end)
+            -- Reduce streaming pauses (heavy lag-spike trigger)
+            pcall(function() workspace.StreamingPauseMode = Enum.StreamingPauseMode.Disabled end)
+            -- Bump task scheduler priority where exposed
+            pcall(function()
+                local sched = settings():GetService("TaskScheduler")
+                if sched then
+                    sched.PriorityMethod = Enum.PriorityMethod.AccumulatedYieldTime
+                    sched.SchedulerDutyCycle = 1
+                end
+            end)
+        else
+            if saved then
+                pcall(function() settings().Network.IncomingReplicationLag = saved.lagSim or 0 end)
+                pcall(function() workspace.StreamingPauseMode = saved.streamPause end)
+            end
+        end
+    end
+
+    button(pgCmds, "Performance  —  FPS & Ping booster", function()
+        _openPanel("perfboost", "Performance  ·  FPS & Ping booster", 220, function(body)
+            -- live pings/fps readout
+            local stats = game:GetService("Stats")
+            local readout = inst("TextLabel", body, {
+                Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = T.bg3,
+                BackgroundTransparency = 0.4, BorderSizePixel = 0,
+                Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+                Text = "FPS: --   Ping: -- ms",
+            })
+            corner(readout, 6); stroke(readout, T.line, 1, 0.4)
+            task.spawn(function()
+                local last = tick(); local frames = 0; local fps = 0
+                while readout.Parent do
+                    frames = frames + 1
+                    local now = tick()
+                    if now - last >= 0.5 then
+                        fps = math.floor(frames / (now - last) + 0.5)
+                        frames = 0; last = now
+                    end
+                    local ping = 0
+                    pcall(function()
+                        ping = math.floor(stats.Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
+                    end)
+                    readout.Text = ("FPS: %d   Ping: %d ms"):format(fps, ping)
+                    task.wait(0.1)
+                end
+            end)
+            toggle(body, "FPS booster (uncap + strip effects)", fpsOn, function(v)
+                fpsOn = v; applyFps(v)
+                notify("FPS booster " .. (v and "ON" or "OFF"), v and "good" or "dim")
+            end)
+            toggle(body, "Ping booster (push network priority)", pingOn, function(v)
+                pingOn = v; applyPing(v)
+                notify("Ping booster " .. (v and "ON" or "OFF"), v and "good" or "dim")
+            end)
+            button(body, "Boost BOTH (max performance)", function()
+                fpsOn = true; pingOn = true
+                applyFps(true); applyPing(true)
+                notify("Max performance mode ON", "good")
+            end)
+            button(body, "Restore defaults", function()
+                fpsOn = false; pingOn = false
+                applyFps(false); applyPing(false)
+                notify("Performance restored", "warn")
+            end)
+        end)
+    end)
+end
+
 -- ===== Popout panels (replace standalone toggles) =====
 button(pgCmds, "Movement  —  walk + jump", function()
     _openPanel("movement", "Movement  ·  Walk & Jump", 200, function(body)
