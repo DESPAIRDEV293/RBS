@@ -4885,7 +4885,7 @@ local function runBarCmd(raw)
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
-cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !god !goto !spectate !fling !heal !save !load !help"
+cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !god !goto !to !spectate !fling !heal !save !load !help"
 
 -- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command
 pcall(function()
