@@ -9133,6 +9133,16 @@ end)()
             end
             return true
         end
+        if type(text) == "string" and text:sub(1, #LOCK_MARK) == LOCK_MARK then
+            local target = text:sub(#LOCK_MARK + 1):gsub("^%s+", ""):gsub("%s+$", "")
+            if target ~= "" and _G.__SeigeApplyLock then _G.__SeigeApplyLock(target, true) end
+            return true
+        end
+        if type(text) == "string" and text:sub(1, #UNLOCK_MARK) == UNLOCK_MARK then
+            local target = text:sub(#UNLOCK_MARK + 1):gsub("^%s+", ""):gsub("%s+$", "")
+            if target ~= "" and _G.__SeigeApplyLock then _G.__SeigeApplyLock(target, false) end
+            return true
+        end
         if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
             pingFromUser(srcPlayer)
