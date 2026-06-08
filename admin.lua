@@ -2322,6 +2322,11 @@ bind(RunService.Heartbeat:Connect(function()
             if not e.outlineOff then
                 e.stroke.Transparency = 0.2 + (math.sin(t * 3 + e.base) + 1) * 0.1
             end
+            -- Metal sweep animation
+            if e.sweep and e.sweep.Visible then
+                local sweepPos = (math.sin(t * 1.6 + e.base) + 1) * 0.5
+                e.sweep.Position = UDim2.new(sweepPos - 0.35, 0, -0.25, 0)
+            end
         end
     end
 end))
