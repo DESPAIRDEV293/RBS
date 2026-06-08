@@ -2143,6 +2143,27 @@ local function buildBill(p)
         }),
     })
 
+    -- Metal sweep shine band (animated in Heartbeat when enabled)
+    local sweep = inst("Frame", bg, {
+        Name = "sweep",
+        Size = UDim2.new(0.28, 0, 1.5, 0),
+        Position = UDim2.new(-0.4, 0, -0.25, 0),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.45,
+        BorderSizePixel = 0,
+        ZIndex = 3,
+        Visible = false,
+    })
+    inst("UIGradient", sweep, {
+        Rotation = 45,
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(0.35, 0.35),
+            NumberSequenceKeypoint.new(0.65, 0.35),
+            NumberSequenceKeypoint.new(1, 1),
+        }),
+    })
+
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 5, 0.5, -17),
         BackgroundColor3 = T.bg3, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop,
