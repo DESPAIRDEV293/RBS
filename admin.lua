@@ -3928,6 +3928,50 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     end)
 
     -------------------------------------------------------------------
+    -- BOT PUSH  ·  one-click sync that goes through our Lovable web
+    -- endpoint instead of pastebin's API directly. The dev key + user
+    -- key live server-side as secrets, so this button works even if
+    -- the user hasn't filled out the pbCfg fields above.
+    -------------------------------------------------------------------
+    local BOT_URL  = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94.lovable.app/api/public/pastebin"
+    local BOT_AUTH = "1f0957eaf8dd4ed89bb594440220eb4c" -- = PASTEBIN_USER_KEY on the server
+    button(pgTags, "Push to bot (auto-sync via server)", function()
+        task.spawn(function()
+            local body = buildExport()
+            local payload = HttpService:JSONEncode({ body = body })
+            local req = rawget(getfenv(), "request")
+                or rawget(getfenv(), "http_request")
+                or (syn and syn.request)
+                or (http and http.request)
+            if not req then
+                notify("Bot push: no HTTP request API in this executor", "bad")
+                return
+            end
+            local ok, res = pcall(req, {
+                Url = BOT_URL,
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"]    = "application/json",
+                    ["x-pastebin-auth"] = BOT_AUTH,
+                },
+                Body = payload,
+            })
+            if not ok or not res then
+                notify("Bot push failed: " .. tostring(res), "bad")
+                return
+            end
+            local status = res.StatusCode or res.Status or 0
+            local txt = tostring(res.Body or "")
+            if status >= 200 and status < 300 then
+                notify("Bot push OK — pastebin updated", "good")
+            else
+                notify(("Bot push failed (HTTP %s): %s"):format(tostring(status), txt:sub(1, 120)), "bad")
+            end
+        end)
+    end)
+
+
+    -------------------------------------------------------------------
     -- AUTO-PULL  ·  detect remote pastebin edits and reflect them in
     -- the in-game tag editor so changes made on pastebin.com show up
     -- as editable entries without a rejoin.
