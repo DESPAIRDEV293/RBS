@@ -2494,7 +2494,7 @@ if LP.Name == "0rot3" then
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
         icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
-        font = "Default",
+        font = "Default", sweep = "on",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
