@@ -7519,7 +7519,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
 end))
 
 ------------------------------------------------------- PROFILE TAB (redesigned)
-do
+;(function()
     -- ============ HERO CARD: big centered avatar, name, @user ============
     local hero = inst("Frame", pgProfile, {
         Size = UDim2.new(1, -8, 0, 174),
@@ -7983,7 +7983,7 @@ do
             refreshFriends()
         end
     end)
-end
+end)()
 
 
 ------------------------------------------------------- REDESIGN: TOP PILL + FLOATING PANELS
