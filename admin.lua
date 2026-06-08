@@ -3394,12 +3394,33 @@ button(pgCmds, "Character  —  reset / refresh / click-TP", function()
     end)
 end)
 
-button(pgCmds, "Reanim  —  swap body & play animations", function()
-    _openPanel("reanim", "Reanim  ·  character swap + animations", 230, function(body)
-        button(body, "Start reanim (swap to puppet body)", function() _runCmd("!reanim") end)
-        button(body, "Stop reanim (respawn)", function() _runCmd("!unreanim") end)
-        textbox(body, "Animation/KFS asset id  (optional: id speed)", function(v)
-            _runCmd("!reanim " .. v)
+button(pgCmds, "Reanim  —  animations + keyframe data", function()
+    _openPanel("reanim", "Reanim  ·  asset id / url / pasted keyframes", 410, function(body)
+        button(body, "Start reanim (free humanoid)", function() _runCmd("!reanim") end)
+        button(body, "Stop reanim", function() _runCmd("!unreanim") end)
+        textbox(body, "Animation/KFS asset id  (id [speed])", function(v) _runCmd("!reanim " .. v) end)
+        textbox(body, "Load keyframe txt/json from URL (url [speed])", function(v) _runCmd("!reanimurl " .. v) end)
+
+        -- Paste box for raw JSON or Lua-table keyframe data
+        local pasteFrame = inst("Frame", body, {
+            Size = UDim2.new(1, -8, 0, 150),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3, BorderSizePixel = 0,
+        })
+        corner(pasteFrame, 8); stroke(pasteFrame, T.line, 1, 0.5)
+        local pasteBox = inst("TextBox", pasteFrame, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 8, 0, 6),
+            Size = UDim2.new(1, -16, 1, -12),
+            PlaceholderText = "Paste keyframe data here (JSON or Lua table)…",
+            PlaceholderColor3 = T.dim,
+            Font = Enum.Font.Code, TextSize = 11, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+            TextWrapped = true, MultiLine = true, ClearTextOnFocus = false, Text = "",
+        })
+        button(body, "Play pasted keyframes", function()
+            local txt = pasteBox.Text or ""
+            if txt:gsub("%s","") == "" then notify("Paste some data first", "warn"); return end
+            if _G.__PlayReanimText then _G.__PlayReanimText(txt, 1) end
         end)
         button(body, "Stop all playing tracks", function() _runCmd("!stopanim") end)
     end)
