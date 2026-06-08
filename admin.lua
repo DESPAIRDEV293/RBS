@@ -2815,6 +2815,12 @@ bind(RunService.Heartbeat:Connect(function()
             if not e.outlineOff then
                 e.stroke.Transparency = 0.2 + (math.sin(t * 3 + e.base) + 1) * 0.1
             end
+            -- subtle hovering float on the pill (only when no theme animation is overriding Position)
+            local anim = _G.__SeigeBubbleAnim or "None"
+            if anim == "None" and e.bg and e.bg.Parent then
+                local hoverY = math.sin(t * 1.5 + e.base) * 2
+                e.bg.Position = UDim2.new(0, 0, 0, hoverY)
+            end
         end
     end
 end))
