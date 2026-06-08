@@ -1937,6 +1937,35 @@ local function refreshBill(p)
         e.glow.ImageColor3 = chipColor
         e.glow.ImageTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
     end
+
+    -- Metal sweep highlight: default ON, disable when cfg.sweep == "off"
+    local sweepOn = not (cfg and tostring(cfg.sweep or ""):lower() == "off")
+    if e.sweep and sweepOn ~= e.sweepOn then
+        e.sweepOn = sweepOn
+        e.sweepToken = (e.sweepToken or 0) + 1
+        if sweepOn then
+            local myToken = e.sweepToken
+            e.sweep.Visible = true
+            task.spawn(function()
+                local TweenService = game:GetService("TweenService")
+                while e.sweepToken == myToken and e.sweep and e.sweep.Parent do
+                    local w = (e.bg and e.bg.AbsoluteSize.X) or 200
+                    e.sweep.Position = UDim2.new(0, -60, 0, -12)
+                    local tw = TweenService:Create(
+                        e.sweep,
+                        TweenInfo.new(1.6, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+                        { Position = UDim2.new(0, w + 20, 0, -12) }
+                    )
+                    tw:Play()
+                    task.wait(1.65)
+                    task.wait(2.0 + math.random() * 1.5) -- pause between sweeps
+                end
+                if e.sweep then e.sweep.Visible = false end
+            end)
+        else
+            e.sweep.Visible = false
+        end
+    end
     -- Outline: per-entry override. "off"/"none"/"0" disables the stroke entirely.
     local outlineRaw = cfg and cfg.outline
     local outlineNorm = tostring(outlineRaw or ""):lower():gsub("^%s+",""):gsub("%s+$","")
