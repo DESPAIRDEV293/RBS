@@ -3057,7 +3057,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
 
     -- Text animation effect (applies to the display name in the pill)
-    local TAG_FX_OPTS = { "None", "Typewriter", "Glitch", "Rainbow" }
+    local TAG_FX_OPTS = { "None", "Typewriter", "Glitch", "Rainbow", "Floating", "Zerograv", "Wave", "Shake" }
     local fxDD = dropdown(pgTags, "Text animation", TAG_FX_OPTS, function(v) form.textFx = v end)
 
     -- Toggle for the ring/outline around the profile avatar in the pill
