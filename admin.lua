@@ -3434,7 +3434,87 @@ task.spawn(function()
     if bgState.image ~= "" then bgImgBox.Text = bgState.image end
 end)
 
+------------------------------------------------------- SHADERS TAB
+-- Real Roblox post-processing effects parented to Lighting
+local Lighting = game:GetService("Lighting")
+local function getOrMake(class, name)
+    local e = Lighting:FindFirstChild(name)
+    if not e or not e:IsA(class) then
+        if e then e:Destroy() end
+        e = Instance.new(class)
+        e.Name = name
+        e.Enabled = false
+        e.Parent = Lighting
+    end
+    return e
+end
+local fxBloom  = getOrMake("BloomEffect",          "SeigeBloom")
+local fxBlur   = getOrMake("BlurEffect",           "SeigeBlur")
+local fxColor  = getOrMake("ColorCorrectionEffect","SeigeColor")
+local fxDOF    = getOrMake("DepthOfFieldEffect",   "SeigeDOF")
+local fxSun    = getOrMake("SunRaysEffect",        "SeigeSun")
+
+section(pgShaders, "Bloom")
+toggle(pgShaders, "Enable bloom", false, function(v) fxBloom.Enabled = v end)
+slider(pgShaders, "Intensity",  0, 4,   1,    function(v) fxBloom.Intensity = v end)
+slider(pgShaders, "Size",       0, 56,  24,   function(v) fxBloom.Size = v end)
+slider(pgShaders, "Threshold",  0, 4,   0.95, function(v) fxBloom.Threshold = v end)
+
+section(pgShaders, "Blur")
+toggle(pgShaders, "Enable blur", false, function(v) fxBlur.Enabled = v end)
+slider(pgShaders, "Blur size", 0, 56, 16, function(v) fxBlur.Size = v end)
+
+section(pgShaders, "Color correction")
+toggle(pgShaders, "Enable color", false, function(v) fxColor.Enabled = v end)
+slider(pgShaders, "Brightness", -1, 1, 0,  function(v) fxColor.Brightness = v end)
+slider(pgShaders, "Contrast",   -1, 1, 0,  function(v) fxColor.Contrast = v end)
+slider(pgShaders, "Saturation", -1, 5, 0,  function(v) fxColor.Saturation = v end)
+local tintBox = textbox(pgShaders, "Tint hex (#ffffff)", function(s)
+    local h = (s or ""):gsub("#","")
+    if #h == 6 then
+        local ok, c = pcall(function() return Color3.fromHex(h) end)
+        if ok then fxColor.TintColor = c end
+    end
+end)
+
+section(pgShaders, "Depth of field")
+toggle(pgShaders, "Enable DOF", false, function(v) fxDOF.Enabled = v end)
+slider(pgShaders, "Focus distance",  0, 200, 25, function(v) fxDOF.FocusDistance = v end)
+slider(pgShaders, "In focus radius", 0, 100, 8,  function(v) fxDOF.InFocusRadius = v end)
+slider(pgShaders, "Near intensity",  0, 1,   0.25, function(v) fxDOF.NearIntensity = v end)
+slider(pgShaders, "Far intensity",   0, 1,   0.75, function(v) fxDOF.FarIntensity = v end)
+
+section(pgShaders, "Sun rays")
+toggle(pgShaders, "Enable sun rays", false, function(v) fxSun.Enabled = v end)
+slider(pgShaders, "Ray intensity", 0, 1, 0.25, function(v) fxSun.Intensity = v end)
+slider(pgShaders, "Ray spread",    0, 1, 1,    function(v) fxSun.Spread = v end)
+
+section(pgShaders, "Presets")
+local function applyShader(preset)
+    if preset == "Off" then
+        for _, fx in ipairs({fxBloom, fxBlur, fxColor, fxDOF, fxSun}) do fx.Enabled = false end
+    elseif preset == "Cinematic" then
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.8; fxBloom.Size = 30; fxBloom.Threshold = 1.2
+        fxColor.Enabled = true; fxColor.Contrast = 0.15; fxColor.Saturation = -0.1; fxColor.TintColor = Color3.fromRGB(255,240,220)
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 30; fxDOF.InFocusRadius = 12; fxDOF.FarIntensity = 0.6; fxDOF.NearIntensity = 0.2
+    elseif preset == "Dreamy" then
+        fxBloom.Enabled = true; fxBloom.Intensity = 1.6; fxBloom.Size = 40; fxBloom.Threshold = 0.7
+        fxBlur.Enabled = true; fxBlur.Size = 6
+        fxSun.Enabled = true; fxSun.Intensity = 0.35
+    elseif preset == "Noir" then
+        fxColor.Enabled = true; fxColor.Saturation = -1; fxColor.Contrast = 0.35; fxColor.Brightness = -0.05
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.4; fxBloom.Threshold = 1.5
+    elseif preset == "Vibrant" then
+        fxColor.Enabled = true; fxColor.Saturation = 0.6; fxColor.Contrast = 0.2; fxColor.TintColor = Color3.new(1,1,1)
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.7; fxBloom.Size = 24; fxBloom.Threshold = 1
+    end
+end
+for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant"}) do
+    button(pgShaders, name, function() applyShader(name) end)
+end
+
 ------------------------------------------------------- CONFIG TAB
+
 section(pgConfig, "Settings")
 local toggleKey = Enum.KeyCode.F2
 local awaitingKey = false
