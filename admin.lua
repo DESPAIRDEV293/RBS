@@ -2144,6 +2144,30 @@ local function buildBill(p)
         }),
     })
 
+    -- Metal sweep highlight (animated diagonal specular streak)
+    local sweep = inst("Frame", bg, {
+        Name = "sweep",
+        Size = UDim2.new(0, 38, 1, 24),
+        Position = UDim2.new(0, -50, 0, -12),
+        Rotation = 18,
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 4,
+        Visible = false,
+    })
+    inst("UIGradient", sweep, {
+        Rotation = 0,
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0,   1),
+            NumberSequenceKeypoint.new(0.45, 0.55),
+            NumberSequenceKeypoint.new(0.5, 0.25),
+            NumberSequenceKeypoint.new(0.55, 0.55),
+            NumberSequenceKeypoint.new(1,   1),
+        }),
+    })
+
+
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 5, 0.5, -17),
         BackgroundColor3 = T.bg3, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop,
