@@ -2733,6 +2733,292 @@ bind(UIS.InputEnded:Connect(function(i)
     if i.KeyCode == Enum.KeyCode.Q then flyKeys.down = false end
 end))
 
+------------------------------------------------------- PROFILE TAB
+do
+    section(pgProfile, "Account")
+    local row = inst("Frame", pgProfile, { Size = UDim2.new(1,-8,0,88), BackgroundTransparency = 1 })
+    local av = inst("ImageLabel", row, {
+        Size = UDim2.new(0,80,0,80),
+        Position = UDim2.new(0,0,0,4),
+        BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+    })
+    corner(av, 14); stroke(av, T.line, 1, 0.5)
+    pcall(function()
+        av.Image = Players:GetUserThumbnailAsync(LP.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+    end)
+
+    inst("TextLabel", row, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0,92,0,4),
+        Size = UDim2.new(1,-92,0,22),
+        Font = Enum.Font.GothamBold, TextSize = 16,
+        TextColor3 = T.text, TextXAlignment = Enum.TextXAlignment.Left,
+        Text = tostring(LP.DisplayName or LP.Name),
+    })
+    inst("TextLabel", row, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0,92,0,28),
+        Size = UDim2.new(1,-92,0,16),
+        Font = Enum.Font.Gotham, TextSize = 12,
+        TextColor3 = T.sub, TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "@" .. LP.Name,
+    })
+    inst("TextLabel", row, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0,92,0,48),
+        Size = UDim2.new(1,-92,0,34),
+        Font = Enum.Font.Gotham, TextSize = 11,
+        TextColor3 = T.dim, TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top, TextWrapped = true,
+        Text = "UserId: " .. LP.UserId .. "  ·  AccountAge: " .. LP.AccountAge .. "d",
+    })
+
+    section(pgProfile, "Live clock")
+    local liveClock = inst("TextLabel", pgProfile, {
+        Size = UDim2.new(1,-8,0,46),
+        BackgroundColor3 = T.bg3, BackgroundTransparency = 0.3, BorderSizePixel = 0,
+        Font = Enum.Font.GothamBlack, TextSize = 20,
+        TextColor3 = T.text,
+        Text = os.date("%I:%M:%S %p  ·  %a %b %d"),
+    })
+    corner(liveClock, 10); stroke(liveClock, T.line, 1, 0.5)
+    task.spawn(function()
+        while liveClock and liveClock.Parent do
+            liveClock.Text = os.date("%I:%M:%S %p  ·  %a %b %d")
+            task.wait(1)
+        end
+    end)
+
+    section(pgProfile, "Recent games (created)")
+    local gamesList = inst("Frame", pgProfile, {
+        Size = UDim2.new(1,-8,0,0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y,
+    })
+    inst("UIListLayout", gamesList, { Padding = UDim.new(0,4), SortOrder = Enum.SortOrder.LayoutOrder })
+    local gamesStatus = inst("TextLabel", pgProfile, {
+        Size = UDim2.new(1,-8,0,16), BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.dim, TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "Loading…",
+    })
+
+    section(pgProfile, "Friends")
+    local friendsList = inst("Frame", pgProfile, {
+        Size = UDim2.new(1,-8,0,0), BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y,
+    })
+    inst("UIListLayout", friendsList, { Padding = UDim.new(0,4), SortOrder = Enum.SortOrder.LayoutOrder })
+    local friendsStatus = inst("TextLabel", pgProfile, {
+        Size = UDim2.new(1,-8,0,16), BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.dim, TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "Loading…",
+    })
+
+    local function clearChildren(p)
+        for _, c in ipairs(p:GetChildren()) do
+            if not c:IsA("UIListLayout") then c:Destroy() end
+        end
+    end
+
+    local function addGameRow(g)
+        local f = inst("Frame", gamesList, {
+            Size = UDim2.new(1,0,0,40),
+            BackgroundColor3 = T.bg3, BackgroundTransparency = 0.4, BorderSizePixel = 0,
+        })
+        corner(f, 8); stroke(f, T.line, 1, 0.5)
+        inst("TextLabel", f, {
+            BackgroundTransparency = 1, Position = UDim2.new(0,10,0,4), Size = UDim2.new(1,-110,0,18),
+            Font = Enum.Font.GothamSemibold, TextSize = 12, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+            Text = tostring(g.name or "Untitled"),
+        })
+        inst("TextLabel", f, {
+            BackgroundTransparency = 1, Position = UDim2.new(0,10,0,22), Size = UDim2.new(1,-110,0,14),
+            Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.dim,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "PlaceId: " .. tostring((g.rootPlace and g.rootPlace.id) or g.id or "?"),
+        })
+        local b = inst("TextButton", f, {
+            AnchorPoint = Vector2.new(1,0.5), Position = UDim2.new(1,-8,0.5,0), Size = UDim2.new(0,84,0,24),
+            BackgroundColor3 = T.acc, BackgroundTransparency = 0.2, BorderSizePixel = 0, AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text, Text = "Teleport",
+        })
+        corner(b, 6)
+        b.MouseButton1Click:Connect(function()
+            local pid = (g.rootPlace and g.rootPlace.id) or g.id
+            if pid then pcall(function() TeleportSrv:Teleport(tonumber(pid), LP) end) end
+        end)
+    end
+
+    local function addBucketLabel(text)
+        inst("TextLabel", friendsList, {
+            Size = UDim2.new(1,0,0,16), BackgroundTransparency = 1,
+            Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.dim,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = string.upper(text),
+        })
+    end
+
+    local function addFriendRow(f, statusText, statusColor)
+        local r = inst("Frame", friendsList, {
+            Size = UDim2.new(1,0,0,42),
+            BackgroundColor3 = T.bg3, BackgroundTransparency = 0.4, BorderSizePixel = 0,
+        })
+        corner(r, 8); stroke(r, T.line, 1, 0.5)
+        local img = inst("ImageLabel", r, {
+            Position = UDim2.new(0,6,0,5), Size = UDim2.new(0,32,0,32),
+            BackgroundColor3 = T.bg, BorderSizePixel = 0,
+        })
+        corner(img, 8)
+        pcall(function() img.Image = Players:GetUserThumbnailAsync(f.userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end)
+        inst("TextLabel", r, {
+            BackgroundTransparency = 1, Position = UDim2.new(0,46,0,4), Size = UDim2.new(1,-186,0,16),
+            Font = Enum.Font.GothamSemibold, TextSize = 12, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+            Text = tostring(f.displayName or f.username or "user"),
+        })
+        inst("TextLabel", r, {
+            BackgroundTransparency = 1, Position = UDim2.new(0,46,0,20), Size = UDim2.new(1,-186,0,14),
+            Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "@" .. tostring(f.username or ""),
+        })
+        inst("TextLabel", r, {
+            BackgroundTransparency = 1, AnchorPoint = Vector2.new(1,0.5),
+            Position = UDim2.new(1,-10,0.5,0), Size = UDim2.new(0,134,0,18),
+            Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = statusColor or T.dim,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            Text = statusText or "Offline",
+        })
+    end
+
+    local function postJson(url, body)
+        local ok, res = pcall(function()
+            return HttpService:JSONDecode(game:HttpPost(url, body, false, "application/json"))
+        end)
+        if ok and res then return res end
+        local req = (syn and syn.request) or (http and http.request) or rawget(getfenv(), "request") or rawget(getfenv(), "http_request")
+        if req then
+            local ok2, r = pcall(req, { Url = url, Method = "POST", Headers = {["Content-Type"]="application/json"}, Body = body })
+            if ok2 and r and r.Body then
+                local okj, decoded = pcall(function() return HttpService:JSONDecode(r.Body) end)
+                if okj then return decoded end
+            end
+        end
+        return nil
+    end
+
+    local function refreshGames()
+        clearChildren(gamesList)
+        gamesStatus.Text = "Loading…"
+        task.spawn(function()
+            local ok, res = pcall(function()
+                return HttpService:JSONDecode(game:HttpGet(
+                    "https://games.roblox.com/v2/users/" .. LP.UserId .. "/games?accessFilter=Public&sortOrder=Desc&limit=10"
+                ))
+            end)
+            if ok and res and res.data and #res.data > 0 then
+                for _, g in ipairs(res.data) do addGameRow(g) end
+                gamesStatus.Text = "Showing " .. #res.data .. " games"
+            elseif ok and res and res.data then
+                gamesStatus.Text = "No public games."
+            else
+                gamesStatus.Text = "Failed to load games."
+            end
+        end)
+    end
+
+    local function refreshFriends()
+        clearChildren(friendsList)
+        friendsStatus.Text = "Loading friends…"
+        task.spawn(function()
+            local ok, pages = pcall(function() return Players:GetFriendsAsync(LP.UserId) end)
+            if not ok or not pages then friendsStatus.Text = "Failed to load friends."; return end
+
+            local all = {}
+            local guard = 0
+            while true do
+                local okp, cur = pcall(function() return pages:GetCurrentPage() end)
+                if okp and cur then
+                    for _, f in ipairs(cur) do
+                        table.insert(all, { userId = f.Id, username = f.Username, displayName = f.DisplayName })
+                    end
+                end
+                if pages.IsFinished then break end
+                local oka = pcall(function() pages:AdvanceToNextPageAsync() end)
+                if not oka then break end
+                guard = guard + 1
+                if guard > 5 then break end
+            end
+
+            if #all == 0 then friendsStatus.Text = "No friends found."; return end
+
+            -- Presence lookup
+            local ids = {}
+            for _, x in ipairs(all) do table.insert(ids, x.userId) end
+            local presence = {}
+            local pres = postJson("https://presence.roblox.com/v1/presence/users", HttpService:JSONEncode({ userIds = ids }))
+            if pres and pres.userPresences then
+                for _, p in ipairs(pres.userPresences) do presence[p.userId] = p end
+            end
+
+            -- In-this-server: cross-reference with Players in game
+            local hereIds = {}
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LP then
+                    local okFr = pcall(function() return LP:IsFriendsWith(p.UserId) end)
+                    if okFr and LP:IsFriendsWith(p.UserId) then
+                        hereIds[p.UserId] = true
+                    end
+                end
+            end
+
+            local here, sameGame, otherGame, online, offline = {}, {}, {}, {}, {}
+            for _, f in ipairs(all) do
+                local p = presence[f.userId]
+                if hereIds[f.userId] then
+                    table.insert(here, f)
+                elseif p then
+                    if p.userPresenceType == 2 then
+                        if tonumber(p.rootPlaceId) == tonumber(game.PlaceId) then
+                            table.insert(sameGame, f)
+                        else
+                            f._loc = p.lastLocation
+                            table.insert(otherGame, f)
+                        end
+                    elseif p.userPresenceType == 1 then
+                        table.insert(online, f)
+                    else
+                        table.insert(offline, f)
+                    end
+                else
+                    table.insert(offline, f)
+                end
+            end
+
+            local function addBucket(lbl, list, color)
+                if #list == 0 then return end
+                addBucketLabel(lbl .. "  (" .. #list .. ")")
+                for _, f in ipairs(list) do
+                    local txt = lbl
+                    if f._loc and lbl == "In another game" then txt = tostring(f._loc) end
+                    addFriendRow(f, txt, color)
+                end
+            end
+            addBucket("In this server",  here,      Color3.fromRGB(120,255,160))
+            addBucket("In this game",    sameGame,  Color3.fromRGB(160,220,255))
+            addBucket("In another game", otherGame, Color3.fromRGB(255,200,120))
+            addBucket("Online",          online,    Color3.fromRGB(180,180,255))
+            addBucket("Offline",         offline,   T.dim)
+            friendsStatus.Text = "Loaded " .. #all .. " friends."
+        end)
+    end
+
+    button(pgProfile, "Refresh profile", function()
+        refreshGames(); refreshFriends()
+    end)
+
+    -- Auto-load shortly after script start
+    task.spawn(function() task.wait(0.5); refreshGames(); refreshFriends() end)
+end
+
 ------------------------------------------------------- DEFAULT TAB
 
 -- Manually fire default
