@@ -1110,11 +1110,12 @@ end
 --   2) TAGS_DB_URL        — the legacy tags.lua on GitHub (Lua table).
 --
 -- Pastebin line format (one player per line, pipe-separated):
---   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3 | textFx | customText | customHandle
+--   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3 | textFx | customText | customHandle | outline | font
 --
 --   - Only `username` is required. Leave any field blank to skip it (keep the |).
 --   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
---               to split the bubble in half (left/right), e.g. #ff3b6b/#00aaff
+--               to split the bubble in half (left/right), e.g. #ff3b6b/#00aaff,
+--               OR an advanced fill spec like grad:#a,#b@90 or image:1234567890
 --   - effect: rain | snow | sparkle | nebula   (or blank for none)
 --   - icon:   Roblox image ID (raw number, e.g. 1234567890), OR an animated
 --             sprite-sheet spec "gif:assetId:cols:rows:fps[:sheetSize]"
@@ -1124,10 +1125,12 @@ end
 --   - customText:   optional override for the right-side chip text (owner-only)
 --   - customHandle: optional override for the "@name" line on the tag (owner-only).
 --                   Anyone without an entry shows the anonymous "user" / "@user".
+--   - outline: hex color for the tag text outline, or "off" to disable
+--   - font:    per-user tag font name (Default | PermanentMarker | LuckiestGuy | Creepster)
 --   - Lines starting with # or // are comments. Blank lines are ignored.
 --
 -- Example paste:
---   DESPAIRDEV293 | Despair | #ff3b6b/#00aaff | nebula |  | Owner,Dev | glitch | VIP | despair
+--   DESPAIRDEV293 | Despair | #ff3b6b/#00aaff | nebula |  | Owner,Dev | glitch | VIP | despair | #ffffff | LuckiestGuy
 --   Builderman    | Builderman | #00aaff | sparkle | 156 | Roblox
 --
 -- To change tags: edit the paste, hit Save, rejoin (or wait for next load).
