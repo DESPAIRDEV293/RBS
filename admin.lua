@@ -4769,6 +4769,11 @@ loadCfg = function()
         bgState.trans = tonumber(data.bg.trans) or 0.4
         applyBg()
     end
+    if type(data.panelBg) == "table" then
+        panelBgState.image = data.panelBg.image or ""
+        panelBgState.trans = tonumber(data.panelBg.trans) or 0.5
+        applyPanelBg()
+    end
 end
 
 section(pgThemes, "Background")
