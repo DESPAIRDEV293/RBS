@@ -2137,8 +2137,10 @@ local function buildBill(p)
     clickBtn.MouseButton1Click:Connect(onTagClicked)
 
     tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
+    if _G.__SeigeApplyTagFont then pcall(_G.__SeigeApplyTagFont) end
 end
 local function rebuildBills()
     clearBills()
@@ -4316,7 +4318,34 @@ end)
         _G.__SeigeFontScale = v / 100; applyTypography()
     end)
 
+    -- ===== Tag-specific font (3 dafont-style options) =====
+    -- Picked from dafont.com lookalikes shipped with Roblox:
+    --   • PermanentMarker  — handwritten marker (dafont: "Permanent Marker")
+    --   • LuckiestGuy      — chunky comic caps   (dafont: "Luckiest Guy")
+    --   • Creepster        — horror display      (dafont: "Creepster")
+    local TAG_FONTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
+    _G.__SeigeTagFont = _G.__SeigeTagFont or "Default"
+    local function applyTagFont()
+        local choice = _G.__SeigeTagFont
+        local font = (choice ~= "Default") and Enum.Font[choice] or nil
+        local bills = _G.__SeigeTagBills or {}
+        for _, e in pairs(bills) do
+            if e and e.name and e.handle then
+                pcall(function()
+                    e.name.Font   = font or Enum.Font.GothamBold
+                    e.handle.Font = font or Enum.Font.Gotham
+                    if e.stat then e.stat.Font = font or Enum.Font.GothamBold end
+                end)
+            end
+        end
+    end
+    _G.__SeigeApplyTagFont = applyTagFont
+    dropdown(pgThemes, "Tag font (dafont styles)", TAG_FONTS, function(v)
+        _G.__SeigeTagFont = v; applyTagFont(); saveCfg()
+    end)
+
     section(pgThemes, "Bubble animations  (player tags)")
+
     local BUBBLE = { "None", "Bounce", "Pulse", "Float", "Wobble", "Shake", "Heartbeat" }
     _G.__SeigeBubbleAnim = _G.__SeigeBubbleAnim or "None"
     dropdown(pgThemes, "Tag bubble animation", BUBBLE, function(v)
