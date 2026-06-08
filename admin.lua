@@ -10758,11 +10758,42 @@ end)()
         end)
         notify("Ping from @" .. (senderName or "staff"), "warn")
     end
+    local function _showAlertToast(senderName, msg)
+        local box = inst("Frame", Root, {
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, 24),
+            Size = UDim2.new(0, 440, 0, 64),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.05,
+            BorderSizePixel = 0, ZIndex = 60,
+        })
+        corner(box, 12); stroke(box, T.warn or T.acc, 1.5, 0.15)
+        inst("Frame", box, {
+            Size = UDim2.new(0, 4, 1, -16), Position = UDim2.new(0, 8, 0, 8),
+            BackgroundColor3 = T.warn or T.acc, BorderSizePixel = 0, ZIndex = 61,
+        })
+        inst("TextLabel", box, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 22, 0, 6), Size = UDim2.new(1, -32, 0, 18),
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.warn or T.acc,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "ALERT · " .. (senderName or "staff"), ZIndex = 61,
+        })
+        inst("TextLabel", box, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 22, 0, 26), Size = UDim2.new(1, -32, 0, 34),
+            Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = T.text,
+            TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            Text = msg or "", ZIndex = 61,
+        })
+        task.delay(8, function() if box.Parent then box:Destroy() end end)
+    end
 
     -- Expose marker constants + dispatcher used by handleText below
     _G.__SeigeStaffMarkers = {
         BRING = BRING_MARK, FREEZE = FREEZE_MARK, WARN = WARN_MARK,
         SHOUT = SHOUT_MARK, PING = PING_MARK,
+        PM = PM_MARK, ALERT = ALERT_MARK, KILL = KILL_MARK,
     }
     _G.__SeigeStaffHandle = function(text)
         if type(text) ~= "string" then return false end
