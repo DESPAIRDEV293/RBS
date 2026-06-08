@@ -2194,7 +2194,218 @@ local function clearBills()
     tagBills = {}
 end
 
-local function measureText(text, font, size)
+-- ───────────────────────────────────────────────────────────────────────────
+-- AURAS  ·  animated outline effects that replace the static tag stroke.
+-- Pure UIStroke + glow-frame, no images, so they fit the auto-sized pill.
+-- Each aura constructor returns a `stop()` cleanup function.
+-- ───────────────────────────────────────────────────────────────────────────
+local Auras = {}
+do
+    local TweenService = game:GetService("TweenService")
+
+    local function glow(pill, c3, trans, pad, zOff)
+        local f = Instance.new("Frame")
+        f.Name = "_AuraGlow"
+        f.AnchorPoint = Vector2.new(0.5, 0.5)
+        f.Position    = UDim2.new(0.5, 0, 0.5, 0)
+        f.Size        = UDim2.new(1, pad * 2, 1, pad * 2)
+        f.BackgroundColor3 = c3
+        f.BackgroundTransparency = trans
+        f.BorderSizePixel = 0
+        f.ZIndex = (pill.ZIndex or 1) + (zOff or -1)
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 23 + pad); c.Parent = f
+        f.Parent = pill.Parent
+        return f
+    end
+    local function strokeOn(pill, c3, thick)
+        local s = Instance.new("UIStroke")
+        s.Name = "_AuraStroke"
+        s.Color = c3
+        s.Thickness = thick
+        s.Transparency = 0
+        s.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        s.LineJoinMode = Enum.LineJoinMode.Round
+        s.Parent = pill
+        return s
+    end
+    local function cleanup(insts, conns, beats)
+        return function()
+            for _, c in ipairs(conns or {}) do pcall(function() c:Disconnect() end) end
+            for _, i in ipairs(insts or {}) do pcall(function() if i then i:Destroy() end end) end
+            if beats then beats.alive = false end
+        end
+    end
+    local function pingPong(obj, dur, props)
+        local t = TweenInfo.new(dur, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+        TweenService:Create(obj, t, props):Play()
+    end
+
+    function Auras.Ember(pill)
+        local g2 = glow(pill, Color3.fromRGB(255, 85, 0),  0.82, 8, -2)
+        local g1 = glow(pill, Color3.fromRGB(255, 140, 0), 0.70, 3, -1)
+        local s  = strokeOn(pill, Color3.fromRGB(255, 120, 0), 2)
+        pingPong(s,  0.9, { Color = Color3.fromRGB(255, 200, 0), Thickness = 3.5 })
+        pingPong(g1, 0.9, { BackgroundTransparency = 0.55 })
+        pingPong(g2, 0.9, { BackgroundTransparency = 0.72 })
+        return cleanup({g1, g2, s})
+    end
+    function Auras.Frost(pill)
+        local g1 = glow(pill, Color3.fromRGB(0, 212, 255), 0.80, 6, -1)
+        local s  = strokeOn(pill, Color3.fromRGB(0, 212, 255), 1.2)
+        pingPong(s,  1.2, { Color = Color3.fromRGB(184, 240, 255), Thickness = 2.4 })
+        pingPong(g1, 1.2, { BackgroundTransparency = 0.65 })
+        return cleanup({g1, s})
+    end
+    function Auras.Lightning(pill)
+        local g1 = glow(pill, Color3.fromRGB(255, 225, 0), 0.78, 5, -1)
+        local s  = strokeOn(pill, Color3.fromRGB(255, 230, 0), 1.5)
+        local t, conns = 0, {}
+        conns[#conns+1] = RunService.Heartbeat:Connect(function(dt)
+            t = t + dt
+            local v = math.abs(math.sin(t * 18) * math.sin(t * 11.3))
+            s.Thickness = 1.2 + v * 4.0
+            s.Color = Color3.new(1, 0.88 + v * 0.12, v * 0.3)
+            g1.BackgroundTransparency = 0.65 + (1 - v) * 0.22
+        end)
+        return cleanup({g1, s}, conns)
+    end
+    function Auras.Void(pill)
+        local g3 = glow(pill, Color3.fromRGB(80, 0, 180),   0.88, 18, -3)
+        local g2 = glow(pill, Color3.fromRGB(120, 40, 220), 0.78, 8,  -2)
+        local g1 = glow(pill, Color3.fromRGB(150, 60, 255), 0.68, 3,  -1)
+        local s  = strokeOn(pill, Color3.fromRGB(136, 0, 255), 2.2)
+        pingPong(s,  1.5, { Color = Color3.fromRGB(200, 100, 255), Thickness = 4.0 })
+        pingPong(g1, 1.5, { BackgroundTransparency = 0.52 })
+        pingPong(g2, 1.5, { BackgroundTransparency = 0.65 })
+        pingPong(g3, 1.5, { BackgroundTransparency = 0.78 })
+        return cleanup({g1, g2, g3, s})
+    end
+    function Auras.Aurora(pill)
+        local g1 = glow(pill, Color3.fromRGB(255, 0, 0), 0.72, 6, -1)
+        local s  = strokeOn(pill, Color3.fromRGB(255, 0, 0), 2.5)
+        local t, conns = 0, {}
+        conns[#conns+1] = RunService.Heartbeat:Connect(function(dt)
+            t = t + dt
+            local h = (t * 0.5) % 1
+            local col = Color3.fromHSV(h, 1, 1)
+            s.Color = col
+            g1.BackgroundColor3 = col
+            g1.BackgroundTransparency = 0.68 + math.sin(t * math.pi) * 0.08
+        end)
+        return cleanup({g1, s}, conns)
+    end
+    function Auras.Crimson(pill)
+        local g1 = glow(pill, Color3.fromRGB(200, 0, 50), 0.75, 5, -1)
+        local s  = strokeOn(pill, Color3.fromRGB(255, 0, 51), 1.5)
+        local beats = { alive = true }
+        local function beat()
+            if not beats.alive or not s.Parent then return end
+            local fast = TweenInfo.new(0.08, Enum.EasingStyle.Linear)
+            local slow = TweenInfo.new(0.12, Enum.EasingStyle.Linear)
+            local s1 = TweenService:Create(s, fast, { Thickness = 4.5 })
+            local s2 = TweenService:Create(s, slow, { Thickness = 1.5 })
+            local s3 = TweenService:Create(s, fast, { Thickness = 4.2 })
+            local s4 = TweenService:Create(s, slow, { Thickness = 1.5 })
+            s1.Completed:Connect(function() if beats.alive then s2:Play() end end)
+            s2.Completed:Connect(function() if beats.alive then task.delay(0.08, function() if beats.alive then s3:Play() end end) end end)
+            s3.Completed:Connect(function() if beats.alive then s4:Play() end end)
+            s4.Completed:Connect(function() if beats.alive then task.delay(0.48, beat) end end)
+            s1:Play()
+        end
+        beat()
+        return cleanup({g1, s}, nil, beats)
+    end
+    function Auras.Royal(pill)
+        local g2 = glow(pill, Color3.fromRGB(180, 130, 0), 0.82, 8, -2)
+        local g1 = glow(pill, Color3.fromRGB(255, 215, 0), 0.68, 2, -1)
+        local s  = strokeOn(pill, Color3.fromRGB(255, 215, 0), 2.0)
+        pingPong(s,  1.1, { Color = Color3.fromRGB(255, 250, 160), Thickness = 3.8 })
+        pingPong(g1, 1.1, { BackgroundTransparency = 0.52 })
+        pingPong(g2, 1.1, { BackgroundTransparency = 0.70 })
+        return cleanup({g1, g2, s})
+    end
+    function Auras.Toxic(pill)
+        local g1 = glow(pill, Color3.fromRGB(40, 255, 14), 0.75, 5, -1)
+        local s  = strokeOn(pill, Color3.fromRGB(57, 255, 20), 2.0)
+        local t, conns = 0, {}
+        conns[#conns+1] = RunService.Heartbeat:Connect(function(dt)
+            t = t + dt
+            local v = math.abs(math.sin(t * 14.7) * 0.6 + math.sin(t * 7.3) * 0.4)
+            s.Thickness = 1.2 + v * 3.5
+            s.Transparency = math.clamp(0.05 + (1 - v) * 0.45, 0, 0.9)
+            g1.BackgroundTransparency = 0.62 + (1 - v) * 0.25
+        end)
+        return cleanup({g1, s}, conns)
+    end
+    function Auras.Phantom(pill)
+        local g2 = glow(pill, Color3.fromRGB(210, 210, 255), 0.92, 12, -2)
+        local g1 = glow(pill, Color3.fromRGB(220, 220, 255), 0.82, 4,  -1)
+        local s  = strokeOn(pill, Color3.fromRGB(232, 232, 255), 1.2)
+        s.Transparency = 1
+        local beats = { alive = true }
+        local function cycle()
+            if not beats.alive or not s.Parent then return end
+            local fadeIn  = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            local fadeOut = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local t1 = TweenService:Create(s,  fadeIn,  { Transparency = 0.22 })
+            local t2 = TweenService:Create(s,  fadeOut, { Transparency = 1.0 })
+            local g1a = TweenService:Create(g1, fadeIn,  { BackgroundTransparency = 0.60 })
+            local g1b = TweenService:Create(g1, fadeOut, { BackgroundTransparency = 0.90 })
+            t1.Completed:Connect(function()
+                if not beats.alive then return end
+                task.delay(0.7, function()
+                    if not beats.alive then return end
+                    t2:Play(); g1b:Play()
+                    t2.Completed:Connect(function()
+                        if beats.alive then task.delay(0.6, cycle) end
+                    end)
+                end)
+            end)
+            t1:Play(); g1a:Play()
+        end
+        cycle()
+        return cleanup({g1, g2, s}, nil, beats)
+    end
+    function Auras.Solar(pill)
+        local g3 = glow(pill, Color3.fromRGB(255, 255, 200), 0.90, 16, -3)
+        local g2 = glow(pill, Color3.fromRGB(255, 255, 140), 0.82, 7,  -2)
+        local g1 = glow(pill, Color3.fromRGB(255, 255, 100), 0.70, 2,  -1)
+        local s  = strokeOn(pill, Color3.fromRGB(255, 255, 255), 2.0)
+        local beats = { alive = true }
+        local function flash()
+            if not beats.alive or not s.Parent then return end
+            local spike = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local decay = TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+            local t1 = TweenService:Create(s, spike, { Thickness = 8.0, Color = Color3.fromRGB(255, 255, 200) })
+            local t2 = TweenService:Create(s, decay, { Thickness = 2.0, Color = Color3.fromRGB(255, 255, 255) })
+            local g1a = TweenService:Create(g1, spike, { BackgroundTransparency = 0.42 })
+            local g1b = TweenService:Create(g1, decay, { BackgroundTransparency = 0.70 })
+            local g2a = TweenService:Create(g2, spike, { BackgroundTransparency = 0.55 })
+            local g2b = TweenService:Create(g2, decay, { BackgroundTransparency = 0.82 })
+            t1.Completed:Connect(function() if beats.alive then t2:Play(); g1b:Play(); g2b:Play() end end)
+            t2.Completed:Connect(function() if beats.alive then task.delay(0.55, flash) end end)
+            t1:Play(); g1a:Play(); g2a:Play()
+        end
+        flash()
+        return cleanup({g1, g2, g3, s}, nil, beats)
+    end
+
+    -- canonical names for parsing/displaying; matches dropdown.
+    Auras.NAMES = { "Ember", "Frost", "Lightning", "Void", "Aurora", "Crimson", "Royal", "Toxic", "Phantom", "Solar" }
+    function Auras.canonical(s)
+        s = tostring(s or ""):lower():gsub("^%s+",""):gsub("%s+$","")
+        if s == "" or s == "off" or s == "none" or s == "0" or s == "false" then return nil end
+        for _, n in ipairs(Auras.NAMES) do if n:lower() == s then return n end end
+        return nil
+    end
+    function Auras.apply(pill, name)
+        local fn = Auras[name]
+        if not fn then return function() end end
+        return fn(pill)
+    end
+end
+
+
     local ok, v = pcall(function()
         return TextService:GetTextSize(text or "", size, font, Vector2.new(10000, 100))
     end)
