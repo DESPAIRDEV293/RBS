@@ -2368,35 +2368,6 @@ local function refreshBill(p)
         end
     end
 
-    -- Metal sweep highlight: TEMPORARILY DISABLED across all tags.
-    local sweepOn = false
-
-    if e.sweep and sweepOn ~= e.sweepOn then
-        e.sweepOn = sweepOn
-        e.sweepToken = (e.sweepToken or 0) + 1
-        if sweepOn then
-            local myToken = e.sweepToken
-            e.sweep.Visible = true
-            task.spawn(function()
-                local TweenService = game:GetService("TweenService")
-                while e.sweepToken == myToken and e.sweep and e.sweep.Parent do
-                    local w = (e.bg and e.bg.AbsoluteSize.X) or 200
-                    e.sweep.Position = UDim2.new(0, -60, 0, -12)
-                    local tw = TweenService:Create(
-                        e.sweep,
-                        TweenInfo.new(1.6, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
-                        { Position = UDim2.new(0, w + 20, 0, -12) }
-                    )
-                    tw:Play()
-                    task.wait(1.65)
-                    task.wait(2.0 + math.random() * 1.5) -- pause between sweeps
-                end
-                if e.sweep then e.sweep.Visible = false end
-            end)
-        else
-            e.sweep.Visible = false
-        end
-    end
     -- Outline: per-entry override. "off"/"none"/"0" disables the stroke entirely.
     local outlineRaw = cfg and cfg.outline
     local outlineNorm = tostring(outlineRaw or ""):lower():gsub("^%s+",""):gsub("%s+$","")
@@ -2457,25 +2428,6 @@ local function refreshBill(p)
             e.bg.BackgroundColor3 = T.bg
             e.bg.BackgroundTransparency = 0.1
         end
-    end
-
-    -- Effect change
-    local newEffect = cfg and cfg.effect
-    if newEffect ~= e.effect then
-        e.effect = newEffect
-        if e.fx then for _, c in ipairs(e.fx:GetChildren()) do c:Destroy() end end
-    end
-
-    -- Text effect (glitch / type / explode)
-    local newTextFx = cfg and cfg.textFx
-    e.nameBase   = nameStr
-    e.handleBase = handleStr
-    if newTextFx ~= e.textFx then
-        e.textFx = newTextFx
-        e.txState = nil
-        -- restore plain text immediately; engine will take over next frame
-        e.name.Text   = e.nameBase
-        e.handle.Text = e.handleBase
     end
 
     -- Auto-size bubble to text content
