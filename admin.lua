@@ -3204,6 +3204,11 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local label = (ao == "off" or ao == "none" or ao == "0" or ao == "false") and "Off" or "On"
             form.avatarOutline = label; avOutlineDD.set(label)
         end
+        do
+            local sc = tostring((e and e.showChip) or ""):lower()
+            local label = (sc == "on" or sc == "1" or sc == "true") and "On" or "Off"
+            form.showChip = label; showChipDD.set(label)
+        end
     end
 
     local function clearForm() loadForm(nil, nil) end
