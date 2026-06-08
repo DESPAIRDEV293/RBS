@@ -3035,7 +3035,7 @@ end)
 -- In-game GUI to add/edit/remove tag entries without touching code or pastebin.
 -- Changes apply LIVE to everyone in the server. Export button copies a
 -- pastebin-formatted text block to your clipboard so you can save permanently.
-if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
+if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
   if LP.Name == OWNER_NAME then
     local EFFECT_OPTS = { "none", "rain", "snow", "sparkle", "nebula" }
     local TEXTFX_OPTS = { "none", "glitch", "type", "explode" }
@@ -5382,7 +5382,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
     end)
     end -- end !usay gate
     end -- end if not _ntOnly (script-users + management sections)
-end
+end)() end
 
 
 
@@ -6453,6 +6453,8 @@ end)
 
 ------------------------------------------------------- AIM TAB (camera lock)
 section(pgCmds, "Aim assist (camera lock)")
+
+;(function()
 local aimOn, aimFov, aimSmooth = false, 100, 0.25
 local aimVisOnly = true
 local aimKey = "RightMouseButton"
@@ -6553,7 +6555,7 @@ end))
 ------------------------------------------------------- EXECUTOR BAR (Cmds)
 section(pgCmds, "Executor")
 
-local execFrame = inst("Frame", pgCmds, {
+execFrame = inst("Frame", pgCmds, {
     Size = UDim2.new(1, -8, 0, 130),
     BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3, BorderSizePixel = 0,
     Visible = false,
@@ -6631,7 +6633,7 @@ execPaste.MouseButton1Click:Connect(function()
     else notify("getclipboard unavailable", "warn") end
 end)
 
-local execEnabled = false
+execEnabled = false
 toggle(pgCmds, "Show execution bar", false, function(v)
     execEnabled = v
     execFrame.Visible = v
@@ -6652,7 +6654,7 @@ local function hexToColor(h)
     if not (r and g and b) then return nil end
     return Color3.fromRGB(r,g,b)
 end
-local function cToHex(c)
+function cToHex(c)
     return string.format("#%02X%02X%02X",
         math.floor(c.R*255+0.5), math.floor(c.G*255+0.5), math.floor(c.B*255+0.5))
 end
@@ -6677,7 +6679,7 @@ local function applyTheme(newT)
     end
 end
 
-local bgState = { image = "", trans = 0.4 }
+bgState = { image = "", trans = 0.4 }
 local function resolveBgUrl(s)
     if not s or s == "" then return "" end
     s = tostring(s):gsub("^%s+",""):gsub("%s+$","")
@@ -6697,8 +6699,8 @@ local function applyBg()
 end
 
 -- Per-panel background image (applied to every floating panel's __SeigeBgImg)
-local panelBgState = { image = "", trans = 0.5, panels = {}, icons = {} }
-local function applyPanelBg()
+panelBgState = { image = "", trans = 0.5, panels = {}, icons = {} }
+function applyPanelBg()
     local gUrl = resolveBgUrl(panelBgState.image)
     local panelsTbl = rawget(_G, "__SeigePanels")
     if not panelsTbl then return end
@@ -6719,7 +6721,7 @@ local function applyPanelBg()
         end
     end
 end
-local function applyIconImages()
+function applyIconImages()
     local panelsTbl = rawget(_G, "__SeigePanels")
     if not panelsTbl then return end
     for name, p in pairs(panelsTbl) do
@@ -6736,7 +6738,7 @@ end
 _G.__SeigeApplyPanelBg = applyPanelBg
 _G.__SeigeApplyIconImages = applyIconImages
 
-local saveCfg, loadCfg
+
 saveCfg = function()
     local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled, tagElements = tagElements }
     for k,v in pairs(T) do
@@ -6783,7 +6785,7 @@ loadCfg = function()
 end
 
 section(pgThemes, "Background")
-local bgImgBox = textbox(pgThemes, "Image / GIF asset id or URL (rbxassetid://, http://...)", function(v)
+bgImgBox = textbox(pgThemes, "Image / GIF asset id or URL (rbxassetid://, http://...)", function(v)
     bgState.image = v; applyBg(); saveCfg()
     notify("Background updated", "good")
 end)
@@ -6858,8 +6860,8 @@ for name,_ in pairs(PRESETS) do
 end
 
 section(pgThemes, "Custom colors")
-local ROLE_ORDER = { "bg","bg2","bg3","line","text","sub","dim","acc","acc2","good","warn","bad" }
-local roleRows = {}
+ROLE_ORDER = { "bg","bg2","bg3","line","text","sub","dim","acc","acc2","good","warn","bad" }
+roleRows = {}
 local function makeRoleRow(role)
     local row = inst("Frame", pgThemes, {
         Size = UDim2.new(1, -8, 0, 34),
@@ -6913,6 +6915,7 @@ button(pgThemes, "Reset to default", function()
         end
     end
 end)
+end)()
 
 -- =============================================================
 -- ===== Typography & Animation customisation ==================
@@ -7516,7 +7519,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
 end))
 
 ------------------------------------------------------- PROFILE TAB (redesigned)
-do
+;(function()
     -- ============ HERO CARD: big centered avatar, name, @user ============
     local hero = inst("Frame", pgProfile, {
         Size = UDim2.new(1, -8, 0, 174),
@@ -7980,7 +7983,7 @@ do
             refreshFriends()
         end
     end)
-end
+end)()
 
 
 ------------------------------------------------------- REDESIGN: TOP PILL + FLOATING PANELS
@@ -7992,7 +7995,9 @@ end
 Win.Visible = false   -- retire the legacy chrome (kept around for compat)
 
 -- ============= TOP PILL ===========================================
-local Pill = inst("Frame", Root, {
+
+;(function()
+Pill = inst("Frame", Root, {
     Name = "TopPill",
     AnchorPoint = Vector2.new(0.5, 0),
     Position = UDim2.new(0.5, 0, 0, 14),
@@ -8027,7 +8032,7 @@ local function pillDivider(order)
 end
 
 -- Brand pill (name + @user) — FIRST
-local brandBlock = inst("Frame", Pill, {
+brandBlock = inst("Frame", Pill, {
     Size = UDim2.new(0, 86, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
 })
 inst("UIPadding", brandBlock, { PaddingLeft = UDim.new(0,6), PaddingRight = UDim.new(0,6) })
@@ -8056,7 +8061,7 @@ local function statPill(order, color)
     corner(f, 13); stroke(f, color, 1, 0.55)
     return f
 end
-local fpsBox = statPill(3, T.good)
+fpsBox = statPill(3, T.good)
 local fpsDot = inst("Frame", fpsBox, {
     AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
     Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = T.good, BorderSizePixel = 0, ZIndex = 102,
@@ -8075,7 +8080,7 @@ local fpsLbl = inst("TextLabel", fpsBox, {
     TextXAlignment = Enum.TextXAlignment.Left, Text = "--", ZIndex = 102,
 })
 
-local pingBox = statPill(4, T.warn)
+pingBox = statPill(4, T.warn)
 local pingDot = inst("Frame", pingBox, {
     AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
     Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = T.warn, BorderSizePixel = 0, ZIndex = 102,
@@ -8097,7 +8102,7 @@ local pingLbl = inst("TextLabel", pingBox, {
 pillDivider(5)
 
 -- Icon button row
-local iconsRow = inst("Frame", Pill, {
+iconsRow = inst("Frame", Pill, {
     Size = UDim2.new(0, 0, 1, -4),
     AutomaticSize = Enum.AutomaticSize.X,
     BackgroundTransparency = 1, LayoutOrder = 6, ZIndex = 101,
@@ -8112,14 +8117,14 @@ inst("UIListLayout", iconsRow, {
 pillDivider(95)
 
 -- Hide/show toggle (compacts the bar to a hamburger) — before clock
-local pillToggle = inst("TextButton", Pill, {
+pillToggle = inst("TextButton", Pill, {
     Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = T.text,
     BackgroundTransparency = 0.88, BorderSizePixel = 0, AutoButtonColor = false,
     Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
     Text = "", LayoutOrder = 96, ZIndex = 102,
 })
 corner(pillToggle, 8); stroke(pillToggle, T.text, 1, 0.65)
-local pillToggleImg = inst("ImageLabel", pillToggle, {
+pillToggleImg = inst("ImageLabel", pillToggle, {
     BackgroundTransparency = 1,
     AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
     Size = UDim2.new(0, 18, 0, 18),
@@ -8128,7 +8133,7 @@ local pillToggleImg = inst("ImageLabel", pillToggle, {
 })
 
 -- Clock pill at far right (time + date)
-local clockBox = inst("Frame", Pill, {
+clockBox = inst("Frame", Pill, {
     Size = UDim2.new(0, 82, 1, -4), BackgroundTransparency = 1,
     LayoutOrder = 99, ZIndex = 101,
 })
@@ -8201,6 +8206,7 @@ task.spawn(function()
     end
     pcall(function() rsConn:Disconnect() end)
 end)
+end)()
 
 -- ============= FLOATING PANELS ====================================
 -- Move the tooltip out of the hidden Win and into Root for the new pill.
@@ -8721,6 +8727,8 @@ end)()
 
 
 -- preferred order on the pill
+
+;(function()
 local tabOrder = {
     "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Skybox", "Misc",
 }
@@ -8741,7 +8749,7 @@ for n, _ in pairs(tabs) do
     if not found then tabOrder[#tabOrder + 1] = n end
 end
 
-local idx = 0
+idx = 0
 for _, name in ipairs(tabOrder) do
     local entry = tabs[name]
     if entry then
@@ -8911,7 +8919,7 @@ local cmdBarGui = inst("ScreenGui", nil, {
     DisplayOrder = 200,
 })
 safeParent(cmdBarGui)
-local cmdBar = inst("Frame", cmdBarGui, {
+cmdBar = inst("Frame", cmdBarGui, {
     AnchorPoint = Vector2.new(0.5, 1),
     Position = UDim2.new(0.5, 0, 1, -24),
     Size = UDim2.new(0, 520, 0, 40),
@@ -8924,7 +8932,7 @@ local cmdPrefix = inst("TextLabel", cmdBar, {
     BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16,
     TextColor3 = T.acc, Text = ">", ZIndex = 201,
 })
-local cmdBox = inst("TextBox", cmdBar, {
+cmdBox = inst("TextBox", cmdBar, {
     Position = UDim2.new(0, 34, 0, 0), Size = UDim2.new(1, -44, 1, 0),
     BackgroundTransparency = 1, BorderSizePixel = 0,
     Font = Enum.Font.Code, TextSize = 14, TextColor3 = T.text, PlaceholderColor3 = T.dim,
@@ -8933,7 +8941,7 @@ local cmdBox = inst("TextBox", cmdBar, {
     Text = "", ZIndex = 201,
 })
 
-local function findPlr(q)
+function findPlr(q)
     if not q or q == "" then return nil end
     q = q:lower()
     if q == "me" then return LP end
@@ -8955,7 +8963,7 @@ local function findPlr(q)
     return best
 end
 
-local cmdHandlers = {}
+cmdHandlers = {}
 _G.__SeigeCmds = cmdHandlers
 cmdHandlers["rj"] = function()
     notify("Rejoining...", "good")
@@ -9067,11 +9075,11 @@ end
 
 -- !cir <player> — orbit the target. Adjustable radius/speed via panel.
 _G.__SeigeCircle = _G.__SeigeCircle or { radius = 6, speed = 2, height = 0 }
-local function _seigeCircleStop()
+function _seigeCircleStop()
     if _G.__CircleConn then pcall(function() _G.__CircleConn:Disconnect() end); _G.__CircleConn = nil end
     _G.__CircleTarget = nil
 end
-local function _seigeCircleStart(target)
+function _seigeCircleStart(target)
     _seigeCircleStop()
     _G.__CircleTarget = target
     local t0 = tick()
@@ -9312,7 +9320,7 @@ cmdHandlers["unstalk"] = function() _seigeStalkStop(); notify("Stalk stopped", "
 
 
 -- ---------- extended chat commands ----------
-local function getHum()
+function getHum()
     local c = LP.Character
     return c and c:FindFirstChildOfClass("Humanoid")
 end
@@ -9470,6 +9478,7 @@ cmdHandlers["bring"] = function(arg)
         end
     end)
 end
+end)()
 
 -- ================================================================
 -- Reanim: free the humanoid from default animations and play custom
