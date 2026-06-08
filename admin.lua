@@ -7995,7 +7995,9 @@ end)()
 Win.Visible = false   -- retire the legacy chrome (kept around for compat)
 
 -- ============= TOP PILL ===========================================
-local Pill = inst("Frame", Root, {
+local Pill, brandBlock, fpsBox, pingBox, iconsRow, pillToggle, pillToggleImg, clockBox
+;(function()
+Pill = inst("Frame", Root, {
     Name = "TopPill",
     AnchorPoint = Vector2.new(0.5, 0),
     Position = UDim2.new(0.5, 0, 0, 14),
@@ -8030,7 +8032,7 @@ local function pillDivider(order)
 end
 
 -- Brand pill (name + @user) — FIRST
-local brandBlock = inst("Frame", Pill, {
+brandBlock = inst("Frame", Pill, {
     Size = UDim2.new(0, 86, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
 })
 inst("UIPadding", brandBlock, { PaddingLeft = UDim.new(0,6), PaddingRight = UDim.new(0,6) })
@@ -8059,7 +8061,7 @@ local function statPill(order, color)
     corner(f, 13); stroke(f, color, 1, 0.55)
     return f
 end
-local fpsBox = statPill(3, T.good)
+fpsBox = statPill(3, T.good)
 local fpsDot = inst("Frame", fpsBox, {
     AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
     Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = T.good, BorderSizePixel = 0, ZIndex = 102,
@@ -8078,7 +8080,7 @@ local fpsLbl = inst("TextLabel", fpsBox, {
     TextXAlignment = Enum.TextXAlignment.Left, Text = "--", ZIndex = 102,
 })
 
-local pingBox = statPill(4, T.warn)
+pingBox = statPill(4, T.warn)
 local pingDot = inst("Frame", pingBox, {
     AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
     Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = T.warn, BorderSizePixel = 0, ZIndex = 102,
@@ -8100,7 +8102,7 @@ local pingLbl = inst("TextLabel", pingBox, {
 pillDivider(5)
 
 -- Icon button row
-local iconsRow = inst("Frame", Pill, {
+iconsRow = inst("Frame", Pill, {
     Size = UDim2.new(0, 0, 1, -4),
     AutomaticSize = Enum.AutomaticSize.X,
     BackgroundTransparency = 1, LayoutOrder = 6, ZIndex = 101,
@@ -8115,14 +8117,14 @@ inst("UIListLayout", iconsRow, {
 pillDivider(95)
 
 -- Hide/show toggle (compacts the bar to a hamburger) — before clock
-local pillToggle = inst("TextButton", Pill, {
+pillToggle = inst("TextButton", Pill, {
     Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = T.text,
     BackgroundTransparency = 0.88, BorderSizePixel = 0, AutoButtonColor = false,
     Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
     Text = "", LayoutOrder = 96, ZIndex = 102,
 })
 corner(pillToggle, 8); stroke(pillToggle, T.text, 1, 0.65)
-local pillToggleImg = inst("ImageLabel", pillToggle, {
+pillToggleImg = inst("ImageLabel", pillToggle, {
     BackgroundTransparency = 1,
     AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
     Size = UDim2.new(0, 18, 0, 18),
@@ -8131,7 +8133,7 @@ local pillToggleImg = inst("ImageLabel", pillToggle, {
 })
 
 -- Clock pill at far right (time + date)
-local clockBox = inst("Frame", Pill, {
+clockBox = inst("Frame", Pill, {
     Size = UDim2.new(0, 82, 1, -4), BackgroundTransparency = 1,
     LayoutOrder = 99, ZIndex = 101,
 })
@@ -8204,6 +8206,7 @@ task.spawn(function()
     end
     pcall(function() rsConn:Disconnect() end)
 end)
+end)()
 
 -- ============= FLOATING PANELS ====================================
 -- Move the tooltip out of the hidden Win and into Root for the new pill.
