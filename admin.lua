@@ -4724,21 +4724,44 @@ local function applyBg()
 end
 
 -- Per-panel background image (applied to every floating panel's __SeigeBgImg)
-local panelBgState = { image = "", trans = 0.5 }
+local panelBgState = { image = "", trans = 0.5, panels = {}, icons = {} }
 local function applyPanelBg()
-    local url = resolveBgUrl(panelBgState.image)
+    local gUrl = resolveBgUrl(panelBgState.image)
     local panelsTbl = rawget(_G, "__SeigePanels")
-    if panelsTbl then
-        for _, p in pairs(panelsTbl) do
-            local img = p.frame and p.frame:FindFirstChild("__SeigeBgImg")
-            if img then
-                img.Image = url
-                img.ImageTransparency = (url == "") and 1 or panelBgState.trans
+    if not panelsTbl then return end
+    for name, p in pairs(panelsTbl) do
+        local img = p.frame and p.frame:FindFirstChild("__SeigeBgImg")
+        if img then
+            local ov = panelBgState.panels and panelBgState.panels[name]
+            local url, trans
+            if ov and ov.image and ov.image ~= "" then
+                url = resolveBgUrl(ov.image)
+                trans = tonumber(ov.trans) or panelBgState.trans
+            else
+                url = gUrl
+                trans = panelBgState.trans
+            end
+            img.Image = url
+            img.ImageTransparency = (url == "") and 1 or trans
+        end
+    end
+end
+local function applyIconImages()
+    local panelsTbl = rawget(_G, "__SeigePanels")
+    if not panelsTbl then return end
+    for name, p in pairs(panelsTbl) do
+        if p.ibImg then
+            local custom = panelBgState.icons and panelBgState.icons[name]
+            if custom and custom ~= "" then
+                p.ibImg.Image = resolveBgUrl(custom)
+            elseif p.defaultIcon then
+                p.ibImg.Image = p.defaultIcon
             end
         end
     end
 end
 _G.__SeigeApplyPanelBg = applyPanelBg
+_G.__SeigeApplyIconImages = applyIconImages
 
 local saveCfg, loadCfg
 saveCfg = function()
@@ -4772,7 +4795,10 @@ loadCfg = function()
     if type(data.panelBg) == "table" then
         panelBgState.image = data.panelBg.image or ""
         panelBgState.trans = tonumber(data.panelBg.trans) or 0.5
+        panelBgState.panels = (type(data.panelBg.panels) == "table") and data.panelBg.panels or {}
+        panelBgState.icons = (type(data.panelBg.icons) == "table") and data.panelBg.icons or {}
         applyPanelBg()
+        pcall(applyIconImages)
     end
 end
 
@@ -6460,6 +6486,8 @@ for _, name in ipairs(tabOrder) do
             })
         end
         panels[name].btn = ib
+        panels[name].ibImg = ibImg
+        panels[name].defaultIcon = imgId
 
         local function setHover(on)
             local p = panels[name]
@@ -6493,6 +6521,48 @@ for _, name in ipairs(tabOrder) do
             if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, newVis) else p.frame.Visible = newVis end
             setHover(false)
         end)
+    end
+end
+
+-- Per-panel image + per-icon image controls (in Themes/Settings page)
+do
+    local names = {}
+    for _, n in ipairs(tabOrder) do
+        if panels[n] then names[#names+1] = n end
+    end
+    if #names > 0 then
+        section(pgThemes, "Per-panel background image")
+        local sel = names[1]
+        dropdown(pgThemes, "Target panel", names, function(v) sel = v end)
+        textbox(pgThemes, "Image asset id / URL (blank = use global)", function(v)
+            panelBgState.panels[sel] = panelBgState.panels[sel] or {}
+            panelBgState.panels[sel].image = v
+            applyPanelBg(); saveCfg()
+            notify((v == "" and "Cleared image for " or "Updated image for ") .. sel, "good")
+        end)
+        slider(pgThemes, "Opacity (selected panel)", 0, 1, 0.5, function(v)
+            panelBgState.panels[sel] = panelBgState.panels[sel] or {}
+            panelBgState.panels[sel].trans = 1 - v
+            applyPanelBg(); saveCfg()
+        end)
+        button(pgThemes, "Reset selected panel", function()
+            panelBgState.panels[sel] = nil; applyPanelBg(); saveCfg()
+            notify("Reset " .. sel, "good")
+        end)
+
+        section(pgThemes, "Per-icon image")
+        local selI = names[1]
+        dropdown(pgThemes, "Target icon", names, function(v) selI = v end)
+        textbox(pgThemes, "Icon image asset id / URL (blank = default)", function(v)
+            panelBgState.icons[selI] = v
+            applyIconImages(); saveCfg()
+            notify((v == "" and "Reset icon " or "Updated icon ") .. selI, "good")
+        end)
+        button(pgThemes, "Reset selected icon", function()
+            panelBgState.icons[selI] = nil; applyIconImages(); saveCfg()
+            notify("Reset icon " .. selI, "good")
+        end)
+        label(pgThemes, "Tip: per-panel image overrides the global panel background.")
     end
 end
 
