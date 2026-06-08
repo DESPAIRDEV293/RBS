@@ -1505,7 +1505,36 @@ button(pgPlayers, "Teleport to player", withSel(function(p)
     local h = phrp(p); if h and hrp() then hrp().CFrame = h.CFrame + Vector3.new(0, 3, 0) end
 end))
 button(pgPlayers, "Bring player to you", withSel(function(p)
-    local h = phrp(p); if h and hrp() then h.CFrame = hrp().CFrame + Vector3.new(0, 3, 0) end
+    local thrp, myH = phrp(p), hrp()
+    if not (thrp and myH) then notify("No character", "bad"); return end
+    notify("Bringing " .. p.Name .. "...", "good")
+    task.spawn(function()
+        -- direct CFrame loop (works in non-FE / network-owned parts)
+        for i = 1, 25 do
+            if not phrp(p) or not hrp() then break end
+            pcall(function() phrp(p).CFrame = hrp().CFrame + Vector3.new(0, 3, 0) end)
+            task.wait(0.05)
+        end
+        -- tool-grab fallback (FE bring via firetouchinterest)
+        local tool = LP.Backpack:FindFirstChildOfClass("Tool")
+            or (LP.Character and LP.Character:FindFirstChildOfClass("Tool"))
+        if tool and tool:FindFirstChild("Handle") and typeof(firetouchinterest) == "function" then
+            pcall(function()
+                tool.Parent = LP.Character
+                local saved = myH.CFrame
+                for i = 1, 20 do
+                    local t = phrp(p); if not t then break end
+                    myH.CFrame = t.CFrame
+                    pcall(function() firetouchinterest(tool.Handle, t, 0) end)
+                    task.wait()
+                    pcall(function() firetouchinterest(tool.Handle, t, 1) end)
+                    task.wait(0.05)
+                end
+                myH.CFrame = saved
+            end)
+        end
+        notify("Bring complete", "good")
+    end)
 end))
 local spectatingPlr
 button(pgPlayers, "Spectate / unspectate", withSel(function(p)
@@ -5294,6 +5323,107 @@ cmdHandlers["fling"] = function(arg)
     end)
     notify("Flung " .. target.Name, "good")
 end
+
+cmdHandlers["bring"] = function(arg)
+    local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
+    local thrp, myH = phrp(target), hrp()
+    if not (thrp and myH) then notify("Missing character", "bad"); return end
+    notify("Bringing " .. target.Name .. "...", "good")
+    task.spawn(function()
+        for i = 1, 25 do
+            if not phrp(target) or not hrp() then break end
+            pcall(function() phrp(target).CFrame = hrp().CFrame + Vector3.new(0, 3, 0) end)
+            task.wait(0.05)
+        end
+        local tool = LP.Backpack:FindFirstChildOfClass("Tool")
+            or (LP.Character and LP.Character:FindFirstChildOfClass("Tool"))
+        if tool and tool:FindFirstChild("Handle") and typeof(firetouchinterest) == "function" then
+            pcall(function()
+                tool.Parent = LP.Character
+                local saved = myH.CFrame
+                for i = 1, 20 do
+                    local t = phrp(target); if not t then break end
+                    myH.CFrame = t.CFrame
+                    pcall(function() firetouchinterest(tool.Handle, t, 0) end); task.wait()
+                    pcall(function() firetouchinterest(tool.Handle, t, 1) end); task.wait(0.05)
+                end
+                myH.CFrame = saved
+            end)
+        end
+    end)
+end
+
+-- ---------- Reanim: play animation / keyframe sequence ids on your character ----------
+_G.__ReanimTracks = _G.__ReanimTracks or {}
+local function stopAllReanim()
+    for _, tr in ipairs(_G.__ReanimTracks) do pcall(function() tr:Stop(); tr:Destroy() end) end
+    _G.__ReanimTracks = {}
+    local h = getHum()
+    if h then
+        local animator = h:FindFirstChildOfClass("Animator")
+        if animator then
+            for _, t in ipairs(animator:GetPlayingAnimationTracks()) do pcall(function() t:Stop() end) end
+        end
+        pcall(function()
+            for _, t in ipairs(h:GetPlayingAnimationTracks()) do pcall(function() t:Stop() end) end
+        end)
+    end
+end
+
+cmdHandlers["reanim"] = function(arg)
+    arg = (arg or ""):gsub("^%s+",""):gsub("%s+$","")
+    if arg == "" or arg == "stop" or arg == "off" then
+        stopAllReanim(); notify("Reanim stopped", "good"); return
+    end
+    local idPart, speedPart = arg:match("^(%S+)%s*(.*)$")
+    local speed = tonumber(speedPart) or 1
+    local id = idPart:match("(%d+)") or idPart
+    local h = getHum(); if not h then notify("No humanoid", "bad"); return end
+
+    local ok, trackOrErr = pcall(function()
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://" .. tostring(id)
+        local animator = h:FindFirstChildOfClass("Animator")
+        local track = animator and animator:LoadAnimation(anim) or h:LoadAnimation(anim)
+        track:Play(); track:AdjustSpeed(speed)
+        return track
+    end)
+
+    if ok and typeof(trackOrErr) == "Instance" then
+        table.insert(_G.__ReanimTracks, trackOrErr)
+        notify("Reanim " .. id .. " @x" .. speed, "good")
+        return
+    end
+
+    -- Fallback: load KeyframeSequence asset, register, then play
+    local ksOk, ks = pcall(function()
+        if typeof(getobjects) == "function" then
+            local o = getobjects("rbxassetid://" .. tostring(id)); return o and o[1]
+        else
+            local IS = game:GetService("InsertService")
+            local m = IS:LoadAsset(tonumber(id))
+            return m and m:FindFirstChildOfClass("KeyframeSequence", true)
+        end
+    end)
+    if ksOk and ks and ks:IsA("KeyframeSequence") then
+        local regOk, hash = pcall(function()
+            return game:GetService("KeyframeSequenceProvider"):RegisterKeyframeSequence(ks)
+        end)
+        if regOk and hash then
+            local anim = Instance.new("Animation"); anim.AnimationId = hash
+            local animator = h:FindFirstChildOfClass("Animator")
+            local track = animator and animator:LoadAnimation(anim) or h:LoadAnimation(anim)
+            track:Play(); track:AdjustSpeed(speed)
+            table.insert(_G.__ReanimTracks, track)
+            notify("Reanim (KFS) " .. id .. " @x" .. speed, "good")
+            return
+        end
+    end
+    notify("Reanim failed: " .. tostring(trackOrErr), "bad")
+end
+cmdHandlers["anim"] = cmdHandlers["reanim"]
+cmdHandlers["unreanim"] = function() stopAllReanim(); notify("Reanim stopped", "good") end
+cmdHandlers["stopanim"] = cmdHandlers["unreanim"]
 
 cmdHandlers["pos"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
