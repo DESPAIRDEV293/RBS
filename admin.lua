@@ -1777,6 +1777,7 @@ end
 local function clearBills()
     for p, e in pairs(tagBills) do
         if e.gui then e.gui:Destroy() end
+        if e.clickDetector then pcall(function() e.clickDetector:Destroy() end) end
         pcall(NameHider.restore, p)
     end
     tagBills = {}
@@ -2153,7 +2154,22 @@ local function buildBill(p)
     clickBtn.Activated:Connect(onTagClicked)
     clickBtn.MouseButton1Click:Connect(onTagClicked)
 
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    -- Reliable 3D-click fallback: ClickDetector on the head.
+    -- Works regardless of any GUI input layering issues.
+    local cd
+    pcall(function()
+        -- nuke any leftover detector first so we don't stack handlers
+        local old = head:FindFirstChild("SeigeTagCD")
+        if old then old:Destroy() end
+        cd = Instance.new("ClickDetector")
+        cd.Name = "SeigeTagCD"
+        cd.MaxActivationDistance = 1000
+        cd.CursorIcon = ""
+        cd.Parent = head
+        cd.MouseClick:Connect(function() onTagClicked() end)
+    end)
+
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
     _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
