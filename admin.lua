@@ -1903,7 +1903,9 @@ bind(RunService.Heartbeat:Connect(function()
         if e.gui and e.gui.Parent then
             -- tag stays locked to the head (no independent bob); it bounces naturally with the avatar's animation
             e.gui.StudsOffsetWorldSpace = Vector3.new(0, 0, 0)
-            e.stroke.Transparency = 0.2 + (math.sin(t * 3 + e.base) + 1) * 0.1
+            if not e.outlineOff then
+                e.stroke.Transparency = 0.2 + (math.sin(t * 3 + e.base) + 1) * 0.1
+            end
         end
     end
 end))
