@@ -7260,6 +7260,218 @@ end)()
 
 
 
+------------------------------------------------------- TAG CLICK (global fallback)
+-- Global mouse-click handler: if the user clicks on any character that has a
+-- seige tag bubble, teleport to that player. This is the most reliable layer —
+-- it sidesteps both BillboardGui input layering and ClickDetector quirks.
+do
+    local Mouse = LP:GetMouse()
+    local function ownerOf(part)
+        if not part then return nil end
+        local m = part:FindFirstAncestorOfClass("Model")
+        while m do
+            local pl = Players:GetPlayerFromCharacter(m)
+            if pl then return pl end
+            m = m.Parent and m.Parent:FindFirstAncestorOfClass("Model") or nil
+        end
+        return nil
+    end
+    bind(Mouse.Button1Down:Connect(function()
+        local pl = ownerOf(Mouse.Target); if not pl then return end
+        if not tagBills[pl] then return end
+        pcall(function()
+            local s = Instance.new("Sound")
+            s.SoundId = "rbxassetid://6895079853"; s.Volume = 0.7
+            s.Parent = game:GetService("SoundService"); s:Play()
+            game:GetService("Debris"):AddItem(s, 2)
+        end)
+        if pl == LP then notify("That's you", "dim"); return end
+        local th = phrp(pl); local mh = hrp()
+        if not (th and mh) then notify("Can't teleport — target/you not spawned", "warn"); return end
+        pcall(function() mh.CFrame = th.CFrame * CFrame.new(0, 0, 3) end)
+        notify("Teleported to " .. pl.DisplayName, "good")
+    end))
+end
+
+------------------------------------------------------- CROSS-GAME PRESENCE (Profile)
+-- Everyone running seige.lol publishes their presence (userId, placeId, jobId,
+-- game name) to a shared JSONBlob every 30s. The Profile tab shows who's currently
+-- executing the script across all games with a "Join" button that teleports you
+-- to their server via TeleportToPlaceInstance.
+do
+    local TeleportService = game:GetService("TeleportService")
+    local MarketplaceService = game:GetService("MarketplaceService")
+    local PRESENCE_URL = "https://jsonblob.com/api/jsonBlob/019ea712-72a1-7459-b76d-e58fd195c823"
+
+    local function pickReq()
+        return rawget(getfenv(), "request")
+            or rawget(getfenv(), "http_request")
+            or (rawget(getfenv(), "syn") and syn.request)
+            or (rawget(getfenv(), "http") and http.request)
+            or (rawget(getfenv(), "fluxus") and fluxus.request)
+    end
+    local function getList()
+        local ok, txt = pcall(function()
+            return game:HttpGet(PRESENCE_URL .. "?v=" .. tostring(os.time()))
+        end)
+        if not ok then return {} end
+        local ok2, data = pcall(function() return HttpService:JSONDecode(txt) end)
+        if ok2 and type(data) == "table" then return data end
+        return {}
+    end
+    local function putList(list)
+        local req = pickReq(); if not req then return false end
+        local ok = pcall(req, {
+            Url = PRESENCE_URL, Method = "PUT",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(list),
+        })
+        return ok
+    end
+
+    local myGameName = "Unknown game"
+    task.spawn(function()
+        local ok, info = pcall(function()
+            return MarketplaceService:GetProductInfo(game.PlaceId)
+        end)
+        if ok and info and info.Name then myGameName = info.Name end
+    end)
+
+    section(pgProfile, "Script users online (cross-game)")
+    local presStatus = inst("TextLabel", pgProfile, {
+        Size = UDim2.new(1, -8, 0, 14), BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.dim,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "Loading presence…",
+    })
+    local presList = inst("Frame", pgProfile, {
+        Size = UDim2.new(1, -8, 0, 0), BackgroundTransparency = 1,
+        AutomaticSize = Enum.AutomaticSize.Y,
+    })
+    inst("UIListLayout", presList, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+
+    local function clearList()
+        for _, c in ipairs(presList:GetChildren()) do
+            if not c:IsA("UIListLayout") then c:Destroy() end
+        end
+    end
+
+    local function renderList(list)
+        clearList()
+        local now = os.time()
+        local fresh = {}
+        for _, e in ipairs(list) do
+            if type(e) == "table" and e.userId and (now - (tonumber(e.ts) or 0)) < 180 then
+                fresh[#fresh+1] = e
+            end
+        end
+        table.sort(fresh, function(a, b) return (tonumber(a.ts) or 0) > (tonumber(b.ts) or 0) end)
+        presStatus.Text = (#fresh) .. " script user(s) online"
+        for _, e in ipairs(fresh) do
+            local row = inst("Frame", presList, {
+                Size = UDim2.new(1, 0, 0, 44),
+                BackgroundColor3 = T.bg3, BackgroundTransparency = 0.4, BorderSizePixel = 0,
+            })
+            corner(row, 8); stroke(row, T.line, 1, 0.4)
+            local av = inst("ImageLabel", row, {
+                Size = UDim2.new(0, 32, 0, 32), Position = UDim2.new(0, 6, 0.5, -16),
+                BackgroundColor3 = T.bg2, BorderSizePixel = 0,
+            })
+            corner(av, 16)
+            pcall(function()
+                av.Image = Players:GetUserThumbnailAsync(tonumber(e.userId) or 0,
+                    Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+            end)
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 44, 0, 4), Size = UDim2.new(1, -120, 0, 16),
+                Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = tostring(e.displayName or e.name or ("user " .. tostring(e.userId))),
+            })
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 44, 0, 22), Size = UDim2.new(1, -120, 0, 14),
+                Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.dim,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = tostring(e.gameName or "Unknown game"),
+            })
+            local isMe = tonumber(e.userId) == LP.UserId
+            local join = inst("TextButton", row, {
+                AnchorPoint = Vector2.new(1, 0.5),
+                Position = UDim2.new(1, -6, 0.5, 0), Size = UDim2.new(0, 64, 0, 26),
+                BackgroundColor3 = isMe and T.bg2 or T.acc,
+                AutoButtonColor = false, BorderSizePixel = 0,
+                Text = isMe and "you" or "Join",
+                Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+            })
+            corner(join, 6); stroke(join, T.line, 1, 0.4)
+            if not isMe then
+                join.MouseButton1Click:Connect(function()
+                    local pid = tonumber(e.placeId); local jid = tostring(e.jobId or "")
+                    if not pid or jid == "" then notify("Invalid presence entry", "bad"); return end
+                    notify("Teleporting to " .. (e.displayName or e.name or "user") .. "…", "good")
+                    local ok, err = pcall(function()
+                        TeleportService:TeleportToPlaceInstance(pid, jid, LP)
+                    end)
+                    if not ok then notify("Teleport failed: " .. tostring(err), "bad") end
+                end)
+            end
+        end
+        if #fresh == 0 then
+            inst("TextLabel", presList, {
+                Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1,
+                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.dim,
+                Text = "  No one else online right now",
+                TextXAlignment = Enum.TextXAlignment.Left,
+            })
+        end
+    end
+
+    button(pgProfile, "Refresh script users", function()
+        task.spawn(function()
+            presStatus.Text = "Refreshing…"
+            renderList(getList())
+        end)
+    end)
+
+    -- Heartbeat: publish presence + refresh UI every 30s
+    task.spawn(function()
+        while _G.__AdminLoaded do
+            local list = getList()
+            local now = os.time()
+            local out = {}
+            for _, e in ipairs(list) do
+                if type(e) == "table" and e.userId and tonumber(e.userId) ~= LP.UserId
+                   and (now - (tonumber(e.ts) or 0)) < 180 then
+                    out[#out+1] = e
+                end
+            end
+            out[#out+1] = {
+                userId = LP.UserId, name = LP.Name, displayName = LP.DisplayName,
+                placeId = game.PlaceId, jobId = game.JobId, gameName = myGameName,
+                ts = now,
+            }
+            pcall(putList, out)
+            pcall(renderList, out)
+            task.wait(30)
+        end
+    end)
+
+    _G.__SeigePresenceCleanup = function()
+        task.spawn(function()
+            local list = getList()
+            local out = {}
+            for _, e in ipairs(list) do
+                if type(e) == "table" and tonumber(e.userId) ~= LP.UserId then
+                    out[#out+1] = e
+                end
+            end
+            pcall(putList, out)
+        end)
+    end
+end
+
+
 ------------------------------------------------------- CLEANUP
 _G.__AdminCleanup = function()
     for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
@@ -7268,6 +7480,7 @@ _G.__AdminCleanup = function()
     clearBills()
     pcall(function() Root:Destroy() end)
     pcall(function() Lighting.Brightness = 1; Lighting.GlobalShadows = true; Lighting.Ambient = Color3.fromRGB(70,70,70) end)
+    if _G.__SeigePresenceCleanup then pcall(_G.__SeigePresenceCleanup) end
     _G.__AdminLoaded = nil
     _G.__AdminUI = nil
 end
