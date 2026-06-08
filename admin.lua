@@ -1749,6 +1749,17 @@ local function parsePastebin(src)
     return entries, count
 end
 
+local function stripTagSpecials(entry)
+    if type(entry) ~= "table" then return entry end
+    entry.effect = nil
+    entry.textFx = nil
+    entry.sweep = nil
+    entry.element = nil
+    entry.special = nil
+    entry.aura = nil
+    return entry
+end
+
 -- Local persistence: any tag the owner saves/deletes in the in-game panel is
 -- written to disk so it survives rejoin even if the pastebin doesn't have it.
 -- Local overrides take priority over the pastebin entry for the same username.
