@@ -2390,7 +2390,11 @@ local function refreshBill(p)
         chipColor = c1 or (p == LP and T.good or T.acc)
     end
     e.dot.BackgroundColor3 = chipColor
-    if e.avRing then e.avRing.Color = chipColor end
+    if e.avRing then
+        e.avRing.Color = chipColor
+        local ao = tostring(cfg and cfg.avatarOutline or ""):lower()
+        e.avRing.Enabled = not (ao == "off" or ao == "none" or ao == "0" or ao == "false")
+    end
     if e.glow then
         e.glow.ImageColor3 = chipColor
         e.glow.ImageTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
