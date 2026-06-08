@@ -853,15 +853,19 @@ end
 --   2) TAGS_DB_URL        — the legacy tags.lua on GitHub (Lua table).
 --
 -- Pastebin line format (one player per line, pipe-separated):
---   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3
+--   username | displayName | #hexcolor | effect | icon | tag1,tag2,tag3 | textFx | customText
 --
 --   - Only `username` is required. Leave any field blank to skip it (keep the |).
+--   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
+--               to split the bubble in half (left/right), e.g. #ff3b6b/#00aaff
 --   - effect: rain | snow | sparkle | nebula   (or blank for none)
 --   - icon:   Roblox image ID (raw number, e.g. 1234567890)
+--   - textFx: glitch | type | explode   (or blank for none)
+--   - customText: optional override for the right-side chip text (owner-only feature)
 --   - Lines starting with # or // are comments. Blank lines are ignored.
 --
 -- Example paste:
---   DESPAIRDEV293 | Despair | #ff3b6b | nebula |  | Owner,Dev
+--   DESPAIRDEV293 | Despair | #ff3b6b/#00aaff | nebula |  | Owner,Dev | glitch | VIP
 --   Builderman    | Builderman | #00aaff | sparkle | 156 | Roblox
 --
 -- To change tags: edit the paste, hit Save, rejoin (or wait for next load).
