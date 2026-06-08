@@ -2128,6 +2128,7 @@ if LP.Name == "0rot3" then
                 e.icon or "",
                 tagsStr,
                 e.textFx or "",
+                e.customText or "",
             }, " | ")
         end
         return table.concat(lines, "\n")
