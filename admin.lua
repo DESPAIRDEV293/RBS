@@ -3852,6 +3852,7 @@ local HELP_CMDS = {
         { "!face <player>", "Face a player" },
         { "!head <player>", "Sit on a player's head and lock there until !head or !unhead" },
         { "!fling <player>", "Fling a player" },
+        { "!stalk / !unstalk", "Pick a player and watch their position, mic, and chat" },
     }},
     { "Animations", {
         { "!reanim", "Free the humanoid for custom animations" },
