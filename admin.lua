@@ -3724,8 +3724,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     label(pgTags, "Tip: edits sync to a GitHub gist via the Lovable server. Auto-push uploads on every save; auto-pull reflects remote edits live.")
 
-    -- Save button hook: auto-push to GitHub when enabled
-    _G.__SeigePbPush = function() if pbCfg.autoPush then pushToGithub(true) end end
+    -- Save button hook: ALWAYS push to GitHub on every save (overrides the
+    -- autoPush toggle — every tag change must overwrite the remote copy).
+    _G.__SeigePbPush = function() pushToGithub(true) end
 
     rebuildList()
   end -- end owner-only Tags manager
@@ -3840,8 +3841,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         end
 
         local sok, serr = TagDB:saveLocal()
-        if sok then notify("Saved tag for " .. u, "good")
+        if sok then notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
         else notify("Saved (local-only) for " .. u .. ": " .. tostring(serr), "warn") end
+        if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
     end)
 
     button(pgNtTags, "Clear form", function()
