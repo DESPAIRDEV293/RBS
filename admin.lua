@@ -3072,26 +3072,38 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     local function field(parent, lbl, key, placeholder)
         local f = inst("Frame", parent, {
-            Size = UDim2.new(1, -8, 0, 48),
+            Size = UDim2.new(1, -8, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundColor3 = T.bg2,
             BackgroundTransparency = 0.3,
             BorderSizePixel = 0,
         })
         corner(f, 8); stroke(f, T.line, 1, 0.5)
+        inst("UIPadding", f, {
+            PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+            PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10),
+        })
+        inst("UIListLayout", f, {
+            Padding = UDim.new(0, 4),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            FillDirection = Enum.FillDirection.Vertical,
+        })
         inst("TextLabel", f, {
             BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0, 4),
-            Size = UDim2.new(1, -20, 0, 14),
+            Size = UDim2.new(1, 0, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
             Font = Enum.Font.GothamBold,
             TextSize = 10,
             TextColor3 = T.dim,
             TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            TextWrapped = true,
             Text = string.upper(lbl),
+            LayoutOrder = 1,
         })
         local tb = inst("TextBox", f, {
             BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0, 20),
-            Size = UDim2.new(1, -20, 0, 22),
+            Size = UDim2.new(1, 0, 0, 22),
             PlaceholderText = placeholder or "",
             PlaceholderColor3 = T.dim,
             Font = Enum.Font.Gotham,
@@ -3100,6 +3112,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             TextXAlignment = Enum.TextXAlignment.Left,
             Text = "",
             ClearTextOnFocus = false,
+            TextTruncate = Enum.TextTruncate.AtEnd,
+            LayoutOrder = 2,
         })
         tb:GetPropertyChangedSignal("Text"):Connect(function()
             form[key] = tb.Text
