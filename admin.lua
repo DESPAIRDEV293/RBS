@@ -4611,6 +4611,154 @@ cmdHandlers["unbang"] = function()
     notify("Bang stopped", "good")
 end
 
+-- ---------- extended chat commands ----------
+local function getHum()
+    local c = LP.Character
+    return c and c:FindFirstChildOfClass("Humanoid")
+end
+
+cmdHandlers["r"] = cmdHandlers["rj"]
+cmdHandlers["rejoin"] = cmdHandlers["rj"]
+
+cmdHandlers["reset"] = function()
+    local h = getHum(); if h then h.Health = 0; notify("Reset", "good") else notify("No humanoid", "bad") end
+end
+cmdHandlers["respawn"] = cmdHandlers["reset"]
+
+cmdHandlers["ws"] = function(arg)
+    local n = tonumber(arg) or 16
+    local h = getHum(); if not h then notify("No humanoid", "bad"); return end
+    h.WalkSpeed = math.clamp(n, 0, 500); notify("WalkSpeed " .. h.WalkSpeed, "good")
+end
+cmdHandlers["speed"] = cmdHandlers["ws"]
+
+cmdHandlers["jp"] = function(arg)
+    local n = tonumber(arg) or 50
+    local h = getHum(); if not h then notify("No humanoid", "bad"); return end
+    h.JumpPower = math.clamp(n, 0, 1000)
+    h.UseJumpPower = true
+    notify("JumpPower " .. h.JumpPower, "good")
+end
+cmdHandlers["jump"] = function()
+    local h = getHum(); if h then h.Jump = true; notify("Jump", "good") end
+end
+
+cmdHandlers["heal"] = function()
+    local h = getHum(); if h then h.Health = h.MaxHealth; notify("Healed", "good") end
+end
+
+cmdHandlers["god"] = function()
+    if _G.__GodConn then notify("God already on (!ungod)", "warn"); return end
+    _G.__GodConn = RunService.Heartbeat:Connect(function()
+        local h = getHum(); if h and h.Health < h.MaxHealth then h.Health = h.MaxHealth end
+    end)
+    notify("God ON", "good")
+end
+cmdHandlers["ungod"] = function()
+    if _G.__GodConn then _G.__GodConn:Disconnect(); _G.__GodConn = nil; notify("God OFF", "warn") end
+end
+
+cmdHandlers["noclip"] = function()
+    if _G.__NoclipConn then notify("Noclip already on", "warn"); return end
+    _G.__NoclipConn = RunService.Stepped:Connect(function()
+        local c = LP.Character; if not c then return end
+        for _, part in ipairs(c:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end
+        end
+    end)
+    notify("Noclip ON", "good")
+end
+cmdHandlers["clip"] = function()
+    if _G.__NoclipConn then _G.__NoclipConn:Disconnect(); _G.__NoclipConn = nil; notify("Noclip OFF", "warn") end
+end
+
+cmdHandlers["fly"] = function(arg)
+    if _G.__FlyConn then notify("Fly already on (!unfly)", "warn"); return end
+    local hrpPart = hrp(); local h = getHum()
+    if not (hrpPart and h) then notify("No character", "bad"); return end
+    local spd = tonumber(arg) or 80
+    local bv = Instance.new("BodyVelocity"); bv.MaxForce = Vector3.new(1e9,1e9,1e9); bv.Velocity = Vector3.zero; bv.Parent = hrpPart
+    local bg = Instance.new("BodyGyro"); bg.MaxTorque = Vector3.new(1e9,1e9,1e9); bg.P = 1e5; bg.CFrame = hrpPart.CFrame; bg.Parent = hrpPart
+    _G.__FlyBV, _G.__FlyBG = bv, bg
+    local UIS = game:GetService("UserInputService")
+    _G.__FlyConn = RunService.RenderStepped:Connect(function()
+        local cam = Workspace.CurrentCamera; if not cam then return end
+        local dir = Vector3.zero
+        if UIS:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then dir = dir + Vector3.new(0,1,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then dir = dir - Vector3.new(0,1,0) end
+        bv.Velocity = dir * spd
+        bg.CFrame = cam.CFrame
+    end)
+    notify("Fly ON (WASD/Space/Ctrl) @ " .. spd, "good")
+end
+cmdHandlers["unfly"] = function()
+    if _G.__FlyConn then _G.__FlyConn:Disconnect(); _G.__FlyConn = nil end
+    if _G.__FlyBV then _G.__FlyBV:Destroy(); _G.__FlyBV = nil end
+    if _G.__FlyBG then _G.__FlyBG:Destroy(); _G.__FlyBG = nil end
+    notify("Fly OFF", "warn")
+end
+
+cmdHandlers["goto"] = function(arg)
+    local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
+    local thrp, myH = phrp(target), hrp()
+    if not (thrp and myH) then notify("No character", "bad"); return end
+    myH.CFrame = thrp.CFrame * CFrame.new(0,0,3); notify("Teleported to " .. target.Name, "good")
+end
+cmdHandlers["tp"] = cmdHandlers["goto"]
+
+cmdHandlers["spectate"] = function(arg)
+    local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
+    local c = target.Character; local h = c and c:FindFirstChildOfClass("Humanoid")
+    if not h then notify("No target humanoid", "bad"); return end
+    Workspace.CurrentCamera.CameraSubject = h
+    notify("Spectating " .. target.Name, "good")
+end
+cmdHandlers["unspectate"] = function()
+    local h = getHum(); if h then Workspace.CurrentCamera.CameraSubject = h; notify("Unspectated", "good") end
+end
+
+cmdHandlers["fling"] = function(arg)
+    local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
+    local thrp = phrp(target); local myH = hrp()
+    if not (thrp and myH) then notify("Missing character", "bad"); return end
+    pcall(function()
+        local v = Instance.new("BodyVelocity")
+        v.MaxForce = Vector3.new(1e9,1e9,1e9)
+        v.Velocity = Vector3.new(math.random(-1,1)*1e4, 1e4, math.random(-1,1)*1e4)
+        v.Parent = thrp
+        task.delay(0.25, function() v:Destroy() end)
+    end)
+    notify("Flung " .. target.Name, "good")
+end
+
+cmdHandlers["pos"] = function()
+    local h = hrp(); if not h then notify("No character", "bad"); return end
+    local p = h.Position
+    notify(string.format("Pos %.1f, %.1f, %.1f", p.X, p.Y, p.Z), "good")
+end
+
+cmdHandlers["save"] = function()
+    local h = hrp(); if not h then notify("No character", "bad"); return end
+    _G.__SavedCF = h.CFrame; notify("Position saved", "good")
+end
+cmdHandlers["load"] = function()
+    local h = hrp(); if not h or not _G.__SavedCF then notify("Nothing saved", "bad"); return end
+    h.CFrame = _G.__SavedCF; notify("Position loaded", "good")
+end
+
+cmdHandlers["info"] = function()
+    notify(string.format("Players: %d  ·  JobId set: %s", #Players:GetPlayers(), tostring(game.JobId ~= "")), "good")
+end
+
+cmdHandlers["help"] = function()
+    notify("!rj !tprj !r !reset !ws !jp !jump !heal !god !ungod !noclip !clip !fly !unfly !goto !tp !spectate !unspectate !fling !pos !save !load !sit !face !head !bang !unbang !info", "good")
+end
+
+
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
     local s = raw:gsub("^%s+", ""):gsub("%s+$", "")
@@ -4622,7 +4770,7 @@ local function runBarCmd(raw)
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
-cmdBox.PlaceholderText = "Type a command (!rj, !tprj, !face, !bang, !head, !sit) — Enter to run, Esc to close"
+cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !god !goto !spectate !fling !heal !save !load !help"
 
 -- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command
 pcall(function()
