@@ -1899,20 +1899,36 @@ local function hookCharBill(p)
     bind(p.CharacterAdded:Connect(function()
         task.wait(0.5)
         if tagBills[p] then pcall(function() tagBills[p].gui:Destroy() end); tagBills[p] = nil end
-        if floatOn or p == LP then buildBill(p) end
+        -- always build the bubble for LP, for everyone if floatOn,
+        -- and for ANY player that has a saved tag entry (so rejoining users
+        -- always see their persisted custom tag).
+        if floatOn or p == LP or TagDB:configFor(p) then buildBill(p) end
     end))
 end
 
 bind(Players.PlayerAdded:Connect(function(p)
     hookCharBill(p)
     TagDB:applyTo(p)
+    -- if the player has a persisted tag entry and is already in their character,
+    -- build immediately so we don't have to wait for the next respawn.
+    task.defer(function()
+        if pchar(p) and not tagBills[p] and (floatOn or TagDB:configFor(p)) then
+            pcall(buildBill, p)
+        end
+    end)
 end))
 for _, p in ipairs(Players:GetPlayers()) do hookCharBill(p) end
 
 -- Load the script-managed tag database, then apply to all players
 task.spawn(function()
     TagDB:load()
-    for _, p in ipairs(Players:GetPlayers()) do TagDB:applyTo(p) end
+    for _, p in ipairs(Players:GetPlayers()) do
+        TagDB:applyTo(p)
+        -- ensure persisted entries get a bubble on script reload too
+        if pchar(p) and not tagBills[p] and (floatOn or p == LP or TagDB:configFor(p)) then
+            pcall(buildBill, p)
+        end
+    end
     task.defer(rebuildBills)
 end)
 
