@@ -1742,6 +1742,7 @@ local function parsePastebin(src)
                 if parts[13] and parts[13] ~= "" then entry.textColor = parts[13] end
                 if parts[14] and parts[14] ~= "" then entry.textOutline = parts[14] end
                 if parts[15] and parts[15] ~= "" then entry.avatarOutline = parts[15] end
+                if parts[16] and parts[16] ~= "" then entry.showChip = parts[16] end
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -2447,14 +2448,18 @@ local function refreshBill(p)
     local txt = Tags:summary(p.UserId)
     -- owner-only custom chip text override
     if cfg and cfg.customText and cfg.customText ~= "" then txt = cfg.customText end
+    -- Badge chip is OFF by default. Only show it when the entry opts in via
+    -- cfg.showChip == "on". This hides the auto "Owner/Dev/..." pill unless
+    -- the user explicitly enables it in the Tags panel.
+    local chipOn = tostring(cfg and cfg.showChip or ""):lower() == "on"
     local chipColor
-    if txt ~= "" then
+    if txt ~= "" and chipOn then
         e.sh.Visible = true
         e.stat.Text = txt:gsub(",", " • ")
         chipColor = c1 or tagColor(p)
     else
         e.sh.Visible = false
-        chipColor = c1 or (p == LP and T.good or T.acc)
+        chipColor = c1 or (txt ~= "" and tagColor(p)) or (p == LP and T.good or T.acc)
     end
     e.dot.BackgroundColor3 = chipColor
     if e.avRing then
@@ -2928,7 +2933,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         icon = "", tags = "", customText = "", customHandle = "",
         font = "Default",
         textColor = "", textOutline = "",
-        textFx = "None", avatarOutline = "On",
+        textFx = "None", avatarOutline = "On", showChip = "Off",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -3064,6 +3069,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- Toggle for the ring/outline around the profile avatar in the pill
     local AVATAR_OUTLINE_OPTS = { "On", "Off" }
     local avOutlineDD = dropdown(pgTags, "Profile outline", AVATAR_OUTLINE_OPTS, function(v) form.avatarOutline = v end)
+
+    -- Badge chip (right-side "OWNER/DEV/..." pill). Default OFF; turn ON per-tag.
+    local SHOW_CHIP_OPTS = { "Off", "On" }
+    local showChipDD = dropdown(pgTags, "Show badge chip", SHOW_CHIP_OPTS, function(v) form.showChip = v end)
     -- Give the Tag panel's dropdowns more room; longer option values were
     -- getting clipped at the default 140px button width.
     -- The dropdown helper returns a controller (not the Frame), so walk
@@ -3195,6 +3204,11 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local ao = tostring((e and e.avatarOutline) or ""):lower()
             local label = (ao == "off" or ao == "none" or ao == "0" or ao == "false") and "Off" or "On"
             form.avatarOutline = label; avOutlineDD.set(label)
+        end
+        do
+            local sc = tostring((e and e.showChip) or ""):lower()
+            local label = (sc == "on" or sc == "1" or sc == "true") and "On" or "Off"
+            form.showChip = label; showChipDD.set(label)
         end
     end
 
@@ -3441,6 +3455,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if form.avatarOutline == "Off" then
             entry.avatarOutline = "off"
         end
+        if form.showChip == "On" then
+            entry.showChip = "on"
+        end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
@@ -3563,6 +3580,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 e.textColor or "",
                 e.textOutline or "",
                 e.avatarOutline or "",
+                e.showChip or "",
             }
             -- Trim trailing empty fields so each row stays compact like the
             -- legacy entries (e.g. eyk_a). The loader pads missing tail fields
