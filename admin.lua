@@ -1039,18 +1039,36 @@ corner(Tip, 6); stroke(Tip, T.line, 1, 0.5)
 local tabs = {}  -- name -> { btn, page, ico, title, subtitle }
 local currentTab
 
+local function _animPageSwap(page, show)
+    if not page then return end
+    local sc = page:FindFirstChildOfClass("UIScale")
+        or inst("UIScale", page, { Scale = 1 })
+    if show then
+        page.Visible = true
+        sc.Scale = 0.96
+        TweenService:Create(sc, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+            { Scale = 1 }):Play()
+    else
+        TweenService:Create(sc, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            { Scale = 0.96 }):Play()
+        task.delay(0.14, function()
+            if page and page.Parent then page.Visible = false end
+        end)
+    end
+end
+
 local function setTab(name)
     local e = tabs[name]; if not e then return end
     for n, x in pairs(tabs) do
         if n ~= name then
             tween(x.btn, 0.12, { BackgroundTransparency = 1 })
             x.ico.TextColor3 = T.sub
-            x.page.Visible = false
+            if x.page.Visible then _animPageSwap(x.page, false) end
         end
     end
     tween(e.btn, 0.12, { BackgroundTransparency = 0.15, BackgroundColor3 = T.acc })
     e.ico.TextColor3 = T.text
-    e.page.Visible = true
+    _animPageSwap(e.page, true)
     HeaderTitle.Text = e.title or name
     HeaderSub.Text   = e.subtitle or ""
     currentTab = name
