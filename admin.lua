@@ -6537,15 +6537,6 @@ do
         local ok, why = V.activate()
         notify(ok and "Voice controls ACTIVE" or (why or "Activation failed"), ok and "good" or "warn")
     end
-        task.spawn(function()
-            while _G.__SeigeAntiVC and _G.__SeigeAntiVC.on do
-                local base = tonumber(_G.__SeigeAntiVC.interval) or 25
-                task.wait(math.max(4, base) + math.random() * 4)
-                if not (_G.__SeigeAntiVC and _G.__SeigeAntiVC.on) then break end
-                V.cycle()
-            end
-        end)
-    end
     cmdHandlers["antivoice"] = cmdHandlers["antivc"]
     cmdHandlers["unantivc"]  = function()
         if _G.__SeigeAntiVC then _G.__SeigeAntiVC.on = false end
