@@ -4020,6 +4020,7 @@ button(pgCmds, "Anti-AFK  —  toggle", function()
 end)
 
 -- ===== OPTIMIZE  ·  one-click game speed-up =====================
+do
 _G.__SeigeOptimize = _G.__SeigeOptimize or { on = false, saved = nil }
 
 local function _seigeOptimizeApply(on)
