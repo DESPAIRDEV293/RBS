@@ -2805,6 +2805,21 @@ if LP.Name == "0rot3" then
     local ELEMENT_OPTS = { "none", "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
     local elementDD = dropdown(pgTags, "Tag special (outline effect)", ELEMENT_OPTS, function(v) form.element = v end)
 
+    -- Give the Tag panel's dropdowns more room: longer labels (e.g. "Tag
+    -- special (outline effect)") and longer option values (e.g. "celestial",
+    -- "obsidian") were getting clipped at the default 140px button width.
+    for _, dd in ipairs({ effDD, txDD, fontDD, sweepDD, elementDD }) do
+        local frame = dd and dd.Parent or dd
+        if typeof(dd) == "Instance" then frame = dd end
+        if frame and frame:IsA("Frame") then
+            local lbl = frame:FindFirstChildOfClass("TextLabel")
+            local btn = frame:FindFirstChildOfClass("TextButton")
+            if lbl then lbl.Size = UDim2.new(1, -190, 1, 0) end
+            if btn then btn.Size = UDim2.new(0, 170, 0, 24) end
+            frame.Size = UDim2.new(1, -8, 0, 38)
+        end
+    end
+
 
 
     -- live preview swatch
