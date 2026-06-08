@@ -1777,6 +1777,7 @@ end
 local function clearBills()
     for p, e in pairs(tagBills) do
         if e.gui then e.gui:Destroy() end
+        if e.clickDetector then pcall(function() e.clickDetector:Destroy() end) end
         pcall(NameHider.restore, p)
     end
     tagBills = {}
