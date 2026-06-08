@@ -1044,6 +1044,7 @@ local pgWorld   = makeTab("World",   "◊")
 local pgAim     = makeTab("Aim",     "✚")
 
 local pgServer  = makeTab("Server",  "≡")
+local pgCmds    = makeTab("Cmds",    "⌘")
 local pgConfig  = makeTab("Config",  "⚙")
 
 ------------------------------------------------------- HELPERS
@@ -2543,6 +2544,52 @@ button(pgServer, "Server hop (random public)", function()
 end)
 button(pgServer, "Copy JobId", function()
     if setclipboard then setclipboard(game.JobId); notify("JobId copied", "good") end
+end)
+
+------------------------------------------------------- CMDS TAB
+section(pgCmds, "Rejoin")
+button(pgCmds, "Rejoin (same server)", function()
+    local ok, err = pcall(function()
+        TeleportSrv:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
+    end)
+    if not ok then
+        -- Fallback to a plain rejoin if same-instance teleport is restricted
+        pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
+        notify("Same-server rejoin failed, doing normal rejoin", "warn")
+    else
+        notify("Rejoining same server...", "good")
+    end
+end)
+button(pgCmds, "Rejoin (new server)", function()
+    pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
+    notify("Rejoining...", "good")
+end)
+button(pgCmds, "Server hop (random public)", function()
+    local ok, res = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet(
+            "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        ))
+    end)
+    if ok and res and res.data then
+        local options = {}
+        for _, s in ipairs(res.data) do
+            if s.playing and s.maxPlayers and s.playing < s.maxPlayers and s.id ~= game.JobId then
+                table.insert(options, s.id)
+            end
+        end
+        if #options > 0 then
+            TeleportSrv:TeleportToPlaceInstance(game.PlaceId, options[math.random(1, #options)], LP)
+            notify("Hopping...", "good")
+        else notify("No servers found", "warn") end
+    else notify("Server list unavailable", "bad") end
+end)
+button(pgCmds, "Copy JobId", function()
+    if setclipboard then setclipboard(game.JobId); notify("JobId copied", "good")
+    else notify("setclipboard unavailable", "bad") end
+end)
+button(pgCmds, "Copy PlaceId", function()
+    if setclipboard then setclipboard(tostring(game.PlaceId)); notify("PlaceId copied", "good")
+    else notify("setclipboard unavailable", "bad") end
 end)
 
 ------------------------------------------------------- CONFIG TAB
