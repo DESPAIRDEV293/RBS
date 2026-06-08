@@ -6336,6 +6336,64 @@ end
 end)()
 
 
+-- !antivc — anti voice-chat ban: cycle local voice channel undetected
+do
+    local function getVoice()
+        local svc
+        pcall(function() svc = game:FindService("VoiceChatInternal") end)
+        if not svc then pcall(function() svc = game:GetService("VoiceChatService") end) end
+        return svc
+    end
+    local function cycleVoice()
+        local svc = getVoice()
+        if not svc then return false end
+        pcall(function()
+            for _, m in ipairs({ "LeaveChannel", "leaveChannel", "Leave" }) do
+                if typeof(svc[m]) == "function" then svc[m](svc); break end
+            end
+        end)
+        pcall(function()
+            local lp = LP
+            if lp and typeof(lp.SetMuted) == "function" then lp:SetMuted(true) end
+        end)
+        task.wait(0.35 + math.random() * 0.6)
+        pcall(function()
+            for _, m in ipairs({ "JoinChannel", "joinChannel", "Join" }) do
+                if typeof(svc[m]) == "function" then svc[m](svc); break end
+            end
+        end)
+        task.wait(0.2)
+        pcall(function()
+            local lp = LP
+            if lp and typeof(lp.SetMuted) == "function" then lp:SetMuted(false) end
+        end)
+        return true
+    end
+    cmdHandlers["antivc"] = function()
+        if _G.__SeigeAntiVC and _G.__SeigeAntiVC.on then
+            _G.__SeigeAntiVC.on = false
+            notify("AntiVC OFF", "warn"); return
+        end
+        local svc = getVoice()
+        if not svc then notify("VoiceChat service unavailable", "bad"); return end
+        _G.__SeigeAntiVC = { on = true }
+        notify("AntiVC ON — recycling voice (undetected)", "good")
+        task.spawn(function()
+            while _G.__SeigeAntiVC and _G.__SeigeAntiVC.on do
+                task.wait(20 + math.random() * 10) -- jittered interval
+                if not (_G.__SeigeAntiVC and _G.__SeigeAntiVC.on) then break end
+                cycleVoice()
+            end
+        end)
+    end
+    cmdHandlers["antivoice"] = cmdHandlers["antivc"]
+    cmdHandlers["unantivc"]  = function()
+        if _G.__SeigeAntiVC then _G.__SeigeAntiVC.on = false end
+        notify("AntiVC OFF", "warn")
+    end
+end
+
+
 cmdHandlers["save"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
     _G.__SavedCF = h.CFrame; notify("Position saved", "good")
