@@ -2737,11 +2737,7 @@ end))
 
 -- Manually fire default
 do
-    local e = tabs["Players"]
-    tween(e.btn, 0.12, { BackgroundTransparency = 0.1, BackgroundColor3 = T.acc })
-    e.lbl.TextColor3 = T.text
-    e.page.Visible = true
-    currentTab = "Players"
+    setTab("Profile")
 end
 
 ------------------------------------------------------- CLEANUP
