@@ -10669,6 +10669,31 @@ end)()
         broadcast(PING_MARK .. targetName .. "|" .. LP.Name)
         return true
     end
+    _G.__SeigePmSend = function(targetName, msg)
+        targetName = _cleanName(targetName)
+        msg = tostring(msg or ""):gsub("[\r\n]+", " ")
+        if targetName == "" then return false, "empty target" end
+        if msg == "" then return false, "empty message" end
+        if #msg > 240 then msg = msg:sub(1, 240) end
+        broadcast(PM_MARK .. targetName .. "|" .. LP.Name .. "|" .. msg)
+        return true
+    end
+    _G.__SeigeAlertSend = function(msg)
+        msg = tostring(msg or ""):gsub("[\r\n]+", " ")
+        if msg == "" then return false, "empty" end
+        if #msg > 200 then msg = msg:sub(1, 200) end
+        broadcast(ALERT_MARK .. LP.Name .. "|" .. msg)
+        return true
+    end
+    -- Owner-only kill switch broadcast. The receiver checks that the sender
+    -- is the owner before honoring the flag.
+    _G.__SeigeKillBroadcast = function(on)
+        if not _isOwnerLocal() then return false, "owner only" end
+        broadcast(KILL_MARK .. (on and "1" or "0"))
+        _G.__SeigeSetKill(on, false)
+        return true
+    end
+
 
     -- Local helpers (effects applied when WE are the target)
     local function _ourHRP()
