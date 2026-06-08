@@ -858,6 +858,7 @@ toggleBtn.MouseButton1Click:Connect(function()
         Body.Visible = false
         closeBtn.Visible = false
         minBtn.Visible = false
+        helpBtn.Visible = false
         tween(Win, 0.18, { Size = UDim2.new(0, 44, 0, 36) })
         toggleImg.Visible = false
         toggleBtn.Text = "≡"
@@ -866,6 +867,7 @@ toggleBtn.MouseButton1Click:Connect(function()
         toggleImg.Visible = true
         closeBtn.Visible = true
         minBtn.Visible = true
+        helpBtn.Visible = true
         tween(Win, 0.18, { Size = prevMinimized and UDim2.new(0,620,0,44) or UDim2.new(0,620,0,440) })
         Body.Visible = not prevMinimized
     end
