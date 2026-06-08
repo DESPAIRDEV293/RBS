@@ -5363,13 +5363,27 @@ do
 end
 
 -- Live status: FPS / PING / clock
+-- FPS is averaged over a rolling ~0.5s window driven by RenderStepped (which
+-- matches the player's actual render rate). A single-frame 1/dt reading is too
+-- jittery and "glitches" the number — averaging produces the value Roblox itself
+-- shows in its dev console.
 task.spawn(function()
     local Stats = game:GetService("Stats")
+    local frames = 0
+    local windowStart = tick()
+    local lastFps = 0
+    local rsConn = RunService.RenderStepped:Connect(function() frames = frames + 1 end)
     while Pill and Pill.Parent do
-        local dt = RunService.Heartbeat:Wait()
-        local fps = math.floor(1 / math.max(dt, 1e-4))
-        fpsLbl.Text = "● FPS " .. fps
-        fpsLbl.TextColor3 = fps > 45 and T.good or (fps > 25 and T.warn or T.bad)
+        RunService.Heartbeat:Wait()
+        local now = tick()
+        local elapsed = now - windowStart
+        if elapsed >= 0.5 then
+            lastFps = math.floor(frames / elapsed + 0.5)
+            frames = 0
+            windowStart = now
+            fpsLbl.Text = "● FPS " .. lastFps
+            fpsLbl.TextColor3 = lastFps > 45 and T.good or (lastFps > 25 and T.warn or T.bad)
+        end
         local ok, ping = pcall(function()
             return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
         end)
@@ -5379,6 +5393,7 @@ task.spawn(function()
         end
         pillClock.Text = (os.date("%I:%M %p"):gsub("^0", ""))
     end
+    pcall(function() rsConn:Disconnect() end)
 end)
 
 -- ============= FLOATING PANELS ====================================
