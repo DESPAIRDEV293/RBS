@@ -2949,6 +2949,99 @@ end)
 
 
 
+------------------------------------------------------- COMMANDS LIST (Cmds tab)
+section(pgCmds, "Commands  ·  also work in Roblox chat & F6 bar")
+
+local function _runCmd(s)
+    if _G.__AdminRunCmd then _G.__AdminRunCmd(s)
+    else notify("Command system not ready", "warn") end
+end
+local function _openCmd(s)
+    if _G.__AdminOpenCmd then _G.__AdminOpenCmd(s)
+    else notify("Command bar not ready", "warn") end
+end
+
+button(pgCmds, "Open Command Bar (F6)", function() _openCmd("!") end)
+
+-- No-arg commands run immediately
+button(pgCmds, "!rj  —  rejoin same server",                function() _runCmd("!rj") end)
+button(pgCmds, "!tprj  —  rejoin & restore position",        function() _runCmd("!tprj") end)
+button(pgCmds, "!r / !rejoin  —  rejoin",                    function() _runCmd("!r") end)
+button(pgCmds, "!reset / !respawn",                          function() _runCmd("!reset") end)
+button(pgCmds, "!jump",                                      function() _runCmd("!jump") end)
+button(pgCmds, "!heal",                                      function() _runCmd("!heal") end)
+button(pgCmds, "!god",                                       function() _runCmd("!god") end)
+button(pgCmds, "!ungod",                                     function() _runCmd("!ungod") end)
+button(pgCmds, "!noclip",                                    function() _runCmd("!noclip") end)
+button(pgCmds, "!clip",                                      function() _runCmd("!clip") end)
+button(pgCmds, "!fly",                                       function() _runCmd("!fly") end)
+button(pgCmds, "!unfly",                                     function() _runCmd("!unfly") end)
+button(pgCmds, "!unspectate",                                function() _runCmd("!unspectate") end)
+button(pgCmds, "!pos",                                       function() _runCmd("!pos") end)
+button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
+button(pgCmds, "!load  —  load saved position",              function() _runCmd("!load") end)
+button(pgCmds, "!info",                                      function() _runCmd("!info") end)
+button(pgCmds, "!help",                                      function() _runCmd("!help") end)
+button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
+button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
+
+-- Arg commands open the bar prefilled
+button(pgCmds, "!ws / !speed <n>",      function() _openCmd("!ws ") end)
+button(pgCmds, "!jp <n>",               function() _openCmd("!jp ") end)
+button(pgCmds, "!goto / !tp <player>",  function() _openCmd("!goto ") end)
+button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
+button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
+button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
+button(pgCmds, "!head <player>",        function() _openCmd("!head ") end)
+button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
+
+section(pgCmds, "Command bar (F6)  ·  !rj  !tprj")
+section(pgCmds, "Rejoin")
+
+button(pgCmds, "Rejoin (same server)", function()
+    local ok, err = pcall(function()
+        TeleportSrv:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
+    end)
+    if not ok then
+        -- Fallback to a plain rejoin if same-instance teleport is restricted
+        pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
+        notify("Same-server rejoin failed, doing normal rejoin", "warn")
+    else
+        notify("Rejoining same server...", "good")
+    end
+end)
+button(pgCmds, "Rejoin (new server)", function()
+    pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
+    notify("Rejoining...", "good")
+end)
+button(pgCmds, "Server hop (random public)", function()
+    local ok, res = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet(
+            "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        ))
+    end)
+    if ok and res and res.data then
+        local options = {}
+        for _, s in ipairs(res.data) do
+            if s.playing and s.maxPlayers and s.playing < s.maxPlayers and s.id ~= game.JobId then
+                table.insert(options, s.id)
+            end
+        end
+        if #options > 0 then
+            TeleportSrv:TeleportToPlaceInstance(game.PlaceId, options[math.random(1, #options)], LP)
+            notify("Hopping...", "good")
+        else notify("No servers found", "warn") end
+    else notify("Server list unavailable", "bad") end
+end)
+button(pgCmds, "Copy JobId", function()
+    if setclipboard then setclipboard(game.JobId); notify("JobId copied", "good")
+    else notify("setclipboard unavailable", "bad") end
+end)
+button(pgCmds, "Copy PlaceId", function()
+    if setclipboard then setclipboard(tostring(game.PlaceId)); notify("PlaceId copied", "good")
+    else notify("setclipboard unavailable", "bad") end
+end)
+
 ------------------------------------------------------- AIM TAB (camera lock)
 section(pgCmds, "Aim assist (camera lock)")
 local aimOn, aimFov, aimSmooth = false, 100, 0.25
@@ -3047,100 +3140,6 @@ bind(RunService.RenderStepped:Connect(function()
     end
 end))
 
-
-------------------------------------------------------- CMDS TAB
-section(pgCmds, "Command bar (F6)  ·  !rj  !tprj")
-section(pgCmds, "Rejoin")
-
-button(pgCmds, "Rejoin (same server)", function()
-    local ok, err = pcall(function()
-        TeleportSrv:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
-    end)
-    if not ok then
-        -- Fallback to a plain rejoin if same-instance teleport is restricted
-        pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
-        notify("Same-server rejoin failed, doing normal rejoin", "warn")
-    else
-        notify("Rejoining same server...", "good")
-    end
-end)
-button(pgCmds, "Rejoin (new server)", function()
-    pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
-    notify("Rejoining...", "good")
-end)
-button(pgCmds, "Server hop (random public)", function()
-    local ok, res = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet(
-            "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        ))
-    end)
-    if ok and res and res.data then
-        local options = {}
-        for _, s in ipairs(res.data) do
-            if s.playing and s.maxPlayers and s.playing < s.maxPlayers and s.id ~= game.JobId then
-                table.insert(options, s.id)
-            end
-        end
-        if #options > 0 then
-            TeleportSrv:TeleportToPlaceInstance(game.PlaceId, options[math.random(1, #options)], LP)
-            notify("Hopping...", "good")
-        else notify("No servers found", "warn") end
-    else notify("Server list unavailable", "bad") end
-end)
-button(pgCmds, "Copy JobId", function()
-    if setclipboard then setclipboard(game.JobId); notify("JobId copied", "good")
-    else notify("setclipboard unavailable", "bad") end
-end)
-button(pgCmds, "Copy PlaceId", function()
-    if setclipboard then setclipboard(tostring(game.PlaceId)); notify("PlaceId copied", "good")
-    else notify("setclipboard unavailable", "bad") end
-end)
-
-------------------------------------------------------- COMMANDS LIST (Cmds tab)
-section(pgCmds, "Commands  ·  also work in Roblox chat & F6 bar")
-
-local function _runCmd(s)
-    if _G.__AdminRunCmd then _G.__AdminRunCmd(s)
-    else notify("Command system not ready", "warn") end
-end
-local function _openCmd(s)
-    if _G.__AdminOpenCmd then _G.__AdminOpenCmd(s)
-    else notify("Command bar not ready", "warn") end
-end
-
-button(pgCmds, "Open Command Bar (F6)", function() _openCmd("!") end)
-
--- No-arg commands run immediately
-button(pgCmds, "!rj  —  rejoin same server",                function() _runCmd("!rj") end)
-button(pgCmds, "!tprj  —  rejoin & restore position",        function() _runCmd("!tprj") end)
-button(pgCmds, "!r / !rejoin  —  rejoin",                    function() _runCmd("!r") end)
-button(pgCmds, "!reset / !respawn",                          function() _runCmd("!reset") end)
-button(pgCmds, "!jump",                                      function() _runCmd("!jump") end)
-button(pgCmds, "!heal",                                      function() _runCmd("!heal") end)
-button(pgCmds, "!god",                                       function() _runCmd("!god") end)
-button(pgCmds, "!ungod",                                     function() _runCmd("!ungod") end)
-button(pgCmds, "!noclip",                                    function() _runCmd("!noclip") end)
-button(pgCmds, "!clip",                                      function() _runCmd("!clip") end)
-button(pgCmds, "!fly",                                       function() _runCmd("!fly") end)
-button(pgCmds, "!unfly",                                     function() _runCmd("!unfly") end)
-button(pgCmds, "!unspectate",                                function() _runCmd("!unspectate") end)
-button(pgCmds, "!pos",                                       function() _runCmd("!pos") end)
-button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
-button(pgCmds, "!load  —  load saved position",              function() _runCmd("!load") end)
-button(pgCmds, "!info",                                      function() _runCmd("!info") end)
-button(pgCmds, "!help",                                      function() _runCmd("!help") end)
-button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
-button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
-
--- Arg commands open the bar prefilled
-button(pgCmds, "!ws / !speed <n>",      function() _openCmd("!ws ") end)
-button(pgCmds, "!jp <n>",               function() _openCmd("!jp ") end)
-button(pgCmds, "!goto / !tp <player>",  function() _openCmd("!goto ") end)
-button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
-button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
-button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
-button(pgCmds, "!head <player>",        function() _openCmd("!head ") end)
-button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
 
 ------------------------------------------------------- EXECUTOR BAR (Cmds)
 section(pgCmds, "Executor")
