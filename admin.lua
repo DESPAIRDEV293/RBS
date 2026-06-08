@@ -7097,9 +7097,10 @@ end)()
 ;(function()
     local TextChat = game:GetService("TextChatService")
     local Players  = game:GetService("Players")
-    -- Plain printable marker; survives Roblox text filtering better than zero-width chars.
-    local TAG_EXEC = "::seige-exec::"
-    local TAG_HERE = "::seige-here::"
+    -- Public visible chat is just "…" — non-script users see only the ellipsis.
+    -- Script users detect it and surface a rich notification instead.
+    local PUBLIC_MARK = "…"
+    local PUBLIC_ALT  = "..."
 
     -- Bottom-left stack
     local ExecNotif = inst("Frame", Root, {
@@ -7149,7 +7150,7 @@ end)()
             Text = "executed seige.lol",
         })
         tween(card, 0.18, { Size = UDim2.new(1, 0, 0, 56) })
-        task.delay(4, function()
+        task.delay(3, function()
             tween(card, 0.2, { BackgroundTransparency = 1 })
             task.wait(0.22); card:Destroy()
         end)
@@ -7160,12 +7161,12 @@ end)()
         if not plr then return end
         local uid = plr.UserId
         local now = tick()
-        if recent[uid] and (now - recent[uid]) < 5 then return end
+        if recent[uid] and (now - recent[uid]) < 10 then return end
         recent[uid] = now
         showExecNotif(uid, plr.DisplayName, plr.Name)
     end
 
-    -- Send a marker through whichever chat path is available
+    -- Send the public marker through whichever chat path is available
     local function broadcast(text)
         local ok = pcall(function()
             local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
@@ -7180,22 +7181,22 @@ end)()
         end
     end
 
-    -- Respond to a foreign EXEC by announcing our presence so the new user sees us
-    local function echoPresence()
-        task.delay(0.4 + math.random() * 0.8, function() broadcast(TAG_HERE) end)
+    -- True if the message is just an ellipsis (our exec marker).
+    -- Strip whitespace so "  …  " still matches.
+    local function isExecMark(text)
+        if type(text) ~= "string" then return false end
+        local t = text:gsub("^%s+", ""):gsub("%s+$", "")
+        return t == PUBLIC_MARK or t == PUBLIC_ALT
     end
 
     local function handleText(text, srcPlayer)
-        if type(text) ~= "string" then return false end
-        local isExec = text:find(TAG_EXEC, 1, true) ~= nil
-        local isHere = text:find(TAG_HERE, 1, true) ~= nil
-        if not (isExec or isHere) then return false end
+        if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
             pingFromUser(srcPlayer)
-            if isExec then echoPresence() end
         end
         return true
     end
+
 
     -- Suppress markers locally and surface the notification
     pcall(function()
