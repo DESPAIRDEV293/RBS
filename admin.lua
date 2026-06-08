@@ -1448,7 +1448,7 @@ local pgSkybox  = makeTab("Skybox",  "☁", "Skybox presets and atmosphere")
 local pgMisc    = makeTab("Misc",    "⋯", "Other tools and experimental features")
 -- Aliases — content for these older tabs now lives inside the Misc tab.
 local pgWorld   = pgMisc
-local pgThemes  = pgMisc
+local pgThemes  = pgConfig  -- Themes/colors live under the Settings (Config) tab
 local pgDetect  = pgMisc
 
 ------------------------------------------------------- HELPERS
