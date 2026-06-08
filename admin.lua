@@ -375,48 +375,110 @@ do
 end
 
 ------------------------------------------------------- SIDEBAR / TABS
+local SIDE_W = 52
+local HEADER_H = 38
+
 local Side = inst("Frame", Body, {
-    Size = UDim2.new(0, 140, 1, -12),
+    Size = UDim2.new(0, SIDE_W, 1, -12),
     Position = UDim2.new(0, 8, 0, 4),
     BackgroundColor3 = T.bg2,
     BackgroundTransparency = 0.2,
     BorderSizePixel = 0,
 })
-corner(Side, 10); stroke(Side, T.line, 1, 0.5)
+corner(Side, 12); stroke(Side, T.line, 1, 0.5)
 inst("UIListLayout", Side, {
-    Padding = UDim.new(0, 4),
+    Padding = UDim.new(0, 6),
     SortOrder = Enum.SortOrder.LayoutOrder,
     HorizontalAlignment = Enum.HorizontalAlignment.Center,
 })
 pad(Side, 8)
 
-local Pages = inst("Frame", Body, {
-    Position = UDim2.new(0, 156, 0, 4),
-    Size = UDim2.new(1, -164, 1, -12),
+local ContentArea = inst("Frame", Body, {
+    Position = UDim2.new(0, SIDE_W + 16, 0, 4),
+    Size = UDim2.new(1, -(SIDE_W + 24), 1, -12),
     BackgroundTransparency = 1,
 })
 
-local tabs = {}  -- name -> { btn, page }
+local Header = inst("Frame", ContentArea, {
+    Size = UDim2.new(1, 0, 0, HEADER_H),
+    BackgroundColor3 = T.bg2,
+    BackgroundTransparency = 0.2,
+    BorderSizePixel = 0,
+})
+corner(Header, 10); stroke(Header, T.line, 1, 0.5)
+local HeaderTitle = inst("TextLabel", Header, {
+    BackgroundTransparency = 1,
+    Position = UDim2.new(0, 14, 0, 2),
+    Size = UDim2.new(1, -28, 0, 18),
+    Font = Enum.Font.GothamBold, TextSize = 14,
+    TextColor3 = T.text,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Text = "",
+})
+local HeaderSub = inst("TextLabel", Header, {
+    BackgroundTransparency = 1,
+    Position = UDim2.new(0, 14, 0, 19),
+    Size = UDim2.new(1, -28, 0, 16),
+    Font = Enum.Font.Gotham, TextSize = 10,
+    TextColor3 = T.sub,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Text = "",
+})
+
+local Pages = inst("Frame", ContentArea, {
+    Position = UDim2.new(0, 0, 0, HEADER_H + 6),
+    Size = UDim2.new(1, 0, 1, -(HEADER_H + 6)),
+    BackgroundTransparency = 1,
+})
+
+-- Hover tooltip for icon-only sidebar
+local Tip = inst("TextLabel", Win, {
+    Visible = false,
+    BackgroundColor3 = T.bg3, BackgroundTransparency = 0.05,
+    BorderSizePixel = 0,
+    Font = Enum.Font.GothamSemibold, TextSize = 11,
+    TextColor3 = T.text,
+    Size = UDim2.new(0, 80, 0, 22),
+    ZIndex = 50,
+    Text = "",
+})
+corner(Tip, 6); stroke(Tip, T.line, 1, 0.5)
+
+local tabs = {}  -- name -> { btn, page, ico, title, subtitle }
 local currentTab
-local function makeTab(name, icon)
+
+local function setTab(name)
+    local e = tabs[name]; if not e then return end
+    for n, x in pairs(tabs) do
+        if n ~= name then
+            tween(x.btn, 0.12, { BackgroundTransparency = 1 })
+            x.ico.TextColor3 = T.sub
+            x.page.Visible = false
+        end
+    end
+    tween(e.btn, 0.12, { BackgroundTransparency = 0.15, BackgroundColor3 = T.acc })
+    e.ico.TextColor3 = T.text
+    e.page.Visible = true
+    HeaderTitle.Text = e.title or name
+    HeaderSub.Text   = e.subtitle or ""
+    currentTab = name
+end
+
+local function makeTab(name, icon, subtitle)
     local btn = inst("TextButton", Side, {
-        Size = UDim2.new(1, 0, 0, 32),
+        Size = UDim2.new(0, 36, 0, 36),
         BackgroundColor3 = T.bg3,
         BackgroundTransparency = 1,
         AutoButtonColor = false,
         Text = "",
-        Font = Enum.Font.GothamSemibold,
     })
-    corner(btn, 8)
-    local lbl = inst("TextLabel", btn, {
+    corner(btn, 10)
+    local ico = inst("TextLabel", btn, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 12, 0, 0),
-        Size = UDim2.new(1, -16, 1, 0),
-        Font = Enum.Font.GothamSemibold,
-        TextSize = 13,
+        Size = UDim2.new(1, 0, 1, 0),
+        Font = Enum.Font.GothamBold, TextSize = 18,
         TextColor3 = T.sub,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Text = (icon and (icon .. "  ") or "") .. name,
+        Text = icon or "•",
     })
 
     local page = inst("ScrollingFrame", Pages, {
@@ -436,21 +498,30 @@ local function makeTab(name, icon)
     })
     pad(page, 4)
 
-    local entry = { btn = btn, page = page, lbl = lbl }
+    local entry = { btn = btn, page = page, ico = ico, title = name, subtitle = subtitle }
     tabs[name] = entry
-    btn.MouseButton1Click:Connect(function()
-        for n, e in pairs(tabs) do
-            if n ~= name then
-                tween(e.btn, 0.12, { BackgroundTransparency = 1 })
-                e.lbl.TextColor3 = T.sub
-                e.page.Visible = false
-            end
+
+    btn.MouseEnter:Connect(function()
+        if currentTab ~= name then
+            tween(btn, 0.12, { BackgroundTransparency = 0.55, BackgroundColor3 = T.bg3 })
+            ico.TextColor3 = T.text
         end
-        tween(btn, 0.12, { BackgroundTransparency = 0.1, BackgroundColor3 = T.acc })
-        lbl.TextColor3 = T.text
-        page.Visible = true
-        currentTab = name
+        local pad = 14
+        Tip.Text = name
+        Tip.Size = UDim2.new(0, math.max(60, #name * 7 + pad), 0, 22)
+        local abs = btn.AbsolutePosition; local sz = btn.AbsoluteSize
+        local winPos = Win.AbsolutePosition
+        Tip.Position = UDim2.new(0, abs.X - winPos.X + sz.X + 8, 0, abs.Y - winPos.Y + (sz.Y/2) - 11)
+        Tip.Visible = true
     end)
+    btn.MouseLeave:Connect(function()
+        if currentTab ~= name then
+            tween(btn, 0.12, { BackgroundTransparency = 1 })
+            ico.TextColor3 = T.sub
+        end
+        Tip.Visible = false
+    end)
+    btn.MouseButton1Click:Connect(function() setTab(name) end)
     return page
 end
 
