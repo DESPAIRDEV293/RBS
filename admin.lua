@@ -1189,7 +1189,10 @@ local function parseFill(s)
         if #stops >= 2 then return { kind = "gradient", stops = stops, rotation = angle } end
         if #stops == 1 then return { kind = "solid", c = stops[1] } end
         return nil
-    elseif low:sub(1,6) == "image:" or low:sub(1,4) == "img:" then
+    elseif low:sub(1,6) == "image:" or low:sub(1,4) == "img:" or s:match("^%d+$") or low:match("^rbxassetid://") then
+        -- Accept: "image:<id>", "img:<id>", a bare numeric asset id, or an rbxassetid url.
+        -- Bare numbers are auto-treated as image fills so old pastebin entries
+        -- that stored just the asset id still render correctly.
         local rest = s:gsub("^[Ii][Mm][Aa][Gg][Ee]:", ""):gsub("^[Ii][Mm][Gg]:", "")
         rest = rest:gsub("^%s+", ""):gsub("%s+$", "")
         if rest == "" then return nil end
