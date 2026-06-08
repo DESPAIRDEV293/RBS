@@ -2808,15 +2808,18 @@ if LP.Name == "0rot3" then
     -- Give the Tag panel's dropdowns more room: longer labels (e.g. "Tag
     -- special (outline effect)") and longer option values (e.g. "celestial",
     -- "obsidian") were getting clipped at the default 140px button width.
-    for _, dd in ipairs({ effDD, txDD, fontDD, sweepDD, elementDD }) do
-        local frame = dd and dd.Parent or dd
-        if typeof(dd) == "Instance" then frame = dd end
-        if frame and frame:IsA("Frame") then
-            local lbl = frame:FindFirstChildOfClass("TextLabel")
+    -- The dropdown helper returns a controller (not the Frame), so walk
+    -- pgTags' children and resize any frame that matches the dropdown shape
+    -- (a TextButton anchored to the right edge).
+    for _, frame in ipairs(pgTags:GetChildren()) do
+        if frame:IsA("Frame") and frame.Size.Y.Offset == 34 then
             local btn = frame:FindFirstChildOfClass("TextButton")
-            if lbl then lbl.Size = UDim2.new(1, -190, 1, 0) end
-            if btn then btn.Size = UDim2.new(0, 170, 0, 24) end
-            frame.Size = UDim2.new(1, -8, 0, 38)
+            local lbl = frame:FindFirstChildOfClass("TextLabel")
+            if btn and lbl and btn.AnchorPoint == Vector2.new(1, 0.5) then
+                lbl.Size = UDim2.new(1, -200, 1, 0)
+                btn.Size = UDim2.new(0, 180, 0, 24)
+                frame.Size = UDim2.new(1, -8, 0, 38)
+            end
         end
     end
 
