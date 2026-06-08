@@ -4261,10 +4261,17 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
     ------------------------------------------------------------------
     local _myRole = _G.__SeigeMyRole() or "nt"
     local _isOwner = LP.Name == OWNER_NAME
-    local pgAdmin = makeTab("Admin", "★",
-        "Role: " .. (_G.__SeigeRoleLabel(_myRole) or "—") ..
-        " · script users in this server" ..
-        (_isOwner and ", role management, broadcast commands" or ""))
+    -- NT-only users get a tag-icon tab with just their command window.
+    -- Staff/Admin/Owner get the full star "Admin" tab.
+    local _ntOnly = (_myRole == "nt") and not _isOwner
+    local _tabIcon  = _ntOnly and "✎" or "★"
+    local _tabLabel = _ntOnly and "NT Cmds" or "Admin"
+    local _tabSub   = _ntOnly
+        and ("Role: " .. (_G.__SeigeRoleLabel(_myRole) or "NT Team") .. " · tag commands")
+        or  ("Role: " .. (_G.__SeigeRoleLabel(_myRole) or "—") ..
+             " · script users in this server" ..
+             (_isOwner and ", role management, broadcast commands" or ""))
+    local pgAdmin = makeTab(_tabLabel, _tabIcon, _tabSub)
 
     -- Banner showing current role + permission summary
     do
