@@ -75,11 +75,23 @@ export const Route = createFileRoute("/api/public/pastebin")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        if (!authorized(request)) {
-          return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
-        }
+        const url = new URL(request.url);
+        const wantRaw = url.searchParams.get("raw") === "1";
+        // Reads are public (the underlying gist is public anyway). Writes still require auth.
         try {
           const text = await readGist();
+          if (wantRaw) {
+            return new Response(text, {
+              status: 200,
+              headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Cache-Control": "no-store",
+              },
+            });
+          }
+          if (!authorized(request)) {
+            return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
+          }
           const lines = text.split("\n").filter((l) => l.trim().length > 0);
           return Response.json({ ok: true, lineCount: lines.length, raw: text });
         } catch (e) {
@@ -89,6 +101,7 @@ export const Route = createFileRoute("/api/public/pastebin")({
           );
         }
       },
+
       POST: async ({ request }) => {
         if (!authorized(request)) {
           return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
