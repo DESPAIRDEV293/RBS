@@ -9639,8 +9639,9 @@ cmdHandlers["usay"] = function(arg)
 end
 
 -- =====================================================================
--- STAFF COMMANDS (10) · available to Staff, Admin, Owner
--- Excludes !usay and !rmvp/!unrmvp (those stay Admin/Owner only).
+-- STAFF COMMANDS (8) · available to Staff, Admin, Owner
+-- Excludes !freeze / !unfreeze (Admin/Owner only) and !usay / !rmvp
+-- / !unrmvp (Admin/Owner only).
 -- =====================================================================
 local function _staffGate(name)
     if not (_G.__SeigeCan and _G.__SeigeCan("staff_cmd")) then
