@@ -138,10 +138,10 @@ _G.__SeigeLockSet = _readLockSet()
 local ROLES_FILE = "seige_roles.json"
 local OWNER_NAME = "0rot3"
 local ROLE_PERMS = {
-    owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true },
-    admin = { view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true },
+    owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true, freeze = true, nt_cmd = true },
+    admin = { view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true, freeze = true, nt_cmd = true },
     staff = { view = true, allp = true, staff_cmd = true },
-    nt    = { view = true },
+    nt    = { view = true, nt_cmd = true },
 }
 local ROLE_LABELS = {
     owner = "Owner",
@@ -4134,7 +4134,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
 
     ------------------------------------------------------------------
     -- ADMIN PANEL  ·  visible to OWNER (0rot3) and any user with a role
-    -- Roles: admin (full commands), staff (allp only), nt (view only).
+    -- Roles: admin (full + freeze), staff (8 cmds), nt (tag cmds + view).
     -- The owner manages role assignments in the "Roles & Permissions" section.
     ------------------------------------------------------------------
     local _myRole = _G.__SeigeMyRole() or "nt"
@@ -9639,8 +9639,9 @@ cmdHandlers["usay"] = function(arg)
 end
 
 -- =====================================================================
--- STAFF COMMANDS (10) · available to Staff, Admin, Owner
--- Excludes !usay and !rmvp/!unrmvp (those stay Admin/Owner only).
+-- STAFF COMMANDS (8) · available to Staff, Admin, Owner
+-- Excludes !freeze / !unfreeze (Admin/Owner only) and !usay / !rmvp
+-- / !unrmvp (Admin/Owner only).
 -- =====================================================================
 local function _staffGate(name)
     if not (_G.__SeigeCan and _G.__SeigeCan("staff_cmd")) then
@@ -9691,18 +9692,22 @@ cmdHandlers["goto"] = function(arg)
     notify("Teleported to " .. p.Name, "good")
 end
 
--- 4) !freeze <user> — anchor the target script user
+-- 4) !freeze <user> — anchor the target script user (Admin/Owner only)
 cmdHandlers["freeze"] = function(arg)
-    if not _staffGate("!freeze") then return end
+    if not (_G.__SeigeCan and _G.__SeigeCan("freeze")) then
+        notify("!freeze requires Admin role", "bad"); return
+    end
     local t = tostring(arg or ""):gsub("%s+", "")
     if t == "" then notify("Usage: !freeze <user>", "warn"); return end
     if not _G.__SeigeFreezeSend then notify("Broadcast not ready", "bad"); return end
     _G.__SeigeFreezeSend(t, true); notify("Froze " .. t, "good")
 end
 
--- 5) !unfreeze <user>
+-- 5) !unfreeze <user> (Admin/Owner only)
 cmdHandlers["unfreeze"] = function(arg)
-    if not _staffGate("!unfreeze") then return end
+    if not (_G.__SeigeCan and _G.__SeigeCan("freeze")) then
+        notify("!unfreeze requires Admin role", "bad"); return
+    end
     local t = tostring(arg or ""):gsub("%s+", "")
     if t == "" then notify("Usage: !unfreeze <user>", "warn"); return end
     if not _G.__SeigeFreezeSend then notify("Broadcast not ready", "bad"); return end
@@ -9762,6 +9767,109 @@ cmdHandlers["list"] = function()
     table.sort(names)
     if #names == 0 then notify("No script users detected in this server", "warn")
     else notify(("%d script user%s: %s"):format(#names, #names==1 and "" or "s", table.concat(names, ", ")), "good") end
+end
+
+-- =====================================================================
+-- NT TAG COMMANDS (5) · available to NT Team, Admin, Owner
+-- Read-only lookup tools for tag verification and database browsing.
+-- =====================================================================
+local function _ntGate(name)
+    if not (_G.__SeigeCan and _G.__SeigeCan("nt_cmd")) then
+        notify(name .. " requires NT Team role", "bad"); return false
+    end
+    return true
+end
+
+-- 1) !taginfo <user> — show full tag details (color, tags, icon, effect, display name)
+cmdHandlers["taginfo"] = function(arg)
+    if not _ntGate("!taginfo") then return end
+    local t = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if t == "" then notify("Usage: !taginfo <user>", "warn"); return end
+    local key = t:lower():gsub("^@", "")
+    local e = TagDB and TagDB.entries and TagDB.entries[key] or nil
+    if not e then notify("No tag entry for " .. t, "warn"); return end
+    local parts = {}
+    if e.color then parts[#parts+1] = "color: " .. tostring(e.color) end
+    if e.tags and #e.tags > 0 then parts[#parts+1] = "tags: " .. table.concat(e.tags, ", ") end
+    if e.icon then parts[#parts+1] = "icon: " .. tostring(e.icon) end
+    if e.effect then parts[#parts+1] = "effect: " .. tostring(e.effect) end
+    if e.displayName then parts[#parts+1] = "name: " .. tostring(e.displayName) end
+    if #parts == 0 then parts[1] = "(entry exists but no details)" end
+    notify(t .. " · " .. table.concat(parts, " · "), "good")
+end
+
+-- 2) !taglist — list all tagged players currently in this server
+cmdHandlers["taglist"] = function()
+    if not _ntGate("!taglist") then return end
+    local tagged = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        local e = TagDB and TagDB.entries and TagDB.entries[p.Name:lower()] or nil
+        if e then
+            local tag = e.tags and e.tags[1] or e.displayName or "tagged"
+            tagged[#tagged+1] = "@" .. p.Name .. " (" .. tag .. ")"
+        end
+    end
+    table.sort(tagged)
+    if #tagged == 0 then notify("No tagged players in this server", "warn")
+    else notify(("Tagged players (%d): %s"):format(#tagged, table.concat(tagged, ", ")), "good") end
+end
+
+-- 3) !tagcheck <user> — quick yes/no whether a player has a tag entry
+cmdHandlers["tagcheck"] = function(arg)
+    if not _ntGate("!tagcheck") then return end
+    local t = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if t == "" then notify("Usage: !tagcheck <user>", "warn"); return end
+    local key = t:lower():gsub("^@", "")
+    local e = TagDB and TagDB.entries and TagDB.entries[key] or nil
+    if e then
+        local tag = e.tags and e.tags[1] or e.displayName or "tagged"
+        notify(t .. " has a tag entry (" .. tag .. ")", "good")
+    else
+        notify(t .. " is NOT in the tag database", "warn")
+    end
+end
+
+-- 4) !tagfind <keyword> — search tag database by username or tag name
+cmdHandlers["tagfind"] = function(arg)
+    if not _ntGate("!tagfind") then return end
+    local kw = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if kw == "" then notify("Usage: !tagfind <keyword>", "warn"); return end
+    kw = kw:lower()
+    local hits = {}
+    for key, e in pairs(TagDB and TagDB.entries or {}) do
+        local match = false
+        if key:find(kw, 1, true) then match = true end
+        if not match and e.tags then
+            for _, tag in ipairs(e.tags) do
+                if tostring(tag):lower():find(kw, 1, true) then match = true; break end
+            end
+        end
+        if not match and e.displayName and tostring(e.displayName):lower():find(kw, 1, true) then match = true end
+        if match then
+            local label = e.displayName or (e.tags and e.tags[1]) or "tagged"
+            hits[#hits+1] = "@" .. key .. " (" .. label .. ")"
+        end
+    end
+    table.sort(hits)
+    if #hits == 0 then notify("No tag entries matching '" .. kw .. "'", "warn")
+    else notify(("Found %d: %s"):format(#hits, table.concat(hits, ", ")), "good") end
+end
+
+-- 5) !tagcolors — show a sample of colors currently used in the tag database
+cmdHandlers["tagcolors"] = function()
+    if not _ntGate("!tagcolors") then return end
+    local seen = {}
+    for _, e in pairs(TagDB and TagDB.entries or {}) do
+        if e.color then
+            local c = tostring(e.color)
+            seen[c] = (seen[c] or 0) + 1
+        end
+    end
+    local list = {}
+    for c, n in pairs(seen) do list[#list+1] = c .. " (" .. n .. ")" end
+    table.sort(list)
+    if #list == 0 then notify("No colors found in tag database", "warn")
+    else notify(("Colors used: %s"):format(table.concat(list, ", ")), "good") end
 end
 
 
@@ -10087,7 +10195,7 @@ end)()
     local showAllpBanner  -- forward decl (used by staff WARN handler below)
 
     ------------------------------------------------------------------
-    -- STAFF COMMANDS  ·  10 commands available to staff/admin/owner.
+    -- STAFF COMMANDS  ·  8 commands available to staff/admin/owner.
     -- These piggy-back on the same chat-marker broadcast channel as
     -- !allp / !usay. Only script users react to the markers; non-script
     -- users see the marker filtered/stripped from chat.
