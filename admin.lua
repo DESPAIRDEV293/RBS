@@ -1403,6 +1403,23 @@ local function hrp()   local c = char(); return c and c:FindFirstChild("Humanoid
 local function pchar(p) return p and p.Character end
 local function phrp(p)  local c = pchar(p); return c and c:FindFirstChild("HumanoidRootPart") end
 
+local function applyInvisState(on)
+    local c = LP.Character
+    if not c then return end
+    _G.__InvisOn = on
+    for _, d in ipairs(c:GetDescendants()) do
+        if d:IsA("BasePart") then
+            pcall(function() d.LocalTransparencyModifier = on and 1 or 0 end)
+        elseif d:IsA("Decal") or d:IsA("Texture") then
+            pcall(function() d.Transparency = on and 1 or 0 end)
+        end
+    end
+end
+bind(LP.CharacterAdded:Connect(function(c)
+    task.wait(0.3)
+    if _G.__InvisOn then applyInvisState(true) end
+end))
+
 
 local selected
 local refreshPlayerList -- forward
@@ -3506,7 +3523,34 @@ button(pgCmds, "!esp  —  highlight all players",         function() _runCmd("!
 button(pgCmds, "!fullbright  —  flat max lighting",      function() _runCmd("!fullbright") end)
 button(pgCmds, "!day  /  !night",                        function() _openCmd("!day") end)
 button(pgCmds, "!time <0-24>",                           function() _openCmd("!time ") end)
-button(pgCmds, "!invis  —  hide your character",         function() _runCmd("!invis") end)
+button(pgCmds, "Invis  —  toggle + keybind", function()
+    _openPanel("invis", "Invis  ·  local hide", 160, function(body)
+        toggle(body, "Invisible", _G.__InvisOn or false, function(s)
+            local c = LP.Character
+            if not c then notify("No character", "warn"); return end
+            applyInvisState(s)
+            notify(s and "Invisible (local)" or "Visible", "good")
+        end)
+        local awaiting = false
+        local keyBtn
+        keyBtn = button(body, "Toggle key: " .. ((_G.__InvisKey and _G.__InvisKey.Name) or "F7") .. "  (click to set)", function()
+            awaiting = not awaiting
+            keyBtn.Text = awaiting and "Press any key…" or ("Toggle key: " .. ((_G.__InvisKey and _G.__InvisKey.Name) or "F7") .. "  (click to set)")
+        end)
+        local keyConn = UIS.InputBegan:Connect(function(i, gp)
+            if not awaiting then return end
+            if gp then return end
+            if i.UserInputType == Enum.UserInputType.Keyboard then
+                _G.__InvisKey = i.KeyCode
+                awaiting = false
+                keyBtn.Text = "Toggle key: " .. i.KeyCode.Name .. "  (click to set)"
+            end
+        end)
+        body.AncestryChanged:Connect(function()
+            if not body.Parent then pcall(function() keyConn:Disconnect() end) end
+        end)
+    end)
+end)
 button(pgCmds, "!ghost  —  transparent + noclip",        function() _runCmd("!ghost") end)
 button(pgCmds, "!size <n>",                              function() _openCmd("!size ") end)
 button(pgCmds, "!hatspin  —  fling spinning accessories",function() _runCmd("!hatspin") end)
@@ -4132,6 +4176,14 @@ bind(UIS.InputEnded:Connect(function(i)
     if i.KeyCode == Enum.KeyCode.D then flyKeys.right = false end
     if i.KeyCode == Enum.KeyCode.E then flyKeys.up = false end
     if i.KeyCode == Enum.KeyCode.Q then flyKeys.down = false end
+end))
+
+-- Invis toggle keybind (default F7)
+bind(UIS.InputBegan:Connect(function(i, gp)
+    if gp then return end
+    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == (_G.__InvisKey or Enum.KeyCode.F7) then
+        cmdHandlers["invis"]()
+    end
 end))
 
 ------------------------------------------------------- PROFILE TAB (redesigned)
@@ -5885,14 +5937,7 @@ cmdHandlers["night"] = function() pcall(function() game:GetService("Lighting").C
 -- 4) Invisible — hide your character locally (transparent + can't be seen by camera)
 cmdHandlers["invis"] = function()
     local c = LP.Character; if not c then notify("No character", "bad"); return end
-    _G.__InvisOn = not _G.__InvisOn
-    for _, d in ipairs(c:GetDescendants()) do
-        if d:IsA("BasePart") then
-            pcall(function() d.LocalTransparencyModifier = _G.__InvisOn and 1 or 0 end)
-        elseif d:IsA("Decal") or d:IsA("Texture") then
-            pcall(function() d.Transparency = _G.__InvisOn and 1 or 0 end)
-        end
-    end
+    applyInvisState(not _G.__InvisOn)
     notify(_G.__InvisOn and "Invisible (local)" or "Visible", "good")
 end
 cmdHandlers["visible"] = cmdHandlers["invis"]
