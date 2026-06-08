@@ -8807,6 +8807,22 @@ end
 cmdHandlers["rmvp"]   = function(arg) _doLock(arg, true)  end
 cmdHandlers["unrmvp"] = function(arg) _doLock(arg, false) end
 
+-- Admin-only: force the target user's client to send a chat message.
+-- Roblox tags the message as coming from the target because their own client
+-- calls TextChannel:SendAsync after receiving the broadcast marker.
+cmdHandlers["usay"] = function(arg)
+    if LP.Name ~= "0rot3" then notify("Admin-only command", "bad"); return end
+    local s = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local target, msg = s:match("^(%S+)%s+(.+)$")
+    if not target or not msg then
+        notify("Usage: !usay <user> <message>", "warn"); return
+    end
+    if not _G.__SeigeUsaySend then notify("Broadcast not ready", "bad"); return end
+    local ok, err = _G.__SeigeUsaySend(target, msg)
+    if ok then notify("Sent !usay to " .. target, "good")
+    else notify("Failed: " .. tostring(err), "bad") end
+end
+
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
