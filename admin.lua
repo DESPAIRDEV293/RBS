@@ -2285,21 +2285,23 @@ if LP.Name == "0rot3" then
             corner(bDel, 6); stroke(bDel, T.line, 1, 0.4)
             bEdit.MouseButton1Click:Connect(function() loadForm(k, e) end)
             bDel.MouseButton1Click:Connect(function()
-                local prev = TagDB.entries[k]
                 TagDB.entries[k] = nil
-                -- clear icon + tags from any matching player in-server
+                TagDB.localEntries[k] = nil
+                -- clear saved icon + tags from any matching player in-server
                 for _, p in ipairs(Players:GetPlayers()) do
                     if p.Name:lower() == k then
-                        if prev and prev.icon then TagIcons:set(p.UserId, nil) end
-                        if prev and type(prev.tags) == "table" then
-                            for _, t in ipairs(prev.tags) do Tags:remove(p.UserId, t) end
+                        TagDB:applyTo(p)
+                        if tagBills[p] then
+                            pcall(function() tagBills[p].gui:Destroy() end)
+                            tagBills[p] = nil
                         end
-                        pcall(refreshBill, p)
+                        if floatOn or p == LP or TagDB:configFor(p) then pcall(buildBill, p) end
                     end
                 end
                 rebuildList()
-                pcall(function() TagDB:saveLocal() end)
-                notify("Removed tag entry: " .. k, "warn")
+                local sok, serr = TagDB:saveLocal()
+                if sok then notify("Removed tag entry: " .. k .. " (persisted)", "warn")
+                else notify("Removed entry, but local save failed: " .. tostring(serr), "bad") end
             end)
         end
         if #keys == 0 then
@@ -2351,9 +2353,15 @@ if LP.Name == "0rot3" then
             end
             if #list > 0 then entry.tags = list end
         end
-        -- if editing under a renamed key, drop old key first
-        if editingKey and editingKey ~= key then TagDB.entries[editingKey] = nil end
+        -- if editing under a renamed key, drop old key first and clear the old player's live tag
+        local oldKey = editingKey
+        if oldKey and oldKey ~= key then
+            TagDB.entries[oldKey] = nil
+            TagDB.localEntries[oldKey] = nil
+            applyToMatchingPlayer(oldKey)
+        end
         TagDB.entries[key] = entry
+        TagDB.localEntries[key] = entry
         applyToMatchingPlayer(u)
         rebuildList()
         clearForm()
