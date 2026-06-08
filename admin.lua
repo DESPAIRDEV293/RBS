@@ -857,7 +857,7 @@ end
 --
 --   - Only `username` is required. Leave any field blank to skip it (keep the |).
 --   - effect: rain | snow | sparkle | nebula   (or blank for none)
---   - icon:   a roblox asset id, rbxthumb://, rbxassetid://, or http(s):// URL
+--   - icon:   Roblox image ID (raw number, e.g. 1234567890)
 --   - Lines starting with # or // are comments. Blank lines are ignored.
 --
 -- Example paste:
