@@ -1739,8 +1739,9 @@ local function parsePastebin(src)
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
                 if parts[11] and parts[11] ~= "" then entry.font = parts[11] end
                 -- parts[12] used to be sweep; ignored.
-                -- Old unused 13th field intentionally ignored/stripped so saved
-                -- values cannot bring back the faint square aura behind tags.
+                if parts[13] and parts[13] ~= "" then entry.textColor = parts[13] end
+                if parts[14] and parts[14] ~= "" then entry.textOutline = parts[14] end
+                if parts[15] and parts[15] ~= "" then entry.avatarOutline = parts[15] end
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -3553,13 +3554,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 "",
                 e.icon or "",
                 tagsStr,
-                "",
+                e.textFx or "",
                 e.customText or "",
                 e.customHandle or "",
                 e.outline or "",
                 e.font or "",
                 "",
-                "",
+                e.textColor or "",
+                e.textOutline or "",
+                e.avatarOutline or "",
             }
             -- Trim trailing empty fields so each row stays compact like the
             -- legacy entries (e.g. eyk_a). The loader pads missing tail fields
