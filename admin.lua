@@ -2140,17 +2140,6 @@ end)
 local floatOn = false
 local tagBills = {}
 
--- ===== Tag specials (disabled) =====
--- Keep the old names/URLs only so older saved configs and dropdown values do
--- not error, but do not render any tag-special layer. The special aura layer
--- was the source of a faint square/box behind tags.
-local TAG_ELEMENT_NAMES = {}
-local TAG_SPECIAL_URLS = {}
--- Kept for backward compat with old saved configs that referenced this table.
-local tagElements = {}
-_G.__SeigeTagElements = tagElements
-_G.__SeigeTagSpecials = TAG_SPECIAL_URLS
-
 -- ===== Particle effects (rain / snow / sparkle / nebula) =====
 local lastSpawn = setmetatable({}, { __mode = "k" })
 local NEBULA_COLORS = {
