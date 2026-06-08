@@ -2482,8 +2482,8 @@ local function buildBill(p)
         Size = UDim2.new(0, 0, 0, 0), ZIndex = 0,
     })
 
-    -- CanvasGroup (not Frame) so descendants (particles, sweep, image fill,
-    -- shine, under-shade) are composited and masked by UICorner. A plain
+    -- CanvasGroup (not Frame) so descendants (image fill, shine, under-shade)
+    -- are composited and masked by UICorner. A plain
     -- Frame's ClipsDescendants only clips to a rectangle, which is why
     -- effects used to leak into the square corners of the pill.
     local bg = inst("CanvasGroup", gui, {
@@ -2493,13 +2493,6 @@ local function buildBill(p)
         ZIndex = 1,
     })
     corner(bg, 23)
-
-    -- particle layer (sits above bg/image, below text/avatar)
-    local fx = inst("Frame", bg, {
-        Name = "fx", Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1, ZIndex = 5,
-        ClipsDescendants = true,
-    })
 
     local st = stroke(bg, T.acc, 1.4, 0.25)
     local bgGrad = inst("UIGradient", bg, {
@@ -2556,30 +2549,6 @@ local function buildBill(p)
             NumberSequenceKeypoint.new(1, 0.55),
         }),
     })
-
-    -- Metal sweep highlight (animated diagonal specular streak)
-    local sweep = inst("Frame", bg, {
-        Name = "sweep",
-        Size = UDim2.new(0, 38, 1, 24),
-        Position = UDim2.new(0, -50, 0, -12),
-        Rotation = 18,
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        ZIndex = 4,
-        Visible = false,
-    })
-    inst("UIGradient", sweep, {
-        Rotation = 0,
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0,   1),
-            NumberSequenceKeypoint.new(0.45, 0.55),
-            NumberSequenceKeypoint.new(0.5, 0.25),
-            NumberSequenceKeypoint.new(0.55, 0.55),
-            NumberSequenceKeypoint.new(1,   1),
-        }),
-    })
-
 
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 5, 0.5, -17),
@@ -2699,7 +2668,7 @@ local function buildBill(p)
         cd.MouseClick:Connect(function() onTagClicked() end)
     end)
 
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, shine = shine, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, gifToken = 0, gifKey = nil }
     _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
