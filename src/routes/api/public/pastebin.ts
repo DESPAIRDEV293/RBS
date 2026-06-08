@@ -1,39 +1,67 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const RAW_URL = (key: string) => `https://pastebin.com/raw/${key}`;
+// Backed by a GitHub Gist. Path/auth kept as-is so the in-game loader keeps working.
+const GIST_FILENAME = "seige_tags.txt";
 
-async function readPaste(): Promise<string> {
-  const key = process.env.PASTEBIN_PASTE_KEY!;
-  const res = await fetch(`${RAW_URL(key)}?v=${Date.now()}`, { cache: "no-store" });
-  if (!res.ok) throw new Error(`read failed: HTTP ${res.status}`);
-  return await res.text();
+function gistApiUrl(): string {
+  const id = process.env.GITHUB_GIST_ID!;
+  return `https://api.github.com/gists/${id}`;
 }
 
-async function writePaste(body: string): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
-  const dev = process.env.PASTEBIN_DEV_KEY!;
-  const user = process.env.PASTEBIN_USER_KEY!;
-  const key = process.env.PASTEBIN_PASTE_KEY!;
-  const form = new URLSearchParams({
-    api_dev_key: dev,
-    api_user_key: user,
-    api_paste_key: key,
-    api_option: "edit",
-    api_paste_code: body,
-    api_paste_name: "seige_tags",
-    api_paste_format: "text",
-    api_paste_private: "1",
-    api_paste_expire_date: "N",
+function ghHeaders(): HeadersInit {
+  return {
+    Authorization: `Bearer ${process.env.GITHUB_GIST_TOKEN!}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "seige-tag-sync",
+  };
+}
+
+async function readGist(): Promise<string> {
+  const res = await fetch(gistApiUrl(), {
+    headers: ghHeaders(),
+    cache: "no-store",
   });
-  const res = await fetch("https://pastebin.com/api/api_post.php", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: form.toString(),
-  });
-  const txt = (await res.text()).trim();
-  if (!res.ok || txt.toLowerCase().startsWith("bad api request")) {
-    return { ok: false, error: txt || `HTTP ${res.status}` };
+  if (!res.ok) throw new Error(`gist read failed: HTTP ${res.status} ${await res.text()}`);
+  const json = (await res.json()) as {
+    files: Record<string, { filename: string; content: string; truncated?: boolean; raw_url?: string }>;
+  };
+  const file =
+    json.files[GIST_FILENAME] ?? Object.values(json.files)[0];
+  if (!file) throw new Error("gist has no files");
+  if (file.truncated && file.raw_url) {
+    const raw = await fetch(file.raw_url, { cache: "no-store" });
+    if (!raw.ok) throw new Error(`gist raw fetch failed: HTTP ${raw.status}`);
+    return await raw.text();
   }
-  return { ok: true, url: txt };
+  return file.content ?? "";
+}
+
+async function writeGist(body: string): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const res = await fetch(gistApiUrl(), {
+    method: "PATCH",
+    headers: { ...ghHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      files: { [GIST_FILENAME]: { content: body } },
+    }),
+  });
+  const txt = await res.text();
+  if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${txt}` };
+  try {
+    const json = JSON.parse(txt) as {
+      html_url: string;
+      files: Record<string, { raw_url: string }>;
+    };
+    const raw = json.files[GIST_FILENAME]?.raw_url ?? json.html_url;
+    // Strip the commit sha so the URL always serves the latest revision.
+    const stable = raw.replace(
+      /\/raw\/[0-9a-f]+\//,
+      "/raw/",
+    );
+    return { ok: true, url: stable };
+  } catch {
+    return { ok: true, url: "" };
+  }
 }
 
 function authorized(request: Request): boolean {
@@ -51,7 +79,7 @@ export const Route = createFileRoute("/api/public/pastebin")({
           return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
         }
         try {
-          const text = await readPaste();
+          const text = await readGist();
           const lines = text.split("\n").filter((l) => l.trim().length > 0);
           return Response.json({ ok: true, lineCount: lines.length, raw: text });
         } catch (e) {
@@ -74,13 +102,12 @@ export const Route = createFileRoute("/api/public/pastebin")({
         if (typeof payload.body !== "string" || payload.body.length === 0) {
           return Response.json({ ok: false, error: "`body` (string) required" }, { status: 400 });
         }
-        if (payload.body.length > 500_000) {
+        if (payload.body.length > 1_000_000) {
           return Response.json({ ok: false, error: "body too large" }, { status: 413 });
         }
-        const result = await writePaste(payload.body);
+        const result = await writeGist(payload.body);
         return Response.json(result, { status: result.ok ? 200 : 502 });
       },
     },
   },
 });
-
