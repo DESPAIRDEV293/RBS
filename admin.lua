@@ -2239,6 +2239,7 @@ if LP.Name == "0rot3" then
                 tagsStr,
                 e.textFx or "",
                 e.customText or "",
+                e.customHandle or "",
             }, " | ")
         end
         return table.concat(lines, "\n")
