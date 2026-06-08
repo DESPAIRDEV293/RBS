@@ -10973,6 +10973,10 @@ end)()
             end
             return true
         end
+        -- Kill switch is owner-only: drop the marker silently if a non-owner chats it.
+        if type(text) == "string" and text:sub(1, #KILL_MARK) == KILL_MARK then
+            if srcPlayer and srcPlayer.Name ~= OWNER_NAME then return true end
+        end
         if _G.__SeigeStaffHandle and _G.__SeigeStaffHandle(text) then return true end
         if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
