@@ -4319,20 +4319,18 @@ end
         refresh()
     end)
 
-    local autoOn = true
-    toggle(pgDetect, "Auto-scan GUIs every 5s (safe)", true, function(v) autoOn = v end)
+    local autoOn = false
+    toggle(pgDetect, "Auto-scan GUIs every 10s (off by default)", false, function(v) autoOn = v end)
     task.spawn(function()
         while true do
-            task.wait(5)
+            task.wait(10)
             if autoOn then pcall(scanGuis) end
         end
     end)
 
-    -- initial passive scan only
-    task.spawn(function()
-        task.wait(1)
-        pcall(scanGuis); pcall(scanScripts)
-    end)
+    -- No automatic initial scan — MacSploit / some executors throw
+    -- "DM Lock Violation" when CoreGui is walked too early. User must press Rescan.
+
 end)()
 
 
