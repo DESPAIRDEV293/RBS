@@ -1463,18 +1463,38 @@ local function refreshBill(p)
 
 
 
-    -- Side chip / color
-    local dbColor = cfg and parseColor(cfg.color)
+    -- Side chip / color (supports single hex or "#aaa/#bbb" split)
+    local c1, c2 = nil, nil
+    if cfg and cfg.color then c1, c2 = parseColorPair(cfg.color) end
     local txt = Tags:summary(p.UserId)
+    -- owner-only custom chip text override
+    if cfg and cfg.customText and cfg.customText ~= "" then txt = cfg.customText end
     if txt ~= "" then
         e.sh.Visible = true
         e.stat.Text = txt:gsub(",", " • ")
-        local c = dbColor or tagColor(p)
+        local c = c1 or tagColor(p)
         e.stroke.Color = c; e.dot.BackgroundColor3 = c
     else
         e.sh.Visible = false
-        local c = dbColor or (p == LP and T.good or T.acc)
+        local c = c1 or (p == LP and T.good or T.acc)
         e.stroke.Color = c; e.dot.BackgroundColor3 = c
+    end
+    -- Two-color split bubble background (left half c1, right half c2)
+    if e.bgGrad then
+        if c1 and c2 then
+            e.bgGrad.Rotation = 0
+            e.bgGrad.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0,    c1),
+                ColorSequenceKeypoint.new(0.499, c1),
+                ColorSequenceKeypoint.new(0.5,  c2),
+                ColorSequenceKeypoint.new(1,    c2),
+            })
+            e.bg.BackgroundTransparency = 0
+        else
+            e.bgGrad.Rotation = 90
+            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18))
+            e.bg.BackgroundTransparency = 0.1
+        end
     end
 
     -- Effect change
