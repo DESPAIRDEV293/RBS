@@ -3820,14 +3820,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         notify(("GitHub push failed: HTTP %s · %s"):format(tostring(status), txt:sub(1, 120)), "bad")
         return false, txt
     end
-        if status >= 200 and status < 300 then
-            if not silent then notify("Pushed to GitHub gist", "good") end
-            return true, "ok"
-        end
-        -- Always notify on failure (even auto-push) so saves don't silently disappear.
-        notify(("GitHub push failed (HTTP %s): %s"):format(tostring(status), txt:sub(1, 120)), "bad")
-        return false, txt
-    end
+
+
 
     toggle(pgTags, "Auto-push to GitHub on every save", pbCfg.autoPush, function(v)
         pbCfg.autoPush = v; savePbCfg()
