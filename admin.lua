@@ -2416,8 +2416,9 @@ local function refreshBill(p)
         end
     end
 
-    -- Metal sweep highlight: default ON, disable when cfg.sweep == "off"
-    local sweepOn = not (cfg and tostring(cfg.sweep or ""):lower() == "off")
+    -- Metal sweep highlight: TEMPORARILY DISABLED across all tags.
+    local sweepOn = false
+
     if e.sweep and sweepOn ~= e.sweepOn then
         e.sweepOn = sweepOn
         e.sweepToken = (e.sweepToken or 0) + 1
