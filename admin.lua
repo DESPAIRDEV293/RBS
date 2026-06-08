@@ -7695,8 +7695,8 @@ toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, function(v)
     _G.__SeigeReducedMotion = v
 end)
 
-section(pgShaders, "World Image (Skybox)")
-label(pgShaders, "6 cubed faces — paste a Roblox asset id/URL, or a local image file path from your PC")
+section(pgConfig, "World Image (Skybox)")
+label(pgConfig, "6 cubed faces — paste a Roblox asset id/URL, or a local image file path from your PC")
 do
     local Lighting = game:GetService("Lighting")
     -- executor helpers (optional; safely probed)
@@ -7745,12 +7745,12 @@ do
     local faces = { Up = "", Dn = "", Lf = "", Rt = "", Ft = "", Bk = "" }
     local labels = { Up = "Top (Up)", Dn = "Bottom (Down)", Lf = "Left", Rt = "Right", Ft = "Front", Bk = "Back" }
     for _, k in ipairs({ "Up", "Dn", "Lf", "Rt", "Ft", "Bk" }) do
-        textbox(pgShaders, labels[k] .. " — asset id / URL / PC file path", function(v)
+        textbox(pgConfig, labels[k] .. " — asset id / URL / PC file path", function(v)
             faces[k] = norm(v)
         end)
     end
 
-    button(pgShaders, "Apply To All Faces (single image)", function()
+    button(pgConfig, "Apply To All Faces (single image)", function()
         -- copies the Top value into every face for quick single-image skies
         local v = faces.Up
         if v == "" then notify("Fill the Top field first", "warn") return end
@@ -7758,7 +7758,7 @@ do
         notify("Copied Top to all faces", "ok")
     end)
 
-    button(pgShaders, "Apply Skybox", function()
+    button(pgConfig, "Apply Skybox", function()
         for _, c in ipairs(Lighting:GetChildren()) do
             if c:IsA("Sky") then c:Destroy() end
         end
@@ -7773,7 +7773,7 @@ do
         sky.Parent = Lighting
         notify("Skybox applied", "ok")
     end)
-    button(pgShaders, "Reset Skybox", function()
+    button(pgConfig, "Reset Skybox", function()
         for _, c in ipairs(Lighting:GetChildren()) do
             if c:IsA("Sky") then c:Destroy() end
         end
