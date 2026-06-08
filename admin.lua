@@ -5688,15 +5688,48 @@ end
 local _openPanel
 do
     local active = {}
+    -- Smooth open/close anim helpers for popout panels. Fade + scale with
+    -- a soft Back ease on open and a fast Quad on close, then destroy.
+    local function _animOpen(win)
+        local scaleObj = win:FindFirstChildOfClass("UIScale")
+            or inst("UIScale", win, { Scale = 0.85 })
+        scaleObj.Scale = 0.85
+        local prevBT = win.BackgroundTransparency
+        win.BackgroundTransparency = 1
+        TweenService:Create(win, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            { BackgroundTransparency = prevBT }):Play()
+        TweenService:Create(scaleObj, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+            { Scale = 1 }):Play()
+    end
+    local function _animClose(gui, win, onDone)
+        local scaleObj = win:FindFirstChildOfClass("UIScale")
+            or inst("UIScale", win, { Scale = 1 })
+        TweenService:Create(scaleObj, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            { Scale = 0.9 }):Play()
+        TweenService:Create(win, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+            { BackgroundTransparency = 1 }):Play()
+        task.delay(0.2, function()
+            if gui and gui.Parent then gui:Destroy() end
+            if onDone then onDone() end
+        end)
+    end
     _openPanel = function(key, title, height, builder)
-        if active[key] then pcall(function() active[key]:Destroy() end); active[key] = nil; return end
+        if active[key] then
+            local entry = active[key]
+            active[key] = nil
+            if entry and entry.gui and entry.gui.Parent and entry.win then
+                _animClose(entry.gui, entry.win)
+            elseif entry and entry.Destroy then
+                pcall(function() entry:Destroy() end)
+            end
+            return
+        end
         local gui = inst("ScreenGui", nil, {
             Name = "SeigePanelPopup_" .. tostring(key),
             IgnoreGuiInset = true, ResetOnSpawn = false,
             DisplayOrder = 220, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
         })
         safeParent(gui)
-        active[key] = gui
         local win = inst("Frame", gui, {
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
@@ -5704,6 +5737,7 @@ do
             BackgroundColor3 = T.bg, BorderSizePixel = 0,
         })
         corner(win, 10); stroke(win, T.line, 1, 0.3)
+        active[key] = { gui = gui, win = win }
         local bar = inst("Frame", win, {
             Size = UDim2.new(1, 0, 0, 32),
             BackgroundColor3 = T.bg2, BorderSizePixel = 0,
@@ -5721,7 +5755,10 @@ do
             Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text, Text = "✕",
         })
         corner(closeBtn, 6)
-        closeBtn.MouseButton1Click:Connect(function() gui:Destroy(); active[key] = nil end)
+        closeBtn.MouseButton1Click:Connect(function()
+            if active[key] then active[key] = nil end
+            _animClose(gui, win)
+        end)
         do
             local dragging, startPos, startMouse
             bar.InputBegan:Connect(function(i)
