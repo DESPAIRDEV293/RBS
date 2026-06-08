@@ -2113,6 +2113,7 @@ if LP.Name == "0rot3" then
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
     local tbHandle   = field(pgTags, "Custom @handle (overrides @user — optional)", "customHandle", "despair")
+    local tbOutline  = field(pgTags, "Outline color (hex, or 'off' to disable)", "outline", "#ffffff   or   off")
 
     -- gradient presets (inspired by gradientshub.com) — click to set the fill spec
     section(pgTags, "Gradient presets")
