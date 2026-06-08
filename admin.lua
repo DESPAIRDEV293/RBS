@@ -4147,6 +4147,8 @@ task.defer(function()
         end
     end
 end)
+end -- end OPTIMIZE do-block
+
 
 
 
