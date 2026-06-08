@@ -3729,6 +3729,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if form.showChip == "On" then
             entry.showChip = "on"
         end
+        if form.aura and form.aura ~= "" and form.aura ~= "Off" then
+            entry.aura = form.aura:lower()
+        end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
