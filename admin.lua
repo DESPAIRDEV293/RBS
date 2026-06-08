@@ -3110,7 +3110,183 @@ button(pgServer, "Copy JobId", function()
     if setclipboard then setclipboard(game.JobId); notify("JobId copied", "good") end
 end)
 
+------------------------------------------------------- SCRIPT DETECTOR
+do
+    section(pgServer, "Detected scripts")
+
+    -- Signatures: { name, kind, key }
+    -- kind = "gui"  → ScreenGui/Folder name match anywhere in CoreGui / PlayerGui
+    -- kind = "glob" → _G or getgenv() key present
+    -- kind = "fn"   → global function present (executor fingerprints)
+    local SIGS = {
+        -- Admin scripts
+        { "AK Admin",          "gui",  "AkAdmin"           },
+        { "AK Admin",          "gui",  "AKADMIN"           },
+        { "AK Admin",          "glob", "AkAdmin"           },
+        { "Novoline",          "gui",  "Novoline"          },
+        { "Novoline",          "gui",  "novoline"          },
+        { "Novoline",          "glob", "Novoline"          },
+        { "Infinite Yield",    "gui",  "IYMain"            },
+        { "Infinite Yield",    "glob", "IY_LOADED"         },
+        { "Nameless Admin",    "gui",  "NamelessAdmin"     },
+        { "CMD-X",             "gui",  "CMDXAdmin"         },
+        { "Reviz Admin",       "gui",  "Reviz"             },
+        { "Homebrew",          "gui",  "Homebrew"          },
+        { "Seige.lol",         "gui",  "SeigeAdminGui"     },
+        -- Hubs / spies
+        { "Owl Hub",           "gui",  "OwlHub"            },
+        { "Dex Explorer",      "gui",  "Dex"               },
+        { "Remote Spy",        "gui",  "RemoteSpy"         },
+        { "SimpleSpy",         "gui",  "SimpleSpy"         },
+        { "Hydroxide",         "glob", "Hydroxide"         },
+        -- Executors
+        { "Synapse X",         "glob", "syn"               },
+        { "Script-Ware",       "fn",   "is_sirhurt_closure"},
+        { "KRNL",              "glob", "KRNL_LOADED"       },
+        { "Fluxus",            "glob", "fluxus"            },
+        { "Wave",              "glob", "Wave"              },
+        { "Solara",            "fn",   "issolara"          },
+        { "Xeno",              "glob", "Xeno"              },
+        { "AWP.gg",            "glob", "AWP"               },
+        { "Codex",             "glob", "Codex"             },
+    }
+
+    local function genv()
+        local ok, g = pcall(function() return getgenv() end)
+        if ok and g then return g end
+        return _G
+    end
+
+    local function scanGuis(needle)
+        local needleL = needle:lower()
+        local roots = { LP:FindFirstChild("PlayerGui") }
+        pcall(function() table.insert(roots, game:GetService("CoreGui")) end)
+        for _, root in ipairs(roots) do
+            if root then
+                local ok, desc = pcall(function() return root:GetDescendants() end)
+                if ok and desc then
+                    for _, d in ipairs(desc) do
+                        if d.Name:lower():find(needleL, 1, true) then
+                            return true, d:GetFullName()
+                        end
+                    end
+                end
+            end
+        end
+        return false
+    end
+
+    local function detectAll()
+        local hits = {}
+        local seen = {}
+        local g = genv()
+        for _, sig in ipairs(SIGS) do
+            local name, kind, key = sig[1], sig[2], sig[3]
+            if not seen[name] then
+                local hit, detail = false, nil
+                if kind == "gui" then
+                    hit, detail = scanGuis(key)
+                elseif kind == "glob" then
+                    if rawget(g, key) ~= nil or rawget(_G, key) ~= nil then
+                        hit = true; detail = "_G." .. key
+                    end
+                elseif kind == "fn" then
+                    if type(rawget(g, key)) == "function" or type(rawget(_G, key)) == "function" then
+                        hit = true; detail = key .. "()"
+                    end
+                end
+                if hit then
+                    seen[name] = true
+                    table.insert(hits, { name = name, detail = detail or key })
+                end
+            end
+        end
+        -- Executor fingerprint via identifyexecutor()
+        local ie = rawget(g, "identifyexecutor") or rawget(_G, "identifyexecutor")
+        if type(ie) == "function" then
+            local ok, n, v = pcall(ie)
+            if ok and n then
+                table.insert(hits, 1, { name = "Executor: " .. tostring(n) .. (v and (" " .. tostring(v)) or ""), detail = "identifyexecutor()" })
+            end
+        end
+        return hits
+    end
+
+    local statusLbl = label(pgServer, "Scanning…")
+    local listFrame = inst("Frame", pgServer, {
+        Size = UDim2.new(1, -8, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.35, BorderSizePixel = 0,
+    })
+    corner(listFrame, 8); stroke(listFrame, T.line, 1, 0.5)
+    inst("UIPadding", listFrame, {
+        PaddingTop = UDim.new(0,6), PaddingBottom = UDim.new(0,6),
+        PaddingLeft = UDim.new(0,8), PaddingRight = UDim.new(0,8),
+    })
+    inst("UIListLayout", listFrame, {
+        SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4),
+    })
+
+    local function refresh()
+        for _, c in ipairs(listFrame:GetChildren()) do
+            if c:IsA("TextLabel") then c:Destroy() end
+        end
+        local hits = detectAll()
+        if #hits == 0 then
+            statusLbl.Text = "No third-party scripts detected"
+            statusLbl.TextColor3 = T.good
+            inst("TextLabel", listFrame, {
+                BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 16),
+                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                TextXAlignment = Enum.TextXAlignment.Left, Text = "— clean —",
+            })
+        else
+            statusLbl.Text = "Detected " .. #hits .. " script" .. (#hits > 1 and "s" or "")
+            statusLbl.TextColor3 = T.warn
+            for _, h in ipairs(hits) do
+                local row = inst("TextLabel", listFrame, {
+                    BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 28),
+                    Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = T.text,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Text = "● " .. h.name,
+                    RichText = true,
+                })
+                inst("TextLabel", row, {
+                    BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 14),
+                    Size = UDim2.new(1, -12, 0, 12),
+                    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Text = h.detail,
+                })
+            end
+        end
+    end
+
+    button(pgServer, "Rescan now", refresh)
+    button(pgServer, "Copy detection report", function()
+        local hits = detectAll()
+        local lines = { "[seige.lol] script detection on " .. LP.Name .. " @ " .. os.date("!%Y-%m-%dT%H:%M:%SZ") }
+        if #hits == 0 then
+            table.insert(lines, "  (none)")
+        else
+            for _, h in ipairs(hits) do table.insert(lines, "  • " .. h.name .. "  —  " .. h.detail) end
+        end
+        local txt = table.concat(lines, "\n")
+        if setclipboard then setclipboard(txt); notify("Report copied", "good")
+        else notify("setclipboard unavailable", "warn") end
+    end)
+
+    -- initial + periodic auto-scan
+    task.spawn(function()
+        while statusLbl and statusLbl.Parent do
+            pcall(refresh)
+            task.wait(5)
+        end
+    end)
+end
+
 ------------------------------------------------------- CMDS TAB
+
 section(pgCmds, "Rejoin")
 button(pgCmds, "Rejoin (same server)", function()
     local ok, err = pcall(function()
