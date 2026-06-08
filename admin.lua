@@ -3337,6 +3337,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         tbCustom.Text   = (e and e.customText) or ""
         tbHandle.Text   = (e and e.customHandle) or ""
         tbOutline.Text  = (e and e.outline) or ""
+        tbTextColor.Text   = (e and e.textColor) or ""
+        tbTextOutline.Text = (e and e.textOutline) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
         fontDD.set((e and e.font) or "Default")
