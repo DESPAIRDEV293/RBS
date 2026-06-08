@@ -2260,6 +2260,63 @@ local function refreshBill(p)
         end)
     end
 
+    -- Text effects: typewriter, glitch, rainbow. Token cancels prior loops.
+    do
+        local fx = cfg and cfg.textFx
+        fx = tostring(fx or ""):lower():gsub("^%s+",""):gsub("%s+$","")
+        e.fxToken = (e.fxToken or 0) + 1
+        local myToken = e.fxToken
+        local label = e.name
+        if fx == "typewriter" or fx == "type" then
+            local full = nameStr
+            task.spawn(function()
+                while e.fxToken == myToken and label and label.Parent do
+                    for i = 0, #full do
+                        if e.fxToken ~= myToken then return end
+                        label.Text = string.sub(full, 1, i)
+                        task.wait(0.08)
+                    end
+                    task.wait(1.2)
+                    for i = #full, 0, -1 do
+                        if e.fxToken ~= myToken then return end
+                        label.Text = string.sub(full, 1, i)
+                        task.wait(0.05)
+                    end
+                    task.wait(0.4)
+                end
+            end)
+        elseif fx == "glitch" then
+            local full = nameStr
+            local glitchChars = "!@#$%^&*<>?/\\|=+-_"
+            task.spawn(function()
+                while e.fxToken == myToken and label and label.Parent do
+                    local out = {}
+                    for i = 1, #full do
+                        if math.random() < 0.18 then
+                            local r = math.random(1, #glitchChars)
+                            out[i] = string.sub(glitchChars, r, r)
+                        else
+                            out[i] = string.sub(full, i, i)
+                        end
+                    end
+                    label.Text = table.concat(out)
+                    task.wait(0.08)
+                end
+            end)
+        elseif fx == "rainbow" then
+            task.spawn(function()
+                local t0 = tick()
+                while e.fxToken == myToken and label and label.Parent do
+                    local h = (tick() - t0) * 0.4 % 1
+                    label.TextColor3 = Color3.fromHSV(h, 0.85, 1)
+                    task.wait(0.05)
+                end
+            end)
+        else
+            label.Text = nameStr
+        end
+    end
+
 
 
     -- Custom icon override (DB or per-player). Force a refresh by clearing first.
