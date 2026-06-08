@@ -2984,7 +2984,7 @@ end)
 
 
 ------------------------------------------------------- AIM TAB (camera lock)
-section(pgAim, "Camera lock")
+section(pgCmds, "Aim assist (camera lock)")
 local aimOn, aimFov, aimSmooth = false, 100, 0.25
 local aimVisOnly = true
 local aimKey = "RightMouseButton"
