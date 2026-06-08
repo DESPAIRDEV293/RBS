@@ -1834,6 +1834,23 @@ local function refreshBill(p)
     e.name.Text   = nameStr
     e.handle.Text = handleStr
 
+    -- Per-tag font override (set in Tags panel). Falls back to global tag font, then defaults.
+    do
+        local perTag = cfg and cfg.font
+        local globalTag = _G.__SeigeTagFont
+        local choice = (perTag and perTag ~= "" and perTag ~= "Default") and perTag
+                       or (globalTag and globalTag ~= "Default" and globalTag)
+                       or nil
+        local font = choice and Enum.Font[choice] or nil
+        pcall(function()
+            e.name.Font   = font or Enum.Font.GothamBold
+            e.handle.Font = font or Enum.Font.Gotham
+            if e.stat then e.stat.Font = font or Enum.Font.GothamBold end
+        end)
+    end
+
+
+
     -- Custom icon override (DB or per-player). Force a refresh by clearing first.
     local customIcon = TagIcons:get(p.UserId) or (cfg and cfg.icon)
     if e.av then
