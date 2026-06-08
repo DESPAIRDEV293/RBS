@@ -2810,39 +2810,9 @@ local function buildBill(p)
     })
     corner(bg, 23)
 
-    -- Tag special aura: drawn as a UIStroke around a transparent Frame that
-    -- exactly overlays `bg`. UIStroke does NOT render reliably on a
-    -- CanvasGroup (which bg is, so descendants can be UICorner-clipped), so
-    -- we host the stroke on a sibling Frame instead. The frame is transparent
-    -- and only the stroke is visible — guaranteed to wrap the pill shape and
-    -- never appear square.
-    local specialBorder = inst("Frame", gui, {
-        Name = "specialBorder",
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Size = UDim2.new(0, 0, 0, 0),
-        Position = UDim2.new(0, 0, 0, 6),
-        Visible = false,
-        ZIndex = 2,
-    })
-    corner(specialBorder, 23)
-    local specialStroke = inst("UIStroke", specialBorder, {
-        Enabled = false,
-        Color = Color3.fromRGB(255, 255, 255),
-        Thickness = 0,
-        Transparency = 1,
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-        LineJoinMode = Enum.LineJoinMode.Round,
-    })
-    local specialGrad = inst("UIGradient", specialStroke, {
-        Color = ColorSequence.new(Color3.fromRGB(255, 255, 255)),
-        Rotation = 0,
-    })
-    -- Legacy image aura: kept hidden so older references stay non-nil.
-    local aura = inst("ImageLabel", gui, {
-        Name = "specialAura", BackgroundTransparency = 1, Image = "",
-        Size = UDim2.new(1, 0, 1, 0), Visible = false, ZIndex = 0,
-    })
+    -- Tag-special aura objects removed entirely; old saved special values are
+    -- ignored so nothing can render a faint square/box behind the rounded tag.
+    local specialBorder, specialStroke, specialGrad, aura = nil, nil, nil, nil
 
     -- Debug overlay: shows the active special name + loop state when
     -- _G.__SeigeTagDebug is true. Toggled from the Tags panel.
