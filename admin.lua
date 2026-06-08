@@ -4770,7 +4770,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             if entry then
                 local parts = {}
                 if entry.tags and #entry.tags > 0 then for _, t in ipairs(entry.tags) do parts[#parts+1] = t end end
-                if entry.element and entry.element ~= "none" and entry.element ~= "" then parts[#parts+1] = "✦" .. entry.element end
                 tagText = (#parts > 0) and table.concat(parts, " · ") or "tagged"
             end
             inst("TextLabel", row, {
