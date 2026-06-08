@@ -5616,6 +5616,213 @@ cmdHandlers["anim"]     = function(arg) playAnimId(arg or "") end
 cmdHandlers["unreanim"] = function() _G.__StopReanim() end
 cmdHandlers["stopanim"] = function() stopAllReanimTracks(); notify("Tracks stopped", "good") end
 
+-- ================================================================
+-- New utility commands
+-- ================================================================
+
+-- 1) ESP — highlight every player through walls
+cmdHandlers["esp"] = function()
+    if _G.__ESPOn then
+        _G.__ESPOn = false
+        for _, p in ipairs(Players:GetPlayers()) do
+            local c = p.Character; if c then
+                local h = c:FindFirstChild("SeigeESP"); if h then h:Destroy() end
+            end
+        end
+        notify("ESP OFF", "warn"); return
+    end
+    _G.__ESPOn = true
+    local function applyESP(p)
+        if p == LP then return end
+        local c = p.Character; if not c or c:FindFirstChild("SeigeESP") then return end
+        local hi = Instance.new("Highlight")
+        hi.Name = "SeigeESP"
+        hi.FillColor = Color3.fromRGB(120, 180, 255)
+        hi.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hi.FillTransparency = 0.6
+        hi.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hi.Parent = c
+    end
+    for _, p in ipairs(Players:GetPlayers()) do applyESP(p) end
+    if not _G.__ESPConns then _G.__ESPConns = {} end
+    table.insert(_G.__ESPConns, Players.PlayerAdded:Connect(function(p)
+        p.CharacterAdded:Connect(function() task.wait(0.4); if _G.__ESPOn then applyESP(p) end end)
+    end))
+    for _, p in ipairs(Players:GetPlayers()) do
+        table.insert(_G.__ESPConns, p.CharacterAdded:Connect(function()
+            task.wait(0.4); if _G.__ESPOn then applyESP(p) end
+        end))
+    end
+    notify("ESP ON", "good")
+end
+cmdHandlers["unesp"] = cmdHandlers["esp"]
+
+-- 2) Fullbright — flat max ambient lighting
+cmdHandlers["fullbright"] = function()
+    local L = game:GetService("Lighting")
+    if _G.__FB then
+        for k, v in pairs(_G.__FB) do pcall(function() L[k] = v end) end
+        _G.__FB = nil; notify("Fullbright OFF", "warn"); return
+    end
+    _G.__FB = {
+        Ambient = L.Ambient, OutdoorAmbient = L.OutdoorAmbient,
+        Brightness = L.Brightness, FogEnd = L.FogEnd, ClockTime = L.ClockTime,
+        GlobalShadows = L.GlobalShadows,
+    }
+    pcall(function()
+        L.Ambient = Color3.fromRGB(178, 178, 178)
+        L.OutdoorAmbient = Color3.fromRGB(178, 178, 178)
+        L.Brightness = 2; L.FogEnd = 1e10; L.ClockTime = 14
+        L.GlobalShadows = false
+    end)
+    notify("Fullbright ON", "good")
+end
+cmdHandlers["fb"] = cmdHandlers["fullbright"]
+
+-- 3) Time of day
+cmdHandlers["time"] = function(arg)
+    local n = tonumber(arg); if not n then notify("Usage: !time 0-24", "warn"); return end
+    pcall(function() game:GetService("Lighting").ClockTime = n end); notify("Time " .. n, "good")
+end
+cmdHandlers["day"]   = function() pcall(function() game:GetService("Lighting").ClockTime = 14 end); notify("Day", "good") end
+cmdHandlers["night"] = function() pcall(function() game:GetService("Lighting").ClockTime = 0 end);  notify("Night", "good") end
+
+-- 4) Invisible — hide your character locally (transparent + can't be seen by camera)
+cmdHandlers["invis"] = function()
+    local c = LP.Character; if not c then notify("No character", "bad"); return end
+    _G.__InvisOn = not _G.__InvisOn
+    for _, d in ipairs(c:GetDescendants()) do
+        if d:IsA("BasePart") then
+            pcall(function() d.LocalTransparencyModifier = _G.__InvisOn and 1 or 0 end)
+        elseif d:IsA("Decal") or d:IsA("Texture") then
+            pcall(function() d.Transparency = _G.__InvisOn and 1 or 0 end)
+        end
+    end
+    notify(_G.__InvisOn and "Invisible (local)" or "Visible", "good")
+end
+cmdHandlers["visible"] = cmdHandlers["invis"]
+
+-- 5) Hat fling — spin and orbit accessories to fling nearby players
+cmdHandlers["hatspin"] = function()
+    local c = LP.Character; local h = c and c:FindFirstChildOfClass("Humanoid")
+    if not (c and h) then notify("No character", "bad"); return end
+    for _, acc in ipairs(c:GetChildren()) do
+        if acc:IsA("Accessory") then
+            local handle = acc:FindFirstChild("Handle")
+            if handle then
+                pcall(function()
+                    for _, w in ipairs(handle:GetChildren()) do
+                        if w:IsA("Weld") or w:IsA("Motor6D") then w:Destroy() end
+                    end
+                    handle.CanCollide = true; handle.Massless = true
+                    local bp = Instance.new("BodyAngularVelocity", handle)
+                    bp.AngularVelocity = Vector3.new(0, 1000, 0)
+                    bp.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+                end)
+            end
+        end
+    end
+    notify("Hat spin", "good")
+end
+
+-- 6) Size — scale your character
+cmdHandlers["size"] = function(arg)
+    local n = tonumber(arg) or 1
+    local h = getHum(); if not h then notify("No humanoid", "bad"); return end
+    for _, k in ipairs({"BodyDepthScale","BodyHeightScale","BodyWidthScale","HeadScale"}) do
+        local v = h:FindFirstChild(k); if v then pcall(function() v.Value = n end) end
+    end
+    notify("Size " .. n, "good")
+end
+
+-- 7) Ghost — transparent + noclip + no collide
+cmdHandlers["ghost"] = function()
+    _G.__GhostOn = not _G.__GhostOn
+    local c = LP.Character; if not c then notify("No character", "bad"); return end
+    for _, d in ipairs(c:GetDescendants()) do
+        if d:IsA("BasePart") then
+            pcall(function()
+                d.LocalTransparencyModifier = _G.__GhostOn and 0.7 or 0
+                d.CanCollide = not _G.__GhostOn
+            end)
+        end
+    end
+    if _G.__GhostOn then
+        noclip = true
+    else
+        noclip = false
+    end
+    notify(_G.__GhostOn and "Ghost mode" or "Ghost off", "good")
+end
+
+-- 8) Freecam — detach camera (WASD + mouse)
+cmdHandlers["freecam"] = function()
+    if _G.__FreecamOn then
+        _G.__FreecamOn = false
+        if _G.__FCConn then _G.__FCConn:Disconnect(); _G.__FCConn = nil end
+        cam.CameraType = Enum.CameraType.Custom
+        local h = hum(); if h then cam.CameraSubject = h end
+        notify("Freecam OFF", "warn"); return
+    end
+    _G.__FreecamOn = true
+    cam.CameraType = Enum.CameraType.Scriptable
+    local speed = 1
+    _G.__FCConn = RunService.RenderStepped:Connect(function(dt)
+        if not _G.__FreecamOn then return end
+        local m = 60 * dt * speed
+        local move = Vector3.zero
+        local UIS = game:GetService("UserInputService")
+        if UIS:IsKeyDown(Enum.KeyCode.W) then move = move + Vector3.new(0,0,-m) end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then move = move + Vector3.new(0,0, m) end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then move = move + Vector3.new(-m,0,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then move = move + Vector3.new( m,0,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.E) then move = move + Vector3.new(0, m,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.Q) then move = move + Vector3.new(0,-m,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then move = move * 3 end
+        cam.CFrame = cam.CFrame * CFrame.new(move)
+    end)
+    notify("Freecam ON  (WASD + EQ + Shift)", "good")
+end
+cmdHandlers["unfreecam"] = cmdHandlers["freecam"]
+
+-- 9) Server hop — teleport to a random public server
+cmdHandlers["hop"] = function()
+    notify("Searching server...", "good")
+    task.spawn(function()
+        local ok, list = pcall(function()
+            local raw = game:HttpGet(string.format(
+                "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", game.PlaceId))
+            return game:GetService("HttpService"):JSONDecode(raw)
+        end)
+        if ok and list and list.data then
+            for _, s in ipairs(list.data) do
+                if s.id ~= game.JobId and s.playing < s.maxPlayers then
+                    pcall(function() TeleportSrv:TeleportToPlaceInstance(game.PlaceId, s.id, LP) end)
+                    return
+                end
+            end
+        end
+        pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
+    end)
+end
+cmdHandlers["serverhop"] = cmdHandlers["hop"]
+
+-- 10) Chat say — send a message in chat from the command bar
+cmdHandlers["say"] = function(arg)
+    if not arg or arg == "" then notify("Usage: !say <message>", "warn"); return end
+    local TextChat = game:GetService("TextChatService")
+    local sent = pcall(function()
+        local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral") or TextChat.TextChannels:GetChildren()[1]
+        if ch then ch:SendAsync(arg) end
+    end)
+    if not sent then
+        pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents")
+                :WaitForChild("SayMessageRequest"):FireServer(arg, "All")
+        end)
+    end
+end
+
 cmdHandlers["pos"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
     local p = h.Position
