@@ -1758,7 +1758,8 @@ local function stripTagSpecials(entry)
     entry.sweep = nil
     entry.element = nil
     entry.special = nil
-    entry.aura = nil
+    -- aura (animated outline) is intentionally KEPT — it's a UIStroke + glow
+    -- effect, not a translucent box, so it doesn't trigger the legacy purge.
     return entry
 end
 
