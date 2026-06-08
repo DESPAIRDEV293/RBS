@@ -4172,6 +4172,89 @@ button(pgThemes, "Reset to default", function()
     end
 end)
 
+-- =============================================================
+-- ===== Typography & Animation customisation ==================
+-- =============================================================
+;(function()
+    section(pgThemes, "Typography")
+
+    -- Build font list from the actual Enum so we never reference missing fonts.
+    local FONT_PREF = {
+        "GothamBold","Gotham","GothamMedium","GothamSemibold","GothamBlack",
+        "BuilderSans","BuilderSansBold","BuilderSansExtraBold","BuilderSansMedium",
+        "SourceSans","SourceSansBold","SourceSansSemibold","SourceSansLight",
+        "Roboto","RobotoMono","Code","Highway","Arial","ArialBold",
+        "Bodoni","Garamond","Cartoon","Fantasy","Antique","Legacy",
+        "Oswald","Merriweather","Nunito","Ubuntu","Jura","Kalam",
+        "Creepster","DenkOne","Fondamento","Inconsolata","LuckiestGuy",
+        "PatrickHand","PermanentMarker","Sarpanch","Michroma",
+    }
+    local FONTS = {}
+    for _, n in ipairs(FONT_PREF) do
+        if pcall(function() return Enum.Font[n] end) and Enum.Font[n] then
+            table.insert(FONTS, n)
+        end
+    end
+    table.insert(FONTS, 1, "Default (mixed)")
+
+    -- Snapshot every text element's *original* font + size once, so font/size
+    -- changes can be re-applied without compounding.
+    local fontBaseline = {}
+    local function snapshot(d)
+        if fontBaseline[d] then return end
+        if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
+            fontBaseline[d] = { font = d.Font, size = d.TextSize }
+        end
+    end
+    for _, d in ipairs(Root:GetDescendants()) do snapshot(d) end
+    Root.DescendantAdded:Connect(snapshot)
+
+    _G.__SeigeFontOverride = _G.__SeigeFontOverride or "Default (mixed)"
+    _G.__SeigeFontScale    = _G.__SeigeFontScale    or 1.0
+
+    local function applyTypography()
+        local override = _G.__SeigeFontOverride
+        local scale    = tonumber(_G.__SeigeFontScale) or 1.0
+        local enumFont = (override ~= "Default (mixed)") and Enum.Font[override] or nil
+        for d, base in pairs(fontBaseline) do
+            if d.Parent then
+                pcall(function()
+                    d.Font     = enumFont or base.font
+                    d.TextSize = math.max(8, math.floor(base.size * scale + 0.5))
+                end)
+            end
+        end
+    end
+    _G.__SeigeApplyTypography = applyTypography
+
+    dropdown(pgThemes, "UI font family", FONTS, function(v)
+        _G.__SeigeFontOverride = v; applyTypography(); saveCfg()
+    end)
+    slider(pgThemes, "Text size (%)", 60, 180, 100, function(v)
+        _G.__SeigeFontScale = v / 100; applyTypography()
+    end)
+
+    section(pgThemes, "Bubble animations  (player tags)")
+    local BUBBLE = { "None", "Bounce", "Pulse", "Float", "Wobble", "Shake", "Heartbeat" }
+    _G.__SeigeBubbleAnim = _G.__SeigeBubbleAnim or "None"
+    dropdown(pgThemes, "Tag bubble animation", BUBBLE, function(v)
+        _G.__SeigeBubbleAnim = v; saveCfg()
+    end)
+    slider(pgThemes, "Bubble anim intensity", 0, 100, 50, function(v)
+        _G.__SeigeBubbleAmt = v / 100
+    end)
+
+    section(pgThemes, "Page / panel animations")
+    local PAGE = { "None", "Fade", "Scale", "Slide-down", "Slide-up", "Slide-right", "Flip", "Bounce" }
+    _G.__SeigePageAnim = _G.__SeigePageAnim or "Fade"
+    dropdown(pgThemes, "Panel open animation", PAGE, function(v)
+        _G.__SeigePageAnim = v; saveCfg()
+    end)
+    slider(pgThemes, "Animation speed (ms)", 80, 700, 240, function(v)
+        _G.__SeigePageAnimSpeed = v / 1000
+    end)
+end)()
+
 -- Restore saved theme/background/exec preferences after all UI exists.
 task.spawn(function()
     pcall(loadCfg)
