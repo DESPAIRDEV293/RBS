@@ -3328,7 +3328,7 @@ do
 end
 
 -- ===== Help panel: full command reference =====
-do
+(function()
 local HELP_CMDS = {
     { "Rejoin & teleport", {
         { "!rj", "Rejoin the same place (new server)" },
