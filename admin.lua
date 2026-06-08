@@ -8751,9 +8751,24 @@ end)()
         end)
     end
 
+    -- Shared registry of every player in this server who is running the
+    -- script. The admin panel (0rot3 only) reads this to list users.
+    _G.__SeigeScriptUsers = _G.__SeigeScriptUsers or {}
+    local function rememberUser(plr)
+        if not plr then return end
+        _G.__SeigeScriptUsers[plr.UserId] = {
+            userId = plr.UserId,
+            name = plr.Name,
+            displayName = plr.DisplayName,
+            lastSeen = tick(),
+        }
+    end
+    rememberUser(LP)
+
     local recent = {}
     local function pingFromUser(plr)
         if not plr then return end
+        rememberUser(plr)
         local uid = plr.UserId
         local now = tick()
         if recent[uid] and (now - recent[uid]) < 10 then return end
@@ -8776,6 +8791,74 @@ end)()
         end
     end
 
+    -- ===== !allp · top-banner broadcast (admin → all script users) =====
+    -- The marker is unusual enough that non-script users see only a glyph
+    -- soup if anything; script users intercept it via OnIncomingMessage and
+    -- render a top banner toast instead of letting the text reach chat.
+    local ALLP_MARK = "\226\159\166SEIGE-ALLP\226\159\167"  -- ⟦SEIGE-ALLP⟧
+
+    local function showAllpBanner(senderName, msg)
+        local banner = inst("Frame", Root, {
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, -120),
+            Size = UDim2.new(0, 460, 0, 64),
+            BackgroundColor3 = T.bg2,
+            BackgroundTransparency = 0.02,
+            BorderSizePixel = 0,
+            ZIndex = 50,
+        })
+        corner(banner, 12); stroke(banner, T.acc, 1.5, 0.15)
+        inst("Frame", banner, {
+            Size = UDim2.new(0, 4, 1, -16), Position = UDim2.new(0, 8, 0, 8),
+            BackgroundColor3 = T.acc, BorderSizePixel = 0, ZIndex = 51,
+        })
+        inst("TextLabel", banner, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 22, 0, 6), Size = UDim2.new(1, -60, 0, 18),
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.acc,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "Message from " .. (senderName or "admin"),
+            ZIndex = 51,
+        })
+        inst("TextLabel", banner, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 22, 0, 26), Size = UDim2.new(1, -60, 0, 34),
+            Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            TextWrapped = true,
+            Text = msg or "",
+            ZIndex = 51,
+        })
+        local closeBtn = inst("TextButton", banner, {
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -8, 0, 8),
+            Size = UDim2.new(0, 26, 0, 26),
+            BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2,
+            AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+            Text = "×", ZIndex = 52,
+        })
+        corner(closeBtn, 6); stroke(closeBtn, T.line, 1, 0.4)
+        local function dismiss()
+            tween(banner, 0.2, { Position = UDim2.new(0.5, 0, 0, -120), BackgroundTransparency = 1 })
+            task.wait(0.22); banner:Destroy()
+        end
+        closeBtn.MouseButton1Click:Connect(function() task.spawn(dismiss) end)
+        tween(banner, 0.22, { Position = UDim2.new(0.5, 0, 0, 24) })
+        task.delay(15, function() if banner.Parent then task.spawn(dismiss) end end)
+    end
+
+    -- Public hook so cmdHandlers["allp"] (defined elsewhere) can broadcast.
+    _G.__SeigeAllpSend = function(msg)
+        msg = tostring(msg or ""):gsub("[\r\n]+", " ")
+        if msg == "" then return false, "empty" end
+        if #msg > 280 then msg = msg:sub(1, 280) end
+        showAllpBanner(LP.DisplayName or LP.Name, msg)  -- show on our own screen too
+        broadcast(ALLP_MARK .. msg)
+        return true
+    end
+
     -- True if the message is just an ellipsis (our exec marker).
     -- Strip whitespace so "  …  " still matches.
     local function isExecMark(text)
@@ -8784,7 +8867,19 @@ end)()
         return t == PUBLIC_MARK or t == PUBLIC_ALT
     end
 
+    local function isAllpMark(text)
+        return type(text) == "string" and text:sub(1, #ALLP_MARK) == ALLP_MARK
+    end
+
     local function handleText(text, srcPlayer)
+        if isAllpMark(text) then
+            if srcPlayer then rememberUser(srcPlayer) end
+            if srcPlayer and srcPlayer ~= LP then
+                local body = text:sub(#ALLP_MARK + 1)
+                showAllpBanner(srcPlayer.DisplayName or srcPlayer.Name, body)
+            end
+            return true
+        end
         if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
             pingFromUser(srcPlayer)
@@ -8817,6 +8912,9 @@ end)()
         if p ~= LP then hookChatted(p) end
     end
     bind(Players.PlayerAdded:Connect(hookChatted))
+    bind(Players.PlayerRemoving:Connect(function(p)
+        if _G.__SeigeScriptUsers then _G.__SeigeScriptUsers[p.UserId] = nil end
+    end))
 
     -- Broadcast our own execution and show our own card immediately
     showExecNotif(LP.UserId, LP.DisplayName, LP.Name)
