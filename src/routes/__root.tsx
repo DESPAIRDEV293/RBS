@@ -77,14 +77,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
+      { title: "Seigeloadstring" },
+      { name: "description", content: "Roblox Script Buddy is a tool for managing and customizing Roblox game scripts and player tags." },
       { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { property: "og:title", content: "Seigeloadstring" },
+      { property: "og:description", content: "Roblox Script Buddy is a tool for managing and customizing Roblox game scripts and player tags." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "Seigeloadstring" },
+      { name: "twitter:description", content: "Roblox Script Buddy is a tool for managing and customizing Roblox game scripts and player tags." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/0b10e169-947c-4998-a137-45ddec6b295c/id-preview-f18bc9c6--9cc69d4f-b5d0-456b-878c-80800e55ce94.lovable.app-1780951363867.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/0b10e169-947c-4998-a137-45ddec6b295c/id-preview-f18bc9c6--9cc69d4f-b5d0-456b-878c-80800e55ce94.lovable.app-1780951363867.png" },
     ],
     links: [
       {
