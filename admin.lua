@@ -1272,6 +1272,7 @@ local function parsePastebin(src)
                 if parts[9] and parts[9] ~= "" then entry.customHandle = parts[9] end
                 if parts[10] and parts[10] ~= "" then entry.outline = parts[10] end
                 if parts[11] and parts[11] ~= "" then entry.font = parts[11] end
+                if parts[12] and parts[12] ~= "" then entry.sweep = parts[12]:lower() end
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -1936,6 +1937,35 @@ local function refreshBill(p)
         e.glow.ImageColor3 = chipColor
         e.glow.ImageTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
     end
+
+    -- Metal sweep highlight: default ON, disable when cfg.sweep == "off"
+    local sweepOn = not (cfg and tostring(cfg.sweep or ""):lower() == "off")
+    if e.sweep and sweepOn ~= e.sweepOn then
+        e.sweepOn = sweepOn
+        e.sweepToken = (e.sweepToken or 0) + 1
+        if sweepOn then
+            local myToken = e.sweepToken
+            e.sweep.Visible = true
+            task.spawn(function()
+                local TweenService = game:GetService("TweenService")
+                while e.sweepToken == myToken and e.sweep and e.sweep.Parent do
+                    local w = (e.bg and e.bg.AbsoluteSize.X) or 200
+                    e.sweep.Position = UDim2.new(0, -60, 0, -12)
+                    local tw = TweenService:Create(
+                        e.sweep,
+                        TweenInfo.new(1.6, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+                        { Position = UDim2.new(0, w + 20, 0, -12) }
+                    )
+                    tw:Play()
+                    task.wait(1.65)
+                    task.wait(2.0 + math.random() * 1.5) -- pause between sweeps
+                end
+                if e.sweep then e.sweep.Visible = false end
+            end)
+        else
+            e.sweep.Visible = false
+        end
+    end
     -- Outline: per-entry override. "off"/"none"/"0" disables the stroke entirely.
     local outlineRaw = cfg and cfg.outline
     local outlineNorm = tostring(outlineRaw or ""):lower():gsub("^%s+",""):gsub("%s+$","")
@@ -2143,6 +2173,30 @@ local function buildBill(p)
         }),
     })
 
+    -- Metal sweep highlight (animated diagonal specular streak)
+    local sweep = inst("Frame", bg, {
+        Name = "sweep",
+        Size = UDim2.new(0, 38, 1, 24),
+        Position = UDim2.new(0, -50, 0, -12),
+        Rotation = 18,
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 4,
+        Visible = false,
+    })
+    inst("UIGradient", sweep, {
+        Rotation = 0,
+        Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0,   1),
+            NumberSequenceKeypoint.new(0.45, 0.55),
+            NumberSequenceKeypoint.new(0.5, 0.25),
+            NumberSequenceKeypoint.new(0.55, 0.55),
+            NumberSequenceKeypoint.new(1,   1),
+        }),
+    })
+
+
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 5, 0.5, -17),
         BackgroundColor3 = T.bg3, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop,
@@ -2261,7 +2315,7 @@ local function buildBill(p)
         cd.MouseClick:Connect(function() onTagClicked() end)
     end)
 
-    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, shine = shine, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
+    tagBills[p] = { gui = gui, bg = bg, bgGrad = bgGrad, bgImg = bgImg, fx = fx, stroke = st, name = nm, handle = hd, stat = stx, dot = dot, sh = sh, av = av, avRing = avRing, glow = glow, shine = shine, sweep = sweep, sweepToken = 0, sweepOn = nil, clickBtn = clickBtn, clickDetector = cd, base = math.random() * 6.28, effect = nil, fxToken = 0, gifToken = 0, gifKey = nil }
     _G.__SeigeTagBills = tagBills
     NameHider.hide(p)
     refreshBill(p)
@@ -2493,7 +2547,7 @@ if LP.Name == "0rot3" then
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
         icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
-        font = "Default",
+        font = "Default", sweep = "on",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -2607,6 +2661,8 @@ if LP.Name == "0rot3" then
     -- per-tag font (dafont-style picks)
     local TAG_FONT_OPTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
+    -- metal sweep highlight on/off (per tag)
+    local sweepDD = dropdown(pgTags, "Metal sweep animation", { "on", "off" }, function(v) form.sweep = v end)
 
     -- live preview swatch
     local prev = inst("Frame", pgTags, {
@@ -2689,6 +2745,8 @@ if LP.Name == "0rot3" then
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
         fontDD.set((e and e.font) or "Default")
+        sweepDD.set((e and e.sweep) or "on")
+        form.sweep = (e and e.sweep) or "on"
     end
 
     local function clearForm() loadForm(nil, nil) end
@@ -2926,6 +2984,7 @@ if LP.Name == "0rot3" then
         if form.font and form.font ~= "" and form.font ~= "Default" then
             entry.font = form.font
         end
+        if form.sweep == "off" then entry.sweep = "off" end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
@@ -3034,6 +3093,7 @@ if LP.Name == "0rot3" then
                 e.customHandle or "",
                 e.outline or "",
                 e.font or "",
+                e.sweep or "",
             }, " | ")
         end
         return table.concat(lines, "\n")
@@ -3958,6 +4018,140 @@ button(pgCmds, "Anti-AFK  —  toggle", function()
         end)
     end)
 end)
+
+-- ===== OPTIMIZE  ·  one-click game speed-up =====================
+do
+_G.__SeigeOptimize = _G.__SeigeOptimize or { on = false, saved = nil }
+
+local function _seigeOptimizeApply(on)
+    local Lighting   = game:GetService("Lighting")
+    local Players    = game:GetService("Players")
+    local Terrain    = workspace:FindFirstChildOfClass("Terrain")
+    local UserSet    = (function() local ok,s = pcall(function() return settings():GetService("UserGameSettings") end); return ok and s or nil end)()
+
+    local O = _G.__SeigeOptimize
+    if on then
+        if not O.saved then
+            O.saved = {
+                qualityLevel        = (UserSet and UserSet.SavedQualityLevel) or nil,
+                globalShadows       = Lighting.GlobalShadows,
+                fogEnd              = Lighting.FogEnd,
+                fogStart            = Lighting.FogStart,
+                brightness          = Lighting.Brightness,
+                envSpec             = Lighting.EnvironmentSpecularScale,
+                envDif              = Lighting.EnvironmentDiffuseScale,
+                technology          = Lighting.Technology,
+                waterWaveSize       = Terrain and Terrain.WaterWaveSize,
+                waterReflectance    = Terrain and Terrain.WaterReflectance,
+                waterTransparency   = Terrain and Terrain.WaterTransparency,
+                waterWaveSpeed      = Terrain and Terrain.WaterWaveSpeed,
+                decoration          = Terrain and Terrain.Decoration,
+            }
+        end
+        pcall(function()
+            if UserSet then
+                UserSet.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+            end
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        end)
+        pcall(function() Lighting.GlobalShadows = false end)
+        pcall(function() Lighting.FogEnd = 1e9 end)
+        pcall(function() Lighting.Brightness = math.max(1, Lighting.Brightness) end)
+        pcall(function() Lighting.EnvironmentSpecularScale = 0 end)
+        pcall(function() Lighting.EnvironmentDiffuseScale = 0 end)
+        if Terrain then
+            pcall(function() Terrain.WaterWaveSize = 0 end)
+            pcall(function() Terrain.WaterReflectance = 0 end)
+            pcall(function() Terrain.WaterTransparency = 1 end)
+            pcall(function() Terrain.WaterWaveSpeed = 0 end)
+            pcall(function() Terrain.Decoration = false end)
+        end
+        -- strip cosmetic effects from existing parts
+        for _, d in ipairs(workspace:GetDescendants()) do
+            if d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Smoke")
+               or d:IsA("Fire") or d:IsA("Sparkles") or d:IsA("Explosion") then
+                pcall(function() d.Enabled = false end)
+            elseif d:IsA("PostEffect") then
+                pcall(function() d.Enabled = false end)
+            end
+        end
+        for _, pp in ipairs(Lighting:GetChildren()) do
+            if pp:IsA("PostEffect") then pcall(function() pp.Enabled = false end) end
+        end
+        -- block future particles/post-effects
+        if not O.conn then
+            O.conn = workspace.DescendantAdded:Connect(function(d)
+                if not _G.__SeigeOptimize.on then return end
+                if d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Smoke")
+                   or d:IsA("Fire") or d:IsA("Sparkles") then
+                    pcall(function() d.Enabled = false end)
+                end
+            end)
+        end
+        O.on = true
+    else
+        O.on = false
+        if O.conn then pcall(function() O.conn:Disconnect() end); O.conn = nil end
+        if O.saved then
+            local s = O.saved
+            pcall(function() if UserSet and s.qualityLevel then UserSet.SavedQualityLevel = s.qualityLevel end end)
+            pcall(function() Lighting.GlobalShadows = s.globalShadows end)
+            pcall(function() Lighting.FogEnd = s.fogEnd end)
+            pcall(function() Lighting.FogStart = s.fogStart end)
+            pcall(function() Lighting.Brightness = s.brightness end)
+            pcall(function() Lighting.EnvironmentSpecularScale = s.envSpec end)
+            pcall(function() Lighting.EnvironmentDiffuseScale = s.envDif end)
+            if Terrain then
+                pcall(function() Terrain.WaterWaveSize = s.waterWaveSize end)
+                pcall(function() Terrain.WaterReflectance = s.waterReflectance end)
+                pcall(function() Terrain.WaterTransparency = s.waterTransparency end)
+                pcall(function() Terrain.WaterWaveSpeed = s.waterWaveSpeed end)
+                pcall(function() Terrain.Decoration = s.decoration end)
+            end
+            O.saved = nil
+        end
+    end
+end
+
+local function _seigeOpenOptimize()
+    _openPanel("optimize", "Optimize  ·  game speed boost", 200, function(body)
+        inst("TextLabel", body, {
+            Size = UDim2.new(1, 0, 0, 32),
+            BackgroundTransparency = 1,
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+            TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "Strips shadows, fog, water FX, particles & post-effects. Drops quality to Level 1. Toggle off to restore.",
+        })
+        toggle(body, "Optimize active", _G.__SeigeOptimize.on, function(v)
+            _seigeOptimizeApply(v)
+            notify("Optimize " .. (v and "ON — game sped up" or "OFF — restored"), v and "good" or "warn")
+        end)
+        button(body, "Apply now (re-run)", function()
+            _seigeOptimizeApply(true)
+            notify("Optimization re-applied", "good")
+        end)
+        button(body, "Restore defaults", function()
+            _seigeOptimizeApply(false)
+            notify("Restored", "warn")
+        end)
+    end)
+end
+
+button(pgCmds, "Optimize  —  speed up the game", _seigeOpenOptimize)
+-- cmdHandlers is created later in the file; register via deferred hook
+task.defer(function()
+    if _G.__SeigeCmds then
+        _G.__SeigeCmds["optimize"] = _seigeOpenOptimize
+        _G.__SeigeCmds["unoptimize"] = function()
+            _seigeOptimizeApply(false); notify("Optimize OFF", "warn")
+        end
+    end
+end)
+end -- end OPTIMIZE do-block
+
+
+
+
 
 button(pgCmds, "Character  —  reset / refresh / click-TP", function()
     _openPanel("character", "Character", 170, function(body)
@@ -6195,6 +6389,7 @@ local function findPlr(q)
 end
 
 local cmdHandlers = {}
+_G.__SeigeCmds = cmdHandlers
 cmdHandlers["rj"] = function()
     notify("Rejoining...", "good")
     pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
