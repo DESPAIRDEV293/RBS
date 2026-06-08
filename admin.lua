@@ -6998,7 +6998,7 @@ _G.__SeigeApplyIconImages = applyIconImages
 
 
 saveCfg = function()
-    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled, tagElements = tagElements }
+    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled }
     for k,v in pairs(T) do
         if typeof(v) == "Color3" then data.theme[k] = cToHex(v) end
     end
@@ -7032,13 +7032,6 @@ loadCfg = function()
         panelBgState.icons = (type(data.panelBg.icons) == "table") and data.panelBg.icons or {}
         applyPanelBg()
         pcall(applyIconImages)
-    end
-    if type(data.tagElements) == "table" then
-        for k, v in pairs(data.tagElements) do
-            if type(k) == "string" and type(v) == "string" then
-                tagElements[k:lower()] = v
-            end
-        end
     end
 end
 
