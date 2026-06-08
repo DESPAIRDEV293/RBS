@@ -2245,11 +2245,11 @@ if LP.Name == "0rot3" then
         AutomaticSize = Enum.AutomaticSize.Y,
         BackgroundTransparency = 1,
     })
-    inst("UIListLayout", presetRow, {
-        FillDirection = Enum.FillDirection.Horizontal,
-        Padding = UDim.new(0, 4),
+    inst("UIGridLayout", presetRow, {
+        CellSize = UDim2.new(0, 92, 0, 26),
+        CellPadding = UDim2.new(0, 4, 0, 4),
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Wraps = true,
+        HorizontalAlignment = Enum.HorizontalAlignment.Left,
     })
     for _, pr in ipairs(GRAD_PRESETS) do
         local fill = parseFill(pr.spec)
