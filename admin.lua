@@ -2787,6 +2787,34 @@ local function refreshBill(p)
         end
     end
 
+    -- ── Aura: animated outline that replaces the static stroke + fills the
+    -- pill with a transparent interior so only the avatar/text and the aura
+    -- ring show through. Switching aura (or clearing it) tears down the
+    -- previous aura's tweens / glow frames cleanly.
+    do
+        local desired = Auras.canonical(cfg and cfg.aura)
+        if e.auraName ~= desired then
+            if e.auraStop then pcall(e.auraStop); e.auraStop = nil end
+            e.auraName = desired
+            if desired then
+                -- hide the normal bg fill + outline so the aura is the only ring
+                if e.stroke then e.stroke.Enabled = false end
+                if e.bgImg  then e.bgImg.Visible = false end
+                if e.bgGrad then e.bgGrad.Color = ColorSequence.new(Color3.new(1,1,1)) end
+                e.bg.BackgroundTransparency = 1
+                e.auraStop = Auras.apply(e.bg, desired)
+            end
+        elseif desired then
+            -- aura unchanged but other code above may have re-enabled the
+            -- stroke / fill; force them off again every refresh.
+            if e.stroke then e.stroke.Enabled = false end
+            if e.bgImg  then e.bgImg.Visible = false end
+            e.bg.BackgroundTransparency = 1
+        end
+    end
+
+
+
     -- Auto-size bubble to text content. We measure both the display name
     -- and the @handle (always using the FULL strings, never the in-progress
     -- text from a typewriter/glitch effect) so the pill snugly hugs the
