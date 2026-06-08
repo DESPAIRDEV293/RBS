@@ -3683,7 +3683,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         TextSize = 10,
         TextColor3 = T.dim,
         TextXAlignment = Enum.TextXAlignment.Left,
-        Text = "Paste this text into pastebin.com/wySWnyme to save permanently:",
+        Text = "Export of current tag data (auto-synced to GitHub; copy below if you need it manually):",
     })
     local exportFrame = inst("Frame", pgTags, {
         Size = UDim2.new(1, -8, 0, 120),
