@@ -2961,12 +2961,83 @@ local function _openCmd(s)
     else notify("Command bar not ready", "warn") end
 end
 
+-- Floating slider popup for numeric commands (e.g. !ws, !jp)
+local _openSliders
+do
+    local current
+    _openSliders = function(title, cmd, sliders)
+        if current then pcall(function() current:Destroy() end); current = nil end
+        local gui = inst("ScreenGui", nil, {
+            Name = "SeigeSliderPopup", IgnoreGuiInset = true, ResetOnSpawn = false,
+            DisplayOrder = 220,
+        })
+        safeParent(gui)
+        current = gui
+        local win = inst("Frame", gui, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 280, 0, 40 + #sliders * 58 + 12),
+            BackgroundColor3 = T.bg, BorderSizePixel = 0, ZIndex = 220,
+        })
+        corner(win, 10); stroke(win, T.line, 1, 0.3)
+        local bar = inst("Frame", win, {
+            Size = UDim2.new(1, 0, 0, 32),
+            BackgroundColor3 = T.bg2, BorderSizePixel = 0, ZIndex = 221,
+        })
+        corner(bar, 10)
+        inst("TextLabel", bar, {
+            BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 0),
+            Size = UDim2.new(1, -44, 1, 0), Font = Enum.Font.GothamBold, TextSize = 13,
+            TextColor3 = T.text, TextXAlignment = Enum.TextXAlignment.Left,
+            Text = title, ZIndex = 222,
+        })
+        local closeBtn = inst("TextButton", bar, {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.new(0, 22, 0, 22),
+            BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+            Text = "✕", ZIndex = 222,
+        })
+        corner(closeBtn, 6)
+        closeBtn.MouseButton1Click:Connect(function() gui:Destroy(); current = nil end)
+        -- drag
+        do
+            local dragging, startPos, startMouse
+            bar.InputBegan:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true; startPos = win.Position; startMouse = i.Position
+                end
+            end)
+            UIS.InputChanged:Connect(function(i)
+                if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                    local d = i.Position - startMouse
+                    win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+                end
+            end)
+            UIS.InputEnded:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+            end)
+        end
+        local body = inst("Frame", win, {
+            Position = UDim2.new(0, 6, 0, 36),
+            Size = UDim2.new(1, -12, 1, -42),
+            BackgroundTransparency = 1, ZIndex = 221,
+        })
+        local list = inst("UIListLayout", body, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+        for _, s in ipairs(sliders) do
+            slider(body, s.label, s.lo, s.hi, s.default, function(v)
+                local n = math.floor(v + 0.5)
+                _runCmd(cmd .. " " .. tostring(n))
+            end)
+        end
+    end
+end
+
 button(pgCmds, "Open Command Bar (F6)", function() _openCmd("!") end)
 
 -- No-arg commands run immediately
 button(pgCmds, "!rj  —  rejoin same server",                function() _runCmd("!rj") end)
 button(pgCmds, "!tprj  —  rejoin & restore position",        function() _runCmd("!tprj") end)
-button(pgCmds, "!r / !rejoin  —  rejoin",                    function() _runCmd("!r") end)
 button(pgCmds, "!reset / !respawn",                          function() _runCmd("!reset") end)
 button(pgCmds, "!jump",                                      function() _runCmd("!jump") end)
 button(pgCmds, "!heal",                                      function() _runCmd("!heal") end)
@@ -2985,9 +3056,19 @@ button(pgCmds, "!help",                                      function() _runCmd(
 button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
 button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
 
--- Arg commands open the bar prefilled
-button(pgCmds, "!ws / !speed <n>",      function() _openCmd("!ws ") end)
-button(pgCmds, "!jp <n>",               function() _openCmd("!jp ") end)
+-- Numeric commands open a slider popup
+button(pgCmds, "!ws / !speed  —  slider", function()
+    _openSliders("WalkSpeed  ·  !ws", "!ws", {
+        { label = "Speed", lo = 0, hi = 200, default = 16 },
+    })
+end)
+button(pgCmds, "!jp  —  slider", function()
+    _openSliders("JumpPower  ·  !jp", "!jp", {
+        { label = "Jump Power", lo = 0, hi = 500, default = 50 },
+    })
+end)
+
+-- Player-target commands open the bar prefilled
 button(pgCmds, "!goto / !tp <player>",  function() _openCmd("!goto ") end)
 button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
 button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
