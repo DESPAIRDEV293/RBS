@@ -3035,7 +3035,7 @@ end)
 -- In-game GUI to add/edit/remove tag entries without touching code or pastebin.
 -- Changes apply LIVE to everyone in the server. Export button copies a
 -- pastebin-formatted text block to your clipboard so you can save permanently.
-if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
+if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
   if LP.Name == OWNER_NAME then
     local EFFECT_OPTS = { "none", "rain", "snow", "sparkle", "nebula" }
     local TEXTFX_OPTS = { "none", "glitch", "type", "explode" }
@@ -5382,7 +5382,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
     end)
     end -- end !usay gate
     end -- end if not _ntOnly (script-users + management sections)
-end
+end)() end
 
 
 
