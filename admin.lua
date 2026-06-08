@@ -3610,6 +3610,128 @@ if LP.Name == "0rot3" then
     _G.__SeigePbPush = function() if pbCfg.autoPush then pushToPastebin(true) end end
 
     rebuildList()
+
+    ------------------------------------------------------------------
+    -- ADMIN PANEL  ·  visible only to 0rot3
+    -- Lists detected script users in this server (same-server only — Roblox
+    -- client scripts can't see other servers or IPs without a backend) and
+    -- exposes admin-only commands like !allp.
+    ------------------------------------------------------------------
+    local pgAdmin = makeTab("Admin", "★", "Admin-only · script users in this server, broadcast commands")
+
+    section(pgAdmin, "Script users in this server")
+    label(pgAdmin, "Detected via chat heartbeat. Roblox doesn't expose IPs to client scripts — that requires a backend.")
+
+    local usersList = inst("Frame", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.4,
+        BorderSizePixel = 0,
+    })
+    corner(usersList, 8); stroke(usersList, T.line, 1, 0.5)
+    inst("UIListLayout", usersList, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+    inst("UIPadding", usersList, {
+        PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+    })
+    local countLbl = label(pgAdmin, "0 users detected")
+
+    local function rebuildUsers()
+        for _, c in ipairs(usersList:GetChildren()) do
+            if not (c:IsA("UIListLayout") or c:IsA("UIPadding") or c:IsA("UICorner") or c:IsA("UIStroke")) then
+                c:Destroy()
+            end
+        end
+        local reg = _G.__SeigeScriptUsers or {}
+        local rows = {}
+        for _, info in pairs(reg) do
+            local plr = Players:GetPlayerByUserId(info.userId)
+            if plr then rows[#rows+1] = { plr = plr, info = info } end
+        end
+        table.sort(rows, function(a, b) return a.plr.Name:lower() < b.plr.Name:lower() end)
+        for _, r in ipairs(rows) do
+            local plr, info = r.plr, r.info
+            local entry = TagDB and TagDB.entries and TagDB.entries[plr.Name:lower()] or nil
+            local row = inst("Frame", usersList, {
+                Size = UDim2.new(1, 0, 0, 44),
+                BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35,
+                BorderSizePixel = 0,
+            })
+            corner(row, 6); stroke(row, T.line, 1, 0.5)
+            local av = inst("ImageLabel", row, {
+                Size = UDim2.new(0, 32, 0, 32),
+                Position = UDim2.new(0, 6, 0.5, -16),
+                BackgroundColor3 = T.bg, BorderSizePixel = 0,
+                Image = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(info.userId) .. "&w=48&h=48",
+            })
+            corner(av, 16)
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 46, 0, 4), Size = UDim2.new(1, -54, 0, 18),
+                Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = (entry and entry.displayName) or plr.DisplayName or plr.Name,
+            })
+            local tagText = "no tag"
+            if entry then
+                local parts = {}
+                if entry.tags and #entry.tags > 0 then for _, t in ipairs(entry.tags) do parts[#parts+1] = t end end
+                if entry.element and entry.element ~= "none" and entry.element ~= "" then parts[#parts+1] = "✦" .. entry.element end
+                tagText = (#parts > 0) and table.concat(parts, " · ") or "tagged"
+            end
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 46, 0, 22), Size = UDim2.new(1, -54, 0, 18),
+                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = "@" .. plr.Name .. "  ·  " .. tagText,
+            })
+        end
+        countLbl:set(#rows .. " user" .. (#rows == 1 and "" or "s") .. " detected")
+    end
+    rebuildUsers()
+    button(pgAdmin, "Refresh list", rebuildUsers)
+    task.spawn(function()
+        while pgAdmin.Parent do task.wait(5); pcall(rebuildUsers) end
+    end)
+
+    section(pgAdmin, "Admin commands")
+    label(pgAdmin, "!allp <message> — sends a private top-banner toast to every script user in this server.")
+
+    -- !allp composer
+    local allpFrame = inst("Frame", pgAdmin, {
+        Size = UDim2.new(1, -8, 0, 76),
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3,
+        BorderSizePixel = 0,
+    })
+    corner(allpFrame, 8); stroke(allpFrame, T.line, 1, 0.5)
+    local allpBox = inst("TextBox", allpFrame, {
+        BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+        Position = UDim2.new(0, 10, 0, 10), Size = UDim2.new(1, -20, 0, 30),
+        PlaceholderText = "Message to broadcast (≤280 chars)…",
+        PlaceholderColor3 = T.dim,
+        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ClearTextOnFocus = false,
+    })
+    corner(allpBox, 6); stroke(allpBox, T.line, 1, 0.4)
+    local sendBtn = inst("TextButton", allpFrame, {
+        Position = UDim2.new(0, 10, 0, 44), Size = UDim2.new(1, -20, 0, 26),
+        BackgroundColor3 = T.acc, BackgroundTransparency = 0.1, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        Text = "Send !allp to all script users",
+    })
+    corner(sendBtn, 6); stroke(sendBtn, T.line, 1, 0.4)
+    sendBtn.MouseButton1Click:Connect(function()
+        local txt = allpBox.Text or ""
+        if txt:gsub("%s", "") == "" then notify("Type a message first", "warn"); return end
+        if cmdHandlers and cmdHandlers["allp"] then
+            cmdHandlers["allp"](txt)
+            allpBox.Text = ""
+        else
+            notify("Command not ready", "bad")
+        end
+    end)
 end
 
 
@@ -8503,6 +8625,18 @@ cmdHandlers["help"] = function()
     if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() else notify("Help panel not ready", "warn") end
 end
 
+-- Admin-only broadcast: send a private banner message to every script user
+-- in this server. Non-script users see nothing (marker is filtered out of chat).
+cmdHandlers["allp"] = function(arg)
+    if LP.Name ~= "0rot3" then notify("!allp is admin-only", "bad"); return end
+    local msg = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if msg == "" then notify("Usage: !allp <message>", "warn"); return end
+    if not _G.__SeigeAllpSend then notify("Broadcast not ready", "bad"); return end
+    local ok, err = _G.__SeigeAllpSend(msg)
+    if ok then notify("Sent to all script users", "good")
+    else notify("Send failed: " .. tostring(err), "bad") end
+end
+
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
@@ -8751,9 +8885,24 @@ end)()
         end)
     end
 
+    -- Shared registry of every player in this server who is running the
+    -- script. The admin panel (0rot3 only) reads this to list users.
+    _G.__SeigeScriptUsers = _G.__SeigeScriptUsers or {}
+    local function rememberUser(plr)
+        if not plr then return end
+        _G.__SeigeScriptUsers[plr.UserId] = {
+            userId = plr.UserId,
+            name = plr.Name,
+            displayName = plr.DisplayName,
+            lastSeen = tick(),
+        }
+    end
+    rememberUser(LP)
+
     local recent = {}
     local function pingFromUser(plr)
         if not plr then return end
+        rememberUser(plr)
         local uid = plr.UserId
         local now = tick()
         if recent[uid] and (now - recent[uid]) < 10 then return end
@@ -8776,6 +8925,74 @@ end)()
         end
     end
 
+    -- ===== !allp · top-banner broadcast (admin → all script users) =====
+    -- The marker is unusual enough that non-script users see only a glyph
+    -- soup if anything; script users intercept it via OnIncomingMessage and
+    -- render a top banner toast instead of letting the text reach chat.
+    local ALLP_MARK = "\226\159\166SEIGE-ALLP\226\159\167"  -- ⟦SEIGE-ALLP⟧
+
+    local function showAllpBanner(senderName, msg)
+        local banner = inst("Frame", Root, {
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, -120),
+            Size = UDim2.new(0, 460, 0, 64),
+            BackgroundColor3 = T.bg2,
+            BackgroundTransparency = 0.02,
+            BorderSizePixel = 0,
+            ZIndex = 50,
+        })
+        corner(banner, 12); stroke(banner, T.acc, 1.5, 0.15)
+        inst("Frame", banner, {
+            Size = UDim2.new(0, 4, 1, -16), Position = UDim2.new(0, 8, 0, 8),
+            BackgroundColor3 = T.acc, BorderSizePixel = 0, ZIndex = 51,
+        })
+        inst("TextLabel", banner, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 22, 0, 6), Size = UDim2.new(1, -60, 0, 18),
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.acc,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "Message from " .. (senderName or "admin"),
+            ZIndex = 51,
+        })
+        inst("TextLabel", banner, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 22, 0, 26), Size = UDim2.new(1, -60, 0, 34),
+            Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            TextWrapped = true,
+            Text = msg or "",
+            ZIndex = 51,
+        })
+        local closeBtn = inst("TextButton", banner, {
+            AnchorPoint = Vector2.new(1, 0),
+            Position = UDim2.new(1, -8, 0, 8),
+            Size = UDim2.new(0, 26, 0, 26),
+            BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2,
+            AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+            Text = "×", ZIndex = 52,
+        })
+        corner(closeBtn, 6); stroke(closeBtn, T.line, 1, 0.4)
+        local function dismiss()
+            tween(banner, 0.2, { Position = UDim2.new(0.5, 0, 0, -120), BackgroundTransparency = 1 })
+            task.wait(0.22); banner:Destroy()
+        end
+        closeBtn.MouseButton1Click:Connect(function() task.spawn(dismiss) end)
+        tween(banner, 0.22, { Position = UDim2.new(0.5, 0, 0, 24) })
+        task.delay(15, function() if banner.Parent then task.spawn(dismiss) end end)
+    end
+
+    -- Public hook so cmdHandlers["allp"] (defined elsewhere) can broadcast.
+    _G.__SeigeAllpSend = function(msg)
+        msg = tostring(msg or ""):gsub("[\r\n]+", " ")
+        if msg == "" then return false, "empty" end
+        if #msg > 280 then msg = msg:sub(1, 280) end
+        showAllpBanner(LP.DisplayName or LP.Name, msg)  -- show on our own screen too
+        broadcast(ALLP_MARK .. msg)
+        return true
+    end
+
     -- True if the message is just an ellipsis (our exec marker).
     -- Strip whitespace so "  …  " still matches.
     local function isExecMark(text)
@@ -8784,7 +9001,19 @@ end)()
         return t == PUBLIC_MARK or t == PUBLIC_ALT
     end
 
+    local function isAllpMark(text)
+        return type(text) == "string" and text:sub(1, #ALLP_MARK) == ALLP_MARK
+    end
+
     local function handleText(text, srcPlayer)
+        if isAllpMark(text) then
+            if srcPlayer then rememberUser(srcPlayer) end
+            if srcPlayer and srcPlayer ~= LP then
+                local body = text:sub(#ALLP_MARK + 1)
+                showAllpBanner(srcPlayer.DisplayName or srcPlayer.Name, body)
+            end
+            return true
+        end
         if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
             pingFromUser(srcPlayer)
@@ -8817,6 +9046,9 @@ end)()
         if p ~= LP then hookChatted(p) end
     end
     bind(Players.PlayerAdded:Connect(hookChatted))
+    bind(Players.PlayerRemoving:Connect(function(p)
+        if _G.__SeigeScriptUsers then _G.__SeigeScriptUsers[p.UserId] = nil end
+    end))
 
     -- Broadcast our own execution and show our own card immediately
     showExecNotif(LP.UserId, LP.DisplayName, LP.Name)
