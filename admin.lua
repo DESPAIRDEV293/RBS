@@ -2263,13 +2263,15 @@ do
         local g1 = glow(pill, Color3.fromRGB(255, 225, 0), 0.78, 5, -1)
         local s  = strokeOn(pill, Color3.fromRGB(255, 230, 0), 1.5)
         local t, conns = 0, {}
-        conns[#conns+1] = RunService.Heartbeat:Connect(function(dt)
+        local conn; conn = RunService.Heartbeat:Connect(function(dt)
+            if not pill or not pill.Parent then conn:Disconnect() return end
             t = t + dt
             local v = math.abs(math.sin(t * 18) * math.sin(t * 11.3))
             s.Thickness = 1.2 + v * 4.0
             s.Color = Color3.new(1, 0.88 + v * 0.12, v * 0.3)
             g1.BackgroundTransparency = 0.65 + (1 - v) * 0.22
         end)
+        conns[#conns+1] = conn
         return cleanup({g1, s}, conns)
     end
     function Auras.Void(pill)
