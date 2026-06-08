@@ -3506,6 +3506,11 @@ local tintBox = textbox(pgShaders, "Tint hex (#ffffff)", function(s)
         if ok then fxColor.TintColor = c end
     end
 end)
+button(pgShaders, "Clear tint (reset to white)", function()
+    fxColor.TintColor = Color3.new(1, 1, 1)
+    if tintBox then tintBox.Text = "" end
+    notify("Tint cleared", "good")
+end)
 
 section(pgShaders, "Depth of field")
 toggle(pgShaders, "Enable DOF", false, function(v) fxDOF.Enabled = v end)
