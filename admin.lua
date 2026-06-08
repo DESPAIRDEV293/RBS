@@ -3035,6 +3035,72 @@ do
     end
 end
 
+-- Generic floating panel (X close + drag) for arbitrary toggles/sliders/buttons.
+-- builder(body) receives a Frame with a vertical UIListLayout already attached.
+local _openPanel
+do
+    local active = {}
+    _openPanel = function(key, title, height, builder)
+        if active[key] then pcall(function() active[key]:Destroy() end); active[key] = nil; return end
+        local gui = inst("ScreenGui", nil, {
+            Name = "SeigePanelPopup_" .. tostring(key),
+            IgnoreGuiInset = true, ResetOnSpawn = false,
+            DisplayOrder = 220, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        })
+        safeParent(gui)
+        active[key] = gui
+        local win = inst("Frame", gui, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 300, 0, height or 200),
+            BackgroundColor3 = T.bg, BorderSizePixel = 0,
+        })
+        corner(win, 10); stroke(win, T.line, 1, 0.3)
+        local bar = inst("Frame", win, {
+            Size = UDim2.new(1, 0, 0, 32),
+            BackgroundColor3 = T.bg2, BorderSizePixel = 0,
+        })
+        corner(bar, 10)
+        inst("TextLabel", bar, {
+            BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 0),
+            Size = UDim2.new(1, -44, 1, 0), Font = Enum.Font.GothamBold, TextSize = 13,
+            TextColor3 = T.text, TextXAlignment = Enum.TextXAlignment.Left, Text = title,
+        })
+        local closeBtn = inst("TextButton", bar, {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.new(0, 22, 0, 22),
+            BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text, Text = "✕",
+        })
+        corner(closeBtn, 6)
+        closeBtn.MouseButton1Click:Connect(function() gui:Destroy(); active[key] = nil end)
+        do
+            local dragging, startPos, startMouse
+            bar.InputBegan:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true; startPos = win.Position; startMouse = i.Position
+                end
+            end)
+            UIS.InputChanged:Connect(function(i)
+                if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                    local d = i.Position - startMouse
+                    win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+                end
+            end)
+            UIS.InputEnded:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+            end)
+        end
+        local body = inst("Frame", win, {
+            Position = UDim2.new(0, 6, 0, 36),
+            Size = UDim2.new(1, -12, 1, -42),
+            BackgroundTransparency = 1,
+        })
+        inst("UIListLayout", body, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+        pcall(builder, body)
+    end
+end
+
 button(pgCmds, "Open Command Bar (F6)", function() _openCmd("!") end)
 
 -- No-arg commands run immediately
