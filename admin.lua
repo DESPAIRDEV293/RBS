@@ -5799,7 +5799,7 @@ end
 cmdHandlers["reanimdata"] = function(arg) playKeyframeData(arg or "", 1) end
 
 _G.__PlayReanimText = playKeyframeData -- expose to the popout's "Play" button
-end  -- end keyframe-data scope
+end)()  -- end keyframe-data scope
 
 cmdHandlers["reanim"] = function(arg)
     arg = (arg or ""):gsub("^%s+",""):gsub("%s+$","")
