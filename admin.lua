@@ -3630,9 +3630,19 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         rebuildList()
         clearForm()
         local sok, serr = TagDB:saveLocal()
-        if sok then notify("Saved tag for " .. u .. " (persisted)", "good")
-        else notify("Saved tag for " .. u .. " — local save failed: " .. tostring(serr), "warn") end
+        -- "writefile not available" just means the executor doesn't expose
+        -- filesystem APIs — the tag is still applied in-game and (below)
+        -- pushed to pastebin, so don't scare the user with a failure toast.
+        local noFs = (not sok) and tostring(serr or ""):find("writefile not available", 1, true)
+        if sok then
+            notify("Saved tag for " .. u .. " (persisted)", "good")
+        elseif noFs then
+            notify("Saved tag for " .. u .. " — syncing to pastebin", "good")
+        else
+            notify("Saved tag for " .. u .. " — local save failed: " .. tostring(serr), "warn")
+        end
         if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
+
     end)
 
     button(pgTags, "Clear form / new entry", function() clearForm() end)
