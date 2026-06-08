@@ -6566,7 +6566,7 @@ do
     end
 end
 
-
+-- Pill compact toggle (hides stats/icons/clock, leaves a hamburger)
 do
     local collapsed = false
     local hidden = { brandBlock, fpsBox, pingBox, iconsRow, clockBox }
