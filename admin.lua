@@ -5754,7 +5754,6 @@ local function _openResultPanel(key, title, rows, opts)
     end)
 end
 _G.__SeigeOpenResultPanel = _openResultPanel
-do return end
 
 -- ===== Help panel: full command reference =====
 (function()
