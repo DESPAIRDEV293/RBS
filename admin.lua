@@ -6250,7 +6250,7 @@ end)()
 -- preferred order on the pill
 local tabOrder = {
     "Profile", "Players", "World",
-    "Tags", "Cmds", "Themes", "Shaders", "Detector", "Config",
+    "Tags", "Cmds", "Spotify", "Themes", "Shaders", "Detector", "Config",
 }
 -- Per-tab image icons (rbxassetid). Images should be white on transparent bg.
 local tabImages = {
