@@ -4515,33 +4515,203 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
     ------------------------------------------------------------------
     if _G.__SeigeCan("manage_roles") then
         section(pgAdmin, "Roles & permissions")
-        label(pgAdmin, "Grant a Roblox user access to this Admin panel. Owner (0rot3) is hardcoded.")
+        label(pgAdmin, "Click any staff card to manage them. Owner (0rot3) is hardcoded and cannot be changed.")
 
-        local rolesList = inst("Frame", pgAdmin, {
-            Size = UDim2.new(1, -8, 0, 0),
-            AutomaticSize = Enum.AutomaticSize.Y,
+        local ROLE_ORDER  = { "admin", "staff", "nt" }
+        local ROLE_COLORS = { owner = T.bad, admin = T.acc, staff = T.good, nt = T.sub }
+
+        -- Cache username → userId so avatars persist across rebuilds.
+        local _userIdCache = {}
+        local function _avatarFor(name)
+            local lower = name:lower()
+            local uid = _userIdCache[lower]
+            if uid then return "rbxthumb://type=AvatarHeadShot&id=" .. uid .. "&w=48&h=48" end
+            -- Try live player first
+            local plr = Players:FindFirstChild(name)
+            if plr then
+                _userIdCache[lower] = plr.UserId
+                return "rbxthumb://type=AvatarHeadShot&id=" .. plr.UserId .. "&w=48&h=48"
+            end
+            return nil
+        end
+        local function _resolveUserIdAsync(name, cb)
+            local lower = name:lower()
+            if _userIdCache[lower] then cb(_userIdCache[lower]); return end
+            task.spawn(function()
+                local ok, id = pcall(function() return Players:GetUserIdFromNameAsync(name) end)
+                if ok and id then _userIdCache[lower] = id; cb(id) end
+            end)
+        end
+
+        -- Selected staff state (drives the editor card below)
+        local selected = nil  -- { name = string, role = string }
+
+        local rolesScroll = inst("ScrollingFrame", pgAdmin, {
+            Size = UDim2.new(1, -8, 0, 240),
             BackgroundColor3 = T.bg2, BackgroundTransparency = 0.4,
             BorderSizePixel = 0,
+            ScrollBarThickness = 4, ScrollBarImageColor3 = T.acc,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            CanvasSize = UDim2.new(0, 0, 0, 0),
         })
-        corner(rolesList, 8); stroke(rolesList, T.line, 1, 0.5)
-        inst("UIListLayout", rolesList, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
-        inst("UIPadding", rolesList, {
-            PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+        corner(rolesScroll, 8); stroke(rolesScroll, T.line, 1, 0.5)
+        inst("UIListLayout", rolesScroll, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+        inst("UIPadding", rolesScroll, {
+            PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8),
             PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
         })
 
         local rolesCountLbl = label(pgAdmin, "0 roles configured (owner is hardcoded)")
 
-        local ROLE_ORDER = { "admin", "staff", "nt" }
-        local ROLE_COLORS = {
-            owner = T.bad,
-            admin = T.acc,
-            staff = T.good,
-            nt    = T.sub,
-        }
+        ----------------------------------------------------------------
+        -- Editor card: shows the currently selected staff and lets you
+        -- change their role or remove them. Hidden until something is
+        -- selected. Also doubles as the "add new staff" entry point.
+        ----------------------------------------------------------------
+        local editor = inst("Frame", pgAdmin, {
+            Size = UDim2.new(1, -8, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.25,
+            BorderSizePixel = 0,
+        })
+        corner(editor, 8); stroke(editor, T.acc, 1, 0.5)
+        inst("UIPadding", editor, {
+            PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12),
+            PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
+        })
+        inst("UIListLayout", editor, { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder })
 
-        local function rebuildRoles()
-            for _, c in ipairs(rolesList:GetChildren()) do
+        -- Header row: avatar + name + current role pill
+        local headerRow = inst("Frame", editor, {
+            Size = UDim2.new(1, 0, 0, 56), BackgroundTransparency = 1, LayoutOrder = 1,
+        })
+        local editAv = inst("ImageLabel", headerRow, {
+            Size = UDim2.new(0, 48, 0, 48),
+            Position = UDim2.new(0, 0, 0.5, -24),
+            BackgroundColor3 = T.bg, BorderSizePixel = 0,
+        })
+        corner(editAv, 24); stroke(editAv, T.acc, 1, 0.4)
+        local editName = inst("TextLabel", headerRow, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 58, 0, 6), Size = UDim2.new(1, -58, 0, 20),
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "No staff selected",
+        })
+        local editRolePill = inst("TextLabel", headerRow, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 58, 0, 30), Size = UDim2.new(1, -58, 0, 18),
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "Pick someone from the list or enter a new username below.",
+        })
+
+        -- Username box (used when adding a brand-new staff)
+        local nameBox = inst("TextBox", editor, {
+            BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+            Size = UDim2.new(1, 0, 0, 30), LayoutOrder = 2,
+            PlaceholderText = "Roblox username (to add a new staff)",
+            PlaceholderColor3 = T.dim,
+            Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+            ClearTextOnFocus = false,
+        })
+        corner(nameBox, 6); stroke(nameBox, T.line, 1, 0.4)
+
+        -- Role chips (act immediately on selected/typed user)
+        local chipsRow = inst("Frame", editor, {
+            Size = UDim2.new(1, 0, 0, 32), BackgroundTransparency = 1, LayoutOrder = 3,
+        })
+        inst("UIListLayout", chipsRow, {
+            FillDirection = Enum.FillDirection.Horizontal,
+            Padding = UDim.new(0, 6),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        })
+
+        local roleBtns = {}
+        local rebuildRoles  -- forward
+        local function applyRole(role)
+            local target = (selected and selected.name) or ((nameBox.Text or ""):gsub("^%s+",""):gsub("%s+$",""))
+            if target == "" then notify("Pick a staff or type a username first", "warn"); return end
+            if target:lower() == OWNER_NAME:lower() then notify("Owner is hardcoded", "warn"); return end
+            local ok, err = _G.__SeigeSetRole(target, role)
+            if ok then
+                notify("@" .. target .. " → " .. (_G.__SeigeRoleLabel(role) or role), "good")
+                selected = { name = target, role = role }
+                nameBox.Text = ""
+                if rebuildRoles then rebuildRoles() end
+            else
+                notify("Failed: " .. tostring(err), "bad")
+            end
+        end
+
+        for i, r in ipairs(ROLE_ORDER) do
+            local b = inst("TextButton", chipsRow, {
+                Size = UDim2.new(0, 90, 0, 28),
+                BackgroundColor3 = ROLE_COLORS[r] or T.bg3, BackgroundTransparency = 0.15,
+                AutoButtonColor = false, BorderSizePixel = 0,
+                Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
+                Text = "● " .. (_G.__SeigeRoleLabel(r) or r),
+                LayoutOrder = i,
+            })
+            corner(b, 6); stroke(b, T.line, 1, 0.4)
+            b.MouseButton1Click:Connect(function() applyRole(r) end)
+            roleBtns[r] = b
+        end
+
+        -- Remove button (only meaningful when a staff is selected)
+        local removeBtn = inst("TextButton", editor, {
+            Size = UDim2.new(1, 0, 0, 26), LayoutOrder = 4,
+            BackgroundColor3 = T.bad, BackgroundTransparency = 0.2, AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+            Text = "Remove selected staff",
+            Visible = false,
+        })
+        corner(removeBtn, 6); stroke(removeBtn, T.line, 1, 0.4)
+        removeBtn.MouseButton1Click:Connect(function()
+            if not selected then return end
+            local ok, err = _G.__SeigeSetRole(selected.name, nil)
+            if ok then
+                notify("Removed @" .. selected.name, "good")
+                selected = nil
+                if rebuildRoles then rebuildRoles() end
+            else
+                notify("Remove failed: " .. tostring(err), "bad")
+            end
+        end)
+
+        local function updateEditor()
+            if selected then
+                editName.Text = "@" .. selected.name
+                editRolePill.Text = "Current role: " .. (_G.__SeigeRoleLabel(selected.role) or selected.role)
+                editRolePill.TextColor3 = ROLE_COLORS[selected.role] or T.sub
+                removeBtn.Visible = true
+                local img = _avatarFor(selected.name)
+                if img then editAv.Image = img
+                else
+                    editAv.Image = ""
+                    _resolveUserIdAsync(selected.name, function(id)
+                        if selected and selected.name:lower() == (selected.name):lower() then
+                            editAv.Image = "rbxthumb://type=AvatarHeadShot&id=" .. id .. "&w=48&h=48"
+                        end
+                    end)
+                end
+            else
+                editName.Text = "No staff selected"
+                editRolePill.Text = "Pick someone from the list or enter a new username below."
+                editRolePill.TextColor3 = T.sub
+                removeBtn.Visible = false
+                editAv.Image = ""
+            end
+        end
+        updateEditor()
+
+        ----------------------------------------------------------------
+        -- Build the clickable staff list
+        ----------------------------------------------------------------
+        rebuildRoles = function()
+            for _, c in ipairs(rolesScroll:GetChildren()) do
                 if not (c:IsA("UIListLayout") or c:IsA("UIPadding") or c:IsA("UICorner") or c:IsA("UIStroke")) then
                     c:Destroy()
                 end
@@ -4559,117 +4729,76 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
             end)
 
             for _, e in ipairs(entries) do
-                local row = inst("Frame", rolesList, {
-                    Size = UDim2.new(1, 0, 0, 40),
-                    BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35,
-                    BorderSizePixel = 0,
+                local isSelected = selected and selected.name:lower() == e.name:lower()
+                local card = inst("TextButton", rolesScroll, {
+                    Size = UDim2.new(1, 0, 0, 58),
+                    BackgroundColor3 = isSelected and T.acc or T.bg3,
+                    BackgroundTransparency = isSelected and 0.05 or 0.35,
+                    AutoButtonColor = false, BorderSizePixel = 0,
+                    Text = "", AutoLocalize = false,
                 })
-                corner(row, 6); stroke(row, T.line, 1, 0.5)
-                inst("TextLabel", row, {
+                corner(card, 8); stroke(card, isSelected and T.acc or T.line, 1, isSelected and 0.1 or 0.5)
+
+                -- Avatar
+                local av = inst("ImageLabel", card, {
+                    Size = UDim2.new(0, 42, 0, 42),
+                    Position = UDim2.new(0, 8, 0.5, -21),
+                    BackgroundColor3 = T.bg, BorderSizePixel = 0,
+                })
+                corner(av, 21)
+                local img = _avatarFor(e.name)
+                if img then av.Image = img
+                else
+                    _resolveUserIdAsync(e.name, function(id)
+                        av.Image = "rbxthumb://type=AvatarHeadShot&id=" .. id .. "&w=48&h=48"
+                    end)
+                end
+
+                -- Name
+                inst("TextLabel", card, {
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 10, 0, 4), Size = UDim2.new(1, -20, 0, 16),
-                    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+                    Position = UDim2.new(0, 58, 0, 8), Size = UDim2.new(1, -150, 0, 18),
+                    Font = Enum.Font.GothamBold, TextSize = 13,
+                    TextColor3 = isSelected and T.bg or T.text,
                     TextXAlignment = Enum.TextXAlignment.Left,
                     Text = "@" .. e.name,
                 })
-                inst("TextLabel", row, {
+                -- Role badge
+                inst("TextLabel", card, {
                     BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 10, 0, 20), Size = UDim2.new(0, 110, 0, 16),
+                    Position = UDim2.new(0, 58, 0, 30), Size = UDim2.new(1, -150, 0, 18),
                     Font = Enum.Font.Gotham, TextSize = 11,
-                    TextColor3 = ROLE_COLORS[e.role] or T.sub,
+                    TextColor3 = isSelected and T.bg or (ROLE_COLORS[e.role] or T.sub),
                     TextXAlignment = Enum.TextXAlignment.Left,
-                    Text = "● " .. (_G.__SeigeRoleLabel(e.role) or e.role),
+                    Text = "● " .. (_G.__SeigeRoleLabel(e.role) or e.role) .. (e.locked and "  ·  hardcoded" or ""),
                 })
-                if not e.locked then
-                    local rm = inst("TextButton", row, {
-                        AnchorPoint = Vector2.new(1, 0.5),
-                        Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.new(0, 60, 0, 22),
-                        BackgroundColor3 = T.bad, BackgroundTransparency = 0.15, AutoButtonColor = false,
-                        Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
-                        Text = "Remove",
-                    })
-                    corner(rm, 5); stroke(rm, T.line, 1, 0.4)
-                    rm.MouseButton1Click:Connect(function()
-                        local ok, err = _G.__SeigeSetRole(e.name, nil)
-                        if ok then notify("Removed @" .. e.name, "good"); rebuildRoles()
-                        else notify("Remove failed: " .. tostring(err), "bad") end
-                    end)
-                else
-                    inst("TextLabel", row, {
-                        BackgroundTransparency = 1,
-                        AnchorPoint = Vector2.new(1, 0.5),
-                        Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.new(0, 80, 0, 16),
-                        Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.dim,
-                        TextXAlignment = Enum.TextXAlignment.Right,
-                        Text = "hardcoded",
-                    })
-                end
+                -- Tap-to-edit hint
+                inst("TextLabel", card, {
+                    BackgroundTransparency = 1,
+                    AnchorPoint = Vector2.new(1, 0.5),
+                    Position = UDim2.new(1, -12, 0.5, 0), Size = UDim2.new(0, 90, 0, 18),
+                    Font = Enum.Font.Gotham, TextSize = 10,
+                    TextColor3 = isSelected and T.bg or T.dim,
+                    TextXAlignment = Enum.TextXAlignment.Right,
+                    Text = e.locked and "owner" or (isSelected and "selected" or "tap to edit"),
+                })
+
+                card.MouseButton1Click:Connect(function()
+                    if e.locked then
+                        notify("Owner is hardcoded and cannot be edited", "warn")
+                        return
+                    end
+                    selected = { name = e.name, role = e.role }
+                    updateEditor()
+                    rebuildRoles()
+                end)
             end
 
             local n = 0
             for _ in pairs(_G.__SeigeRoleMap or {}) do n = n + 1 end
             rolesCountLbl:set(n .. " role" .. (n == 1 and "" or "s") .. " configured (owner is hardcoded)")
+            updateEditor()
         end
-
-        -- Add/assign form
-        local addFrame = inst("Frame", pgAdmin, {
-            Size = UDim2.new(1, -8, 0, 108),
-            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3,
-            BorderSizePixel = 0,
-        })
-        corner(addFrame, 8); stroke(addFrame, T.line, 1, 0.5)
-        local nameBox = inst("TextBox", addFrame, {
-            BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
-            Position = UDim2.new(0, 10, 0, 10), Size = UDim2.new(1, -20, 0, 28),
-            PlaceholderText = "Roblox username",
-            PlaceholderColor3 = T.dim,
-            Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
-            TextXAlignment = Enum.TextXAlignment.Left, Text = "",
-            ClearTextOnFocus = false,
-        })
-        corner(nameBox, 6); stroke(nameBox, T.line, 1, 0.4)
-
-        local pickedRole = "admin"
-        local roleBtns = {}
-        local function refreshRoleBtns()
-            for r, b in pairs(roleBtns) do
-                b.BackgroundColor3 = (r == pickedRole) and T.acc or T.bg3
-                b.BackgroundTransparency = (r == pickedRole) and 0.05 or 0.25
-            end
-        end
-        for i, r in ipairs(ROLE_ORDER) do
-            local b = inst("TextButton", addFrame, {
-                Position = UDim2.new(0, 10 + (i - 1) * 88, 0, 46),
-                Size = UDim2.new(0, 80, 0, 26),
-                BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25, AutoButtonColor = false,
-                Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
-                Text = _G.__SeigeRoleLabel(r),
-            })
-            corner(b, 5); stroke(b, T.line, 1, 0.4)
-            roleBtns[r] = b
-            b.MouseButton1Click:Connect(function() pickedRole = r; refreshRoleBtns() end)
-        end
-        refreshRoleBtns()
-
-        local saveBtn = inst("TextButton", addFrame, {
-            Position = UDim2.new(0, 10, 0, 78), Size = UDim2.new(1, -20, 0, 24),
-            BackgroundColor3 = T.good, BackgroundTransparency = 0.1, AutoButtonColor = false,
-            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
-            Text = "Assign / update role",
-        })
-        corner(saveBtn, 5); stroke(saveBtn, T.line, 1, 0.4)
-        saveBtn.MouseButton1Click:Connect(function()
-            local nm = (nameBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
-            if nm == "" then notify("Enter a username", "warn"); return end
-            local ok, err = _G.__SeigeSetRole(nm, pickedRole)
-            if ok then
-                notify("Set @" .. nm .. " → " .. (_G.__SeigeRoleLabel(pickedRole) or pickedRole), "good")
-                nameBox.Text = ""
-                rebuildRoles()
-            else
-                notify("Failed: " .. tostring(err), "bad")
-            end
-        end)
 
         rebuildRoles()
     end
