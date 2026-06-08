@@ -5560,6 +5560,45 @@ slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
     s.Scale = v
 end)
 
+section(pgConfig, "World Image (Skybox)")
+label(pgConfig, "Upload your own cubed skybox — 6 face asset IDs")
+do
+    local Lighting = game:GetService("Lighting")
+    local function norm(v)
+        v = tostring(v or ""):gsub("%s+", "")
+        if v == "" then return "" end
+        if v:match("^%d+$") then return "rbxassetid://" .. v end
+        return v
+    end
+    local faces = { Up = "", Dn = "", Lf = "", Rt = "", Ft = "", Bk = "" }
+    local labels = { Up = "Top (Up)", Dn = "Bottom (Down)", Lf = "Left", Rt = "Right", Ft = "Front", Bk = "Back" }
+    for _, k in ipairs({ "Up", "Dn", "Lf", "Rt", "Ft", "Bk" }) do
+        textbox(pgConfig, labels[k] .. " asset id or URL", function(v) faces[k] = norm(v) end)
+    end
+    button(pgConfig, "Apply Skybox", function()
+        for _, c in ipairs(Lighting:GetChildren()) do
+            if c:IsA("Sky") then c:Destroy() end
+        end
+        local sky = Instance.new("Sky")
+        sky.Name = "__SeigeSky"
+        sky.SkyboxUp    = faces.Up
+        sky.SkyboxDn    = faces.Dn
+        sky.SkyboxLf    = faces.Lf
+        sky.SkyboxRt    = faces.Rt
+        sky.SkyboxFt    = faces.Ft
+        sky.SkyboxBk    = faces.Bk
+        sky.Parent = Lighting
+        notify("Skybox applied", "ok")
+    end)
+    button(pgConfig, "Reset Skybox", function()
+        for _, c in ipairs(Lighting:GetChildren()) do
+            if c:IsA("Sky") then c:Destroy() end
+        end
+        notify("Skybox reset", "ok")
+    end)
+end
+
+
 section(pgConfig, "About")
 label(pgConfig, "seige.lol admin")
 label(pgConfig, "Build " .. ADMIN_BUILD)
