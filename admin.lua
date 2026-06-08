@@ -3523,7 +3523,34 @@ button(pgCmds, "!esp  —  highlight all players",         function() _runCmd("!
 button(pgCmds, "!fullbright  —  flat max lighting",      function() _runCmd("!fullbright") end)
 button(pgCmds, "!day  /  !night",                        function() _openCmd("!day") end)
 button(pgCmds, "!time <0-24>",                           function() _openCmd("!time ") end)
-button(pgCmds, "!invis  —  hide your character",         function() _runCmd("!invis") end)
+button(pgCmds, "Invis  —  toggle + keybind", function()
+    _openPanel("invis", "Invis  ·  local hide", 160, function(body)
+        toggle(body, "Invisible", _G.__InvisOn or false, function(s)
+            local c = LP.Character
+            if not c then notify("No character", "warn"); return end
+            applyInvisState(s)
+            notify(s and "Invisible (local)" or "Visible", "good")
+        end)
+        local awaiting = false
+        local keyBtn
+        keyBtn = button(body, "Toggle key: " .. ((_G.__InvisKey and _G.__InvisKey.Name) or "F7") .. "  (click to set)", function()
+            awaiting = not awaiting
+            keyBtn.Text = awaiting and "Press any key…" or ("Toggle key: " .. ((_G.__InvisKey and _G.__InvisKey.Name) or "F7") .. "  (click to set)")
+        end)
+        local keyConn = UIS.InputBegan:Connect(function(i, gp)
+            if not awaiting then return end
+            if gp then return end
+            if i.UserInputType == Enum.UserInputType.Keyboard then
+                _G.__InvisKey = i.KeyCode
+                awaiting = false
+                keyBtn.Text = "Toggle key: " .. i.KeyCode.Name .. "  (click to set)"
+            end
+        end)
+        body.AncestryChanged:Connect(function()
+            if not body.Parent then pcall(function() keyConn:Disconnect() end) end
+        end)
+    end)
+end)
 button(pgCmds, "!ghost  —  transparent + noclip",        function() _runCmd("!ghost") end)
 button(pgCmds, "!size <n>",                              function() _openCmd("!size ") end)
 button(pgCmds, "!hatspin  —  fling spinning accessories",function() _runCmd("!hatspin") end)
