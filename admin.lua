@@ -1970,7 +1970,10 @@ if LP.Name == "DESPAIRDEV293" then
         local entry = {}
         if form.displayName ~= "" then entry.displayName = form.displayName end
         if form.color ~= "" then entry.color = form.color end
-        if form.icon ~= "" then entry.icon = form.icon end
+        if form.icon ~= "" then
+            local cleanId = tostring(form.icon):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
+            if cleanId ~= "" then entry.icon = cleanId end
+        end
         if form.effect and form.effect ~= "none" then entry.effect = form.effect end
         if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
         if form.tags ~= "" then
