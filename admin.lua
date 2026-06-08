@@ -6294,17 +6294,17 @@ end)()
 
 -- preferred order on the pill
 local tabOrder = {
-    "Profile", "Players", "World",
-    "Tags", "Cmds", "Spotify", "Themes", "Shaders", "Detector", "Config",
+    "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Skybox", "Misc",
 }
 -- Per-tab image icons (rbxassetid). Images should be white on transparent bg.
 local tabImages = {
-    Profile = "rbxassetid://72672681350713",   -- profile
+    Profile = "rbxassetid://72672681350713",   -- player
     Players = "rbxassetid://133507370080897",  -- users
-    Shaders = "rbxassetid://89184279571938",   -- shaders
     Cmds    = "rbxassetid://79760780173556",   -- command
-    Config  = "rbxassetid://125262243617493",  -- settings
+    Shaders = "rbxassetid://89184279571938",   -- shaders
     Spotify = "rbxassetid://103992944497423",  -- music
+    Config  = "rbxassetid://125262243617493",  -- settings
+    Skybox  = "rbxassetid://115487520048176",  -- skybox
 }
 -- include any tabs that weren't listed (forward-compat)
 for n, _ in pairs(tabs) do
