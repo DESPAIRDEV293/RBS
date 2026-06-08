@@ -2299,6 +2299,9 @@ end
 -- Loops are token-guarded so re-applying or removing the special cancels
 -- the previous coroutine cleanly.
 local function _animLoop(e, token, runFrame)
+    if _G.__SeigeReducedMotion then
+        return
+    end
     task.spawn(function()
         local t0 = os.clock()
         while e.aura and e.aura.Parent and e.specialAnimToken == token do
