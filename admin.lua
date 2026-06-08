@@ -4112,6 +4112,216 @@ local function makePanel(name, entry)
     return frame
 end
 
+-------------------------------------------------- DETECTOR (other scripts)
+do
+    -- Known script signatures: name -> patterns to match in URLs / source / GUI names
+    local KNOWN = {
+        { name = "AKADMIN (absent.wtf)",  patterns = { "absent%.wtf", "AKADMIN" }, gui = { "AKAdmin", "AKADMIN" } },
+        { name = "Novoline",              patterns = { "novoline%.pro", "novoline" }, gui = { "Novoline" } },
+        { name = "Infinite Yield",        patterns = { "EdgeIY/infiniteyield", "infiniteyield", "Infinite Yield" }, gui = { "IY", "InfiniteYield" } },
+        { name = "Dex Explorer",          patterns = { "Dex%.lua", "Moon%-Dex", "dex%-v4" }, gui = { "Dex", "DexExplorer" } },
+        { name = "Owl Hub",               patterns = { "owlhub", "Owl Hub" }, gui = { "OwlHub" } },
+        { name = "Hydroxide",             patterns = { "Hydroxide", "Upholstery" }, gui = {} },
+        { name = "Synapse X UI",          patterns = { "synapse" }, gui = { "Synapse" } },
+        { name = "Script-Ware",           patterns = { "script%-ware", "scriptware" }, gui = { "ScriptWare" } },
+        { name = "Krnl",                  patterns = { "krnl%." }, gui = { "Krnl" } },
+        { name = "Fluxus",                patterns = { "fluxus" }, gui = { "Fluxus" } },
+        { name = "Rayfield UI",           patterns = { "Rayfield", "shlexware/Rayfield" }, gui = { "Rayfield" } },
+        { name = "Linoria / OrionLib",    patterns = { "Linoria", "OrionLib", "orion%.lua" }, gui = { "Orion", "Linoria" } },
+        { name = "Reviz Admin",           patterns = { "Reviz%.lua", "reviz admin" }, gui = { "RevizAdmin" } },
+        { name = "Nameless Admin",        patterns = { "Nameless Admin", "nameless%-admin" }, gui = { "NamelessAdmin" } },
+        { name = "SEIGE.LOL (this)",      patterns = { "DESPAIRDEV293", "roblox%-script%-buddy", "seige%.lol" }, gui = { "SeigeAdmin", "Admin_v" } },
+    }
+
+    local detected = {}      -- name -> { source, url, time }
+    local listeners = {}
+
+    local section = section
+    local label   = label
+    local button  = button
+    local toggle  = toggle
+
+    section(pgDetect, "Live detector")
+    local statusLbl = label(pgDetect, "Status: armed — watching for HttpGet / loadstring calls")
+    local countLbl  = label(pgDetect, "Detected: 0")
+
+    -- scrolling list area
+    local listScroll = inst("ScrollingFrame", pgDetect, {
+        Size = UDim2.new(1, -8, 0, 220),
+        BackgroundColor3 = T.bg2,
+        BackgroundTransparency = 0.3,
+        BorderSizePixel = 0,
+        ScrollBarThickness = 4,
+        CanvasSize = UDim2.new(0,0,0,0),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y,
+    })
+    corner(listScroll, 8); stroke(listScroll, T.line, 1, 0.5)
+    local listLayout = inst("UIListLayout", listScroll, {
+        Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder,
+    })
+    inst("UIPadding", listScroll, { PaddingTop = UDim.new(0,6), PaddingLeft = UDim.new(0,6), PaddingRight = UDim.new(0,6), PaddingBottom = UDim.new(0,6) })
+
+    local function refresh()
+        local n = 0
+        for _ in pairs(detected) do n = n + 1 end
+        countLbl:set(("Detected: %d"):format(n))
+        for _, c in ipairs(listScroll:GetChildren()) do
+            if c:IsA("Frame") then c:Destroy() end
+        end
+        for name, info in pairs(detected) do
+            local row = inst("Frame", listScroll, {
+                Size = UDim2.new(1, -4, 0, 44),
+                BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2,
+                BorderSizePixel = 0,
+            })
+            corner(row, 6); stroke(row, T.line, 1, 0.5)
+            inst("UIPadding", row, { PaddingLeft = UDim.new(0,8), PaddingRight = UDim.new(0,8) })
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 18), Position = UDim2.new(0,0,0,4),
+                Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+                TextXAlignment = Enum.TextXAlignment.Left, Text = "● " .. name,
+            })
+            inst("TextLabel", row, {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 16), Position = UDim2.new(0,0,0,22),
+                Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                Text = (info.source or "?") .. (info.url and (" — " .. info.url:sub(1,60)) or ""),
+            })
+        end
+    end
+
+    local function flag(name, source, url)
+        if detected[name] then
+            -- update url if we have a fresher one
+            if url and not detected[name].url then detected[name].url = url end
+            return
+        end
+        detected[name] = { source = source, url = url, time = os.time() }
+        statusLbl:set("Status: ⚠ " .. name .. " detected (" .. source .. ")")
+        refresh()
+    end
+
+    local function matchText(text, source)
+        if type(text) ~= "string" then return end
+        for _, entry in ipairs(KNOWN) do
+            for _, pat in ipairs(entry.patterns) do
+                if text:lower():find(pat:lower(), 1, false) then
+                    flag(entry.name, source, text:sub(1, 200))
+                    break
+                end
+            end
+        end
+    end
+
+    -- 1) Hook game:HttpGet and HttpService:GetAsync to catch new loadstring(HttpGet(...)) calls
+    local ok, err = pcall(function()
+        local mt = getrawmetatable and getrawmetatable(game)
+        local setread = setreadonly or (make_writeable and function(t) make_writeable(t) end)
+        if mt and setread and hookfunction then
+            setread(mt, false)
+            local oldNamecall = mt.__namecall
+            mt.__namecall = newcclosure and newcclosure(function(self, ...)
+                local method = getnamecallmethod and getnamecallmethod() or ""
+                if (method == "HttpGet" or method == "HttpGetAsync" or method == "GetAsync") then
+                    local args = {...}
+                    if type(args[1]) == "string" then matchText(args[1], "HttpGet") end
+                end
+                return oldNamecall(self, ...)
+            end) or function(self, ...) return oldNamecall(self, ...) end
+            setread(mt, true)
+            table.insert(listeners, "namecall hook installed")
+        end
+    end)
+    if not ok then table.insert(listeners, "namecall hook failed: " .. tostring(err)) end
+
+    -- 2) Hook loadstring to inspect chunk sources
+    pcall(function()
+        if hookfunction and loadstring then
+            local oldLS
+            oldLS = hookfunction(loadstring, newcclosure and newcclosure(function(src, chunkname)
+                if type(src) == "string" then matchText(src, "loadstring") end
+                return oldLS(src, chunkname)
+            end) or function(src, chunkname)
+                if type(src) == "string" then matchText(src, "loadstring") end
+                return oldLS(src, chunkname)
+            end)
+            table.insert(listeners, "loadstring hook installed")
+        end
+    end)
+
+    -- 3) Scan existing GUIs in CoreGui / PlayerGui for known UI names
+    local function scanGuis()
+        local roots = {}
+        pcall(function() table.insert(roots, game:GetService("CoreGui")) end)
+        pcall(function() local pg = LP:FindFirstChildOfClass("PlayerGui"); if pg then table.insert(roots, pg) end end)
+        for _, root in ipairs(roots) do
+            for _, d in ipairs(root:GetDescendants()) do
+                local n = d.Name
+                for _, entry in ipairs(KNOWN) do
+                    for _, g in ipairs(entry.gui) do
+                        if n:lower():find(g:lower(), 1, false) then
+                            flag(entry.name, "GUI: " .. root.Name .. "/" .. n, nil)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- 4) Scan running LocalScripts/ModuleScripts via getscripts/getloadedmodules
+    local function scanScripts()
+        local lists = {}
+        if getscripts       then pcall(function() lists[#lists+1] = getscripts()       end) end
+        if getgc            then pcall(function() lists[#lists+1] = getgc(true)        end) end
+        if getloadedmodules then pcall(function() lists[#lists+1] = getloadedmodules() end) end
+        for _, list in ipairs(lists) do
+            for _, obj in ipairs(list) do
+                pcall(function()
+                    if typeof and typeof(obj) == "Instance" then
+                        matchText(obj.Name, "Script: " .. obj.ClassName)
+                        if obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
+                            -- some executors expose .Source; ignore if not available
+                            local src = rawget and rawget(obj, "Source") or nil
+                            if type(src) == "string" then matchText(src, "Script: " .. obj.Name) end
+                        end
+                    end
+                end)
+            end
+        end
+    end
+
+    button(pgDetect, "Rescan now", function()
+        scanGuis(); scanScripts()
+        statusLbl:set("Status: rescan complete (" .. os.date("%H:%M:%S") .. ")")
+    end)
+    button(pgDetect, "Clear detections", function()
+        detected = {}
+        statusLbl:set("Status: cleared — still watching")
+        refresh()
+    end)
+
+    -- 5) Periodic background scan (GUI only — cheap)
+    local autoOn = true
+    toggle(pgDetect, "Auto-scan GUIs every 5s", true, function(v) autoOn = v end)
+    task.spawn(function()
+        while true do
+            task.wait(5)
+            if autoOn then pcall(scanGuis) end
+        end
+    end)
+
+    -- initial pass
+    task.spawn(function()
+        task.wait(1)
+        pcall(scanGuis); pcall(scanScripts)
+    end)
+end
+
+
+
 -- preferred order on the pill
 local tabOrder = {
     "Profile", "Players", "Self", "Visuals", "World",
