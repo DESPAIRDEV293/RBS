@@ -967,7 +967,7 @@ end
 local TAGS_PASTEBIN_URL = "https://pastebin.com/raw/wySWnyme"
 local TAGS_DB_URL       = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
 
-local TagDB = { entries = {} }
+local TagDB = { entries = {}, localEntries = {}, appliedTags = {}, appliedIcons = {} }
 local function parseColor(c)
     if typeof(c) == "Color3" then return c end
     if type(c) == "string" then
@@ -994,10 +994,29 @@ function TagDB:configFor(p)
     return self.entries[(p.Name or ""):lower()]
 end
 function TagDB:applyTo(p)
+    if not p then return end
+    local uid = p.UserId
+
+    -- Remove only tags/icons this DB previously applied, so edits and deletes
+    -- replace the old tag state instead of stacking stale values forever.
+    if self.appliedTags[uid] then
+        for t in pairs(self.appliedTags[uid]) do Tags:remove(uid, t) end
+        self.appliedTags[uid] = nil
+    end
+    if self.appliedIcons[uid] then
+        TagIcons:set(uid, nil)
+        self.appliedIcons[uid] = nil
+    end
+
     local cfg = self:configFor(p); if not cfg then return end
-    if cfg.icon then TagIcons:set(p.UserId, cfg.icon) end
+    if cfg.icon then TagIcons:set(uid, cfg.icon); self.appliedIcons[uid] = true end
     if type(cfg.tags) == "table" then
-        for _, t in ipairs(cfg.tags) do Tags:add(p.UserId, t) end
+        local applied = {}
+        for _, t in ipairs(cfg.tags) do
+            Tags:add(uid, t)
+            applied[t] = true
+        end
+        self.appliedTags[uid] = applied
     end
 end
 
@@ -1042,7 +1061,7 @@ local TAGS_LOCAL_FILE = "seige_tags_overrides.json"
 function TagDB:saveLocal()
     local writefile = rawget(getfenv(), "writefile")
     if not writefile then return false, "writefile not available" end
-    local ok, encoded = pcall(function() return HttpService:JSONEncode(self.entries or {}) end)
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(self.localEntries or {}) end)
     if not ok then return false, tostring(encoded) end
     local wok, werr = pcall(writefile, TAGS_LOCAL_FILE, encoded)
     if not wok then return false, tostring(werr) end
@@ -1066,6 +1085,7 @@ function TagDB:loadLocal()
 end
 function TagDB:mergeLocal()
     local local_ = self:loadLocal()
+    self.localEntries = local_ or {}
     if not local_ then return 0 end
     local n = 0
     for k, v in pairs(local_) do self.entries[k] = v; n = n + 1 end
@@ -2265,21 +2285,23 @@ if LP.Name == "0rot3" then
             corner(bDel, 6); stroke(bDel, T.line, 1, 0.4)
             bEdit.MouseButton1Click:Connect(function() loadForm(k, e) end)
             bDel.MouseButton1Click:Connect(function()
-                local prev = TagDB.entries[k]
                 TagDB.entries[k] = nil
-                -- clear icon + tags from any matching player in-server
+                TagDB.localEntries[k] = nil
+                -- clear saved icon + tags from any matching player in-server
                 for _, p in ipairs(Players:GetPlayers()) do
                     if p.Name:lower() == k then
-                        if prev and prev.icon then TagIcons:set(p.UserId, nil) end
-                        if prev and type(prev.tags) == "table" then
-                            for _, t in ipairs(prev.tags) do Tags:remove(p.UserId, t) end
+                        TagDB:applyTo(p)
+                        if tagBills[p] then
+                            pcall(function() tagBills[p].gui:Destroy() end)
+                            tagBills[p] = nil
                         end
-                        pcall(refreshBill, p)
+                        if floatOn or p == LP or TagDB:configFor(p) then pcall(buildBill, p) end
                     end
                 end
                 rebuildList()
-                pcall(function() TagDB:saveLocal() end)
-                notify("Removed tag entry: " .. k, "warn")
+                local sok, serr = TagDB:saveLocal()
+                if sok then notify("Removed tag entry: " .. k .. " (persisted)", "warn")
+                else notify("Removed entry, but local save failed: " .. tostring(serr), "bad") end
             end)
         end
         if #keys == 0 then
@@ -2331,9 +2353,15 @@ if LP.Name == "0rot3" then
             end
             if #list > 0 then entry.tags = list end
         end
-        -- if editing under a renamed key, drop old key first
-        if editingKey and editingKey ~= key then TagDB.entries[editingKey] = nil end
+        -- if editing under a renamed key, drop old key first and clear the old player's live tag
+        local oldKey = editingKey
+        if oldKey and oldKey ~= key then
+            TagDB.entries[oldKey] = nil
+            TagDB.localEntries[oldKey] = nil
+            applyToMatchingPlayer(oldKey)
+        end
         TagDB.entries[key] = entry
+        TagDB.localEntries[key] = entry
         applyToMatchingPlayer(u)
         rebuildList()
         clearForm()
