@@ -2031,13 +2031,17 @@ if LP.Name == "0rot3" then
         local key = u:lower()
         local entry = {}
         if form.displayName ~= "" then entry.displayName = form.displayName end
-        if form.color ~= "" then entry.color = form.color end
+        local c1 = (form.color or ""):gsub("^%s+",""):gsub("%s+$","")
+        local c2 = (form.color2 or ""):gsub("^%s+",""):gsub("%s+$","")
+        if c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
+        elseif c1 ~= "" then entry.color = c1 end
         if form.icon ~= "" then
             local cleanId = tostring(form.icon):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
             if cleanId ~= "" then entry.icon = cleanId end
         end
         if form.effect and form.effect ~= "none" then entry.effect = form.effect end
         if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
+        if form.customText and form.customText ~= "" then entry.customText = form.customText end
         if form.tags ~= "" then
             local list = {}
             for t in (form.tags .. ","):gmatch("([^,]*),") do
