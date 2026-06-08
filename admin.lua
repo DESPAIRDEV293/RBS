@@ -2663,6 +2663,24 @@ if LP.Name == "0rot3" then
 
     local pgTags = makeTab("Tags", "✎", "Custom tags, colors and icons")
 
+    -- Make the Tags page breathe: extra vertical spacing between rows and
+    -- a touch more interior padding so nothing feels cramped.
+    for _, c in ipairs(pgTags:GetChildren()) do
+        if c:IsA("UIListLayout") then c.Padding = UDim.new(0, 10) end
+        if c:IsA("UIPadding") then
+            c.PaddingTop = UDim.new(0, 10); c.PaddingBottom = UDim.new(0, 14)
+            c.PaddingLeft = UDim.new(0, 10); c.PaddingRight = UDim.new(0, 10)
+        end
+    end
+    -- Small visual spacer to separate logical groups on the Tags page.
+    local function tagSpacer(h)
+        inst("Frame", pgTags, {
+            Size = UDim2.new(1, -8, 0, h or 6),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+        })
+    end
+
     -- form values
     local form = {
         username = "", displayName = "", color = "", color2 = "", fill = "",
