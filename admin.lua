@@ -4536,5 +4536,6 @@ end
 
 ------------------------------------------------------- READY
 notify("seige.lol loaded · " .. ADMIN_BUILD, "good")
-notify("Press F2 to toggle UI", "good")
+notify("Press F2 to toggle UI · F6 for command bar", "good")
 print("[seige.lol] Ready")
+
