@@ -4030,32 +4030,66 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             ["Content-Type"]    = "application/json",
             ["x-pastebin-auth"] = BOT_AUTH,
         }
-        local status, txt = 0, ""
-        local req = rawget(getfenv(), "request")
-            or rawget(getfenv(), "http_request")
-            or (rawget(getfenv(), "syn") and syn.request)
-            or (rawget(getfenv(), "http") and http.request)
-            or (rawget(getfenv(), "fluxus") and fluxus.request)
-        if req then
-            local ok, res = pcall(req, { Url = BOT_URL, Method = "POST", Headers = headers, Body = payload })
-            if not ok or not res then
-                notify("GitHub push failed (executor): " .. tostring(res), "bad")
-                return false, tostring(res)
-            end
-            status = res.StatusCode or res.Status or 0
-            txt = tostring(res.Body or "")
-        else
-            -- Fallback: Roblox HttpService (works in any context where HTTP is allowed).
-            local ok, res = pcall(function()
+        local env = getfenv()
+        local genv = (rawget(env, "getgenv") and getgenv()) or env
+        -- Try every known executor HTTP request entry point. Different
+        -- executors expose this under different names, so we cast a wide net.
+        local req =
+               rawget(genv, "request")
+            or rawget(env,  "request")
+            or rawget(genv, "http_request")
+            or rawget(env,  "http_request")
+            or rawget(genv, "httprequest")
+            or (rawget(genv, "syn")    and syn.request)
+            or (rawget(genv, "http")   and http.request)
+            or (rawget(genv, "fluxus") and fluxus.request)
+            or (rawget(genv, "krnl")   and krnl.request)
+            or (rawget(genv, "Krnl")   and Krnl.request)
+            or (rawget(genv, "WrapExecutor") and WrapExecutor.request)
+        local function tryHttpService()
+            return pcall(function()
                 return HttpService:RequestAsync({ Url = BOT_URL, Method = "POST", Headers = headers, Body = payload })
             end)
-            if not ok or not res then
-                notify("GitHub push failed (HttpService): " .. tostring(res), "bad")
-                return false, tostring(res)
-            end
-            status = res.StatusCode or 0
-            txt = tostring(res.Body or "")
         end
+        local function tryHttpPost()
+            -- game:HttpPostAsync is exposed by some executors and works in
+            -- LocalScripts where HttpService:RequestAsync is blocked.
+            return pcall(function()
+                return game:HttpPostAsync(BOT_URL, payload, Enum.HttpContentType.ApplicationJson, false)
+            end)
+        end
+        local status, txt = 0, ""
+        if req then
+            local ok, res = pcall(req, { Url = BOT_URL, Method = "POST", Headers = headers, Body = payload })
+            if ok and res then
+                status = res.StatusCode or res.Status or 0
+                txt = tostring(res.Body or "")
+            end
+        end
+        if status < 200 or status >= 300 then
+            local ok, res = tryHttpService()
+            if ok and res then
+                status = res.StatusCode or 0
+                txt = tostring(res.Body or "")
+            end
+        end
+        if status < 200 or status >= 300 then
+            -- Final fallback: game:HttpPostAsync. Returns the response body
+            -- as a string and raises on failure (already pcall'd).
+            local ok, res = tryHttpPost()
+            if ok and type(res) == "string" then
+                -- Assume success if no HTTP error was raised.
+                status = 200
+                txt = res
+            end
+        end
+        if status >= 200 and status < 300 then
+            if not silent then notify("Pushed to GitHub gist", "good") end
+            return true, "ok"
+        end
+        notify(("GitHub push failed: HTTP %s · %s"):format(tostring(status), txt:sub(1, 120)), "bad")
+        return false, txt
+    end
         if status >= 200 and status < 300 then
             if not silent then notify("Pushed to GitHub gist", "good") end
             return true, "ok"
