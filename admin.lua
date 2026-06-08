@@ -3308,11 +3308,26 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         tbUser.Text     = key or ""
         tbDisplay.Text  = (e and e.displayName) or ""
         -- color storage: solid "#hex", split "#a/#b", "grad:..." or "image:..."
+        -- Be tolerant of older entries that stored a raw asset id or rbxassetid
+        -- URL directly in `color` — those should land in the advanced-fill box,
+        -- never in the hex color box.
         local rawColor = (e and e.color) or ""
         local rcLow = rawColor:lower()
-        if rcLow:sub(1,5) == "grad:" or rcLow:sub(1,9) == "gradient:"
-           or rcLow:sub(1,6) == "image:" or rcLow:sub(1,4) == "img:" then
-            tbFill.Text  = rawColor
+        local isFill =
+            rcLow:sub(1,5) == "grad:" or rcLow:sub(1,9) == "gradient:"
+            or rcLow:sub(1,6) == "image:" or rcLow:sub(1,4) == "img:"
+            or rcLow:sub(1,13) == "rbxassetid://"
+            or (rawColor ~= "" and rawColor:match("^%d+$") ~= nil)
+        if isFill then
+            -- Normalize raw asset ids / rbxassetid urls into an image: spec so
+            -- the advanced-fill box shows a recognisable form.
+            if rawColor:match("^%d+$") then
+                tbFill.Text = "image:" .. rawColor
+            elseif rcLow:sub(1,13) == "rbxassetid://" then
+                tbFill.Text = "image:" .. rawColor:sub(14)
+            else
+                tbFill.Text = rawColor
+            end
             tbColor.Text = ""; tbColor2.Text = ""
         else
             tbFill.Text = ""
