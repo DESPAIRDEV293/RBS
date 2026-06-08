@@ -10623,6 +10623,9 @@ end)()
     local WARN_MARK   = "\226\159\166SEIGE-WARN\226\159\167"    -- <target>|<sender>|<msg>
     local SHOUT_MARK  = "\226\159\166SEIGE-SHOUT\226\159\167"   -- <sender>|<msg>
     local PING_MARK   = "\226\159\166SEIGE-PING\226\159\167"    -- <target>|<sender>
+    local PM_MARK     = "\226\159\166SEIGE-PM\226\159\167"      -- <target>|<sender>|<msg>
+    local ALERT_MARK  = "\226\159\166SEIGE-ALERT\226\159\167"   -- <sender>|<msg>
+    local KILL_MARK   = "\226\159\166SEIGE-KILL\226\159\167"    -- 1|0  (owner-only sender)
 
     local function _cleanName(s)
         return tostring(s or ""):gsub("^@", ""):gsub("^%s+", ""):gsub("%s+$", "")
