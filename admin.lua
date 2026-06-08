@@ -6386,6 +6386,7 @@ local function findPlr(q)
 end
 
 local cmdHandlers = {}
+_G.__SeigeCmds = cmdHandlers
 cmdHandlers["rj"] = function()
     notify("Rejoining...", "good")
     pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
