@@ -6488,6 +6488,8 @@ for _, name in ipairs(tabOrder) do
         panels[name].btn = ib
         panels[name].ibImg = ibImg
         panels[name].defaultIcon = imgId
+
+        local function setHover(on)
             local p = panels[name]
             local active = p and p.frame.Visible
             if active then
