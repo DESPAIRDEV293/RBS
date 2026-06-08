@@ -7220,16 +7220,23 @@ do
     end
 
     local function attachParticle(asset, rate, speed, accel, size, lifetime, rot)
-        local cam = workspace.CurrentCamera
+        -- Particles originate from a flat plate anchored ABOVE the camera so the
+        -- effect falls down across the screen instead of pouring out of the avatar.
+        local part = Instance.new("Part")
+        part.Name = "__SeigeWeatherPart"
+        part.Size = Vector3.new(160, 1, 160)
+        part.Transparency = 1
+        part.CanCollide = false
+        part.CanQuery = false
+        part.CanTouch = false
+        part.Anchored = true
+        part.Massless = true
+        part.TopSurface = Enum.SurfaceType.Smooth
+        part.BottomSurface = Enum.SurfaceType.Smooth
+        part.Parent = workspace
         local att = Instance.new("Attachment")
         att.Name = "__SeigeWeatherAtt"
-        local function bind()
-            local c = LP.Character
-            local root = c and c:FindFirstChild("HumanoidRootPart")
-            if root then att.Parent = root else att.Parent = cam end
-        end
-        bind()
-        W.charConn = LP.CharacterAdded:Connect(function() task.wait(0.3); bind() end)
+        att.Parent = part
         local pe = Instance.new("ParticleEmitter")
         pe.Name = "__SeigeWeatherFX"
         pe.Texture = asset
@@ -7244,11 +7251,17 @@ do
             NumberSequenceKeypoint.new(0, 0.2),
             NumberSequenceKeypoint.new(1, 1),
         })
-        pe.EmissionDirection = Enum.NormalId.Top
-        pe.SpreadAngle = Vector2.new(180, 180)
+        pe.EmissionDirection = Enum.NormalId.Bottom
+        pe.SpreadAngle = Vector2.new(20, 20)
         pe.Parent = att
-        W.attach = att
+        W.attach = part
         W.emitter = pe
+        -- Keep the plate centered above the camera each frame.
+        W.charConn = RunService.RenderStepped:Connect(function()
+            local c = workspace.CurrentCamera
+            if not c then return end
+            part.CFrame = CFrame.new(c.CFrame.Position + Vector3.new(0, 80, 0))
+        end)
     end
 
     local function apply()
