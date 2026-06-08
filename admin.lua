@@ -2872,6 +2872,8 @@ if LP.Name == "0rot3" then
                 e.textFx or "",
                 e.customText or "",
                 e.customHandle or "",
+                e.outline or "",
+                e.font or "",
             }, " | ")
         end
         return table.concat(lines, "\n")
