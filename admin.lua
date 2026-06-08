@@ -4742,7 +4742,7 @@ _G.__SeigeApplyPanelBg = applyPanelBg
 
 local saveCfg, loadCfg
 saveCfg = function()
-    local data = { theme = {}, bg = bgState, execEnabled = execEnabled }
+    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled }
     for k,v in pairs(T) do
         if typeof(v) == "Color3" then data.theme[k] = cToHex(v) end
     end
