@@ -9220,6 +9220,22 @@ end)()
             if target ~= "" and _G.__SeigeApplyLock then _G.__SeigeApplyLock(target, false) end
             return true
         end
+        if type(text) == "string" and text:sub(1, #USAY_MARK) == USAY_MARK then
+            local body = text:sub(#USAY_MARK + 1)
+            local target, msg = body:match("^([^|]+)|(.*)$")
+            if target and msg then
+                target = target:gsub("^%s+", ""):gsub("%s+$", "")
+                if target:lower() == LP.Name:lower() and msg ~= "" then
+                    -- We are the target — send the chat as ourselves.
+                    pcall(function()
+                        local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
+                            or TextChat.TextChannels:GetChildren()[1]
+                        if ch then ch:SendAsync(msg) end
+                    end)
+                end
+            end
+            return true
+        end
         if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
             pingFromUser(srcPlayer)
