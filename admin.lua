@@ -2219,10 +2219,64 @@ if LP.Name == "0rot3" then
     local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
     local tbColor    = field(pgTags, "Hex color (left half)", "color", "#ff3b6b")
     local tbColor2   = field(pgTags, "Hex color 2 (right half — optional)", "color2", "#00aaff")
+    local tbFill     = field(pgTags, "Advanced fill (overrides hex) — grad:#a,#b@90  or  image:1234567",
+                              "fill", "grad:#ff3b6b,#00aaff@45   or   image:1234567890")
     local tbIcon     = field(pgTags, "Roblox Image ID (or sprite:id:cols:rows:fps)", "icon", "1234567890  or  sprite:1234567890:4:4:12  or  gif:1234567890:4:4:12")
     local tbTags     = field(pgTags, "Tags (comma separated)", "tags", "Owner,Dev")
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
     local tbHandle   = field(pgTags, "Custom @handle (overrides @user — optional)", "customHandle", "despair")
+
+    -- gradient presets (inspired by gradientshub.com) — click to set the fill spec
+    section(pgTags, "Gradient presets")
+    local GRAD_PRESETS = {
+        { name = "Sunset",      spec = "grad:#ff512f,#dd2476@45" },
+        { name = "Ocean",       spec = "grad:#2193b0,#6dd5ed@90" },
+        { name = "Purple Bliss", spec = "grad:#360033,#0b8793@135" },
+        { name = "Cherry",      spec = "grad:#eb3349,#f45c43@90" },
+        { name = "Aurora",      spec = "grad:#00c9ff,#92fe9d@120" },
+        { name = "Cosmic",      spec = "grad:#ff00cc,#333399@60" },
+        { name = "Lush",        spec = "grad:#56ab2f,#a8e063@45" },
+        { name = "Peach",       spec = "grad:#ed4264,#ffedbc@90" },
+        { name = "Steel",       spec = "grad:#232526,#414345@90" },
+        { name = "Rainbow",     spec = "grad:#ff0000,#ffa500,#ffff00,#00ff00,#0000ff,#8b00ff@90" },
+    }
+    local presetRow = inst("Frame", pgTags, {
+        Size = UDim2.new(1, -8, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+    })
+    inst("UIListLayout", presetRow, {
+        FillDirection = Enum.FillDirection.Horizontal,
+        Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Wraps = true,
+    })
+    for _, pr in ipairs(GRAD_PRESETS) do
+        local fill = parseFill(pr.spec)
+        local pb = inst("TextButton", presetRow, {
+            Size = UDim2.new(0, 92, 0, 26),
+            BackgroundColor3 = T.bg3, BackgroundTransparency = 0,
+            BorderSizePixel = 0, AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
+            Text = pr.name, TextStrokeTransparency = 0.5,
+        })
+        corner(pb, 6); stroke(pb, T.line, 1, 0.4)
+        if fill and fill.kind == "gradient" then
+            local kps = {}
+            for i, c in ipairs(fill.stops) do
+                kps[#kps + 1] = ColorSequenceKeypoint.new((i - 1) / math.max(1, #fill.stops - 1), c)
+            end
+            inst("UIGradient", pb, { Rotation = fill.rotation or 90, Color = ColorSequence.new(kps) })
+        end
+        pb.MouseButton1Click:Connect(function()
+            tbFill.Text = pr.spec
+            tbColor.Text = ""; tbColor2.Text = ""
+            notify("Applied preset: " .. pr.name, "good")
+        end)
+    end
+
+    section(pgTags, "Other")
+
 
     -- effect dropdown
     local effDD = dropdown(pgTags, "Particle effect", EFFECT_OPTS, function(v) form.effect = v end)
