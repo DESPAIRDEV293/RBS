@@ -2139,10 +2139,10 @@ end)
 local floatOn = false
 local tagBills = {}
 
--- ===== Tag specials (bundled outline-aura presets) =====
--- Each named special is a PNG bundled in the repo. The tag editor lets users
--- pick a special from a dropdown; it renders as a glowing image AROUND the
--- tag bubble outline (it does NOT replace the bubble's back-plate).
+-- ===== Tag specials (disabled) =====
+-- Keep the old names/URLs only so older saved configs and dropdown values do
+-- not error, but do not render any tag-special layer. The special aura layer
+-- was the source of a faint square/box behind tags.
 local TAG_ELEMENT_NAMES = { "abyss", "aurora", "celestial", "crimson", "ember", "neon", "obsidian", "shadow", "solar", "void" }
 local TAG_SPECIAL_BASE = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tagspecials/"
 local TAG_SPECIAL_URLS = {}
@@ -2324,13 +2324,20 @@ end
 
 local function _setStroke(e, color, thickness, transparency)
     if not e.specialStroke then return end
+    if e.specialBorder then e.specialBorder.Visible = true end
+    e.specialStroke.Enabled = true
     if color then e.specialStroke.Color = color end
     if thickness then e.specialStroke.Thickness = thickness end
     if transparency then e.specialStroke.Transparency = transparency end
 end
 
 local function _resetAura(e)
+    if e.specialBorder then
+        e.specialBorder.Visible = false
+        e.specialBorder.Size = UDim2.new(0, 0, 0, 0)
+    end
     if e.specialStroke then
+        e.specialStroke.Enabled = false
         e.specialStroke.Thickness = 0
         e.specialStroke.Transparency = 1
         e.specialStroke.Color = Color3.fromRGB(255, 255, 255)
@@ -2409,6 +2416,13 @@ local function _setDebug(e, text, color)
 end
 
 function _G.__SeigeStartSpecialAnim(e, key)
+    if not e or not e.specialStroke then return end
+    _resetAura(e)
+    _setDebug(e, "special: disabled", Color3.fromRGB(180, 180, 180))
+    return
+end
+
+local function __SeigeStartSpecialAnim_OLD_DISABLED(e, key)
     if not e or not e.specialStroke then return end
     e.specialAnimToken = (e.specialAnimToken or 0) + 1
     _resetAura(e)
@@ -2702,22 +2716,15 @@ local function refreshBill(p)
         end
     end
 
-    -- Tag special (outline aura): drives a UIStroke on the rounded pill
-    -- so the effect always wraps the bubble shape and never appears square.
+    -- Tag specials disabled: ignore saved `element` values and force-remove
+    -- every special layer so no faint square/box can render behind the pill.
     if e.specialStroke then
-        local elName = cfg and cfg.element
-        local key = (elName and tostring(elName):lower()) or nil
-        if key and key ~= "" and key ~= "none" and SPECIAL_ANIMS and SPECIAL_ANIMS[key] then
-            if e.specialKey ~= key then
-                e.specialKey = key
-                if _G.__SeigeStartSpecialAnim then _G.__SeigeStartSpecialAnim(e, key) end
-            end
-        else
-            if e.specialKey ~= nil and _G.__SeigeStopSpecialAnim then
-                _G.__SeigeStopSpecialAnim(e)
-            end
-            e.specialKey = nil
+        if e.specialKey ~= nil and _G.__SeigeStopSpecialAnim then
+            _G.__SeigeStopSpecialAnim(e)
+        elseif _resetAura then
+            _resetAura(e)
         end
+        e.specialKey = nil
     end
 
 
