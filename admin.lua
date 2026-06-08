@@ -2119,8 +2119,14 @@ if LP.Name == "0rot3" then
         if c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
         elseif c1 ~= "" then entry.color = c1 end
         if form.icon ~= "" then
-            local cleanId = tostring(form.icon):gsub("rbxassetid://", ""):gsub("%D", ""):gsub("^%s+",""):gsub("%s+$","")
-            if cleanId ~= "" then entry.icon = cleanId end
+            local raw = tostring(form.icon):gsub("^%s+",""):gsub("%s+$","")
+            if raw:lower():sub(1, 4) == "gif:" then
+                -- keep gif sprite-sheet spec as-is
+                entry.icon = raw
+            else
+                local cleanId = raw:gsub("rbxassetid://", ""):gsub("%D", "")
+                if cleanId ~= "" then entry.icon = cleanId end
+            end
         end
         if form.effect and form.effect ~= "none" then entry.effect = form.effect end
         if form.textFx and form.textFx ~= "none" then entry.textFx = form.textFx end
