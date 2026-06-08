@@ -4137,10 +4137,16 @@ local function _seigeOpenOptimize()
 end
 
 button(pgCmds, "Optimize  —  speed up the game", _seigeOpenOptimize)
-cmdHandlers["optimize"] = _seigeOpenOptimize
-cmdHandlers["unoptimize"] = function()
-    _seigeOptimizeApply(false); notify("Optimize OFF", "warn")
-end
+-- cmdHandlers is created later in the file; register via deferred hook
+task.defer(function()
+    if _G.__SeigeCmds then
+        _G.__SeigeCmds["optimize"] = _seigeOpenOptimize
+        _G.__SeigeCmds["unoptimize"] = function()
+            _seigeOptimizeApply(false); notify("Optimize OFF", "warn")
+        end
+    end
+end)
+
 
 
 
