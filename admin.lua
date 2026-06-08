@@ -2083,6 +2083,23 @@ local function refreshBill(p)
         end
     end
 
+    -- Tag element overlay: if the tag entry picks a named element preset and
+    -- the user has wired up an asset id for that name in the Tags panel, paint
+    -- it on top of the bubble fill (it acts as a back-plate / pill skin).
+    do
+        local elName = cfg and cfg.element
+        local elId = elName and tagElements[tostring(elName):lower()]
+        if e.bgImg and elId and elId ~= "" then
+            local img = elId:match("^%d+$") and ("rbxassetid://" .. elId) or elId
+            e.bgImg.Image = img
+            e.bgImg.ImageTransparency = 0
+            e.bgImg.Visible = true
+            e.bg.BackgroundTransparency = 1
+        end
+    end
+
+
+
     -- Effect change
     local newEffect = cfg and cfg.effect
     if newEffect ~= e.effect then
