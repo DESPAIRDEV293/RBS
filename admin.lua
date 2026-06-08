@@ -4817,6 +4817,13 @@ cmdHandlers["goto"] = function(arg)
 end
 cmdHandlers["tp"] = cmdHandlers["goto"]
 
+cmdHandlers["to"] = function(arg)
+    local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
+    local thrp, myH = phrp(target), hrp()
+    if not (thrp and myH) then notify("No character", "bad"); return end
+    myH.CFrame = thrp.CFrame * CFrame.new(0,0,3); notify("Teleported to " .. target.Name, "good")
+end
+
 cmdHandlers["spectate"] = function(arg)
     local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
     local c = target.Character; local h = c and c:FindFirstChildOfClass("Humanoid")
