@@ -4013,37 +4013,42 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local function pushToGithub(silent)
         local body = buildExport()
         local payload = HttpService:JSONEncode({ body = body })
+        local headers = {
+            ["Content-Type"]    = "application/json",
+            ["x-pastebin-auth"] = BOT_AUTH,
+        }
+        local status, txt = 0, ""
         local req = rawget(getfenv(), "request")
             or rawget(getfenv(), "http_request")
             or (rawget(getfenv(), "syn") and syn.request)
             or (rawget(getfenv(), "http") and http.request)
             or (rawget(getfenv(), "fluxus") and fluxus.request)
-        if not req then
-            if not silent then notify("GitHub push: no HTTP request API in this executor", "bad") end
-            return false, "no http"
+        if req then
+            local ok, res = pcall(req, { Url = BOT_URL, Method = "POST", Headers = headers, Body = payload })
+            if not ok or not res then
+                notify("GitHub push failed (executor): " .. tostring(res), "bad")
+                return false, tostring(res)
+            end
+            status = res.StatusCode or res.Status or 0
+            txt = tostring(res.Body or "")
+        else
+            -- Fallback: Roblox HttpService (works in any context where HTTP is allowed).
+            local ok, res = pcall(function()
+                return HttpService:RequestAsync({ Url = BOT_URL, Method = "POST", Headers = headers, Body = payload })
+            end)
+            if not ok or not res then
+                notify("GitHub push failed (HttpService): " .. tostring(res), "bad")
+                return false, tostring(res)
+            end
+            status = res.StatusCode or 0
+            txt = tostring(res.Body or "")
         end
-        local ok, res = pcall(req, {
-            Url = BOT_URL,
-            Method = "POST",
-            Headers = {
-                ["Content-Type"]    = "application/json",
-                ["x-pastebin-auth"] = BOT_AUTH,
-            },
-            Body = payload,
-        })
-        if not ok or not res then
-            if not silent then notify("GitHub push failed: " .. tostring(res), "bad") end
-            return false, tostring(res)
-        end
-        local status = res.StatusCode or res.Status or 0
-        local txt = tostring(res.Body or "")
         if status >= 200 and status < 300 then
             if not silent then notify("Pushed to GitHub gist", "good") end
             return true, "ok"
         end
-        if not silent then
-            notify(("GitHub push failed (HTTP %s): %s"):format(tostring(status), txt:sub(1, 120)), "bad")
-        end
+        -- Always notify on failure (even auto-push) so saves don't silently disappear.
+        notify(("GitHub push failed (HTTP %s): %s"):format(tostring(status), txt:sub(1, 120)), "bad")
         return false, txt
     end
 
