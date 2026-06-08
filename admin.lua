@@ -1072,12 +1072,21 @@ local function setTab(name)
     local e = tabs[name]; if not e then return end
     for n, x in pairs(tabs) do
         if n ~= name then
-            tween(x.btn, 0.12, { BackgroundTransparency = 1 })
+            if _G.__SeigeReducedMotion then
+                x.btn.BackgroundTransparency = 1
+            else
+                tween(x.btn, 0.12, { BackgroundTransparency = 1 })
+            end
             x.ico.TextColor3 = T.sub
             if x.page.Visible then _animPageSwap(x.page, false) end
         end
     end
-    tween(e.btn, 0.12, { BackgroundTransparency = 0.15, BackgroundColor3 = T.acc })
+    if _G.__SeigeReducedMotion then
+        e.btn.BackgroundTransparency = 0.15
+        e.btn.BackgroundColor3 = T.acc
+    else
+        tween(e.btn, 0.12, { BackgroundTransparency = 0.15, BackgroundColor3 = T.acc })
+    end
     e.ico.TextColor3 = T.text
     _animPageSwap(e.page, true)
     HeaderTitle.Text = e.title or name
