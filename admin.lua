@@ -6387,7 +6387,7 @@ for _, name in ipairs(tabOrder) do
         idx = idx + 1
         makePanel(name, entry)
         local imgId = tabImages[name]
-        local WHITE = Color3.fromRGB(255,255,255)
+        local WHITE = T.text
         local ib = inst("TextButton", iconsRow, {
             Size = UDim2.new(0, 32, 0, 32),
             BackgroundColor3 = WHITE, BackgroundTransparency = 1, BorderSizePixel = 0,
@@ -6416,8 +6416,8 @@ for _, name in ipairs(tabOrder) do
             local active = p and p.frame.Visible
             if active then
                 tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0 })
-                ib.TextColor3 = Color3.fromRGB(10,10,12)
-                if ibImg then ibImg.ImageColor3 = Color3.fromRGB(10,10,12) end
+                ib.TextColor3 = T.bg
+                if ibImg then ibImg.ImageColor3 = T.bg end
             elseif on then
                 tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0.82 })
                 ib.TextColor3 = WHITE
@@ -6492,7 +6492,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
             for _, p in pairs(panels) do
                 if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
                 if p.btn then
-                    tween(p.btn, 0.12, { BackgroundColor3 = Color3.fromRGB(255,255,255), BackgroundTransparency = 1 })
+                    tween(p.btn, 0.12, { BackgroundColor3 = T.text, BackgroundTransparency = 1 })
                 end
             end
         end
