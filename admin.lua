@@ -2289,7 +2289,8 @@ do
         local g1 = glow(pill, Color3.fromRGB(255, 0, 0), 0.72, 6, -1)
         local s  = strokeOn(pill, Color3.fromRGB(255, 0, 0), 2.5)
         local t, conns = 0, {}
-        conns[#conns+1] = RunService.Heartbeat:Connect(function(dt)
+        local conn; conn = RunService.Heartbeat:Connect(function(dt)
+            if not pill or not pill.Parent then conn:Disconnect() return end
             t = t + dt
             local h = (t * 0.5) % 1
             local col = Color3.fromHSV(h, 1, 1)
@@ -2297,6 +2298,7 @@ do
             g1.BackgroundColor3 = col
             g1.BackgroundTransparency = 0.68 + math.sin(t * math.pi) * 0.08
         end)
+        conns[#conns+1] = conn
         return cleanup({g1, s}, conns)
     end
     function Auras.Crimson(pill)
