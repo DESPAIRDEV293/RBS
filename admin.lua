@@ -3913,6 +3913,174 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
         while pgAdmin.Parent do task.wait(5); pcall(rebuildUsers) end
     end)
 
+    ------------------------------------------------------------------
+    -- ROLES & PERMISSIONS (owner-only)
+    -- Add a Roblox username and assign one of: admin, staff, NT team.
+    -- The Admin tab shows up for them on their next script load; their
+    -- permissions follow the role table at the top of the script.
+    ------------------------------------------------------------------
+    if _G.__SeigeCan("manage_roles") then
+        section(pgAdmin, "Roles & permissions")
+        label(pgAdmin, "Grant a Roblox user access to this Admin panel. Owner (0rot3) is hardcoded.")
+
+        local rolesList = inst("Frame", pgAdmin, {
+            Size = UDim2.new(1, -8, 0, 0),
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.4,
+            BorderSizePixel = 0,
+        })
+        corner(rolesList, 8); stroke(rolesList, T.line, 1, 0.5)
+        inst("UIListLayout", rolesList, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+        inst("UIPadding", rolesList, {
+            PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+            PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+        })
+
+        local rolesCountLbl = label(pgAdmin, "0 roles configured (owner is hardcoded)")
+
+        local ROLE_ORDER = { "admin", "staff", "nt" }
+        local ROLE_COLORS = {
+            owner = T.bad,
+            admin = T.acc,
+            staff = T.good,
+            nt    = T.sub,
+        }
+
+        local function rebuildRoles()
+            for _, c in ipairs(rolesList:GetChildren()) do
+                if not (c:IsA("UIListLayout") or c:IsA("UIPadding") or c:IsA("UICorner") or c:IsA("UIStroke")) then
+                    c:Destroy()
+                end
+            end
+
+            local entries = {}
+            entries[#entries+1] = { name = OWNER_NAME, role = "owner", locked = true }
+            for nm, r in pairs(_G.__SeigeRoleMap or {}) do
+                entries[#entries+1] = { name = nm, role = r, locked = false }
+            end
+            table.sort(entries, function(a, b)
+                if a.role == "owner" then return true end
+                if b.role == "owner" then return false end
+                return a.name:lower() < b.name:lower()
+            end)
+
+            for _, e in ipairs(entries) do
+                local row = inst("Frame", rolesList, {
+                    Size = UDim2.new(1, 0, 0, 40),
+                    BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35,
+                    BorderSizePixel = 0,
+                })
+                corner(row, 6); stroke(row, T.line, 1, 0.5)
+                inst("TextLabel", row, {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 10, 0, 4), Size = UDim2.new(1, -20, 0, 16),
+                    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Text = "@" .. e.name,
+                })
+                inst("TextLabel", row, {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 10, 0, 20), Size = UDim2.new(0, 110, 0, 16),
+                    Font = Enum.Font.Gotham, TextSize = 11,
+                    TextColor3 = ROLE_COLORS[e.role] or T.sub,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Text = "● " .. (_G.__SeigeRoleLabel(e.role) or e.role),
+                })
+                if not e.locked then
+                    local rm = inst("TextButton", row, {
+                        AnchorPoint = Vector2.new(1, 0.5),
+                        Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.new(0, 60, 0, 22),
+                        BackgroundColor3 = T.bad, BackgroundTransparency = 0.15, AutoButtonColor = false,
+                        Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
+                        Text = "Remove",
+                    })
+                    corner(rm, 5); stroke(rm, T.line, 1, 0.4)
+                    rm.MouseButton1Click:Connect(function()
+                        local ok, err = _G.__SeigeSetRole(e.name, nil)
+                        if ok then notify("Removed @" .. e.name, "good"); rebuildRoles()
+                        else notify("Remove failed: " .. tostring(err), "bad") end
+                    end)
+                else
+                    inst("TextLabel", row, {
+                        BackgroundTransparency = 1,
+                        AnchorPoint = Vector2.new(1, 0.5),
+                        Position = UDim2.new(1, -10, 0.5, 0), Size = UDim2.new(0, 80, 0, 16),
+                        Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.dim,
+                        TextXAlignment = Enum.TextXAlignment.Right,
+                        Text = "hardcoded",
+                    })
+                end
+            end
+
+            local n = 0
+            for _ in pairs(_G.__SeigeRoleMap or {}) do n = n + 1 end
+            rolesCountLbl:set(n .. " role" .. (n == 1 and "" or "s") .. " configured (owner is hardcoded)")
+        end
+
+        -- Add/assign form
+        local addFrame = inst("Frame", pgAdmin, {
+            Size = UDim2.new(1, -8, 0, 108),
+            BackgroundColor3 = T.bg2, BackgroundTransparency = 0.3,
+            BorderSizePixel = 0,
+        })
+        corner(addFrame, 8); stroke(addFrame, T.line, 1, 0.5)
+        local nameBox = inst("TextBox", addFrame, {
+            BackgroundColor3 = T.bg, BackgroundTransparency = 0.2,
+            Position = UDim2.new(0, 10, 0, 10), Size = UDim2.new(1, -20, 0, 28),
+            PlaceholderText = "Roblox username",
+            PlaceholderColor3 = T.dim,
+            Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+            ClearTextOnFocus = false,
+        })
+        corner(nameBox, 6); stroke(nameBox, T.line, 1, 0.4)
+
+        local pickedRole = "admin"
+        local roleBtns = {}
+        local function refreshRoleBtns()
+            for r, b in pairs(roleBtns) do
+                b.BackgroundColor3 = (r == pickedRole) and T.acc or T.bg3
+                b.BackgroundTransparency = (r == pickedRole) and 0.05 or 0.25
+            end
+        end
+        for i, r in ipairs(ROLE_ORDER) do
+            local b = inst("TextButton", addFrame, {
+                Position = UDim2.new(0, 10 + (i - 1) * 88, 0, 46),
+                Size = UDim2.new(0, 80, 0, 26),
+                BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25, AutoButtonColor = false,
+                Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
+                Text = _G.__SeigeRoleLabel(r),
+            })
+            corner(b, 5); stroke(b, T.line, 1, 0.4)
+            roleBtns[r] = b
+            b.MouseButton1Click:Connect(function() pickedRole = r; refreshRoleBtns() end)
+        end
+        refreshRoleBtns()
+
+        local saveBtn = inst("TextButton", addFrame, {
+            Position = UDim2.new(0, 10, 0, 78), Size = UDim2.new(1, -20, 0, 24),
+            BackgroundColor3 = T.good, BackgroundTransparency = 0.1, AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+            Text = "Assign / update role",
+        })
+        corner(saveBtn, 5); stroke(saveBtn, T.line, 1, 0.4)
+        saveBtn.MouseButton1Click:Connect(function()
+            local nm = (nameBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+            if nm == "" then notify("Enter a username", "warn"); return end
+            local ok, err = _G.__SeigeSetRole(nm, pickedRole)
+            if ok then
+                notify("Set @" .. nm .. " → " .. (_G.__SeigeRoleLabel(pickedRole) or pickedRole), "good")
+                nameBox.Text = ""
+                rebuildRoles()
+            else
+                notify("Failed: " .. tostring(err), "bad")
+            end
+        end)
+
+        rebuildRoles()
+    end
+
+    if _G.__SeigeCan("allp") then
     section(pgAdmin, "Admin commands")
     label(pgAdmin, "!allp <message> — sends a private top-banner toast to every script user in this server.")
 
@@ -3950,7 +4118,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
             notify("Command not ready", "bad")
         end
     end)
+    end -- end !allp gate
 
+    if _G.__SeigeCan("lock") then
     section(pgAdmin, "Lockout (!rmvp / !unrmvp)")
     label(pgAdmin, "Locks the target user out of the script. Persists on their machine until !unrmvp.")
     local lockFrame = inst("Frame", pgAdmin, {
@@ -3993,7 +4163,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
         if n:gsub("%s", "") == "" then notify("Enter a username", "warn"); return end
         if cmdHandlers and cmdHandlers["unrmvp"] then cmdHandlers["unrmvp"](n); lockBox.Text = "" end
     end)
+    end -- end !rmvp gate
 
+    if _G.__SeigeCan("usay") then
     section(pgAdmin, "Force chat (!usay)")
     label(pgAdmin, "Makes the target user's own client send a chat message in game. Target must be running the script in this server.")
     local usayFrame = inst("Frame", pgAdmin, {
@@ -4187,6 +4359,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then
             updatePreview()
         end
     end)
+    end -- end !usay gate
 end
 
 
