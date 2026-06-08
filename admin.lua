@@ -6280,7 +6280,7 @@ if panels.Profile then panels.Profile.frame.Visible = true end
 
 
 ------------------------------------------------------- SPOTIFY
-do
+(function()
     local httpReq = (syn and syn.request)
         or rawget(getfenv(), "http_request")
         or rawget(getfenv(), "request")
