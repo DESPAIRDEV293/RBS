@@ -4723,9 +4723,26 @@ local function applyBg()
     Backdrop.ImageTransparency = bgState.trans
 end
 
+-- Per-panel background image (applied to every floating panel's __SeigeBgImg)
+local panelBgState = { image = "", trans = 0.5 }
+local function applyPanelBg()
+    local url = resolveBgUrl(panelBgState.image)
+    local panelsTbl = rawget(_G, "__SeigePanels")
+    if panelsTbl then
+        for _, p in pairs(panelsTbl) do
+            local img = p.frame and p.frame:FindFirstChild("__SeigeBgImg")
+            if img then
+                img.Image = url
+                img.ImageTransparency = (url == "") and 1 or panelBgState.trans
+            end
+        end
+    end
+end
+_G.__SeigeApplyPanelBg = applyPanelBg
+
 local saveCfg, loadCfg
 saveCfg = function()
-    local data = { theme = {}, bg = bgState, execEnabled = execEnabled }
+    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled }
     for k,v in pairs(T) do
         if typeof(v) == "Color3" then data.theme[k] = cToHex(v) end
     end
@@ -4752,6 +4769,11 @@ loadCfg = function()
         bgState.trans = tonumber(data.bg.trans) or 0.4
         applyBg()
     end
+    if type(data.panelBg) == "table" then
+        panelBgState.image = data.panelBg.image or ""
+        panelBgState.trans = tonumber(data.panelBg.trans) or 0.5
+        applyPanelBg()
+    end
 end
 
 section(pgThemes, "Background")
@@ -4767,6 +4789,20 @@ button(pgThemes, "Clear background", function()
     bgState.image = ""; applyBg(); saveCfg(); notify("Background cleared", "good")
 end)
 label(pgThemes, "Tip: paste an asset id (numbers only) or full URL. GIFs require an animated asset.")
+
+section(pgThemes, "Panel background (per-panel image)")
+local panelBgBox = textbox(pgThemes, "Panel image asset id or URL", function(v)
+    panelBgState.image = v; applyPanelBg(); saveCfg()
+    notify(v == "" and "Panel background cleared" or "Panel background updated", "good")
+end)
+slider(pgThemes, "Panel image opacity", 0, 1, 0.5, function(v)
+    panelBgState.trans = 1 - v
+    applyPanelBg(); saveCfg()
+end)
+button(pgThemes, "Clear panel backgrounds", function()
+    panelBgState.image = ""; applyPanelBg(); saveCfg(); notify("Panel backgrounds cleared", "good")
+end)
+label(pgThemes, "Applies to every floating panel (Profile, Cmds, Shaders, ...).")
 
 section(pgThemes, "Presets")
 local PRESETS = {
@@ -5860,6 +5896,7 @@ end)
 pcall(function() Tip.Parent = Root; Tip.ZIndex = 220 end)
 
 local panels = {}
+_G.__SeigePanels = panels
 local panelSlot = 0
 
 -- Animated visibility transition for any panel frame.
@@ -5964,10 +6001,22 @@ local function makePanel(name, entry)
         Visible = false, Active = true, ZIndex = 110,
     })
     corner(frame, 12); stroke(frame, T.line, 1, 0.4)
+    frame.ClipsDescendants = true
     inst("UIGradient", frame, {
         Rotation = 120,
         Color = ColorSequence.new(T.bg2, T.bg),
         Transparency = NumberSequence.new(0.05),
+    })
+    -- User-supplied panel background image (set via Themes tab)
+    local bgImg = inst("ImageLabel", frame, {
+        Name = "__SeigeBgImg",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
+        ScaleType = Enum.ScaleType.Crop,
+        Image = "",
+        ImageTransparency = 1,
+        ZIndex = 110,
     })
     -- soft glow
     inst("ImageLabel", frame, {
@@ -6042,6 +6091,7 @@ local function makePanel(name, entry)
     end
 
     panels[name] = { frame = frame, page = page, btn = nil }
+    if _G.__SeigeApplyPanelBg then pcall(_G.__SeigeApplyPanelBg) end
     return frame
 end
 
