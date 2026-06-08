@@ -5449,9 +5449,58 @@ local function applyShader(preset)
             Lighting.EnvironmentSpecularScale = 1
             Lighting.Technology = Enum.Technology.Future
         end)
+    elseif preset == "Pink" then
+        fxColor.Enabled = true; fxColor.Saturation = 0.4; fxColor.Contrast = 0.1; fxColor.Brightness = 0.02
+        fxColor.TintColor = Color3.fromRGB(255, 170, 200)
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.65; fxBloom.Size = 22; fxBloom.Threshold = 1.0
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 25; fxDOF.InFocusRadius = 14; fxDOF.FarIntensity = 0.4; fxDOF.NearIntensity = 0.15
+        fxBlur.Enabled = false
+        fxSun.Enabled = false
+    elseif preset == "Molten" then
+        fxColor.Enabled = true; fxColor.Saturation = 0.35; fxColor.Contrast = 0.25; fxColor.Brightness = -0.04
+        fxColor.TintColor = Color3.fromRGB(255, 90, 30)
+        fxBloom.Enabled = true; fxBloom.Intensity = 1.1; fxBloom.Size = 30; fxBloom.Threshold = 0.75
+        fxSun.Enabled = true; fxSun.Intensity = 0.45; fxSun.Spread = 1
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 35; fxDOF.InFocusRadius = 10; fxDOF.FarIntensity = 0.5; fxDOF.NearIntensity = 0.2
+        fxBlur.Enabled = false
+    elseif preset == "Matrix" then
+        fxColor.Enabled = true; fxColor.Saturation = 0.25; fxColor.Contrast = 0.3; fxColor.Brightness = -0.02
+        fxColor.TintColor = Color3.fromRGB(60, 255, 100)
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.5; fxBloom.Size = 16; fxBloom.Threshold = 1.2
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 45; fxDOF.InFocusRadius = 20; fxDOF.FarIntensity = 0.3; fxDOF.NearIntensity = 0.1
+        fxBlur.Enabled = false
+        fxSun.Enabled = false
+    elseif preset == "Cyberpunk" then
+        fxColor.Enabled = true; fxColor.Saturation = 0.55; fxColor.Contrast = 0.2; fxColor.Brightness = 0.02
+        fxColor.TintColor = Color3.fromRGB(210, 60, 255)
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.95; fxBloom.Size = 26; fxBloom.Threshold = 0.85
+        fxBlur.Enabled = true; fxBlur.Size = 3
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 30; fxDOF.InFocusRadius = 12; fxDOF.FarIntensity = 0.45; fxDOF.NearIntensity = 0.15
+        fxSun.Enabled = true; fxSun.Intensity = 0.2; fxSun.Spread = 0.7
+    elseif preset == "Golden Hour" then
+        fxColor.Enabled = true; fxColor.Saturation = 0.25; fxColor.Contrast = 0.1; fxColor.Brightness = 0.06
+        fxColor.TintColor = Color3.fromRGB(255, 190, 100)
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.75; fxBloom.Size = 28; fxBloom.Threshold = 1.05
+        fxSun.Enabled = true; fxSun.Intensity = 0.55; fxSun.Spread = 1
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 40; fxDOF.InFocusRadius = 18; fxDOF.FarIntensity = 0.35; fxDOF.NearIntensity = 0.1
+        fxBlur.Enabled = false
+    elseif preset == "Vaporwave" then
+        fxColor.Enabled = true; fxColor.Saturation = 0.45; fxColor.Contrast = 0.15; fxColor.Brightness = 0.03
+        fxColor.TintColor = Color3.fromRGB(255, 120, 220)
+        fxBloom.Enabled = true; fxBloom.Intensity = 1.3; fxBloom.Size = 34; fxBloom.Threshold = 0.7
+        fxBlur.Enabled = true; fxBlur.Size = 4
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 28; fxDOF.InFocusRadius = 10; fxDOF.FarIntensity = 0.5; fxDOF.NearIntensity = 0.2
+        fxSun.Enabled = true; fxSun.Intensity = 0.3; fxSun.Spread = 0.85
+    elseif preset == "Winter" then
+        fxColor.Enabled = true; fxColor.Saturation = -0.15; fxColor.Contrast = 0.15; fxColor.Brightness = 0.08
+        fxColor.TintColor = Color3.fromRGB(200, 225, 255)
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.4; fxBloom.Size = 20; fxBloom.Threshold = 1.3
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 50; fxDOF.InFocusRadius = 25; fxDOF.FarIntensity = 0.3; fxDOF.NearIntensity = 0.05
+        fxBlur.Enabled = false
+        fxSun.Enabled = true; fxSun.Intensity = 0.15; fxSun.Spread = 0.9
     end
 end
-for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant","4K Ultra"}) do
+for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant","4K Ultra","Pink","Molten","Matrix","Cyberpunk","Golden Hour","Vaporwave","Winter"}) do
     button(pgShaders, name, function() applyShader(name) end)
 end
 end -- end shaders scope
