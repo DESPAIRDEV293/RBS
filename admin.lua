@@ -2006,12 +2006,23 @@ button(pgPlayers, "Teleport to player", withSel(function(p)
     local h = phrp(p); if h and hrp() then hrp().CFrame = h.CFrame + Vector3.new(0, 3, 0) end
 end))
 button(pgPlayers, "Bring player to you", withSel(function(p)
-    local thrp, myH = phrp(p), hrp()
-    if not (thrp and myH) then notify("No character", "bad"); return end
-    notify("Bringing " .. p.Name .. "...", "good")
+    local myH = hrp()
+    if not myH then notify("No character", "bad"); return end
+    -- Prefer broadcast bring (works if target is running the script).
+    if _G.__SeigeBringSend then
+        local ok, err = pcall(_G.__SeigeBringSend, p.Name)
+        if ok then
+            notify("Bringing " .. p.Name .. " (broadcast)", "good")
+        else
+            notify("Broadcast failed: " .. tostring(err), "warn")
+        end
+    end
+    -- Local CFrame attempt as a fallback / extra path. Works only when the
+    -- experience leaves the player network-owned (no FE protection on humanoid).
     task.spawn(function()
-        -- direct CFrame loop (works in non-FE / network-owned parts)
-        for i = 1, 25 do
+        local thrp = phrp(p)
+        if not thrp then return end
+        for i = 1, 30 do
             if not phrp(p) or not hrp() then break end
             pcall(function() phrp(p).CFrame = hrp().CFrame + Vector3.new(0, 3, 0) end)
             task.wait(0.05)
@@ -2023,7 +2034,7 @@ button(pgPlayers, "Bring player to you", withSel(function(p)
             pcall(function()
                 tool.Parent = LP.Character
                 local saved = myH.CFrame
-                for i = 1, 20 do
+                for i = 1, 25 do
                     local t = phrp(p); if not t then break end
                     myH.CFrame = t.CFrame
                     pcall(function() firetouchinterest(tool.Handle, t, 0) end)
@@ -2031,21 +2042,57 @@ button(pgPlayers, "Bring player to you", withSel(function(p)
                     pcall(function() firetouchinterest(tool.Handle, t, 1) end)
                     task.wait(0.05)
                 end
-                myH.CFrame = saved
+                pcall(function() myH.CFrame = saved end)
             end)
         end
-        notify("Bring complete", "good")
     end)
 end))
+
+-- Persistent spectate: re-binds camera subject whenever the target respawns
+-- and pumps the camera each Heartbeat so it never silently reverts after the
+-- first use.
 local spectatingPlr
+local spectateConns = {}
+local function _stopSpectate()
+    for _, c in ipairs(spectateConns) do pcall(function() c:Disconnect() end) end
+    spectateConns = {}
+    spectatingPlr = nil
+    pcall(function() cam.CameraSubject = hum() end)
+end
+local function _startSpectate(p)
+    _stopSpectate()
+    spectatingPlr = p
+    local function bind()
+        local ch = p.Character or p.CharacterAdded:Wait()
+        local h = ch and ch:FindFirstChildOfClass("Humanoid")
+        if h then pcall(function() cam.CameraSubject = h end) end
+    end
+    bind()
+    table.insert(spectateConns, p.CharacterAdded:Connect(function()
+        task.wait(0.3); if spectatingPlr == p then bind() end
+    end))
+    -- guard: if the engine resets camera to LP, snap it back
+    table.insert(spectateConns, RunService.RenderStepped:Connect(function()
+        if spectatingPlr ~= p then return end
+        local ch = p.Character
+        local h = ch and ch:FindFirstChildOfClass("Humanoid")
+        if h and cam.CameraSubject ~= h then
+            pcall(function() cam.CameraSubject = h end)
+        end
+    end))
+    -- if the target leaves, drop spectate
+    table.insert(spectateConns, Players.PlayerRemoving:Connect(function(left)
+        if left == p then _stopSpectate(); notify("Spectated player left", "warn") end
+    end))
+end
 button(pgPlayers, "Spectate / unspectate", withSel(function(p)
     if spectatingPlr == p then
-        cam.CameraSubject = hum(); spectatingPlr = nil; notify("Stopped spectating", "good")
+        _stopSpectate(); notify("Stopped spectating", "good")
     else
-        local h = pchar(p) and pchar(p):FindFirstChildOfClass("Humanoid")
-        if h then cam.CameraSubject = h; spectatingPlr = p; notify("Spectating " .. p.Name, "good") end
+        _startSpectate(p); notify("Spectating " .. p.Name, "good")
     end
 end))
+
 button(pgPlayers, "Copy username", withSel(function(p)
     if setclipboard then setclipboard(p.Name); notify("Copied @" .. p.Name, "good") else notify("No clipboard access", "warn") end
 end))
