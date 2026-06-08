@@ -2092,6 +2092,9 @@ button(pgPlayers, "Spectate / unspectate", withSel(function(p)
         _startSpectate(p); notify("Spectating " .. p.Name, "good")
     end
 end))
+_G.__SeigeStartSpectate = _startSpectate
+_G.__SeigeStopSpectate  = _stopSpectate
+
 
 button(pgPlayers, "Copy username", withSel(function(p)
     if setclipboard then setclipboard(p.Name); notify("Copied @" .. p.Name, "good") else notify("No clipboard access", "warn") end
