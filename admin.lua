@@ -5264,6 +5264,145 @@ toggle(pgShaders, "Enable sun rays", false, function(v) fxSun.Enabled = v end)
 slider(pgShaders, "Ray intensity", 0, 1, 0.25, function(v) fxSun.Intensity = v end)
 slider(pgShaders, "Ray spread",    0, 1, 1,    function(v) fxSun.Spread = v end)
 
+section(pgShaders, "Weather")
+do
+    local W = { mode = "Off", intensity = 0.5 }
+    _G.__SeigeWeather = W
+
+    local function clear()
+        if W.atmos then pcall(function() W.atmos:Destroy() end); W.atmos = nil end
+        if W.emitter then pcall(function() W.emitter:Destroy() end); W.emitter = nil end
+        if W.attach then pcall(function() W.attach:Destroy() end); W.attach = nil end
+        if W.thunderConn then pcall(function() W.thunderConn:Disconnect() end); W.thunderConn = nil end
+        if W.charConn then pcall(function() W.charConn:Disconnect() end); W.charConn = nil end
+        if W.flash then pcall(function() W.flash:Destroy() end); W.flash = nil end
+        pcall(function()
+            local t = workspace:FindFirstChildOfClass("Terrain")
+            local c = t and t:FindFirstChild("__SeigeClouds")
+            if c then c:Destroy() end
+        end)
+    end
+
+    local function ensureAtmos()
+        local a = Instance.new("Atmosphere")
+        a.Name = "__SeigeAtmos"
+        a.Parent = Lighting
+        W.atmos = a
+        return a
+    end
+
+    local function attachParticle(asset, rate, speed, accel, size, lifetime, rot)
+        local cam = workspace.CurrentCamera
+        local att = Instance.new("Attachment")
+        att.Name = "__SeigeWeatherAtt"
+        local function bind()
+            local c = LP.Character
+            local root = c and c:FindFirstChild("HumanoidRootPart")
+            if root then att.Parent = root else att.Parent = cam end
+        end
+        bind()
+        W.charConn = LP.CharacterAdded:Connect(function() task.wait(0.3); bind() end)
+        local pe = Instance.new("ParticleEmitter")
+        pe.Name = "__SeigeWeatherFX"
+        pe.Texture = asset
+        pe.Rate = rate
+        pe.Speed = NumberRange.new(speed)
+        pe.Acceleration = accel
+        pe.Size = NumberSequence.new(size)
+        pe.Lifetime = NumberRange.new(lifetime)
+        pe.Rotation = NumberRange.new(-rot, rot)
+        pe.LightEmission = 0.2
+        pe.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 0.2),
+            NumberSequenceKeypoint.new(1, 1),
+        })
+        pe.EmissionDirection = Enum.NormalId.Top
+        pe.SpreadAngle = Vector2.new(180, 180)
+        pe.Parent = att
+        W.attach = att
+        W.emitter = pe
+    end
+
+    local function apply()
+        clear()
+        local i = math.clamp(W.intensity or 0.5, 0, 1)
+        if W.mode == "Off" then return end
+
+        if W.mode == "Cloudy" then
+            local a = ensureAtmos()
+            a.Density = 0.3 * i
+            a.Haze = 1.5 * i
+            a.Color = Color3.fromRGB(190, 195, 205)
+            local t = workspace:FindFirstChildOfClass("Terrain")
+            if t then
+                local c = Instance.new("Clouds")
+                c.Name = "__SeigeClouds"
+                c.Cover = 0.6 + 0.4 * i
+                c.Density = 0.5 + 0.5 * i
+                c.Color = Color3.fromRGB(220, 220, 230)
+                c.Parent = t
+            end
+        elseif W.mode == "Fog" then
+            local a = ensureAtmos()
+            a.Density = 0.6 * i
+            a.Haze = 3 * i
+            a.Glare = 0.5 * i
+            a.Color = Color3.fromRGB(200, 200, 200)
+        elseif W.mode == "Rain" then
+            attachParticle("rbxassetid://241876428", 200 * i + 50, 60, Vector3.new(0, -120, 0), 0.5, 1.2, 0)
+            local a = ensureAtmos()
+            a.Density = 0.25 * i
+            a.Haze = 1 * i
+            a.Color = Color3.fromRGB(170, 175, 185)
+        elseif W.mode == "Thunder" then
+            attachParticle("rbxassetid://241876428", 260 * i + 80, 70, Vector3.new(0, -140, 0), 0.55, 1.2, 0)
+            local a = ensureAtmos()
+            a.Density = 0.4 * i
+            a.Haze = 2 * i
+            a.Color = Color3.fromRGB(140, 145, 160)
+            local fxFlash = Instance.new("ColorCorrectionEffect")
+            fxFlash.Name = "__SeigeFlash"
+            fxFlash.Brightness = 0
+            fxFlash.Parent = Lighting
+            W.flash = fxFlash
+            local nextStrike = tick() + math.random(4, 9)
+            W.thunderConn = RunService.Heartbeat:Connect(function()
+                if tick() < nextStrike then return end
+                nextStrike = tick() + math.random(5, 12)
+                task.spawn(function()
+                    pcall(function()
+                        for _, b in ipairs({0.8, 0.0, 0.6, 0.0}) do
+                            fxFlash.Brightness = b
+                            task.wait(0.07)
+                        end
+                        fxFlash.Brightness = 0
+                        local s = Instance.new("Sound")
+                        s.SoundId = "rbxassetid://5801257793"
+                        s.Volume = 1.5 * i
+                        s.Parent = workspace
+                        s:Play()
+                        game:GetService("Debris"):AddItem(s, 6)
+                    end)
+                end)
+            end)
+        elseif W.mode == "Snow" then
+            attachParticle("rbxassetid://241876428", 120 * i + 40, 4, Vector3.new(0, -8, 1), 0.35, 5, 90)
+            local a = ensureAtmos()
+            a.Density = 0.2 * i
+            a.Haze = 1.2 * i
+            a.Color = Color3.fromRGB(220, 225, 235)
+        end
+    end
+
+    dropdown(pgShaders, "Weather", { "Off", "Cloudy", "Fog", "Rain", "Thunder", "Snow" }, function(o)
+        W.mode = o; apply()
+    end)
+    slider(pgShaders, "Weather intensity", 0, 1, 0.5, function(v)
+        W.intensity = v; if W.mode ~= "Off" then apply() end
+    end)
+    button(pgShaders, "Clear weather", function() W.mode = "Off"; clear() end)
+end
+
 section(pgShaders, "Presets")
 local function applyShader(preset)
     if preset == "Off" then
