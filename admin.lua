@@ -9256,7 +9256,7 @@ end
 -- Admin-only broadcast: send a private banner message to every script user
 -- in this server. Non-script users see nothing (marker is filtered out of chat).
 cmdHandlers["allp"] = function(arg)
-    if LP.Name ~= "0rot3" then notify("!allp is admin-only", "bad"); return end
+    if not (_G.__SeigeCan and _G.__SeigeCan("allp")) then notify("!allp requires Admin or Staff role", "bad"); return end
     local msg = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if msg == "" then notify("Usage: !allp <message>", "warn"); return end
     if not _G.__SeigeAllpSend then notify("Broadcast not ready", "bad"); return end
@@ -9269,7 +9269,7 @@ end
 -- !unrmvp <user> clears it. Lock is broadcast via the chat-marker channel
 -- and persisted on the target's machine so it survives rejoin.
 local function _doLock(arg, locked)
-    if LP.Name ~= "0rot3" then notify("Admin-only command", "bad"); return end
+    if not (_G.__SeigeCan and _G.__SeigeCan("lock")) then notify("Requires Admin role", "bad"); return end
     local target = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", ""):gsub("^@", "")
     if target == "" then
         notify("Usage: " .. (locked and "!rmvp" or "!unrmvp") .. " <user>", "warn"); return
@@ -9289,7 +9289,7 @@ cmdHandlers["unrmvp"] = function(arg) _doLock(arg, false) end
 -- Roblox tags the message as coming from the target because their own client
 -- calls TextChannel:SendAsync after receiving the broadcast marker.
 cmdHandlers["usay"] = function(arg)
-    if LP.Name ~= "0rot3" then notify("Admin-only command", "bad"); return end
+    if not (_G.__SeigeCan and _G.__SeigeCan("usay")) then notify("Requires Admin role", "bad"); return end
     local s = tostring(arg or ""):gsub("^%s+", ""):gsub("%s+$", "")
     local target, msg = s:match("^(%S+)%s+(.+)$")
     if not target or not msg then
