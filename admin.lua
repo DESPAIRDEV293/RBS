@@ -1044,6 +1044,7 @@ local pgWorld   = makeTab("World",   "◊")
 local pgAim     = makeTab("Aim",     "✚")
 
 local pgServer  = makeTab("Server",  "≡")
+local pgCmds    = makeTab("Cmds",    "⌘")
 local pgConfig  = makeTab("Config",  "⚙")
 
 ------------------------------------------------------- HELPERS
