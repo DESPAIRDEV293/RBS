@@ -4724,21 +4724,44 @@ local function applyBg()
 end
 
 -- Per-panel background image (applied to every floating panel's __SeigeBgImg)
-local panelBgState = { image = "", trans = 0.5 }
+local panelBgState = { image = "", trans = 0.5, panels = {}, icons = {} }
 local function applyPanelBg()
-    local url = resolveBgUrl(panelBgState.image)
+    local gUrl = resolveBgUrl(panelBgState.image)
     local panelsTbl = rawget(_G, "__SeigePanels")
-    if panelsTbl then
-        for _, p in pairs(panelsTbl) do
-            local img = p.frame and p.frame:FindFirstChild("__SeigeBgImg")
-            if img then
-                img.Image = url
-                img.ImageTransparency = (url == "") and 1 or panelBgState.trans
+    if not panelsTbl then return end
+    for name, p in pairs(panelsTbl) do
+        local img = p.frame and p.frame:FindFirstChild("__SeigeBgImg")
+        if img then
+            local ov = panelBgState.panels and panelBgState.panels[name]
+            local url, trans
+            if ov and ov.image and ov.image ~= "" then
+                url = resolveBgUrl(ov.image)
+                trans = tonumber(ov.trans) or panelBgState.trans
+            else
+                url = gUrl
+                trans = panelBgState.trans
+            end
+            img.Image = url
+            img.ImageTransparency = (url == "") and 1 or trans
+        end
+    end
+end
+local function applyIconImages()
+    local panelsTbl = rawget(_G, "__SeigePanels")
+    if not panelsTbl then return end
+    for name, p in pairs(panelsTbl) do
+        if p.ibImg then
+            local custom = panelBgState.icons and panelBgState.icons[name]
+            if custom and custom ~= "" then
+                p.ibImg.Image = resolveBgUrl(custom)
+            elseif p.defaultIcon then
+                p.ibImg.Image = p.defaultIcon
             end
         end
     end
 end
 _G.__SeigeApplyPanelBg = applyPanelBg
+_G.__SeigeApplyIconImages = applyIconImages
 
 local saveCfg, loadCfg
 saveCfg = function()
