@@ -1905,6 +1905,18 @@ local function buildBill(p)
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18)),
     })
+    -- image fill layer (sits above gradient, below text/avatar via ZIndex)
+    local bgImg = inst("ImageLabel", bg, {
+        Name = "bgImg",
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        ImageTransparency = 1,
+        ScaleType = Enum.ScaleType.Crop,
+        Visible = false,
+        ZIndex = 1,
+        Image = "",
+    })
+    corner(bgImg, 21)
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 32, 0, 32), Position = UDim2.new(0, 5, 0.5, -16),
         BackgroundColor3 = T.bg3, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop,
