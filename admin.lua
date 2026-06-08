@@ -4885,6 +4885,13 @@ loadCfg = function()
         applyPanelBg()
         pcall(applyIconImages)
     end
+    if type(data.tagElements) == "table" then
+        for k, v in pairs(data.tagElements) do
+            if type(k) == "string" and type(v) == "string" then
+                tagElements[k:lower()] = v
+            end
+        end
+    end
 end
 
 section(pgThemes, "Background")
