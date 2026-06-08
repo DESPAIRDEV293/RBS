@@ -1439,7 +1439,7 @@ bind(LP.Idled:Connect(function()
 end))
 
 ------------------------------------------------------- VISUALS TAB
-section(pgVisuals, "ESP")
+section(pgShaders, "ESP")
 local espOn, espFilter = false, "All"
 local espNames, espDist, espHealth = true, true, true
 local espBoxes = {} -- [player] = { hl, bb, lblName, lblDist, hpFill }
@@ -1518,12 +1518,12 @@ local function rebuildEsp()
     for _, p in ipairs(Players:GetPlayers()) do buildEspFor(p) end
 end
 
-toggle(pgVisuals, "ESP", false, function(s) espOn = s; rebuildEsp() end)
-dropdown(pgVisuals, "ESP filter", { "All", "Friends", "Targets", "Tagged" }, function(o) espFilter = o; rebuildEsp() end)
-toggle(pgVisuals, "Show names", true, function(s) espNames = s end)
-toggle(pgVisuals, "Show distance", true, function(s) espDist = s end)
-toggle(pgVisuals, "Show health bar", true, function(s) espHealth = s end)
-button(pgVisuals, "Refresh ESP", rebuildEsp)
+toggle(pgShaders, "ESP", false, function(s) espOn = s; rebuildEsp() end)
+dropdown(pgShaders, "ESP filter", { "All", "Friends", "Targets", "Tagged" }, function(o) espFilter = o; rebuildEsp() end)
+toggle(pgShaders, "Show names", true, function(s) espNames = s end)
+toggle(pgShaders, "Show distance", true, function(s) espDist = s end)
+toggle(pgShaders, "Show health bar", true, function(s) espHealth = s end)
+button(pgShaders, "Refresh ESP", rebuildEsp)
 
 bind(RunService.RenderStepped:Connect(function()
     if not espOn then return end
@@ -1556,9 +1556,9 @@ for _, p in ipairs(Players:GetPlayers()) do
     bind(p.CharacterAdded:Connect(function() task.wait(0.5); if espOn then buildEspFor(p) end end))
 end
 
-section(pgVisuals, "Camera & Lighting")
-slider(pgVisuals, "Field of view", 30, 120, 70, function(v) cam.FieldOfView = v end)
-toggle(pgVisuals, "Fullbright", false, function(s)
+section(pgShaders, "Camera & Lighting")
+slider(pgShaders, "Field of view", 30, 120, 70, function(v) cam.FieldOfView = v end)
+toggle(pgShaders, "Fullbright", false, function(s)
     if s then
         Lighting.Brightness = 3; Lighting.ClockTime = 14; Lighting.FogEnd = 1e6
         Lighting.GlobalShadows = false; Lighting.Ambient = Color3.new(1,1,1)
@@ -1566,7 +1566,7 @@ toggle(pgVisuals, "Fullbright", false, function(s)
         Lighting.Brightness = 1; Lighting.GlobalShadows = true; Lighting.Ambient = Color3.fromRGB(70,70,70)
     end
 end)
-toggle(pgVisuals, "Low graphics (fog off, shadows off)", false, function(s)
+toggle(pgShaders, "Low graphics (fog off, shadows off)", false, function(s)
     Lighting.FogEnd = s and 1e6 or 1000
     Lighting.GlobalShadows = not s
 end)
