@@ -3659,7 +3659,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         notify("Refreshed all player tags", "good")
     end)
 
-    button(pgTags, "Reload from pastebin (discards unsaved)", function()
+    button(pgTags, "Reload from GitHub (discards unsaved)", function()
         task.spawn(function()
             TagDB:load()
             for _, p in ipairs(Players:GetPlayers()) do
@@ -3671,7 +3671,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 pcall(buildBill, p)
             end
             rebuildList()
-            notify("Reloaded from pastebin", "good")
+            notify("Reloaded from GitHub", "good")
         end)
     end)
 
