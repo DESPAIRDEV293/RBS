@@ -945,6 +945,44 @@ local function parsePastebin(src)
     return entries, count
 end
 
+-- Local persistence: any tag the owner saves/deletes in the in-game panel is
+-- written to disk so it survives rejoin even if the pastebin doesn't have it.
+-- Local overrides take priority over the pastebin entry for the same username.
+local TAGS_LOCAL_FILE = "seige_tags_overrides.json"
+function TagDB:saveLocal()
+    local writefile = rawget(getfenv(), "writefile")
+    if not writefile then return false, "writefile not available" end
+    local ok, encoded = pcall(function() return HttpService:JSONEncode(self.entries or {}) end)
+    if not ok then return false, tostring(encoded) end
+    local wok, werr = pcall(writefile, TAGS_LOCAL_FILE, encoded)
+    if not wok then return false, tostring(werr) end
+    return true
+end
+function TagDB:loadLocal()
+    local isfile   = rawget(getfenv(), "isfile")
+    local readfile = rawget(getfenv(), "readfile")
+    if not (isfile and readfile) then return nil end
+    local okExists, exists = pcall(isfile, TAGS_LOCAL_FILE)
+    if not (okExists and exists) then return nil end
+    local okRead, raw = pcall(readfile, TAGS_LOCAL_FILE)
+    if not okRead or type(raw) ~= "string" or raw == "" then return nil end
+    local okDec, data = pcall(function() return HttpService:JSONDecode(raw) end)
+    if not okDec or type(data) ~= "table" then return nil end
+    local out = {}
+    for k, v in pairs(data) do
+        if type(v) == "table" then out[tostring(k):lower()] = v end
+    end
+    return out
+end
+function TagDB:mergeLocal()
+    local local_ = self:loadLocal()
+    if not local_ then return 0 end
+    local n = 0
+    for k, v in pairs(local_) do self.entries[k] = v; n = n + 1 end
+    if n > 0 then print(("[Tags] merged %d local override(s)"):format(n)) end
+    return n
+end
+
 function TagDB:load()
     -- Try Pastebin source first (easy-edit text format)
     if TAGS_PASTEBIN_URL ~= "" then
