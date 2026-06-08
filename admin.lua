@@ -4311,6 +4311,53 @@ do
         Color = ColorSequence.new(Color3.fromRGB(28, 30, 44), Color3.fromRGB(16, 18, 26)),
     })
 
+    -- ============ HERO PARTICLE FX LAYER ============
+    local heroFx = inst("Frame", hero, {
+        Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+        ClipsDescendants = true, ZIndex = 2,
+    })
+    corner(heroFx, 16)
+    local function heroSparkle()
+        local col = ({
+            Color3.fromRGB(255, 240, 180),
+            Color3.fromRGB(180, 210, 255),
+            Color3.fromRGB(220, 170, 255),
+            Color3.fromRGB(170, 255, 220),
+        })[math.random(1, 4)]
+        local f = inst("Frame", heroFx, {
+            Size = UDim2.new(0, 2, 0, 2),
+            Position = UDim2.new(math.random(), 0, math.random(), 0),
+            BackgroundColor3 = col, BorderSizePixel = 0, ZIndex = 3,
+        })
+        corner(f, 1)
+        TweenService:Create(f, TweenInfo.new(0.9, Enum.EasingStyle.Quad),
+            { Size = UDim2.new(0, 7, 0, 7), BackgroundTransparency = 1 }):Play()
+        task.delay(1, function() if f then f:Destroy() end end)
+    end
+    local function heroNebula()
+        local sz = math.random(28, 56)
+        local f = inst("Frame", heroFx, {
+            Size = UDim2.new(0, sz, 0, sz),
+            Position = UDim2.new(math.random() * 1.1 - 0.05, 0, math.random() * 1.2 - 0.1, 0),
+            BackgroundColor3 = NEBULA_COLORS[math.random(#NEBULA_COLORS)],
+            BackgroundTransparency = 0.82, BorderSizePixel = 0, ZIndex = 2,
+        })
+        corner(f, math.floor(sz / 2))
+        local tx = f.Position.X.Scale + (math.random() - 0.5) * 0.4
+        local ty = f.Position.Y.Scale + (math.random() - 0.5) * 0.3
+        TweenService:Create(f, TweenInfo.new(3, Enum.EasingStyle.Sine),
+            { Position = UDim2.new(tx, 0, ty, 0), BackgroundTransparency = 1,
+              Size = UDim2.new(0, sz + 18, 0, sz + 18) }):Play()
+        task.delay(3.1, function() if f then f:Destroy() end end)
+    end
+    task.spawn(function()
+        while hero and hero.Parent do
+            if math.random() < 0.55 then heroSparkle() end
+            if math.random() < 0.10 then heroNebula() end
+            task.wait(0.12)
+        end
+    end)
+
     -- subtle glow ring behind avatar
     local ring = inst("Frame", hero, {
         AnchorPoint = Vector2.new(0.5, 0),
