@@ -3902,9 +3902,37 @@ local function applyShader(preset)
     elseif preset == "Vibrant" then
         fxColor.Enabled = true; fxColor.Saturation = 0.6; fxColor.Contrast = 0.2; fxColor.TintColor = Color3.new(1,1,1)
         fxBloom.Enabled = true; fxBloom.Intensity = 0.7; fxBloom.Size = 24; fxBloom.Threshold = 1
+    elseif preset == "4K Ultra" then
+        -- crisp, vivid, "high-def TV" look: punchy contrast, clean bloom, subtle DOF, no blur
+        fxBlur.Enabled = false
+        fxColor.Enabled  = true
+        fxColor.Brightness = 0.04
+        fxColor.Contrast   = 0.28
+        fxColor.Saturation = 0.45
+        fxColor.TintColor  = Color3.fromRGB(255, 250, 244)
+        fxBloom.Enabled    = true
+        fxBloom.Intensity  = 0.55
+        fxBloom.Size       = 18
+        fxBloom.Threshold  = 1.15
+        fxSun.Enabled      = true
+        fxSun.Intensity    = 0.18
+        fxSun.Spread       = 0.9
+        fxDOF.Enabled      = true
+        fxDOF.FocusDistance = 60
+        fxDOF.InFocusRadius = 40
+        fxDOF.FarIntensity  = 0.35
+        fxDOF.NearIntensity = 0.05
+        -- crank lighting quality so it actually looks HD
+        pcall(function()
+            Lighting.GlobalShadows  = true
+            Lighting.ShadowSoftness = 0.2
+            Lighting.EnvironmentDiffuseScale  = 1
+            Lighting.EnvironmentSpecularScale = 1
+            Lighting.Technology = Enum.Technology.Future
+        end)
     end
 end
-for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant"}) do
+for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant","4K Ultra"}) do
     button(pgShaders, name, function() applyShader(name) end)
 end
 end -- end shaders scope
