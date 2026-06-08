@@ -7264,7 +7264,7 @@ end)()
 -- Global mouse-click handler: if the user clicks on any character that has a
 -- seige tag bubble, teleport to that player. This is the most reliable layer —
 -- it sidesteps both BillboardGui input layering and ClickDetector quirks.
-(function()
+;(function()
     local Mouse = LP:GetMouse()
     local function ownerOf(part)
         if not part then return nil end
@@ -7298,7 +7298,7 @@ end)()
 -- game name) to a shared JSONBlob every 30s. The Profile tab shows who's currently
 -- executing the script across all games with a "Join" button that teleports you
 -- to their server via TeleportToPlaceInstance.
-(function()
+;(function()
     local TeleportService = game:GetService("TeleportService")
     local MarketplaceService = game:GetService("MarketplaceService")
     local PRESENCE_URL = "https://jsonblob.com/api/jsonBlob/019ea712-72a1-7459-b76d-e58fd195c823"
