@@ -1667,7 +1667,7 @@ local function spawnRain(e)
         Position = UDim2.new(math.random(), 0, 0, -12),
         BackgroundColor3 = Color3.fromRGB(150, 190, 255),
         BackgroundTransparency = 0.35,
-        BorderSizePixel = 0, ZIndex = 0,
+        BorderSizePixel = 0, ZIndex = 6,
     })
     TweenService:Create(f, TweenInfo.new(0.55, Enum.EasingStyle.Linear),
         { Position = UDim2.new(f.Position.X.Scale, 0, 1, 8), BackgroundTransparency = 1 }):Play()
@@ -1679,7 +1679,7 @@ local function spawnSnow(e)
         Position = UDim2.new(math.random(), 0, 0, -4),
         BackgroundColor3 = Color3.fromRGB(255, 255, 255),
         BackgroundTransparency = 0.15,
-        BorderSizePixel = 0, ZIndex = 0,
+        BorderSizePixel = 0, ZIndex = 6,
     })
     corner(f, 2)
     local x = f.Position.X.Scale + (math.random() - 0.5) * 0.18
@@ -1693,7 +1693,7 @@ local function spawnSparkle(e)
         Position = UDim2.new(math.random(), 0, math.random(), 0),
         BackgroundColor3 = Color3.fromRGB(255, 240, 180),
         BackgroundTransparency = 0,
-        BorderSizePixel = 0, ZIndex = 0,
+        BorderSizePixel = 0, ZIndex = 6,
     })
     corner(f, 1)
     TweenService:Create(f, TweenInfo.new(0.55, Enum.EasingStyle.Quad),
@@ -1707,7 +1707,7 @@ local function spawnNebula(e)
         Position = UDim2.new(math.random() * 1.2 - 0.1, 0, math.random() * 1.4 - 0.2, 0),
         BackgroundColor3 = NEBULA_COLORS[math.random(#NEBULA_COLORS)],
         BackgroundTransparency = 0.78,
-        BorderSizePixel = 0, ZIndex = 0,
+        BorderSizePixel = 0, ZIndex = 6,
     })
     corner(f, math.floor(sz / 2))
     local tx = f.Position.X.Scale + (math.random() - 0.5) * 0.5
@@ -1978,10 +1978,11 @@ local function buildBill(p)
         ClipsDescendants = true,
     })
     corner(bg, 21)
-    -- particle layer (sits behind text)
+    -- particle layer (sits above bg/image, below text/avatar)
     local fx = inst("Frame", bg, {
         Name = "fx", Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1, ZIndex = 0,
+        BackgroundTransparency = 1, ZIndex = 5,
+        ClipsDescendants = true,
     })
 
     local st = stroke(bg, T.acc, 1.4, 0.3)
@@ -1989,7 +1990,7 @@ local function buildBill(p)
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(32,32,42), Color3.fromRGB(14,14,18)),
     })
-    -- image fill layer (sits above gradient, below text/avatar via ZIndex)
+    -- image fill layer (sits above gradient, below particles via ZIndex)
     local bgImg = inst("ImageLabel", bg, {
         Name = "bgImg",
         Size = UDim2.new(1, 0, 1, 0),
@@ -1997,13 +1998,14 @@ local function buildBill(p)
         ImageTransparency = 1,
         ScaleType = Enum.ScaleType.Crop,
         Visible = false,
-        ZIndex = 1,
+        ZIndex = 2,
         Image = "",
     })
     corner(bgImg, 21)
     local av = inst("ImageLabel", bg, {
         Size = UDim2.new(0, 32, 0, 32), Position = UDim2.new(0, 5, 0.5, -16),
         BackgroundColor3 = T.bg3, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop,
+        ZIndex = 10,
     })
     corner(av, 16)
     pcall(function() av.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end)
@@ -2011,27 +2013,32 @@ local function buildBill(p)
         BackgroundTransparency = 1, Position = UDim2.new(0, 44, 0, 3), Size = UDim2.new(1, -120, 0, 18),
         Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = p.DisplayName, TextStrokeTransparency = 0.7,
+        ZIndex = 10,
     })
     local hd = inst("TextLabel", bg, {
         BackgroundTransparency = 1, Position = UDim2.new(0, 44, 0, 22), Size = UDim2.new(1, -120, 0, 14),
         Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "@" .. p.Name,
+        ZIndex = 10,
     })
     local sh = inst("Frame", bg, {
         AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0),
         Size = UDim2.new(0, 80, 0, 22),
         BackgroundColor3 = T.bg2, BorderSizePixel = 0,
+        ZIndex = 10,
     })
     corner(sh, 11); stroke(sh, T.line, 1, 0.4)
     local dot = inst("Frame", sh, {
         Size = UDim2.new(0, 6, 0, 6), Position = UDim2.new(0, 8, 0.5, -3),
         BackgroundColor3 = T.acc, BorderSizePixel = 0,
+        ZIndex = 11,
     })
     corner(dot, 3)
     local stx = inst("TextLabel", sh, {
         BackgroundTransparency = 1, Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(1, -22, 1, 0),
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left, Text = "",
+        ZIndex = 11,
     })
     -- invisible click overlay covering the whole bubble → teleport to target player
     local clickBtn = inst("TextButton", bg, {
@@ -3472,6 +3479,20 @@ button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
 button(pgCmds, "!head <player>",        function() _openCmd("!head ") end)
 button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
+
+section(pgCmds, "Extras")
+button(pgCmds, "!esp  —  highlight all players",         function() _runCmd("!esp") end)
+button(pgCmds, "!fullbright  —  flat max lighting",      function() _runCmd("!fullbright") end)
+button(pgCmds, "!day  /  !night",                        function() _openCmd("!day") end)
+button(pgCmds, "!time <0-24>",                           function() _openCmd("!time ") end)
+button(pgCmds, "!invis  —  hide your character",         function() _runCmd("!invis") end)
+button(pgCmds, "!ghost  —  transparent + noclip",        function() _runCmd("!ghost") end)
+button(pgCmds, "!size <n>",                              function() _openCmd("!size ") end)
+button(pgCmds, "!hatspin  —  fling spinning accessories",function() _runCmd("!hatspin") end)
+button(pgCmds, "!freecam  —  WASD/EQ camera",            function() _runCmd("!freecam") end)
+button(pgCmds, "!hop  —  random server hop",             function() _runCmd("!hop") end)
+button(pgCmds, "!say <message>",                         function() _openCmd("!say ") end)
+
 
 section(pgCmds, "Command bar (F6)  ·  !rj  !tprj")
 section(pgCmds, "Rejoin")
@@ -5608,6 +5629,213 @@ end
 cmdHandlers["anim"]     = function(arg) playAnimId(arg or "") end
 cmdHandlers["unreanim"] = function() _G.__StopReanim() end
 cmdHandlers["stopanim"] = function() stopAllReanimTracks(); notify("Tracks stopped", "good") end
+
+-- ================================================================
+-- New utility commands
+-- ================================================================
+
+-- 1) ESP — highlight every player through walls
+cmdHandlers["esp"] = function()
+    if _G.__ESPOn then
+        _G.__ESPOn = false
+        for _, p in ipairs(Players:GetPlayers()) do
+            local c = p.Character; if c then
+                local h = c:FindFirstChild("SeigeESP"); if h then h:Destroy() end
+            end
+        end
+        notify("ESP OFF", "warn"); return
+    end
+    _G.__ESPOn = true
+    local function applyESP(p)
+        if p == LP then return end
+        local c = p.Character; if not c or c:FindFirstChild("SeigeESP") then return end
+        local hi = Instance.new("Highlight")
+        hi.Name = "SeigeESP"
+        hi.FillColor = Color3.fromRGB(120, 180, 255)
+        hi.OutlineColor = Color3.fromRGB(255, 255, 255)
+        hi.FillTransparency = 0.6
+        hi.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hi.Parent = c
+    end
+    for _, p in ipairs(Players:GetPlayers()) do applyESP(p) end
+    if not _G.__ESPConns then _G.__ESPConns = {} end
+    table.insert(_G.__ESPConns, Players.PlayerAdded:Connect(function(p)
+        p.CharacterAdded:Connect(function() task.wait(0.4); if _G.__ESPOn then applyESP(p) end end)
+    end))
+    for _, p in ipairs(Players:GetPlayers()) do
+        table.insert(_G.__ESPConns, p.CharacterAdded:Connect(function()
+            task.wait(0.4); if _G.__ESPOn then applyESP(p) end
+        end))
+    end
+    notify("ESP ON", "good")
+end
+cmdHandlers["unesp"] = cmdHandlers["esp"]
+
+-- 2) Fullbright — flat max ambient lighting
+cmdHandlers["fullbright"] = function()
+    local L = game:GetService("Lighting")
+    if _G.__FB then
+        for k, v in pairs(_G.__FB) do pcall(function() L[k] = v end) end
+        _G.__FB = nil; notify("Fullbright OFF", "warn"); return
+    end
+    _G.__FB = {
+        Ambient = L.Ambient, OutdoorAmbient = L.OutdoorAmbient,
+        Brightness = L.Brightness, FogEnd = L.FogEnd, ClockTime = L.ClockTime,
+        GlobalShadows = L.GlobalShadows,
+    }
+    pcall(function()
+        L.Ambient = Color3.fromRGB(178, 178, 178)
+        L.OutdoorAmbient = Color3.fromRGB(178, 178, 178)
+        L.Brightness = 2; L.FogEnd = 1e10; L.ClockTime = 14
+        L.GlobalShadows = false
+    end)
+    notify("Fullbright ON", "good")
+end
+cmdHandlers["fb"] = cmdHandlers["fullbright"]
+
+-- 3) Time of day
+cmdHandlers["time"] = function(arg)
+    local n = tonumber(arg); if not n then notify("Usage: !time 0-24", "warn"); return end
+    pcall(function() game:GetService("Lighting").ClockTime = n end); notify("Time " .. n, "good")
+end
+cmdHandlers["day"]   = function() pcall(function() game:GetService("Lighting").ClockTime = 14 end); notify("Day", "good") end
+cmdHandlers["night"] = function() pcall(function() game:GetService("Lighting").ClockTime = 0 end);  notify("Night", "good") end
+
+-- 4) Invisible — hide your character locally (transparent + can't be seen by camera)
+cmdHandlers["invis"] = function()
+    local c = LP.Character; if not c then notify("No character", "bad"); return end
+    _G.__InvisOn = not _G.__InvisOn
+    for _, d in ipairs(c:GetDescendants()) do
+        if d:IsA("BasePart") then
+            pcall(function() d.LocalTransparencyModifier = _G.__InvisOn and 1 or 0 end)
+        elseif d:IsA("Decal") or d:IsA("Texture") then
+            pcall(function() d.Transparency = _G.__InvisOn and 1 or 0 end)
+        end
+    end
+    notify(_G.__InvisOn and "Invisible (local)" or "Visible", "good")
+end
+cmdHandlers["visible"] = cmdHandlers["invis"]
+
+-- 5) Hat fling — spin and orbit accessories to fling nearby players
+cmdHandlers["hatspin"] = function()
+    local c = LP.Character; local h = c and c:FindFirstChildOfClass("Humanoid")
+    if not (c and h) then notify("No character", "bad"); return end
+    for _, acc in ipairs(c:GetChildren()) do
+        if acc:IsA("Accessory") then
+            local handle = acc:FindFirstChild("Handle")
+            if handle then
+                pcall(function()
+                    for _, w in ipairs(handle:GetChildren()) do
+                        if w:IsA("Weld") or w:IsA("Motor6D") then w:Destroy() end
+                    end
+                    handle.CanCollide = true; handle.Massless = true
+                    local bp = Instance.new("BodyAngularVelocity", handle)
+                    bp.AngularVelocity = Vector3.new(0, 1000, 0)
+                    bp.MaxTorque = Vector3.new(1e9, 1e9, 1e9)
+                end)
+            end
+        end
+    end
+    notify("Hat spin", "good")
+end
+
+-- 6) Size — scale your character
+cmdHandlers["size"] = function(arg)
+    local n = tonumber(arg) or 1
+    local h = getHum(); if not h then notify("No humanoid", "bad"); return end
+    for _, k in ipairs({"BodyDepthScale","BodyHeightScale","BodyWidthScale","HeadScale"}) do
+        local v = h:FindFirstChild(k); if v then pcall(function() v.Value = n end) end
+    end
+    notify("Size " .. n, "good")
+end
+
+-- 7) Ghost — transparent + noclip + no collide
+cmdHandlers["ghost"] = function()
+    _G.__GhostOn = not _G.__GhostOn
+    local c = LP.Character; if not c then notify("No character", "bad"); return end
+    for _, d in ipairs(c:GetDescendants()) do
+        if d:IsA("BasePart") then
+            pcall(function()
+                d.LocalTransparencyModifier = _G.__GhostOn and 0.7 or 0
+                d.CanCollide = not _G.__GhostOn
+            end)
+        end
+    end
+    if _G.__GhostOn then
+        noclip = true
+    else
+        noclip = false
+    end
+    notify(_G.__GhostOn and "Ghost mode" or "Ghost off", "good")
+end
+
+-- 8) Freecam — detach camera (WASD + mouse)
+cmdHandlers["freecam"] = function()
+    if _G.__FreecamOn then
+        _G.__FreecamOn = false
+        if _G.__FCConn then _G.__FCConn:Disconnect(); _G.__FCConn = nil end
+        cam.CameraType = Enum.CameraType.Custom
+        local h = hum(); if h then cam.CameraSubject = h end
+        notify("Freecam OFF", "warn"); return
+    end
+    _G.__FreecamOn = true
+    cam.CameraType = Enum.CameraType.Scriptable
+    local speed = 1
+    _G.__FCConn = RunService.RenderStepped:Connect(function(dt)
+        if not _G.__FreecamOn then return end
+        local m = 60 * dt * speed
+        local move = Vector3.zero
+        local UIS = game:GetService("UserInputService")
+        if UIS:IsKeyDown(Enum.KeyCode.W) then move = move + Vector3.new(0,0,-m) end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then move = move + Vector3.new(0,0, m) end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then move = move + Vector3.new(-m,0,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then move = move + Vector3.new( m,0,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.E) then move = move + Vector3.new(0, m,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.Q) then move = move + Vector3.new(0,-m,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then move = move * 3 end
+        cam.CFrame = cam.CFrame * CFrame.new(move)
+    end)
+    notify("Freecam ON  (WASD + EQ + Shift)", "good")
+end
+cmdHandlers["unfreecam"] = cmdHandlers["freecam"]
+
+-- 9) Server hop — teleport to a random public server
+cmdHandlers["hop"] = function()
+    notify("Searching server...", "good")
+    task.spawn(function()
+        local ok, list = pcall(function()
+            local raw = game:HttpGet(string.format(
+                "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100", game.PlaceId))
+            return game:GetService("HttpService"):JSONDecode(raw)
+        end)
+        if ok and list and list.data then
+            for _, s in ipairs(list.data) do
+                if s.id ~= game.JobId and s.playing < s.maxPlayers then
+                    pcall(function() TeleportSrv:TeleportToPlaceInstance(game.PlaceId, s.id, LP) end)
+                    return
+                end
+            end
+        end
+        pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
+    end)
+end
+cmdHandlers["serverhop"] = cmdHandlers["hop"]
+
+-- 10) Chat say — send a message in chat from the command bar
+cmdHandlers["say"] = function(arg)
+    if not arg or arg == "" then notify("Usage: !say <message>", "warn"); return end
+    local TextChat = game:GetService("TextChatService")
+    local sent = pcall(function()
+        local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral") or TextChat.TextChannels:GetChildren()[1]
+        if ch then ch:SendAsync(arg) end
+    end)
+    if not sent then
+        pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents")
+                :WaitForChild("SayMessageRequest"):FireServer(arg, "All")
+        end)
+    end
+end
 
 cmdHandlers["pos"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
