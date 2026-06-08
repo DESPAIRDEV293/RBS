@@ -2343,7 +2343,7 @@ local function _resetAura(e)
     end
 end
 
-local SPECIAL_ANIMS = {
+local SPECIAL_ANIMS_DISABLED = {
     abyss = function(e, t)
         local k = (math.sin(t * 1.4) + 1) * 0.5
         _setStroke(e, Color3.fromRGB(120 + k * 40, 140 + k * 40, 220), 2.5 + k * 1.5, 0.05 + (1 - k) * 0.35)
