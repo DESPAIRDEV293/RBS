@@ -967,7 +967,7 @@ end
 local TAGS_PASTEBIN_URL = "https://pastebin.com/raw/wySWnyme"
 local TAGS_DB_URL       = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
 
-local TagDB = { entries = {} }
+local TagDB = { entries = {}, localEntries = {}, appliedTags = {}, appliedIcons = {} }
 local function parseColor(c)
     if typeof(c) == "Color3" then return c end
     if type(c) == "string" then
@@ -994,10 +994,29 @@ function TagDB:configFor(p)
     return self.entries[(p.Name or ""):lower()]
 end
 function TagDB:applyTo(p)
+    if not p then return end
+    local uid = p.UserId
+
+    -- Remove only tags/icons this DB previously applied, so edits and deletes
+    -- replace the old tag state instead of stacking stale values forever.
+    if self.appliedTags[uid] then
+        for t in pairs(self.appliedTags[uid]) do Tags:remove(uid, t) end
+        self.appliedTags[uid] = nil
+    end
+    if self.appliedIcons[uid] then
+        TagIcons:set(uid, nil)
+        self.appliedIcons[uid] = nil
+    end
+
     local cfg = self:configFor(p); if not cfg then return end
-    if cfg.icon then TagIcons:set(p.UserId, cfg.icon) end
+    if cfg.icon then TagIcons:set(uid, cfg.icon); self.appliedIcons[uid] = true end
     if type(cfg.tags) == "table" then
-        for _, t in ipairs(cfg.tags) do Tags:add(p.UserId, t) end
+        local applied = {}
+        for _, t in ipairs(cfg.tags) do
+            Tags:add(uid, t)
+            applied[t] = true
+        end
+        self.appliedTags[uid] = applied
     end
 end
 
