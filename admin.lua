@@ -2605,7 +2605,11 @@ local function buildBill(p)
         ZIndex = 0,
     })
 
-    local bg = inst("Frame", gui, {
+    -- CanvasGroup (not Frame) so descendants (particles, sweep, image fill,
+    -- shine, under-shade) are composited and masked by UICorner. A plain
+    -- Frame's ClipsDescendants only clips to a rectangle, which is why
+    -- effects used to leak into the square corners of the pill.
+    local bg = inst("CanvasGroup", gui, {
         Size = UDim2.new(1, 0, 0, 46), Position = UDim2.new(0, 0, 0, 6),
         BackgroundColor3 = T.bg, BackgroundTransparency = 0.05, BorderSizePixel = 0,
         ClipsDescendants = true,
