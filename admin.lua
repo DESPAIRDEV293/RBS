@@ -5641,6 +5641,8 @@ local function playAnimId(arg)
     notify("Play failed: " .. tostring(track), "bad")
 end
 
+do  -- scope new keyframe-data locals to avoid hitting Lua's 200-locals limit in main chunk
+
 -- ================================================================
 -- Parse raw keyframe data (JSON or Lua table) and play it as an animation.
 -- Accepted JSON shape:
