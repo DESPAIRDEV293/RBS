@@ -2518,15 +2518,19 @@ local function refreshBill(p)
                 e.specialKey = key
                 local resolved = resolveIconUrl(TAG_SPECIAL_URLS[key]) or TAG_SPECIAL_URLS[key]
                 e.aura.Image = resolved
+                if _G.__SeigeStartSpecialAnim then _G.__SeigeStartSpecialAnim(e, key) end
             end
             e.aura.Visible = true
-            e.aura.ImageTransparency = 0
         else
+            if e.specialKey ~= nil and _G.__SeigeStopSpecialAnim then
+                _G.__SeigeStopSpecialAnim(e)
+            end
             e.specialKey = nil
             e.aura.Visible = false
             e.aura.Image = ""
         end
     end
+
 
 
 
