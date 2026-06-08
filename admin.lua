@@ -1212,7 +1212,7 @@ end
 ------------------------------------------------------- TABS
 local pgProfile = makeTab("Profile", "◈", "Your account, recent games and friends")
 local pgPlayers = makeTab("Players", "◉", "Server roster and player tools")
-local pgSelf    = makeTab("Self",    "✦", "Character, speed, flight, jump")
+-- Self tab removed — its controls are now popouts in the Cmds tab.
 local pgWorld   = makeTab("World",   "◊", "World tweaks and movement")
 -- Tags tab removed — now managed via the script database (tags.lua)
 -- Aim moved to Cmds tab as commands (pgAim retained as hidden frame for legacy refs)
@@ -1349,10 +1349,12 @@ button(pgPlayers, "Copy username", withSel(function(p)
 end))
 button(pgPlayers, "Refresh list", function() refreshPlayerList() end)
 
-------------------------------------------------------- SELF TAB
-section(pgSelf, "Movement")
-local wsSlider = slider(pgSelf, "Walk speed", 0, 200, 16, function(v) local h = hum(); if h then h.WalkSpeed = v end end)
-local jpSlider = slider(pgSelf, "Jump power", 0, 500, 50, function(v) local h = hum(); if h then h.JumpPower = v; h.UseJumpPower = true end end)
+------------------------------------------------------- SELF STATE (UI lives in Cmds tab popouts)
+-- The Self tab was removed; these state variables and bound handlers stay so
+-- the Cmds popouts (Movement, Fly, Noclip, Anti-AFK, etc.) can flip them.
+
+-- Walk speed / Jump power are written directly to the humanoid by the
+-- popout sliders; no shared state needed here.
 
 local flying, flySpeed = false, 50
 local flyBV, flyBG
@@ -1374,13 +1376,8 @@ local function startFly()
     flyBG.P = 1e4
     flyBG.CFrame = h.CFrame
 end
-toggle(pgSelf, "Fly  (E up · Q down · WASD)", false, function(s)
-    if s then startFly() else killFly() end
-end)
-slider(pgSelf, "Fly speed", 10, 300, 50, function(v) flySpeed = v end)
 
 local noclip = false
-toggle(pgSelf, "Noclip", false, function(s) noclip = s end)
 bind(RunService.Stepped:Connect(function()
     if noclip then
         local c = char(); if c then for _, p in ipairs(c:GetDescendants()) do
@@ -1403,11 +1400,9 @@ bind(RunService.Stepped:Connect(function()
 end))
 
 local infJump = false
-toggle(pgSelf, "Infinite jump", false, function(s) infJump = s end)
 bind(UIS.JumpRequest:Connect(function() if infJump then local h = hum(); if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end end))
 
 local clickTp = false
-toggle(pgSelf, "Click teleport (Ctrl + click)", false, function(s) clickTp = s end)
 bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
     if i.UserInputType == Enum.UserInputType.MouseButton1 and clickTp and UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
@@ -1415,21 +1410,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
     end
 end))
 
-section(pgSelf, "Actions")
-button(pgSelf, "Reset character", function() local h = hum(); if h then h.Health = 0 end end)
-button(pgSelf, "Refresh character (TP to same spot)", function()
-    local h = hrp(); if not h then return end
-    local cf = h.CFrame
-    LP.Character:BreakJoints()
-    task.wait(0.6)
-    LP.CharacterAdded:Wait():WaitForChild("HumanoidRootPart").CFrame = cf
-end)
-
 local antiAfk = false
-toggle(pgSelf, "Anti-AFK", false, function(s)
-    antiAfk = s
-    if s then notify("Anti-AFK active", "good") end
-end)
 bind(LP.Idled:Connect(function()
     if antiAfk then
         local vu = game:GetService("VirtualUser")
@@ -1437,6 +1418,7 @@ bind(LP.Idled:Connect(function()
         vu:ClickButton2(Vector2.new())
     end
 end))
+
 
 ------------------------------------------------------- VISUALS TAB
 -- (ESP removed)
@@ -3053,6 +3035,72 @@ do
     end
 end
 
+-- Generic floating panel (X close + drag) for arbitrary toggles/sliders/buttons.
+-- builder(body) receives a Frame with a vertical UIListLayout already attached.
+local _openPanel
+do
+    local active = {}
+    _openPanel = function(key, title, height, builder)
+        if active[key] then pcall(function() active[key]:Destroy() end); active[key] = nil; return end
+        local gui = inst("ScreenGui", nil, {
+            Name = "SeigePanelPopup_" .. tostring(key),
+            IgnoreGuiInset = true, ResetOnSpawn = false,
+            DisplayOrder = 220, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        })
+        safeParent(gui)
+        active[key] = gui
+        local win = inst("Frame", gui, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 300, 0, height or 200),
+            BackgroundColor3 = T.bg, BorderSizePixel = 0,
+        })
+        corner(win, 10); stroke(win, T.line, 1, 0.3)
+        local bar = inst("Frame", win, {
+            Size = UDim2.new(1, 0, 0, 32),
+            BackgroundColor3 = T.bg2, BorderSizePixel = 0,
+        })
+        corner(bar, 10)
+        inst("TextLabel", bar, {
+            BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 0),
+            Size = UDim2.new(1, -44, 1, 0), Font = Enum.Font.GothamBold, TextSize = 13,
+            TextColor3 = T.text, TextXAlignment = Enum.TextXAlignment.Left, Text = title,
+        })
+        local closeBtn = inst("TextButton", bar, {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.new(0, 22, 0, 22),
+            BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text, Text = "✕",
+        })
+        corner(closeBtn, 6)
+        closeBtn.MouseButton1Click:Connect(function() gui:Destroy(); active[key] = nil end)
+        do
+            local dragging, startPos, startMouse
+            bar.InputBegan:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true; startPos = win.Position; startMouse = i.Position
+                end
+            end)
+            UIS.InputChanged:Connect(function(i)
+                if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                    local d = i.Position - startMouse
+                    win.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+                end
+            end)
+            UIS.InputEnded:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+            end)
+        end
+        local body = inst("Frame", win, {
+            Position = UDim2.new(0, 6, 0, 36),
+            Size = UDim2.new(1, -12, 1, -42),
+            BackgroundTransparency = 1,
+        })
+        inst("UIListLayout", body, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+        pcall(builder, body)
+    end
+end
+
 button(pgCmds, "Open Command Bar (F6)", function() _openCmd("!") end)
 
 -- No-arg commands run immediately
@@ -3063,10 +3111,6 @@ button(pgCmds, "!jump",                                      function() _runCmd(
 button(pgCmds, "!heal",                                      function() _runCmd("!heal") end)
 button(pgCmds, "!god",                                       function() _runCmd("!god") end)
 button(pgCmds, "!ungod",                                     function() _runCmd("!ungod") end)
-button(pgCmds, "!noclip",                                    function() _runCmd("!noclip") end)
-button(pgCmds, "!clip",                                      function() _runCmd("!clip") end)
-button(pgCmds, "!fly",                                       function() _runCmd("!fly") end)
-button(pgCmds, "!unfly",                                     function() _runCmd("!unfly") end)
 button(pgCmds, "!unspectate",                                function() _runCmd("!unspectate") end)
 button(pgCmds, "!pos",                                       function() _runCmd("!pos") end)
 button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
@@ -3076,17 +3120,73 @@ button(pgCmds, "!help",                                      function() _runCmd(
 button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
 button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
 
--- Numeric commands open a slider popup
-button(pgCmds, "!ws / !speed  —  slider", function()
-    _openSliders("WalkSpeed  ·  !ws", "!ws", {
-        { label = "Speed", lo = 0, hi = 200, default = 16 },
-    })
+-- ===== Popout panels (replace standalone toggles) =====
+button(pgCmds, "Movement  —  walk + jump", function()
+    _openPanel("movement", "Movement  ·  Walk & Jump", 200, function(body)
+        local h = hum()
+        slider(body, "Walk speed", 0, 200, (h and h.WalkSpeed) or 16, function(v)
+            local hh = hum(); if hh then hh.WalkSpeed = v end
+            _runCmd("!ws " .. tostring(math.floor(v + 0.5)))
+        end)
+        slider(body, "Jump power", 0, 500, (h and h.JumpPower) or 50, function(v)
+            local hh = hum(); if hh then hh.JumpPower = v; hh.UseJumpPower = true end
+            _runCmd("!jp " .. tostring(math.floor(v + 0.5)))
+        end)
+        slider(body, "Hip height", 0, 10, (h and h.HipHeight) or 2, function(v)
+            local hh = hum(); if hh then hh.HipHeight = v end
+        end)
+        toggle(body, "Infinite jump", infJump, function(s) infJump = s end)
+    end)
 end)
-button(pgCmds, "!jp  —  slider", function()
-    _openSliders("JumpPower  ·  !jp", "!jp", {
-        { label = "Jump Power", lo = 0, hi = 500, default = 50 },
-    })
+
+button(pgCmds, "Fly  —  toggle + speed", function()
+    _openPanel("fly", "Fly  ·  E up · Q down · WASD", 170, function(body)
+        toggle(body, "Fly enabled", flying, function(s)
+            if s then startFly() else killFly() end
+        end)
+        slider(body, "Fly speed", 10, 300, flySpeed, function(v) flySpeed = v end)
+        button(body, "Stop fly", function() killFly() end)
+    end)
 end)
+
+button(pgCmds, "Noclip  —  toggle", function()
+    _openPanel("noclip", "Noclip  ·  walk through walls", 130, function(body)
+        toggle(body, "Noclip enabled", noclip, function(s) noclip = s end)
+        button(body, "Re-enable collisions (clip)", function()
+            noclip = false
+            local c = char(); if c then for _, p in ipairs(c:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = true end
+            end end
+        end)
+    end)
+end)
+
+button(pgCmds, "Anti-AFK  —  toggle", function()
+    _openPanel("antiafk", "Anti-AFK  ·  prevent kick", 110, function(body)
+        toggle(body, "Anti-AFK enabled", antiAfk, function(s)
+            antiAfk = s
+            if s then notify("Anti-AFK active", "good") end
+        end)
+    end)
+end)
+
+button(pgCmds, "Character  —  reset / refresh / click-TP", function()
+    _openPanel("character", "Character", 170, function(body)
+        button(body, "Reset character", function()
+            local h = hum(); if h then h.Health = 0 end
+        end)
+        button(body, "Refresh (TP to same spot)", function()
+            local h = hrp(); if not h then return end
+            local cf = h.CFrame
+            LP.Character:BreakJoints()
+            task.wait(0.6)
+            LP.CharacterAdded:Wait():WaitForChild("HumanoidRootPart").CFrame = cf
+        end)
+        toggle(body, "Click teleport (Ctrl + click)", clickTp, function(s) clickTp = s end)
+    end)
+end)
+
+
 
 -- Player-target commands open the bar prefilled
 button(pgCmds, "!goto / !tp <player>",  function() _openCmd("!goto ") end)
@@ -4652,7 +4752,7 @@ end)()
 
 -- preferred order on the pill
 local tabOrder = {
-    "Profile", "Players", "Self", "World",
+    "Profile", "Players", "World",
     "Tags", "Cmds", "Themes", "Shaders", "Detector", "Config",
 }
 -- Per-tab image icons (rbxassetid). Images should be white on transparent bg.
