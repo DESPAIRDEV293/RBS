@@ -1742,33 +1742,36 @@ local EFFECT_SPAWN  = { rain = spawnRain, snow = spawnSnow, sparkle = spawnSpark
 
 
 -- Stash original Humanoid display settings so we can restore them when a bubble goes away
-local _origNameDisp = setmetatable({}, { __mode = "k" })
-local function hideRobloxName(p)
-    local ch = pchar(p); if not ch then return end
-    local h = ch:FindFirstChildOfClass("Humanoid"); if not h then return end
-    if _origNameDisp[h] == nil then
-        _origNameDisp[h] = {
-            ddt  = h.DisplayDistanceType,
-            name = h.NameDisplayDistance,
-            hp   = h.HealthDisplayDistance,
-        }
+local hideRobloxName, restoreRobloxName
+do
+    local origNameDisp = setmetatable({}, { __mode = "k" })
+    hideRobloxName = function(p)
+        local ch = pchar(p); if not ch then return end
+        local h = ch:FindFirstChildOfClass("Humanoid"); if not h then return end
+        if origNameDisp[h] == nil then
+            origNameDisp[h] = {
+                ddt  = h.DisplayDistanceType,
+                name = h.NameDisplayDistance,
+                hp   = h.HealthDisplayDistance,
+            }
+        end
+        pcall(function()
+            h.DisplayDistanceType   = Enum.HumanoidDisplayDistanceType.None
+            h.NameDisplayDistance   = 0
+            h.HealthDisplayDistance = 0
+        end)
     end
-    pcall(function()
-        h.DisplayDistanceType   = Enum.HumanoidDisplayDistanceType.None
-        h.NameDisplayDistance   = 0
-        h.HealthDisplayDistance = 0
-    end)
-end
-local function restoreRobloxName(p)
-    local ch = pchar(p); if not ch then return end
-    local h = ch:FindFirstChildOfClass("Humanoid"); if not h then return end
-    local o = _origNameDisp[h]; if not o then return end
-    pcall(function()
-        h.DisplayDistanceType   = o.ddt
-        h.NameDisplayDistance   = o.name
-        h.HealthDisplayDistance = o.hp
-    end)
-    _origNameDisp[h] = nil
+    restoreRobloxName = function(p)
+        local ch = pchar(p); if not ch then return end
+        local h = ch:FindFirstChildOfClass("Humanoid"); if not h then return end
+        local o = origNameDisp[h]; if not o then return end
+        pcall(function()
+            h.DisplayDistanceType   = o.ddt
+            h.NameDisplayDistance   = o.name
+            h.HealthDisplayDistance = o.hp
+        end)
+        origNameDisp[h] = nil
+    end
 end
 
 local function clearBills()
