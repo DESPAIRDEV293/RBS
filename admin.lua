@@ -2384,15 +2384,43 @@ local function refreshBill(p)
 
     -- Sync tag text (display name + @handle + chip text) to the user's
     -- configured tag color. If they have no custom color, keep defaults.
+    -- A per-entry "textColor" override beats the chip color when set.
     local hasCustomColor = cfg and cfg.color and cfg.color ~= ""
+    local textOverride = nil
+    if cfg and cfg.textColor and cfg.textColor ~= "" then
+        textOverride = parseColor(cfg.textColor)
+    end
+    local nameColor   = textOverride or (hasCustomColor and chipColor) or T.text
+    local handleColor = textOverride or (hasCustomColor and chipColor) or T.sub
+    local statColor   = textOverride or (hasCustomColor and chipColor) or T.text
+    if e.name   then e.name.TextColor3   = nameColor   end
+    if e.handle then e.handle.TextColor3 = handleColor end
+    if e.stat   then e.stat.TextColor3   = statColor   end
+
+    -- Per-entry text-stroke color around the name labels. "off"/"none" disables.
+    local toRaw = cfg and cfg.textOutline
+    local toNorm = tostring(toRaw or ""):lower():gsub("^%s+",""):gsub("%s+$","")
     if e.name then
-        e.name.TextColor3 = hasCustomColor and chipColor or T.text
+        if toNorm == "off" or toNorm == "none" or toNorm == "0" or toNorm == "false" then
+            e.name.TextStrokeTransparency = 1
+        elseif toRaw and toRaw ~= "" then
+            local sc = parseColor(toRaw)
+            if sc then
+                e.name.TextStrokeColor3 = sc
+                e.name.TextStrokeTransparency = 0.25
+            end
+        end
     end
     if e.handle then
-        e.handle.TextColor3 = hasCustomColor and chipColor or T.sub
-    end
-    if e.stat then
-        e.stat.TextColor3 = hasCustomColor and chipColor or T.text
+        if toNorm == "off" or toNorm == "none" or toNorm == "0" or toNorm == "false" then
+            e.handle.TextStrokeTransparency = 1
+        elseif toRaw and toRaw ~= "" then
+            local sc = parseColor(toRaw)
+            if sc then
+                e.handle.TextStrokeColor3 = sc
+                e.handle.TextStrokeTransparency = 0.4
+            end
+        end
     end
 
     -- Metal sweep highlight: default ON, disable when cfg.sweep == "off"
@@ -2585,17 +2613,21 @@ local function buildBill(p)
 
     -- Tag special aura: bundled outline effect that wraps the bubble.
     -- Sits behind the pill but in front of the soft glow. Hidden by default.
+    -- Stretched and clipped to the pill shape so the PNG conforms to the
+    -- rounded GUI instead of showing as a square behind it.
     local aura = inst("ImageLabel", gui, {
         Name = "specialAura",
         BackgroundTransparency = 1,
         Image = "",
         ImageTransparency = 0,
-        ScaleType = Enum.ScaleType.Fit,
-        Size = UDim2.new(1, 56, 1, 36),
-        Position = UDim2.new(0, -28, 0, -10),
+        ScaleType = Enum.ScaleType.Stretch,
+        Size = UDim2.new(1, 12, 0, 58),
+        Position = UDim2.new(0, -6, 0, 0),
         Visible = false,
         ZIndex = 0,
     })
+    corner(aura, 23)
+
 
     local bg = inst("Frame", gui, {
         Size = UDim2.new(1, 0, 0, 46), Position = UDim2.new(0, 0, 0, 6),
@@ -3069,6 +3101,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         username = "", displayName = "", color = "", color2 = "", fill = "",
         icon = "", effect = "none", textFx = "none", tags = "", customText = "", customHandle = "",
         font = "Default", sweep = "on", element = "none",
+        textColor = "", textOutline = "",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -3136,6 +3169,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local tbCustom   = field(pgTags, "Custom chip text (owner override — optional)", "customText", "VIP")
     local tbHandle   = field(pgTags, "Custom @handle (overrides @user — optional)", "customHandle", "despair")
     local tbOutline  = field(pgTags, "Outline color (hex, or 'off' to disable)", "outline", "#ffffff   or   off")
+    local tbTextColor   = field(pgTags, "Tag text color (display name + @handle) — hex, blank = auto",
+                                "textColor", "#ffffff   or   blank for auto")
+    local tbTextOutline = field(pgTags, "Tag text outline color (text stroke around the name) — hex, or 'off'",
+                                "textOutline", "#000000   or   off")
 
     -- gradient presets (inspired by gradientshub.com) — click to set the fill spec
     section(pgTags, "Gradient presets")
@@ -3300,6 +3337,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         tbCustom.Text   = (e and e.customText) or ""
         tbHandle.Text   = (e and e.customHandle) or ""
         tbOutline.Text  = (e and e.outline) or ""
+        tbTextColor.Text   = (e and e.textColor) or ""
+        tbTextOutline.Text = (e and e.textOutline) or ""
         effDD.set(e and e.effect or "none")
         txDD.set(e and e.textFx or "none")
         fontDD.set((e and e.font) or "Default")
@@ -3548,6 +3587,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if ch ~= "" then entry.customHandle = (ch:gsub("^@","")) end
         local ol = pick(form.outline, tbOutline.Text)
         if ol ~= "" then entry.outline = ol end
+        local tc = pick(form.textColor, tbTextColor.Text)
+        if tc ~= "" then entry.textColor = tc end
+        local to = pick(form.textOutline, tbTextOutline.Text)
+        if to ~= "" then entry.textOutline = to end
         if form.font and form.font ~= "" and form.font ~= "Default" then
             entry.font = form.font
         end
