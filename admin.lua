@@ -138,8 +138,8 @@ _G.__SeigeLockSet = _readLockSet()
 local ROLES_FILE = "seige_roles.json"
 local OWNER_NAME = "0rot3"
 local ROLE_PERMS = {
-    owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true, staff_cmd = true },
-    admin = { view = true, allp = true, lock = true, usay = true, staff_cmd = true },
+    owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true },
+    admin = { view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true },
     staff = { view = true, allp = true, staff_cmd = true },
     nt    = { view = true },
 }
