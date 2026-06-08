@@ -3473,6 +3473,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local label = (sc == "on" or sc == "1" or sc == "true") and "On" or "Off"
             form.showChip = label; showChipDD.set(label)
         end
+        do
+            local label = (e and e.aura and require == require and (function()
+                for _, n in ipairs({"Ember","Frost","Lightning","Void","Aurora","Crimson","Royal","Toxic","Phantom","Solar"}) do
+                    if tostring(e.aura):lower() == n:lower() then return n end
+                end
+                return "Off"
+            end)()) or "Off"
+            form.aura = label; auraDD.set(label)
+        end
     end
 
     local function clearForm() loadForm(nil, nil) end
