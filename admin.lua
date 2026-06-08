@@ -3326,6 +3326,114 @@ do
     end
 end
 
+-- ===== Help panel: full command reference =====
+local HELP_CMDS = {
+    { "Rejoin & teleport", {
+        { "!rj", "Rejoin the same place (new server)" },
+        { "!tprj", "Rejoin THIS server and restore your position via queue_on_teleport" },
+        { "!hop", "Teleport to a random public server" },
+    }},
+    { "Character", {
+        { "!reset / !r / !respawn", "Kill your character to respawn" },
+        { "!jump", "Force a jump" },
+        { "!heal", "Heal to max health" },
+        { "!god / !ungod", "Toggle godmode (server-side via reset trick)" },
+        { "!sit", "Force sit" },
+        { "!size <n>", "Scale your character (e.g. !size 2)" },
+        { "!invis", "Hide your character locally (toggle / keybind via popout)" },
+        { "!ghost", "Semi-transparent + noclip" },
+        { "!hatspin", "Spin/break accessories (flings nearby)" },
+    }},
+    { "Movement", {
+        { "!ws <n>", "Set walk speed (0–200)" },
+        { "!jp <n>", "Set jump power (0–500)" },
+        { "!fly / !unfly", "Toggle fly (WASD + E/Q, Shift = boost)" },
+        { "!noclip / !clip", "Walk through walls" },
+        { "!freecam", "Detach camera (WASD/EQ + Shift)" },
+    }},
+    { "Teleport / target", {
+        { "!goto <player>", "Teleport to a player" },
+        { "!tp <player>", "Same as !goto" },
+        { "!to <player>", "Bring a player to you" },
+        { "!spectate <player>", "Spectate a player" },
+        { "!unspectate", "Stop spectating" },
+        { "!face <player>", "Face a player" },
+        { "!head <player>", "Stand on their head" },
+        { "!fling <player>", "Fling a player" },
+    }},
+    { "Animations", {
+        { "!reanim", "Free the humanoid for custom animations" },
+        { "!unreanim", "Stop reanim" },
+        { "!reanim <id> [speed]", "Play an animation asset id" },
+        { "!reanimurl <url> [speed]", "Fetch + play .txt/.json keyframe data" },
+        { "!reanimdata <raw>", "Play pasted JSON/Lua keyframe data" },
+        { "!stopanim", "Stop all reanim tracks" },
+        { "!bang <player>", "Roblox classic" },
+        { "!unbang", "Stop" },
+    }},
+    { "Position", {
+        { "!save", "Save current position" },
+        { "!load", "Teleport back to saved position" },
+    }},
+    { "World / lighting", {
+        { "!fullbright", "Flat max ambient" },
+        { "!day / !night", "Time of day shortcuts" },
+        { "!time <0-24>", "Set ClockTime" },
+        { "!esp", "Highlight all players through walls" },
+    }},
+    { "Misc", {
+        { "!nameedit", "Open the name-spoof panel" },
+        { "!say <message>", "Send a chat message" },
+        { "!info", "Server info" },
+        { "!help", "Open this panel" },
+    }},
+}
+
+local function _openHelpPanel()
+    _openPanel("help", "Help  ·  All commands", 480, function(body)
+        local scroll = inst("ScrollingFrame", body, {
+            Size = UDim2.new(1, -4, 1, 0),
+            BackgroundTransparency = 1, BorderSizePixel = 0,
+            ScrollBarThickness = 4, ScrollBarImageColor3 = T.acc,
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+        })
+        inst("UIListLayout", scroll, { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder })
+        inst("UIPadding", scroll, { PaddingRight = UDim.new(0, 6) })
+        for _, group in ipairs(HELP_CMDS) do
+            local hdr = inst("TextLabel", scroll, {
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, -8, 0, 22),
+                Font = Enum.Font.GothamBold, TextSize = 11,
+                TextColor3 = T.dim, TextXAlignment = Enum.TextXAlignment.Left,
+                Text = string.upper(group[1]),
+            })
+            for _, row in ipairs(group[2]) do
+                local cmd, desc = row[1], row[2]
+                local f = inst("Frame", scroll, {
+                    Size = UDim2.new(1, -8, 0, 36),
+                    BackgroundColor3 = T.bg2, BackgroundTransparency = 0.35, BorderSizePixel = 0,
+                })
+                corner(f, 6); stroke(f, T.line, 1, 0.6)
+                inst("TextLabel", f, {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 10, 0, 2), Size = UDim2.new(1, -20, 0, 16),
+                    Font = Enum.Font.Code, TextSize = 12, TextColor3 = T.acc,
+                    TextXAlignment = Enum.TextXAlignment.Left, Text = cmd,
+                })
+                inst("TextLabel", f, {
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 10, 0, 18), Size = UDim2.new(1, -20, 0, 16),
+                    Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+                    TextXAlignment = Enum.TextXAlignment.Left, Text = desc, TextTruncate = Enum.TextTruncate.AtEnd,
+                })
+            end
+        end
+    end)
+end
+_G.__SeigeOpenHelp = _openHelpPanel
+
 button(pgCmds, "Open Command Bar (F6)", function() _openCmd("!") end)
 
 -- No-arg commands run immediately
