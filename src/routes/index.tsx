@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 
 const loadstringCommand = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/seige.lua"))()';
 
@@ -48,14 +47,6 @@ const DROPLETS = Array.from({ length: 90 }, (_, i) => {
 });
 
 function Index() {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(loadstringCommand);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {}
-  };
 
   return (
     <div className="storm-root relative min-h-screen overflow-hidden text-slate-100">
