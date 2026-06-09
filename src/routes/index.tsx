@@ -306,8 +306,8 @@ function Index() {
           width: 110px;
           height: 55vh;
           opacity: 0;
-          filter: drop-shadow(0 0 18px rgba(165,180,252,0.9))
-                  drop-shadow(0 0 60px rgba(99,102,241,0.55));
+          /* Single drop-shadow instead of stacked — filters compose expensively in Chrome. */
+          filter: drop-shadow(0 0 22px rgba(165,180,252,0.85));
           animation: storm-bolt-flash 9s linear infinite;
         }
         @keyframes storm-bolt-flash {
