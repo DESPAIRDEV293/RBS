@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-tag-fill-image-rebuild"
+local ADMIN_BUILD = "2026-06-09-tags-rebuilt-clean"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -1668,54 +1668,41 @@ local function resolveIconUrl(raw)
     return raw
 end
 
-local function normalizeTagImageSpec(raw)
+local function normalizeTagFillSpec(raw)
     raw = tostring(raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if raw == "" then return nil end
-    local low = raw:lower()
     local body = raw
-    if low:sub(1,6) == "image:" or low:sub(1,4) == "img:"
-       or low:sub(1,6) == "asset:" or low:sub(1,6) == "decal:"
-       or low:sub(1,8) == "texture:" then
-        body = raw:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "")
-                  :gsub("^[Ii][Mm][Gg]:", "")
-                  :gsub("^[Aa][Ss][Ss][Ee][Tt]:", "")
-                  :gsub("^[Dd][Ee][Cc][Aa][Ll]:", "")
-                  :gsub("^[Tt][Ee][Xx][Tt][Uu][Rr][Ee]:", "")
+    local low = body:lower()
+    if low:sub(1,6) == "image:" or low:sub(1,4) == "img:" or low:sub(1,6) == "asset:"
+       or low:sub(1,6) == "decal:" or low:sub(1,8) == "texture:" then
+        body = body:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "")
+                   :gsub("^[Ii][Mm][Gg]:", "")
+                   :gsub("^[Aa][Ss][Ss][Ee][Tt]:", "")
+                   :gsub("^[Dd][Ee][Cc][Aa][Ll]:", "")
+                   :gsub("^[Tt][Ee][Xx][Tt][Uu][Rr][Ee]:", "")
         body = body:gsub("^%s+", ""):gsub("%s+$", "")
         low = body:lower()
     end
     if body:match("^%d+$") then return "image:" .. body end
-    local assetId = low:match("^rbxassetid://(%d+)") or low:match("^rbxasset://(%d+)")
-    if assetId then return "image:" .. assetId end
+    local id = low:match("^rbxassetid://(%d+)") or low:match("^rbxasset://(%d+)")
+    if id then return "image:" .. id end
     if low:match("^rbxthumb://") then return "image:" .. body end
     if low:match("roblox%.com") then
-        local id = body:match("[?&]id=(%d+)") or body:match("/(%d+)")
+        id = body:match("[?&]id=(%d+)") or body:match("/(%d+)")
         if id then return "image:" .. id end
     end
-    if low:match("^https?://") and (low:match("%.png") or low:match("%.jpg") or low:match("%.jpeg") or low:match("%.gif") or low:match("%.webp")) then
-        return "image:" .. body
-    end
+    if low:match("^https?://") then return "image:" .. body end
     return nil
 end
 
-local function resolveTagFillImageUrl(raw)
-    local spec = normalizeTagImageSpec(raw)
-    if spec then raw = spec:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "") end
-    raw = tostring(raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
-    if raw == "" then return nil end
-    local low = raw:lower()
-    local id = raw:match("^%d+$") or low:match("^rbxassetid://(%d+)") or low:match("^rbxasset://(%d+)")
+local function tagFillImageUrl(spec)
+    local norm = normalizeTagFillSpec(spec)
+    if not norm then return nil end
+    local body = norm:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "")
+    local low = body:lower()
+    local id = body:match("^%d+$") or low:match("^rbxassetid://(%d+)") or low:match("^rbxasset://(%d+)")
     if id then return "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420" end
-    if low:match("^rbxthumb://") or low:match("^https?://") then return raw end
-    if low:match("roblox%.com") then
-        id = raw:match("[?&]id=(%d+)") or raw:match("/(%d+)")
-        if id then return "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420" end
-    end
-    local gca = rawget(getfenv(), "getcustomasset") or rawget(getfenv(), "getsynasset")
-    if type(gca) == "function" then
-        local ok, v = pcall(gca, raw); if ok and v then return v end
-    end
-    return raw
+    return body
 end
 
 
@@ -1804,7 +1791,7 @@ local function parseFill(s)
                       :gsub("^[Tt][Ee][Xx][Tt][Uu][Rr][Ee]:", "")
         rest = rest:gsub("^%s+", ""):gsub("%s+$", "")
         if rest == "" then return nil end
-        local url = resolveTagFillImageUrl(rest)
+        local url = tagFillImageUrl(rest)
         if not url or url == "" then return nil end
         return { kind = "image", url = url }
     else
@@ -3208,25 +3195,12 @@ local function refreshBill(p)
             e.bg.BackgroundColor3    = fill.c
             e.bg.BackgroundTransparency = 0
         else
-            -- User typed something we couldn't parse: keep whatever color/image
-            -- is currently on the pill instead of stomping it with the dark
-            -- default, and surface a warn so they see the parse failure.
-            local raw = cfg and cfg.color
-            if raw and tostring(raw):gsub("%s","") ~= "" then
-                if not e._badFillWarned or e._badFillWarned ~= raw then
-                    warn(("[Tags] could not parse color/fill %q for %s — keeping previous pill"):format(tostring(raw), p.Name or "?"))
-                    e._badFillWarned = raw
-                end
-                -- intentionally do nothing — leave e.bgImg / e.bgGrad / e.bg as-is
-            else
-                if e.bgImg then e.bgImg.Visible = false end
-                -- Default dark gradient ONLY when no per-entry color is set.
-                e.bgGrad.Enabled  = true
-                e.bgGrad.Rotation = 90
-                e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
-                e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
-                e.bg.BackgroundTransparency = 0
-            end
+            if e.bgImg then e.bgImg.Visible = false; e.bgImg.Image = "" end
+            e.bgGrad.Enabled  = true
+            e.bgGrad.Rotation = 90
+            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
+            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+            e.bg.BackgroundTransparency = 0
         end
 
     end
@@ -3272,6 +3246,116 @@ local function refreshBill(p)
     e.gui.Size       = UDim2.new(0, pillW + 24, 0, 58)
 end
 
+
+-- Clean tag renderer v2: one deterministic path for every refresh.
+-- No stale fill fallback, no text-effect side loops, no duplicate image parsing.
+refreshBill = function(p)
+    local e = tagBills[p]; if not e then return end
+    local cfg = TagDB:configFor(p) or {}
+    if e.gui then e.gui.Enabled = true end
+    if e.auraStop then pcall(e.auraStop); e.auraStop = nil; e.auraName = nil end
+
+    local function fmtHandle(h)
+        h = tostring(h or ""):gsub("^@", ""):gsub("^%s+", ""):gsub("%s+$", "")
+        return "@" .. (h ~= "" and h or "user")
+    end
+
+    local nameStr = (cfg.displayName and cfg.displayName ~= "" and cfg.displayName) or (p == LP and p.DisplayName) or "user"
+    local handleStr = (cfg.customHandle and cfg.customHandle ~= "" and fmtHandle(cfg.customHandle)) or (p == LP and ("@" .. p.Name)) or "@user"
+    e.name.Text = nameStr; e.handle.Text = handleStr; e.baseName = nameStr
+
+    local fontChoice = (cfg.font and cfg.font ~= "" and cfg.font ~= "Default" and cfg.font) or (_G.__SeigeTagFont and _G.__SeigeTagFont ~= "Default" and _G.__SeigeTagFont) or nil
+    local font = fontChoice and Enum.Font[fontChoice] or nil
+    pcall(function()
+        e.name.Font = font or Enum.Font.GothamBold
+        e.handle.Font = font or Enum.Font.Gotham
+        if e.stat then e.stat.Font = font or Enum.Font.GothamBold end
+    end)
+
+    if e.av then
+        e.gifToken = (e.gifToken or 0) + 1; e.gifKey = nil
+        e.av.ImageRectOffset = Vector2.new(0, 0); e.av.ImageRectSize = Vector2.new(0, 0)
+        local img
+        if cfg.icon and cfg.icon ~= "" then img = resolveIconUrl(cfg.icon) end
+        if not img then pcall(function() img = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end) end
+        if img and img ~= "" then pcall(function() e.av.Image = ""; e.av.Image = img end); e.av.ImageTransparency = 0 end
+    end
+
+    local fill = parseFill(cfg.color or "")
+    local accent = (fill and ((fill.kind == "solid" and fill.c) or (fill.kind == "split" and fill.c1) or (fill.kind == "gradient" and fill.stops and fill.stops[1]))) or parseColor(cfg.outline or "") or (T.silverHi or T.text)
+    if e.bgImg then e.bgImg.Visible = false; e.bgImg.Image = ""; e.bgImg.ImageTransparency = 1 end
+    if e.bgGrad then e.bgGrad.Enabled = false end
+    e.bg.BackgroundTransparency = 0
+
+    if fill and fill.kind == "image" then
+        if e.bgImg then
+            e.bgImg.Size = UDim2.new(1, 0, 1, 0); e.bgImg.Position = UDim2.new(0, 0, 0, 0)
+            e.bgImg.ScaleType = Enum.ScaleType.Crop; e.bgImg.ZIndex = 3
+            pcall(function() e.bgImg.Image = ""; e.bgImg.Image = fill.url end)
+            e.bgImg.ImageTransparency = 0; e.bgImg.BackgroundTransparency = 1; e.bgImg.Visible = true
+        end
+        e.bg.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+    elseif fill and fill.kind == "gradient" and e.bgGrad then
+        local kps = {}
+        for i, c in ipairs(fill.stops) do kps[#kps + 1] = ColorSequenceKeypoint.new((i - 1) / math.max(1, #fill.stops - 1), c) end
+        e.bgGrad.Color = ColorSequence.new(kps); e.bgGrad.Rotation = fill.rotation or 90; e.bgGrad.Enabled = true
+        e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+    elseif fill and fill.kind == "split" and e.bgGrad then
+        e.bgGrad.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, fill.c1), ColorSequenceKeypoint.new(0.499, fill.c1),
+            ColorSequenceKeypoint.new(0.5, fill.c2), ColorSequenceKeypoint.new(1, fill.c2),
+        })
+        e.bgGrad.Rotation = 0; e.bgGrad.Enabled = true; e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+    elseif fill and fill.kind == "solid" then
+        e.bg.BackgroundColor3 = fill.c
+    else
+        if e.bgGrad then
+            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
+            e.bgGrad.Rotation = 90; e.bgGrad.Enabled = true
+        end
+        e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+    end
+
+    local outline = tostring(cfg.outline or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+    e.outlineOff = outline == "off" or outline == "none" or outline == "0" or outline == "false"
+    if e.stroke then e.stroke.Enabled = not e.outlineOff; e.stroke.Color = parseColor(cfg.outline or "") or accent end
+
+    local txt = cfg.customText and cfg.customText ~= "" and cfg.customText or Tags:summary(p.UserId)
+    local chipOn = tostring(cfg.showChip or ""):lower() == "on"
+    if e.sh then e.sh.Visible = chipOn and txt ~= "" end
+    if e.stat then e.stat.Text = tostring(txt or ""):gsub(",", " • ") end
+    if e.dot then e.dot.BackgroundColor3 = accent end
+    if e.avRing then
+        e.avRing.Color = accent
+        local ao = tostring(cfg.avatarOutline or ""):lower()
+        e.avRing.Enabled = not (ao == "off" or ao == "none" or ao == "0" or ao == "false")
+    end
+
+    local textColor = parseColor(cfg.textColor or "") or (cfg.color and cfg.color ~= "" and accent) or T.text
+    local handleColor = parseColor(cfg.textColor or "") or (cfg.color and cfg.color ~= "" and accent) or T.sub
+    e.name.TextColor3 = textColor; e.handle.TextColor3 = handleColor; if e.stat then e.stat.TextColor3 = textColor end
+    local to = tostring(cfg.textOutline or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+    local off = to == "off" or to == "none" or to == "0" or to == "false"
+    local toc = parseColor(cfg.textOutline or "")
+    for _, lbl in ipairs({ e.name, e.handle }) do
+        if lbl then
+            if off then lbl.TextStrokeTransparency = 1
+            elseif toc then lbl.TextStrokeColor3 = toc; lbl.TextStrokeTransparency = 0.35 end
+        end
+    end
+
+    local nameW = measureText(nameStr, e.name.Font or Enum.Font.GothamBold, 14)
+    local handleW = measureText(handleStr, e.handle.Font or Enum.Font.Gotham, 10)
+    local textW = math.ceil(math.max(nameW, handleW))
+    e.name.Size = UDim2.new(0, textW + 4, 0, 18); e.handle.Size = UDim2.new(0, textW + 4, 0, 14)
+    e.name.Position = UDim2.new(0, 48, 0, 4); e.handle.Position = UDim2.new(0, 48, 0, 24)
+    e.nameBasePos = e.name.Position; e.handleBasePos = e.handle.Position
+    local chipBlock = 0
+    if e.sh and e.sh.Visible then local statW = measureText(e.stat.Text or "", e.stat.Font or Enum.Font.GothamBold, 10); e.sh.Size = UDim2.new(0, math.ceil(statW + 22), 0, 22); chipBlock = e.sh.Size.X.Offset + 4 end
+    local pillW = math.max(118, 6 + 34 + 8 + textW + chipBlock + 10)
+    e.bg.AnchorPoint = Vector2.new(0.5, 0.5); e.bg.Position = UDim2.new(0.5, 0, 0.5, 0); e.bg.Size = UDim2.new(0, pillW, 0, 46)
+    e.gui.Size = UDim2.new(0, pillW + 24, 0, 58)
+end
 
 local function buildBill(p)
 
@@ -3861,14 +3945,21 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         -- never in the hex color box.
         local rawColor = (e and e.color) or ""
         local rcLow = rawColor:lower()
-        local imgSpec = normalizeTagImageSpec(rawColor)
         local isFill =
             rcLow:sub(1,5) == "grad:" or rcLow:sub(1,9) == "gradient:"
-            or imgSpec ~= nil
+            or rcLow:sub(1,6) == "image:" or rcLow:sub(1,4) == "img:"
+            or rcLow:sub(1,13) == "rbxassetid://"
+            or (rawColor ~= "" and rawColor:match("^%d+$") ~= nil)
         if isFill then
             -- Normalize raw asset ids / rbxassetid urls into an image: spec so
             -- the advanced-fill box shows a recognisable form.
-            tbFill.Text = imgSpec or rawColor
+            if rawColor:match("^%d+$") then
+                tbFill.Text = "image:" .. rawColor
+            elseif rcLow:sub(1,13) == "rbxassetid://" then
+                tbFill.Text = "image:" .. rawColor:sub(14)
+            else
+                tbFill.Text = rawColor
+            end
             tbColor.Text = ""; tbColor2.Text = ""
         else
             tbFill.Text = ""
@@ -4123,9 +4214,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         local fillRaw = pick(form.fill, tbFill.Text)
         local c1 = pick(form.color, tbColor.Text)
         local c2 = pick(form.color2, tbColor2.Text)
-        -- Detect Roblox image specs in ANY of the color/fill fields so an asset
-        -- id immediately replaces the pill's inner black fill after Save.
-        local imgSpec = normalizeTagImageSpec(fillRaw) or normalizeTagImageSpec(c1) or normalizeTagImageSpec(c2)
+        local imgSpec = normalizeTagFillSpec(fillRaw) or normalizeTagFillSpec(c1) or normalizeTagFillSpec(c2)
         if imgSpec then
             entry.color = imgSpec
         elseif fillRaw ~= "" then
@@ -4570,7 +4659,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     local ntUser   = _ntField(pgNtTags, "Username (required)", "e.g. SomeUser")
     local ntTags   = _ntField(pgNtTags, "Tag names (comma separated)", "Owner, Dev")
-    local ntColor  = _ntField(pgNtTags, "Color / fill (hex or Roblox image ID)", "#ff3b6b or image:1234567890")
+    local ntColor  = _ntField(pgNtTags, "Color / pill fill (hex or image ID)", "#ff3b6b or image:1234567890")
     local ntColor2 = _ntField(pgNtTags, "Second color (optional · split bubble)", "#00aaff")
     local ntIcon   = _ntField(pgNtTags, "Image / icon (Roblox asset ID)", "1234567890")
 
@@ -4586,8 +4675,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local a, b = c:match("^([^/]+)/([^/]+)$")
             ntColor.Text  = a or ""
             ntColor2.Text = b or ""
-        elseif normalizeTagImageSpec(c) then
-            ntColor.Text = normalizeTagImageSpec(c) or c; ntColor2.Text = ""
+        elseif normalizeTagFillSpec(c) then
+            ntColor.Text = normalizeTagFillSpec(c) or c; ntColor2.Text = ""
         else
             ntColor.Text = c; ntColor2.Text = ""
         end
@@ -4616,11 +4705,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             entry.tags = nil
         end
 
-        -- Color / fill. A Roblox image ID here changes the pill interior;
-        -- the separate Image/Icon field remains only for the avatar icon.
+        -- Color/fill: image IDs here change the pill interior, icon field changes avatar image.
         local c1 = _trim(ntColor.Text)
         local c2 = _trim(ntColor2.Text)
-        local imgSpec = normalizeTagImageSpec(c1) or normalizeTagImageSpec(c2)
+        local imgSpec = normalizeTagFillSpec(c1) or normalizeTagFillSpec(c2)
         if imgSpec then entry.color = imgSpec
         elseif c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
         elseif c1 ~= "" then entry.color = c1
@@ -4648,12 +4736,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         for _, p in ipairs(Players:GetPlayers()) do
             if p.Name:lower() == key or tostring(p.DisplayName or ""):lower() == key then
                 pcall(function() TagDB:applyTo(p) end)
-                if tagBills[p] then
-                    pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
-                    tagBills[p] = nil
-                end
-                pcall(buildBill, p)
-                pcall(refreshBill, p)
+                if tagBills[p] then pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end); tagBills[p] = nil end
+                pcall(buildBill, p); pcall(refreshBill, p)
             end
         end
 
