@@ -7445,6 +7445,23 @@ function applyIconImages()
 end
 _G.__SeigeApplyPanelBg = applyPanelBg
 _G.__SeigeApplyIconImages = applyIconImages
+_G.__SeigeApplyBg = applyBg
+_G.__SeigeApplyTheme = applyTheme
+_G.__SeigeApplyThemeHex = function(hexMap)
+    if type(hexMap) ~= "table" then return end
+    local newT = {}
+    for k, hex in pairs(hexMap) do
+        local h = tostring(hex):gsub("^#","")
+        if #h == 6 then
+            local r = tonumber(h:sub(1,2),16) or 0
+            local g = tonumber(h:sub(3,4),16) or 0
+            local b = tonumber(h:sub(5,6),16) or 0
+            newT[k] = Color3.fromRGB(r,g,b)
+        end
+    end
+    applyTheme(newT)
+end
+
 
 
 saveCfg = function()
