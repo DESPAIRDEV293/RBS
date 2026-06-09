@@ -1906,7 +1906,7 @@ local function parsePastebin(src)
                 if parts[15] and parts[15] ~= "" then entry.avatarOutline = parts[15] end
                 if parts[16] and parts[16] ~= "" then entry.showChip = parts[16] end
                 -- parts[17] used to be tag aura; ignored so colors/images always paint the pill.
-                entries[normTagKey(user)] = stripTagSpecials(entry)
+                entries[normTagKey(user)] = cleanTagEntry(entry)
                 count = count + 1
             end
         end
