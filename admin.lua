@@ -8886,6 +8886,11 @@ end)()
 
 Win.Visible = false   -- retire the legacy chrome (kept around for compat)
 
+-- Global UI translucency level used by the new chrome (Pill + floating panels).
+-- 0 = fully opaque, 1 = fully transparent. Adjustable from Config tab.
+_G.__SeigeUITrans = _G.__SeigeUITrans or 0.35
+_G.__SeigeLayoutMode = _G.__SeigeLayoutMode or "Bar"  -- "Bar" or "Hamburger"
+
 -- ============= TOP PILL ===========================================
 
 ;(function()
