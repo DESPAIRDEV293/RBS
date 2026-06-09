@@ -3009,6 +3009,9 @@ local function refreshBill(p)
         c1, c2 = parseColorPair(cfg.color)
         c1 = c1 or tagAccentFromFill(cfg.color)
     end
+    if not c1 and cfg and cfg.outline and cfg.outline ~= "" then
+        c1 = parseColor(cfg.outline)
+    end
     local txt = Tags:summary(p.UserId)
     -- owner-only custom chip text override
     if cfg and cfg.customText and cfg.customText ~= "" then txt = cfg.customText end
