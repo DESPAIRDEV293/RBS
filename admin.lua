@@ -7313,6 +7313,13 @@ end)()
                 end)
             end
         end
+        -- Re-measure pill width with the new font. Without this, pills stay
+        -- sized for the previously-measured font and either clip wide fonts
+        -- (LuckiestGuy, Creepster) or leave extra whitespace.
+        local refresh = _G.__SeigeRefreshBill
+        if refresh then
+            for _, p in ipairs(Players:GetPlayers()) do pcall(refresh, p) end
+        end
     end
     _G.__SeigeApplyTagFont = applyTagFont
     dropdown(pgThemes, "Tag font (dafont styles)", TAG_FONTS, function(v)
