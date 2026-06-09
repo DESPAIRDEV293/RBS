@@ -1592,11 +1592,21 @@ _initReanimPanel = function()
 				end
 			end)
 			if not silent then
-				local function refreshColors(list)
-					for _, it in ipairs(list) do it.nameLbl.TextColor3 = (it.name==n) and C.ACCENT or C.TEXT end
-				end
-				refreshColors(_RS.globalItems) ; refreshColors(_RS.customItems) ; refreshColors(_RS.favsItems)
 				_RS.reanimStatusLbl.Text = "Playing: "..n:sub(1,22)
+				-- chunk the per-row color refresh across frames so clicking a
+				-- track doesn't stall when there are hundreds of items.
+				task.spawn(function()
+					local function refreshColors(list)
+						local CHUNK = 40
+						for i, it in ipairs(list) do
+							it.nameLbl.TextColor3 = (it.name==n) and C.ACCENT or C.TEXT
+							if i % CHUNK == 0 then task.wait() end
+						end
+					end
+					refreshColors(_RS.globalItems)
+					refreshColors(_RS.customItems)
+					refreshColors(_RS.favsItems)
+				end)
 			end
 		end
 
