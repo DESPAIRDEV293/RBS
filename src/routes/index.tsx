@@ -199,7 +199,7 @@ function Index() {
         </footer>
       </main>
 
-      <p className="absolute bottom-4 left-0 right-0 z-10 text-center text-[11px] text-red-900/80">
+      <p className="disclaimer-glow absolute bottom-4 left-0 right-0 z-10 text-center text-[11px] text-red-500">
         Using these scripts in Roblox is a risk. We aren't responsible for bans and account deletion.
       </p>
 
