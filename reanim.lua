@@ -1900,9 +1900,16 @@ _initReanimPanel = function()
 			for k in pairs(animTable) do names[#names+1] = k end
 			table.sort(names, function(a,b) return a:lower()<b:lower() end)
 			globalLoadLbl.Visible = false
+			local _addChunk = 0
 			for _, n in ipairs(names) do
 				local dispName = n:gsub("^[Ss][Hh][Aa][Rr][Pp]%s*/%s*",""):gsub("^[Pp][Oo][Oo][Dd][Ll][Ee]%s*/%s*","")
 				reanimAddItem(dispName, animTable[n], _RS.globalItems)
+				_addChunk = _addChunk + 1
+				if _addChunk >= 15 then
+					_addChunk = 0
+					task.wait()
+					if _RS.activeTab=="global" then _RS.reanimRefreshSearch() end
+				end
 			end
 			if _RS.activeTab=="global" then _RS.reanimRefreshSearch() end
 			if _RS.savedStatesData and next(_RS.savedStatesData) then
