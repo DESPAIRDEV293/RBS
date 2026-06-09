@@ -10,7 +10,8 @@ local OWNER  = "DESPAIRDEV293"
 local REPO   = "roblox-script-buddy"
 local BRANCH = "main"
 local FILE   = "admin.lua"
-local LIVE_URL = "https://seigelollua.lovable.app/api/public/admin.lua"
+local LIVE_URL = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/admin.lua"
+local PUBLISHED_URL = "https://seigelollua.lovable.app/api/public/admin.lua"
 
 -- 1) Tear down any previous instance.
 if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -36,6 +37,7 @@ for _, url in ipairs({
     LIVE_URL .. "?fresh=" .. nonce,
     LIVE_URL .. "?v=" .. nonce,
     LIVE_URL .. "?nocache=" .. nonce,
+    PUBLISHED_URL .. "?fresh=" .. nonce,
 }) do
     source, srcErr = httpGet(url)
     if source and source:find("ADMIN_BUILD", 1, true) then

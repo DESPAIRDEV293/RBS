@@ -4,7 +4,8 @@
 
 local OWNER, REPO, BRANCH, FILE = "DESPAIRDEV293", "roblox-script-buddy", "main", "admin.lua"
 local BRAND = "seige.lol"
-local LIVE_URL = "https://seigelollua.lovable.app/api/public/admin.lua"
+local LIVE_URL = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/admin.lua"
+local PUBLISHED_URL = "https://seigelollua.lovable.app/api/public/admin.lua"
 
 if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
 _G.__AdminLoaded, _G.__AdminUI, _G.__AdminBuild = nil, nil, nil
@@ -25,6 +26,7 @@ local liveCandidates = {
     LIVE_URL .. "?fresh=" .. nonce,
     LIVE_URL .. "?v=" .. nonce,
     LIVE_URL .. "?nocache=" .. nonce,
+    PUBLISHED_URL .. "?fresh=" .. nonce,
 }
 
 local source, err
