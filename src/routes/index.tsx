@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 
 const loadstringCommand = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/seige.lua"))()';
 
@@ -48,14 +47,6 @@ const DROPLETS = Array.from({ length: 90 }, (_, i) => {
 });
 
 function Index() {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(loadstringCommand);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    } catch {}
-  };
 
   return (
     <div className="storm-root relative min-h-screen overflow-hidden text-slate-100">
@@ -148,19 +139,19 @@ function Index() {
               Live command
             </p>
             <button
-              onClick={copy}
-              className="storm-btn rounded-lg px-3.5 py-1.5 text-xs font-semibold tracking-wide"
+              disabled
+              className="storm-btn storm-btn-disabled rounded-lg px-3.5 py-1.5 text-xs font-semibold tracking-wide"
             >
-              {copied ? "Copied ⚡" : "Copy"}
+              Copy
             </button>
           </div>
 
-          <pre className="relative mt-3 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-indigo-100 backdrop-blur">
+          <pre className="relative mt-3 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-slate-500/80 backdrop-blur select-none">
             <code>{loadstringCommand}</code>
           </pre>
 
-          <p className="relative mt-4 text-xs text-slate-300/70">
-            Paste into your executor. Reconnects to the newest preview every run.
+          <p className="relative mt-4 text-xs text-slate-400/60">
+            Script is currently unavailable — check back soon.
           </p>
         </section>
 
@@ -316,6 +307,16 @@ function Index() {
           background: linear-gradient(180deg, rgba(129,140,248,0.4), rgba(67,56,202,0.5));
           box-shadow: 0 0 24px -2px rgba(129,140,248,0.6);
           transform: translateY(-1px);
+        }
+        .storm-btn-disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          filter: grayscale(0.6);
+        }
+        .storm-btn-disabled:hover {
+          background: linear-gradient(180deg, rgba(129,140,248,0.25), rgba(67,56,202,0.35));
+          box-shadow: none;
+          transform: none;
         }
       `}</style>
     </div>
