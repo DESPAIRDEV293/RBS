@@ -106,20 +106,24 @@ async function readGist(): Promise<string> {
   const file =
     json.files[GIST_FILENAME] ?? Object.values(json.files)[0];
   if (!file) throw new Error("gist has no files");
+  let content = "";
   if (file.truncated && file.raw_url) {
     const raw = await fetch(file.raw_url, { cache: "no-store" });
     if (!raw.ok) throw new Error(`gist raw fetch failed: HTTP ${raw.status}`);
-    return await raw.text();
+    content = await raw.text();
+  } else {
+    content = file.content ?? "";
   }
-  return file.content ?? "";
+  return normalizeTagContent(content);
 }
 
 async function writeGist(body: string): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const normalizedBody = normalizeTagContent(body);
   const res = await fetch(gistApiUrl(), {
     method: "PATCH",
     headers: { ...ghHeaders(), "Content-Type": "application/json" },
     body: JSON.stringify({
-      files: { [GIST_FILENAME]: { content: body } },
+      files: { [GIST_FILENAME]: { content: normalizedBody } },
     }),
   });
   const txt = await res.text();
