@@ -3931,6 +3931,30 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         end)
     end)
 
+    button(pgTags, "Reapply my saved tags", function()
+        task.spawn(function()
+            -- Re-merge per-user save file over the in-memory DB, then
+            -- fully tear down + rebuild every player's tag bubble so colors
+            -- and image fills render from the saved data.
+            local n = TagDB:mergeLocal() or 0
+            TagDB.appliedTags  = {}
+            TagDB.appliedIcons = {}
+            for _, p in ipairs(Players:GetPlayers()) do
+                pcall(function() TagDB:applyTo(p) end)
+                if tagBills[p] then
+                    pcall(NameHider.restore, p)
+                    pcall(function() tagBills[p].gui:Destroy() end)
+                    tagBills[p] = nil
+                end
+                pcall(buildBill, p)
+            end
+            pcall(rebuildList)
+            notify(("Reapplied %d saved tag(s)"):format(n), "good")
+        end)
+    end)
+
+
+
     section(pgTags, "Export")
     local exportLbl = inst("TextLabel", pgTags, {
         Size = UDim2.new(1, -8, 0, 16),
