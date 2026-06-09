@@ -9147,30 +9147,30 @@ _G.__SeigeAnimPanel = function(frame, show)
         frame.Position = restPos
         scaleObj.Scale = 1
         if style == "Fade" then
-            tweenInto({ BackgroundTransparency = 0.04 })
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Scale" then
             scaleObj.Scale = 0.85
-            tweenInto({ BackgroundTransparency = 0.04 })
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
             TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         elseif style == "Slide-down" then
             frame.Position = UDim2.new(pxs, px, pys, py - 40)
-            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Slide-up" then
             frame.Position = UDim2.new(pxs, px, pys, py + 40)
-            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Slide-right" then
             frame.Position = UDim2.new(pxs, px - 60, pys, py)
-            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Flip" then
             scaleObj.Scale = 0.01
-            tweenInto({ BackgroundTransparency = 0.04 })
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
             TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         elseif style == "Bounce" then
             scaleObj.Scale = 0.6
-            tweenInto({ BackgroundTransparency = 0.04 })
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
             TweenService:Create(scaleObj, TweenInfo.new(dur * 1.3, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         else
-            frame.BackgroundTransparency = 0.04
+            frame.BackgroundTransparency = (_G.__SeigeUITrans or 0.35)
         end
     else
         if style == "Fade" then
@@ -9196,7 +9196,7 @@ _G.__SeigeAnimPanel = function(frame, show)
                 frame.Visible = false
                 frame.Position = restPos
                 if scaleObj then scaleObj.Scale = 1 end
-                frame.BackgroundTransparency = 0.04
+                frame.BackgroundTransparency = (_G.__SeigeUITrans or 0.35)
             end
         end)
     end
