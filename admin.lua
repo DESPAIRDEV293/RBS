@@ -1992,41 +1992,11 @@ function TagDB:loadLocal()
     return out
 end
 function TagDB:mergeLocal()
-    -- CRITICAL: never clobber the in-memory localEntries map. On executors
-    -- without writefile/readfile (most of them), loadLocal() returns nil,
-    -- and the old code would reset self.localEntries = {}, wiping every
-    -- unsaved-to-disk edit. That caused tag edits to silently revert the
-    -- next time mergeLocal ran (auto-pull, "Apply all", reload, etc.) —
-    -- the exact "save looks like it works then reverts" bug.
-    local fromDisk = self:loadLocal()
-    if type(fromDisk) == "table" then
-        -- Disk has data: union it into the in-memory map so disk-stored
-        -- overrides survive AND fresh in-memory edits (not yet flushed to
-        -- disk because writefile may be missing) are preserved.
-        self.localEntries = self.localEntries or {}
-        for k, v in pairs(fromDisk) do
-            -- In-memory wins if both exist — the editor just wrote it and
-            -- it represents the user's latest intent.
-            if self.localEntries[k] == nil then
-                self.localEntries[k] = v
-            end
-        end
-    else
-        -- No disk access: keep whatever we already have in memory.
-        self.localEntries = self.localEntries or {}
-    end
-    -- Local edits win over the remote pastebin. Overlay every local entry
-    -- (disk + in-memory) on top of the remote entries map so the editor
-    -- and apply pipeline see the user's edits as the source of truth.
-    local n = 0
-    for k, v in pairs(self.localEntries) do
-        self.entries[k] = v
-        n = n + 1
-    end
-    if n > 0 then
-        print(("[Tags] applied %d local override(s)"):format(n))
-    end
-    return n
+    -- GitHub is now the single source of truth. Old executor-local override
+    -- files are intentionally ignored because they were the exact reason a tag
+    -- could look saved, then reload back to stale colors/fills/images.
+    self.localEntries = self.localEntries or {}
+    return 0
 end
 
 
