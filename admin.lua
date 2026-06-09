@@ -3269,7 +3269,7 @@ local function buildBill(p)
     })
     corner(bg, 23)
 
-    local st = stroke(bg, T.acc, 1.4, 0.25)
+    local st = stroke(bg, T.silverHi or T.text, 1.4, 0.25)
     local bgGrad = inst("UIGradient", bg, {
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(40,40,52), Color3.fromRGB(14,14,18)),
@@ -3304,7 +3304,7 @@ local function buildBill(p)
     })
     corner(av, 17)
     -- gradient ring around avatar — colored from chip color in refreshBill
-    local avRing = stroke(av, T.acc, 2, 0.1)
+    local avRing = stroke(av, T.silverHi or T.text, 2, 0.1)
     pcall(function() av.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end)
     local nm = inst("TextLabel", bg, {
         BackgroundTransparency = 1, Position = UDim2.new(0, 46, 0, 4), Size = UDim2.new(1, -120, 0, 18),
@@ -3347,12 +3347,12 @@ local function buildBill(p)
     })
     local dot = inst("Frame", sh, {
         Size = UDim2.new(0, 7, 0, 7), Position = UDim2.new(0, 8, 0.5, -3),
-        BackgroundColor3 = T.acc, BorderSizePixel = 0,
+        BackgroundColor3 = T.silverHi or T.text, BorderSizePixel = 0,
         ZIndex = 11,
     })
     corner(dot, 4)
     -- subtle glow on the dot
-    stroke(dot, T.acc, 1, 0.4)
+    stroke(dot, T.silverHi or T.text, 1, 0.4)
     local stx = inst("TextLabel", sh, {
         BackgroundTransparency = 1, Position = UDim2.new(0, 19, 0, 0), Size = UDim2.new(1, -23, 1, 0),
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
