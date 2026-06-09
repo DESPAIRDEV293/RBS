@@ -1709,6 +1709,12 @@ local function parseColor(c)
         -- accept "#aaa/#bbb" — use the first one
         local first = c:match("([^/]+)")
         local hex = (first or c):gsub("#",""):gsub("%s","")
+        -- 8-char w/ alpha: drop the trailing alpha pair so "#ff3b6bff" still works
+        if #hex == 8 then hex = hex:sub(1, 6) end
+        -- 3-char shorthand: "#fa3" -> "#ffaa33"
+        if #hex == 3 then
+            hex = hex:sub(1,1):rep(2) .. hex:sub(2,2):rep(2) .. hex:sub(3,3):rep(2)
+        end
         if #hex == 6 then
             local r = tonumber(hex:sub(1,2), 16)
             local g = tonumber(hex:sub(3,4), 16)
@@ -1717,6 +1723,7 @@ local function parseColor(c)
         end
     end
 end
+
 -- returns (c1, c2) where c2 may be nil. Accepts "#aaa", "#aaa/#bbb"
 local function parseColorPair(c)
     if type(c) ~= "string" then return parseColor(c), nil end
