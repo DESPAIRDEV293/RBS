@@ -2039,10 +2039,10 @@ function TagDB:load()
             src = game:HttpGet(TAGS_PASTEBIN_URL .. (TAGS_PASTEBIN_URL:find("?") and "&" or "?") .. "v=" .. tostring(os.time()))
         end)
         if src and src ~= "" then
-            local entries, count = parsePastebin(src)
-            if count > 0 then
+            local entries, count, isJson = parsePastebin(src)
+            if isJson or count > 0 then
                 self.entries = entries
-                print(("[Tags] Pastebin DB loaded — %d entries"):format(count))
+                print(("[Tags] GitHub tag DB loaded — %d entries"):format(count))
                 self:mergeLocal()
                 return
             end
