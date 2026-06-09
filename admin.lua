@@ -3195,25 +3195,12 @@ local function refreshBill(p)
             e.bg.BackgroundColor3    = fill.c
             e.bg.BackgroundTransparency = 0
         else
-            -- User typed something we couldn't parse: keep whatever color/image
-            -- is currently on the pill instead of stomping it with the dark
-            -- default, and surface a warn so they see the parse failure.
-            local raw = cfg and cfg.color
-            if raw and tostring(raw):gsub("%s","") ~= "" then
-                if not e._badFillWarned or e._badFillWarned ~= raw then
-                    warn(("[Tags] could not parse color/fill %q for %s — keeping previous pill"):format(tostring(raw), p.Name or "?"))
-                    e._badFillWarned = raw
-                end
-                -- intentionally do nothing — leave e.bgImg / e.bgGrad / e.bg as-is
-            else
-                if e.bgImg then e.bgImg.Visible = false end
-                -- Default dark gradient ONLY when no per-entry color is set.
-                e.bgGrad.Enabled  = true
-                e.bgGrad.Rotation = 90
-                e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
-                e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
-                e.bg.BackgroundTransparency = 0
-            end
+            if e.bgImg then e.bgImg.Visible = false; e.bgImg.Image = "" end
+            e.bgGrad.Enabled  = true
+            e.bgGrad.Rotation = 90
+            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
+            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+            e.bg.BackgroundTransparency = 0
         end
 
     end
