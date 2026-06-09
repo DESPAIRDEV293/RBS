@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PastebinKeyRouteImport } from './routes/pastebin-key'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicReanimDotluaRouteImport } from './routes/api/public/reanim[.]lua'
 import { Route as ApiPublicPastebinRouteImport } from './routes/api/public/pastebin'
 import { Route as ApiPublicAdminDotluaRouteImport } from './routes/api/public/admin[.]lua'
 
@@ -22,6 +23,11 @@ const PastebinKeyRoute = PastebinKeyRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicReanimDotluaRoute = ApiPublicReanimDotluaRouteImport.update({
+  id: '/api/public/reanim.lua',
+  path: '/api/public/reanim.lua',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicPastebinRoute = ApiPublicPastebinRouteImport.update({
@@ -40,12 +46,14 @@ export interface FileRoutesByFullPath {
   '/pastebin-key': typeof PastebinKeyRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
+  '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/pastebin-key': typeof PastebinKeyRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
+  '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,6 +61,7 @@ export interface FileRoutesById {
   '/pastebin-key': typeof PastebinKeyRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
+  '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -61,14 +70,21 @@ export interface FileRouteTypes {
     | '/pastebin-key'
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
+    | '/api/public/reanim.lua'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/pastebin-key' | '/api/public/admin.lua' | '/api/public/pastebin'
+  to:
+    | '/'
+    | '/pastebin-key'
+    | '/api/public/admin.lua'
+    | '/api/public/pastebin'
+    | '/api/public/reanim.lua'
   id:
     | '__root__'
     | '/'
     | '/pastebin-key'
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
+    | '/api/public/reanim.lua'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -76,6 +92,7 @@ export interface RootRouteChildren {
   PastebinKeyRoute: typeof PastebinKeyRoute
   ApiPublicAdminDotluaRoute: typeof ApiPublicAdminDotluaRoute
   ApiPublicPastebinRoute: typeof ApiPublicPastebinRoute
+  ApiPublicReanimDotluaRoute: typeof ApiPublicReanimDotluaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -92,6 +109,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/reanim.lua': {
+      id: '/api/public/reanim.lua'
+      path: '/api/public/reanim.lua'
+      fullPath: '/api/public/reanim.lua'
+      preLoaderRoute: typeof ApiPublicReanimDotluaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/pastebin': {
@@ -116,6 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   PastebinKeyRoute: PastebinKeyRoute,
   ApiPublicAdminDotluaRoute: ApiPublicAdminDotluaRoute,
   ApiPublicPastebinRoute: ApiPublicPastebinRoute,
+  ApiPublicReanimDotluaRoute: ApiPublicReanimDotluaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
