@@ -28,14 +28,22 @@ const RAIN = Array.from({ length: 140 }, (_, i) => {
   };
 });
 
-const DROPLETS = Array.from({ length: 28 }, (_, i) => {
-  const r = ((i * 1103515245 + 12345) >>> 0) / 0xffffffff;
-  const r2 = ((i * 22695477 + 1) >>> 0) / 0xffffffff;
+// Better hash so droplets actually scatter across the viewport
+function hash(n: number, seed: number) {
+  let x = Math.sin(n * 9999 + seed * 374761) * 43758.5453;
+  return x - Math.floor(x);
+}
+const DROPLETS = Array.from({ length: 90 }, (_, i) => {
+  const r1 = hash(i, 1);
+  const r2 = hash(i, 2);
+  const r3 = hash(i, 3);
+  const r4 = hash(i, 4);
   return {
-    top: 4 + r * 92,
-    left: 3 + r2 * 94,
-    size: 6 + (i % 5) * 4,
-    delay: (i * 0.4) % 6,
+    top: r1 * 100,
+    left: r2 * 100,
+    size: 5 + r3 * 16,
+    delay: r4 * 8,
+    duration: 5 + r3 * 6,
   };
 });
 
