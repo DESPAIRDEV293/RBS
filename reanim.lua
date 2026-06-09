@@ -1986,26 +1986,35 @@ _initReanimPanel = function()
 				return
 			end
 			_RS.customLoadLbl.Visible = false
-			for _, path in ipairs(files) do
-				local fileName = path:match("[/\\]([^/\\]+)$") or path
-				local dispName = fileName:gsub("%.[^%.]+$","")
-				local ok3, src = pcall(readfile, path)
-				if ok3 and src then
-					if path:match("%.json$") then
-						local animData = _parseJsonAnim(src, dispName)
-						if animData then reanimAddItem(next(animData) or dispName, path, _RS.customItems)
-						else reanimAddItem(dispName.." (err)", path, _RS.customItems) end
-					else
-						local fnOk, animFn = pcall(_safeLoadstring, src)
-						if fnOk and animFn then
-							local dataOk, animData = pcall(animFn)
-							local animName = (dataOk and type(animData)=="table" and next(animData)) or dispName
-							reanimAddItem(animName, path, _RS.customItems)
-						else reanimAddItem(dispName.." (err)", path, _RS.customItems) end
+			task.spawn(function()
+				local _cChunk = 0
+				for _, path in ipairs(files) do
+					local fileName = path:match("[/\\]([^/\\]+)$") or path
+					local dispName = fileName:gsub("%.[^%.]+$","")
+					local ok3, src = pcall(readfile, path)
+					if ok3 and src then
+						if path:match("%.json$") then
+							local animData = _parseJsonAnim(src, dispName)
+							if animData then reanimAddItem(next(animData) or dispName, path, _RS.customItems)
+							else reanimAddItem(dispName.." (err)", path, _RS.customItems) end
+						else
+							local fnOk, animFn = pcall(_safeLoadstring, src)
+							if fnOk and animFn then
+								local dataOk, animData = pcall(animFn)
+								local animName = (dataOk and type(animData)=="table" and next(animData)) or dispName
+								reanimAddItem(animName, path, _RS.customItems)
+							else reanimAddItem(dispName.." (err)", path, _RS.customItems) end
+						end
+					end
+					_cChunk = _cChunk + 1
+					if _cChunk >= 10 then
+						_cChunk = 0
+						task.wait()
+						if _RS.activeTab=="custom" then _RS.reanimRefreshSearch() end
 					end
 				end
-			end
-			if _RS.activeTab=="custom" then _RS.reanimRefreshSearch() end
+				if _RS.activeTab=="custom" then _RS.reanimRefreshSearch() end
+			end)
 		end
 		reloadCustom = _reloadCustom ; _reloadCustom()
 
