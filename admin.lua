@@ -1768,6 +1768,29 @@ end
 -- written to disk so it survives rejoin even if the pastebin doesn't have it.
 -- Local overrides take priority over the pastebin entry for the same username.
 local TAGS_LOCAL_FILE = "seige_tags_overrides.json"
+-- One-time wipe: clear any tags persisted by previous script runs so every
+-- user starts from a clean slate after the v2 pill rewrite. Gated by a
+-- marker file so it only runs once per executor install.
+do
+    local isfile   = rawget(getfenv(), "isfile")
+    local writefile = rawget(getfenv(), "writefile")
+    local delfile  = rawget(getfenv(), "delfile")
+    local WIPE_MARKER = "seige_tags_wiped_v2"
+    if isfile and writefile then
+        local okMark, hasMark = pcall(isfile, WIPE_MARKER)
+        if not (okMark and hasMark) then
+            -- nuke local overrides
+            local okExists, exists = pcall(isfile, TAGS_LOCAL_FILE)
+            if okExists and exists then
+                if delfile then pcall(delfile, TAGS_LOCAL_FILE)
+                else pcall(writefile, TAGS_LOCAL_FILE, "{}") end
+            end
+            pcall(writefile, WIPE_MARKER, tostring(os.time()))
+            print("[Tags] cleared local tag overrides (v2 wipe)")
+        end
+    end
+end
+
 function TagDB:saveLocal()
     local writefile = rawget(getfenv(), "writefile")
     if not writefile then return false, "writefile not available" end
