@@ -3334,7 +3334,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         font = "Default",
         textColor = "", textOutline = "",
         textFx = "None", avatarOutline = "On", showChip = "Off",
-        aura = "Off",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -3475,11 +3474,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local SHOW_CHIP_OPTS = { "Off", "On" }
     local showChipDD = dropdown(pgTags, "Show badge chip", SHOW_CHIP_OPTS, function(v) form.showChip = v end)
 
-    -- Aura: animated outline that replaces the static stroke. The pill
-    -- interior goes transparent so only the avatar/text and the aura ring
-    -- show. "Off" returns to the normal solid/gradient bubble.
-    local TAG_AURA_OPTS = { "Off", "Ember", "Frost", "Lightning", "Void", "Aurora", "Crimson", "Royal", "Toxic", "Phantom", "Solar" }
-    local auraDD = dropdown(pgTags, "Tag aura", TAG_AURA_OPTS, function(v) form.aura = v end)
     -- Give the Tag panel's dropdowns more room; longer option values were
     -- getting clipped at the default 140px button width.
     -- The dropdown helper returns a controller (not the Frame), so walk
@@ -3616,14 +3610,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local sc = tostring((e and e.showChip) or ""):lower()
             local label = (sc == "on" or sc == "1" or sc == "true") and "On" or "Off"
             form.showChip = label; showChipDD.set(label)
-        end
-        do
-            local label = "Off"
-            local raw = e and e.aura and tostring(e.aura):lower() or ""
-            for _, n in ipairs({"Ember","Frost","Lightning","Void","Aurora","Crimson","Royal","Toxic","Phantom","Solar"}) do
-                if raw == n:lower() then label = n; break end
-            end
-            form.aura = label; auraDD.set(label)
         end
     end
 
@@ -3879,9 +3865,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if form.showChip == "On" then
             entry.showChip = "on"
         end
-        if form.aura and form.aura ~= "" and form.aura ~= "Off" then
-            entry.aura = form.aura:lower()
-        end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
@@ -4005,7 +3988,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 e.textOutline or "",
                 e.avatarOutline or "",
                 e.showChip or "",
-                e.aura or "",
             }
             -- Trim trailing empty fields so each row stays compact like the
             -- legacy entries (e.g. eyk_a). The loader pads missing tail fields
