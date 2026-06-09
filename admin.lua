@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-perf-optimize-unified"
+local ADMIN_BUILD = "2026-06-09-translucent-hamburger-cfg"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -8148,6 +8148,8 @@ local CFG_DEFAULTS = {
     toggleKey   = "F2",
     uiScale     = 1,
     reducedMotion = false,
+    layoutMode  = "Bar",
+    uiTrans     = 0.35,
     skybox      = { Up = "", Dn = "", Lf = "", Rt = "", Ft = "", Bk = "" },
     fx          = { Profile = true, Players = false, Cmds = false, Shaders = false, Spotify = false, Misc = false },
 }
@@ -8155,17 +8157,21 @@ local CFG_FILE = "SeigeAdmin/config.json"
 
 -- forward declarations so the Save/Reset buttons can live at the very top
 local snapshotCfg, applyCfg, saveCfg, loadCfg
+local layoutCtl, transCtl
 
 ------------------------------------------------------- SAVE / RESET (top)
 section(pgConfig, "Save & Reset")
-label(pgConfig, "Persist or restore every setting on this tab")
+label(pgConfig, "Settings save for this session (and to disk if your executor supports writefile). Reset clears them.")
 button(pgConfig, "💾  Save Config", function()
     if saveCfg then saveCfg() else notify("Config not ready yet", "warn") end
 end)
 button(pgConfig, "↺  Reset to Defaults", function()
+    _G.__SeigeSessionCfg = nil
+    local wf = rawget(getfenv(), "delfile") or delfile
+    if wf then pcall(wf, CFG_FILE) end
     if applyCfg then
         applyCfg(CFG_DEFAULTS, { applySkybox = true })
-        notify("Config reset to defaults", "ok")
+        notify("Config reset to defaults", "good")
     end
 end)
 
@@ -8200,6 +8206,23 @@ end)
 local reducedCtl = toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, function(v)
     _G.__SeigeReducedMotion = v
 end)
+
+------------------------------------------------------- LAYOUT & TRANSLUCENCY
+section(pgConfig, "Layout")
+label(pgConfig, "Top bar style. Hamburger collapses the bar into a ≡ menu — tabs drop down from it.")
+local _layoutMode = _G.__SeigeLayoutMode or "Bar"
+local _layoutDef = _G.__SeigeLayoutMode or "Bar"
+layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger" }, function(v)
+    _layoutMode = v
+    if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout(v) end
+end)
+if layoutCtl and layoutCtl.set then layoutCtl.set(_G.__SeigeLayoutMode or "Bar") end
+
+label(pgConfig, "Panel translucency — higher = more see-through")
+transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 0.35, function(v)
+    if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
+end)
+
 
 section(pgConfig, "World Image (Skybox)")
 label(pgConfig, "6 cubed faces — paste a Roblox asset id/URL, or a local image file path from your PC")
@@ -8306,6 +8329,8 @@ snapshotCfg = function()
         toggleKey     = toggleKey.Name,
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
         reducedMotion = reducedCtl and reducedCtl.get and reducedCtl.get() or false,
+        layoutMode    = _G.__SeigeLayoutMode or "Bar",
+        uiTrans       = _G.__SeigeUITrans or 0.35,
         skybox        = {
             Up = skyboxFaces.Up, Dn = skyboxFaces.Dn,
             Lf = skyboxFaces.Lf, Rt = skyboxFaces.Rt,
@@ -8321,6 +8346,14 @@ applyCfg = function(cfg, opts)
     setToggleKey(cfg.toggleKey or CFG_DEFAULTS.toggleKey)
     if uiScaleCtl and uiScaleCtl.set then uiScaleCtl.set(cfg.uiScale or CFG_DEFAULTS.uiScale) end
     if reducedCtl and reducedCtl.set then reducedCtl.set(cfg.reducedMotion == true) end
+    if cfg.layoutMode and _G.__SeigeApplyLayout then
+        _G.__SeigeApplyLayout(cfg.layoutMode)
+        if layoutCtl and layoutCtl.set then layoutCtl.set(cfg.layoutMode) end
+    end
+    if cfg.uiTrans and _G.__SeigeApplyUITrans then
+        _G.__SeigeApplyUITrans(tonumber(cfg.uiTrans) or 0.35)
+        if transCtl and transCtl.set then transCtl.set(tonumber(cfg.uiTrans) or 0.35) end
+    end
     local sb = cfg.skybox or CFG_DEFAULTS.skybox
     for _, k in ipairs({ "Up", "Dn", "Lf", "Rt", "Ft", "Bk" }) do
         skyboxFaces[k] = sb[k] or ""
@@ -8339,17 +8372,34 @@ end
 
 
 saveCfg = function()
+    -- Always snapshot to an in-memory session store so settings persist
+    -- across panel reopens / scripts that re-require us, even without a
+    -- writefile-capable executor. Resets only when the user clicks
+    -- "Reset to Defaults" or the player rejoins.
+    local snap = snapshotCfg()
+    _G.__SeigeSessionCfg = snap
+
     local wf = rawget(getfenv(), "writefile") or writefile
-    if not wf then notify("Executor has no writefile — cannot save", "warn") return end
+    if not wf then
+        notify("Config saved for this session", "good")
+        return
+    end
     local mf = rawget(getfenv(), "makefolder") or makefolder
     if mf then pcall(mf, "SeigeAdmin") end
-    local ok, raw = pcall(HttpService.JSONEncode, HttpService, snapshotCfg())
+    local ok, raw = pcall(HttpService.JSONEncode, HttpService, snap)
     if not ok then notify("Failed to encode config", "bad") return end
     local okW = pcall(wf, CFG_FILE, raw)
-    if okW then notify("Config saved", "good") else notify("Failed to write config", "bad") end
+    if okW then notify("Config saved", "good") else notify("Config saved for this session", "good") end
 end
 
 loadCfg = function()
+    -- Prefer in-memory session config (set by saveCfg this session) so the
+    -- last-saved settings stick across re-injects in the same session even
+    -- without writefile support.
+    if type(_G.__SeigeSessionCfg) == "table" then
+        applyCfg(_G.__SeigeSessionCfg, { applySkybox = true })
+        return
+    end
     local rf  = rawget(getfenv(), "readfile") or readfile
     local isf = rawget(getfenv(), "isfile")   or isfile
     if not rf or not isf then return end
@@ -8361,6 +8411,7 @@ end
 
 -- auto-load saved config on startup
 pcall(loadCfg)
+
 
 
 
@@ -8886,6 +8937,11 @@ end)()
 
 Win.Visible = false   -- retire the legacy chrome (kept around for compat)
 
+-- Global UI translucency level used by the new chrome (Pill + floating panels).
+-- 0 = fully opaque, 1 = fully transparent. Adjustable from Config tab.
+_G.__SeigeUITrans = _G.__SeigeUITrans or 0.35
+_G.__SeigeLayoutMode = _G.__SeigeLayoutMode or "Bar"  -- "Bar" or "Hamburger"
+
 -- ============= TOP PILL ===========================================
 
 ;(function()
@@ -8896,7 +8952,7 @@ Pill = inst("Frame", Root, {
     Size = UDim2.new(0, 0, 0, 44),
     AutomaticSize = Enum.AutomaticSize.X,
     BackgroundColor3 = T.bg,
-    BackgroundTransparency = 0.02,
+    BackgroundTransparency = math.max(0.05, (_G.__SeigeUITrans or 0.35) - 0.1),
     BorderSizePixel = 0,
     Active = true,
     ZIndex = 100,
@@ -9142,30 +9198,30 @@ _G.__SeigeAnimPanel = function(frame, show)
         frame.Position = restPos
         scaleObj.Scale = 1
         if style == "Fade" then
-            tweenInto({ BackgroundTransparency = 0.04 })
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Scale" then
             scaleObj.Scale = 0.85
-            tweenInto({ BackgroundTransparency = 0.04 })
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
             TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         elseif style == "Slide-down" then
             frame.Position = UDim2.new(pxs, px, pys, py - 40)
-            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Slide-up" then
             frame.Position = UDim2.new(pxs, px, pys, py + 40)
-            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Slide-right" then
             frame.Position = UDim2.new(pxs, px - 60, pys, py)
-            tweenInto({ Position = restPos, BackgroundTransparency = 0.04 })
+            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Flip" then
             scaleObj.Scale = 0.01
-            tweenInto({ BackgroundTransparency = 0.04 })
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
             TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         elseif style == "Bounce" then
             scaleObj.Scale = 0.6
-            tweenInto({ BackgroundTransparency = 0.04 })
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
             TweenService:Create(scaleObj, TweenInfo.new(dur * 1.3, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         else
-            frame.BackgroundTransparency = 0.04
+            frame.BackgroundTransparency = (_G.__SeigeUITrans or 0.35)
         end
     else
         if style == "Fade" then
@@ -9191,7 +9247,7 @@ _G.__SeigeAnimPanel = function(frame, show)
                 frame.Visible = false
                 frame.Position = restPos
                 if scaleObj then scaleObj.Scale = 1 end
-                frame.BackgroundTransparency = 0.04
+                frame.BackgroundTransparency = (_G.__SeigeUITrans or 0.35)
             end
         end)
     end
@@ -9206,7 +9262,7 @@ local function makePanel(name, entry)
         Name = "Panel_" .. name,
         Position = UDim2.new(1, -350 - slotX * 14, 0, 80 + slotY * 32),
         Size = UDim2.new(0, 320, 0, 380),
-        BackgroundColor3 = T.bg, BackgroundTransparency = 0.04, BorderSizePixel = 0,
+        BackgroundColor3 = T.bg, BackgroundTransparency = (_G.__SeigeUITrans or 0.35), BorderSizePixel = 0,
         Visible = false, Active = true, ZIndex = 110,
     })
     corner(frame, 12); stroke(frame, T.line, 1, 0.4)
@@ -9750,35 +9806,138 @@ do
     end
 end
 
--- Pill compact toggle (hides stats/icons/clock, leaves a hamburger)
+-- Pill compact toggle + hamburger dropdown menu
 do
-    local collapsed = false
     local hidden = { brandBlock, fpsBox, pingBox, iconsRow, clockBox }
-    -- also hide every divider frame in the pill except the toggle itself
     local dividers = {}
     for _, ch in ipairs(Pill:GetChildren()) do
         if ch:IsA("Frame") and ch.Size.X.Offset == 1 then dividers[#dividers+1] = ch end
     end
+
+    -- Dropdown menu (hidden by default), used when layout = "Hamburger".
+    local menu = inst("Frame", Root, {
+        Name = "PillMenu", Visible = false,
+        Size = UDim2.new(0, 200, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = T.bg,
+        BackgroundTransparency = (_G.__SeigeUITrans or 0.35),
+        BorderSizePixel = 0, ZIndex = 130,
+    })
+    corner(menu, 10); stroke(menu, T.text, 1, 0.7)
+    inst("UIListLayout", menu, {
+        Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder,
+    })
+    inst("UIPadding", menu, {
+        PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6),
+    })
+    _G.__SeigeMenu = menu
+
+    local function rebuildMenu()
+        for _, c in ipairs(menu:GetChildren()) do
+            if c:IsA("TextButton") then c:Destroy() end
+        end
+        local i = 0
+        for name, p in pairs(panels) do
+            i = i + 1
+            local row = inst("TextButton", menu, {
+                Size = UDim2.new(1, 0, 0, 28), LayoutOrder = i,
+                BackgroundColor3 = T.bg3,
+                BackgroundTransparency = (_G.__SeigeUITrans or 0.35) + 0.1,
+                AutoButtonColor = false, BorderSizePixel = 0,
+                Font = Enum.Font.GothamSemibold, TextSize = 12,
+                TextColor3 = T.text, Text = "  " .. name,
+                TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 131,
+            })
+            corner(row, 6)
+            row.MouseEnter:Connect(function() tween(row, 0.1, { BackgroundTransparency = 0.1 }) end)
+            row.MouseLeave:Connect(function() tween(row, 0.1, { BackgroundTransparency = (_G.__SeigeUITrans or 0.35) + 0.1 }) end)
+            row.MouseButton1Click:Connect(function()
+                local newVis = not p.frame.Visible
+                if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, newVis) else p.frame.Visible = newVis end
+                menu.Visible = false
+            end)
+        end
+    end
+
+    local function positionMenu()
+        local abs = pillToggle.AbsolutePosition
+        local sz  = pillToggle.AbsoluteSize
+        menu.Position = UDim2.new(0, abs.X + sz.X - 200, 0, abs.Y + sz.Y + 6)
+    end
+
     pillToggle.MouseEnter:Connect(function()
         tween(pillToggle, 0.12, { BackgroundTransparency = 0.78 })
     end)
     pillToggle.MouseLeave:Connect(function()
         tween(pillToggle, 0.12, { BackgroundTransparency = 0.88 })
     end)
-    pillToggle.MouseButton1Click:Connect(function()
-        collapsed = not collapsed
-        for _, f in ipairs(hidden) do f.Visible = not collapsed end
-        for _, d in ipairs(dividers) do d.Visible = not collapsed end
-        if collapsed then
-            pillToggleImg.Visible = false
-            pillToggle.Text = "≡"
-            for _, p in pairs(panels) do
-                if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
-            end
+
+    local barCollapsed = false
+    local function setBarCollapsed(c)
+        barCollapsed = c
+        for _, f in ipairs(hidden) do f.Visible = not c end
+        for _, d in ipairs(dividers) do d.Visible = not c end
+        if c then
+            pillToggleImg.Visible = false; pillToggle.Text = "≡"
         else
-            pillToggle.Text = ""
-            pillToggleImg.Visible = true
+            pillToggle.Text = ""; pillToggleImg.Visible = true
         end
+    end
+
+    pillToggle.MouseButton1Click:Connect(function()
+        if (_G.__SeigeLayoutMode or "Bar") == "Hamburger" then
+            if not menu.Visible then rebuildMenu(); positionMenu() end
+            menu.Visible = not menu.Visible
+        else
+            setBarCollapsed(not barCollapsed)
+            if barCollapsed then
+                for _, p in pairs(panels) do
+                    if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
+                end
+            end
+        end
+    end)
+
+    -- Public: apply a layout mode.
+    _G.__SeigeApplyLayout = function(mode)
+        _G.__SeigeLayoutMode = mode
+        if mode == "Hamburger" then
+            -- Hide bar contents, leave only ≡; close any open panels.
+            setBarCollapsed(true)
+            for _, p in pairs(panels) do
+                if p.frame then p.frame.Visible = false end
+            end
+            menu.Visible = false
+        else
+            setBarCollapsed(false)
+            menu.Visible = false
+        end
+    end
+
+    -- Public: apply UI translucency to Pill + every panel + menu.
+    _G.__SeigeApplyUITrans = function(t)
+        _G.__SeigeUITrans = t
+        if Pill then Pill.BackgroundTransparency = math.max(0.05, t - 0.1) end
+        if menu then menu.BackgroundTransparency = t end
+        if _G.__SeigePanels then
+            for _, p in pairs(_G.__SeigePanels) do
+                if p.frame and p.frame.Visible then p.frame.BackgroundTransparency = t end
+            end
+        end
+    end
+
+    -- Close menu when clicking outside.
+    UIS.InputBegan:Connect(function(i)
+        if not menu.Visible then return end
+        if i.UserInputType ~= Enum.UserInputType.MouseButton1
+           and i.UserInputType ~= Enum.UserInputType.Touch then return end
+        local mp = i.Position
+        local a, b = menu.AbsolutePosition, menu.AbsoluteSize
+        local insideMenu = mp.X >= a.X and mp.X <= a.X + b.X and mp.Y >= a.Y and mp.Y <= a.Y + b.Y
+        local pa, pb = pillToggle.AbsolutePosition, pillToggle.AbsoluteSize
+        local insideToggle = mp.X >= pa.X and mp.X <= pa.X + pb.X and mp.Y >= pa.Y and mp.Y <= pa.Y + pb.Y
+        if not insideMenu and not insideToggle then menu.Visible = false end
     end)
 end
 
