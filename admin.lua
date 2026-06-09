@@ -2485,6 +2485,13 @@ end)
 
 ------------------------------------------------------- FLOATING TAGS (driven by tags.lua DB)
 local floatOn = false
+local scriptersOn = false        -- show tags for nearby seige.lol users
+_G.__SeigeScripters = _G.__SeigeScripters or {} -- [userId] = true
+local function isScripter(p)
+    if not p then return false end
+    if p == LP then return true end
+    return _G.__SeigeScripters[p.UserId] == true
+end
 local tagBills = {}
 
 -- Stash original Humanoid display settings so we can restore them when a bubble goes away
@@ -3426,11 +3433,26 @@ local function rebuildBills()
     clearBills()
     -- LP's tag always shown
     buildBill(LP)
-    if not floatOn then return end
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP then buildBill(p) end
+        if p ~= LP then
+            if floatOn or (scriptersOn and isScripter(p)) or TagDB:configFor(p) then
+                buildBill(p)
+            end
+        end
     end
 end
+-- Incremental update: add/remove bills based on the current scripter set so
+-- newly detected seige.lol users in the server get a tag without rebuilding
+-- everyone (avoids the glitchy flash from clearBills()).
+local function syncScripterBills()
+    if not scriptersOn then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP and isScripter(p) and not tagBills[p] and pchar(p) then
+            pcall(buildBill, p)
+        end
+    end
+end
+_G.__SeigeSyncScripterBills = syncScripterBills
 -- Floating tag visibility and icons are now controlled by the script DB (tags.lua)
 -- and the bottom-right "Enable player tags" prompt.
 
@@ -3509,7 +3531,7 @@ end))
 Tags:onChange(function(uid)
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == uid then
-            if tagBills[p] then refreshBill(p) else if floatOn or p == LP then buildBill(p) end end
+            if tagBills[p] then refreshBill(p) else if floatOn or p == LP or (scriptersOn and isScripter(p)) then buildBill(p) end end
         end
     end
     refreshPlayerList()
@@ -3521,7 +3543,7 @@ local function hookCharBill(p)
         -- always build the bubble for LP, for everyone if floatOn,
         -- and for ANY player that has a saved tag entry (so rejoining users
         -- always see their persisted custom tag).
-        if floatOn or p == LP or TagDB:configFor(p) then buildBill(p) end
+        if floatOn or p == LP or (scriptersOn and isScripter(p)) or TagDB:configFor(p) then buildBill(p) end
     end))
 end
 
@@ -3531,7 +3553,7 @@ bind(Players.PlayerAdded:Connect(function(p)
     -- if the player has a persisted tag entry and is already in their character,
     -- build immediately so we don't have to wait for the next respawn.
     task.defer(function()
-        if pchar(p) and not tagBills[p] and (floatOn or TagDB:configFor(p)) then
+        if pchar(p) and not tagBills[p] and (floatOn or (scriptersOn and isScripter(p)) or TagDB:configFor(p)) then
             pcall(buildBill, p)
         end
     end)
@@ -3546,7 +3568,7 @@ task.spawn(function()
     for _, p in ipairs(Players:GetPlayers()) do
         TagDB:applyTo(p)
         -- ensure persisted entries get a bubble on script reload too
-        if pchar(p) and not tagBills[p] and (floatOn or p == LP or TagDB:configFor(p)) then
+        if pchar(p) and not tagBills[p] and (floatOn or p == LP or (scriptersOn and isScripter(p)) or TagDB:configFor(p)) then
             pcall(buildBill, p)
         end
     end
@@ -3967,7 +3989,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                             pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                             tagBills[p] = nil
                         end
-                        if floatOn or p == LP or TagDB:configFor(p) then pcall(buildBill, p) end
+                        if floatOn or p == LP or (scriptersOn and isScripter(p)) or TagDB:configFor(p) then pcall(buildBill, p) end
                     end
                 end
                 rebuildList()
@@ -5985,9 +6007,18 @@ task.delay(2.2, function()
     end
 
     enableBtn.MouseButton1Click:Connect(function()
-        floatOn = true
-        rebuildBills()
-        if notify then pcall(notify, "Player tags enabled", "good") end
+        -- Show tags for OTHER seige.lol users in this server (not every player).
+        -- The cross-game presence heartbeat populates _G.__SeigeScripters with
+        -- userIds whose jobId matches ours, and syncScripterBills() adds a
+        -- bubble for each of them without rebuilding LP's tag (no glitch).
+        scriptersOn = true
+        if _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
+        local n = 0
+        for _ in pairs(_G.__SeigeScripters or {}) do n = n + 1 end
+        if _G.__SeigePresenceRefresh then pcall(_G.__SeigePresenceRefresh) end
+        if notify then
+            pcall(notify, ("Scripter tags on · %d nearby"):format(n), n > 0 and "good" or "warn")
+        end
         slideOut()
     end)
     dismissBtn.MouseButton1Click:Connect(function() slideOut() end)
@@ -12389,24 +12420,37 @@ end)()
     end)
 
     -- Heartbeat: publish presence + refresh UI every 30s
+    local function presenceTick()
+        local list = getList()
+        local now = os.time()
+        local out = {}
+        for _, e in ipairs(list) do
+            if type(e) == "table" and e.userId and tonumber(e.userId) ~= LP.UserId
+               and (now - (tonumber(e.ts) or 0)) < 180 then
+                out[#out+1] = e
+            end
+        end
+        out[#out+1] = {
+            userId = LP.UserId, name = LP.Name, displayName = LP.DisplayName,
+            placeId = game.PlaceId, jobId = game.JobId, gameName = myGameName,
+            ts = now,
+        }
+        pcall(putList, out)
+        pcall(renderList, out)
+        local set = {}
+        local myJob = tostring(game.JobId or "")
+        for _, e in ipairs(out) do
+            if type(e) == "table" and e.userId and tostring(e.jobId or "") == myJob then
+                set[tonumber(e.userId)] = true
+            end
+        end
+        _G.__SeigeScripters = set
+        if _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
+    end
+    _G.__SeigePresenceRefresh = function() task.spawn(presenceTick) end
     task.spawn(function()
         while _G.__AdminLoaded do
-            local list = getList()
-            local now = os.time()
-            local out = {}
-            for _, e in ipairs(list) do
-                if type(e) == "table" and e.userId and tonumber(e.userId) ~= LP.UserId
-                   and (now - (tonumber(e.ts) or 0)) < 180 then
-                    out[#out+1] = e
-                end
-            end
-            out[#out+1] = {
-                userId = LP.UserId, name = LP.Name, displayName = LP.DisplayName,
-                placeId = game.PlaceId, jobId = game.JobId, gameName = myGameName,
-                ts = now,
-            }
-            pcall(putList, out)
-            pcall(renderList, out)
+            presenceTick()
             task.wait(30)
         end
     end)
