@@ -2906,14 +2906,15 @@ local function refreshBill(p)
         chipBlock   = shW + 4
     end
 
-    -- Layout: leftPad(4) + avatar(34) + gap(4) + text + chipBlock + rightPad(6)
-    -- Compact default minimum (100px) — pill hugs short names tightly and
-    -- auto-expands for longer display names / @handles.
-    local pillW = math.max(100, 4 + 34 + 4 + textW + chipBlock + 6)
-    -- Reposition labels so they start tight after the avatar (override the
-    -- 46px hardcoded offset from buildBill's initial placement).
-    if e.name   then e.name.Position   = UDim2.new(0, 42, 0, 4)  end
-    if e.handle then e.handle.Position = UDim2.new(0, 42, 0, 24) end
+    -- Layout: leftPad(6) + avatar(34) + gap(8) + text + chipBlock + rightPad(10)
+    -- Comfortable default minimum (118px) — pill hugs short names without the
+    -- text crowding the avatar's gradient ring, and auto-expands for longer
+    -- display names / @handles.
+    local pillW = math.max(118, 6 + 34 + 8 + textW + chipBlock + 10)
+    -- Reposition labels so they start with breathing room after the avatar
+    -- (override the 46px hardcoded offset from buildBill's initial placement).
+    if e.name   then e.name.Position   = UDim2.new(0, 48, 0, 4)  end
+    if e.handle then e.handle.Position = UDim2.new(0, 48, 0, 24) end
     e.nameBasePos   = e.name   and e.name.Position   or e.nameBasePos
     e.handleBasePos = e.handle and e.handle.Position or e.handleBasePos
 
