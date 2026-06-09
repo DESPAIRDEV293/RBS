@@ -296,6 +296,7 @@ local HELP_COMMANDS = {
     { perms = {"nt_cmd"},    cmd = "!tagcheck <user>",      desc = "Check if a player has a tag entry" },
     { perms = {"nt_cmd"},    cmd = "!tagfind <keyword>",    desc = "Search tag database by username or tag" },
     { perms = {"nt_cmd"},    cmd = "!tagcolors",            desc = "Show colors used in the tag database" },
+    { perms = {},            cmd = "!reanim",               desc = "Launch the Reanim GUI (purple-storm build)" },
 }
 
 local helpGui = nil
