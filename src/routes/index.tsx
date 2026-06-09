@@ -347,7 +347,8 @@ function Index() {
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
-          filter: drop-shadow(0 2px 14px rgba(99,102,241,0.5));
+          /* text-shadow is cheaper than filter: drop-shadow for text. */
+          text-shadow: 0 2px 18px rgba(99,102,241,0.5);
         }
 
         .storm-card {
