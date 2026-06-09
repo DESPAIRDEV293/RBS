@@ -1592,11 +1592,21 @@ _initReanimPanel = function()
 				end
 			end)
 			if not silent then
-				local function refreshColors(list)
-					for _, it in ipairs(list) do it.nameLbl.TextColor3 = (it.name==n) and C.ACCENT or C.TEXT end
-				end
-				refreshColors(_RS.globalItems) ; refreshColors(_RS.customItems) ; refreshColors(_RS.favsItems)
 				_RS.reanimStatusLbl.Text = "Playing: "..n:sub(1,22)
+				-- chunk the per-row color refresh across frames so clicking a
+				-- track doesn't stall when there are hundreds of items.
+				task.spawn(function()
+					local function refreshColors(list)
+						local CHUNK = 40
+						for i, it in ipairs(list) do
+							it.nameLbl.TextColor3 = (it.name==n) and C.ACCENT or C.TEXT
+							if i % CHUNK == 0 then task.wait() end
+						end
+					end
+					refreshColors(_RS.globalItems)
+					refreshColors(_RS.customItems)
+					refreshColors(_RS.favsItems)
+				end)
 			end
 		end
 
@@ -1890,9 +1900,16 @@ _initReanimPanel = function()
 			for k in pairs(animTable) do names[#names+1] = k end
 			table.sort(names, function(a,b) return a:lower()<b:lower() end)
 			globalLoadLbl.Visible = false
+			local _addChunk = 0
 			for _, n in ipairs(names) do
 				local dispName = n:gsub("^[Ss][Hh][Aa][Rr][Pp]%s*/%s*",""):gsub("^[Pp][Oo][Oo][Dd][Ll][Ee]%s*/%s*","")
 				reanimAddItem(dispName, animTable[n], _RS.globalItems)
+				_addChunk = _addChunk + 1
+				if _addChunk >= 15 then
+					_addChunk = 0
+					task.wait()
+					if _RS.activeTab=="global" then _RS.reanimRefreshSearch() end
+				end
 			end
 			if _RS.activeTab=="global" then _RS.reanimRefreshSearch() end
 			if _RS.savedStatesData and next(_RS.savedStatesData) then
@@ -1969,26 +1986,35 @@ _initReanimPanel = function()
 				return
 			end
 			_RS.customLoadLbl.Visible = false
-			for _, path in ipairs(files) do
-				local fileName = path:match("[/\\]([^/\\]+)$") or path
-				local dispName = fileName:gsub("%.[^%.]+$","")
-				local ok3, src = pcall(readfile, path)
-				if ok3 and src then
-					if path:match("%.json$") then
-						local animData = _parseJsonAnim(src, dispName)
-						if animData then reanimAddItem(next(animData) or dispName, path, _RS.customItems)
-						else reanimAddItem(dispName.." (err)", path, _RS.customItems) end
-					else
-						local fnOk, animFn = pcall(_safeLoadstring, src)
-						if fnOk and animFn then
-							local dataOk, animData = pcall(animFn)
-							local animName = (dataOk and type(animData)=="table" and next(animData)) or dispName
-							reanimAddItem(animName, path, _RS.customItems)
-						else reanimAddItem(dispName.." (err)", path, _RS.customItems) end
+			task.spawn(function()
+				local _cChunk = 0
+				for _, path in ipairs(files) do
+					local fileName = path:match("[/\\]([^/\\]+)$") or path
+					local dispName = fileName:gsub("%.[^%.]+$","")
+					local ok3, src = pcall(readfile, path)
+					if ok3 and src then
+						if path:match("%.json$") then
+							local animData = _parseJsonAnim(src, dispName)
+							if animData then reanimAddItem(next(animData) or dispName, path, _RS.customItems)
+							else reanimAddItem(dispName.." (err)", path, _RS.customItems) end
+						else
+							local fnOk, animFn = pcall(_safeLoadstring, src)
+							if fnOk and animFn then
+								local dataOk, animData = pcall(animFn)
+								local animName = (dataOk and type(animData)=="table" and next(animData)) or dispName
+								reanimAddItem(animName, path, _RS.customItems)
+							else reanimAddItem(dispName.." (err)", path, _RS.customItems) end
+						end
+					end
+					_cChunk = _cChunk + 1
+					if _cChunk >= 10 then
+						_cChunk = 0
+						task.wait()
+						if _RS.activeTab=="custom" then _RS.reanimRefreshSearch() end
 					end
 				end
-			end
-			if _RS.activeTab=="custom" then _RS.reanimRefreshSearch() end
+				if _RS.activeTab=="custom" then _RS.reanimRefreshSearch() end
+			end)
 		end
 		reloadCustom = _reloadCustom ; _reloadCustom()
 
