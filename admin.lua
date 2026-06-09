@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-hidden-cmds"
+local ADMIN_BUILD = "2026-06-09-r15-fling"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -10308,19 +10308,96 @@ cmdHandlers["unspectate"] = function()
 end
 
 
+-- !fling — works on R15 by abusing collision momentum transfer.
+-- You can't directly mutate another player's body (no network ownership), so
+-- we crank our OWN HumanoidRootPart's velocity to extreme values and ram
+-- it into the target. Roblox replicates OUR velocity (we own ourselves) and
+-- the physical collision flings the target.
 cmdHandlers["fling"] = function(arg)
     local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
-    local thrp = phrp(target); local myH = hrp()
-    if not (thrp and myH) then notify("Missing character", "bad"); return end
-    pcall(function()
-        local v = Instance.new("BodyVelocity")
-        v.MaxForce = Vector3.new(1e9,1e9,1e9)
-        v.Velocity = Vector3.new(math.random(-1,1)*1e4, 1e4, math.random(-1,1)*1e4)
-        v.Parent = thrp
-        task.delay(0.25, function() v:Destroy() end)
+    local tchar = target.Character
+    local thrp = tchar and (tchar:FindFirstChild("HumanoidRootPart") or tchar:FindFirstChild("Torso") or tchar:FindFirstChild("UpperTorso"))
+    local mychar = LP.Character
+    local myH = mychar and mychar:FindFirstChild("HumanoidRootPart")
+    local myHum = mychar and mychar:FindFirstChildOfClass("Humanoid")
+    if not (thrp and myH and myHum) then notify("Missing character", "bad"); return end
+
+    notify("Flinging " .. target.Name .. "...", "good")
+    task.spawn(function()
+        -- Save state to restore after
+        local savedCF        = myH.CFrame
+        local savedAutoRot   = myHum.AutoRotate
+        local savedWalkSpeed = myHum.WalkSpeed
+        local savedJump      = myHum.JumpPower
+
+        myHum.AutoRotate = false
+        myHum.WalkSpeed  = 0
+        myHum.JumpPower  = 0
+        myHum.PlatformStand = true
+
+        -- Massive angular velocity makes the HRP spin & generate collision impulse
+        local bav = Instance.new("BodyAngularVelocity")
+        bav.AngularVelocity = Vector3.new(0, 1e9, 0)
+        bav.MaxTorque       = Vector3.new(math.huge, math.huge, math.huge)
+        bav.P               = math.huge
+        bav.Parent          = myH
+
+        -- Hold us in space so we don't fly away; the spinning + offset does the flinging
+        local bv = Instance.new("BodyVelocity")
+        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bv.Velocity = Vector3.new(0, 0, 0)
+        bv.Parent   = myH
+
+        -- Boost assembly velocity for extra punch (some games use it directly)
+        pcall(function()
+            myH.AssemblyLinearVelocity  = Vector3.new(9e4, 9e4, 9e4)
+            myH.AssemblyAngularVelocity = Vector3.new(9e4, 9e4, 9e4)
+        end)
+
+        -- Ram into the target from multiple offsets so collision lands on R15 limbs
+        local OFFSETS = {
+            Vector3.new(0,  0,    0),
+            Vector3.new(0,  0.5,  0),
+            Vector3.new(0, -0.5,  0),
+            Vector3.new(0.5, 0,   0),
+            Vector3.new(-0.5, 0,  0),
+        }
+        local startT = tick()
+        local i = 1
+        while tick() - startT < 0.45 do
+            local tc = target.Character
+            local th = tc and (tc:FindFirstChild("HumanoidRootPart") or tc:FindFirstChild("UpperTorso") or tc:FindFirstChild("Torso"))
+            if not th then break end
+            local off = OFFSETS[((i - 1) % #OFFSETS) + 1]
+            pcall(function()
+                myH.CFrame = th.CFrame * CFrame.new(off)
+                myH.AssemblyLinearVelocity  = Vector3.new(9e4, 9e4, 9e4)
+                myH.AssemblyAngularVelocity = Vector3.new(9e4, 9e4, 9e4)
+            end)
+            i = i + 1
+            RunService.Heartbeat:Wait()
+        end
+
+        -- Clean up
+        pcall(function() bav:Destroy() end)
+        pcall(function() bv:Destroy() end)
+        if myHum and myHum.Parent then
+            myHum.PlatformStand = false
+            myHum.AutoRotate    = savedAutoRot
+            myHum.WalkSpeed     = savedWalkSpeed
+            myHum.JumpPower     = savedJump
+        end
+        if myH and myH.Parent then
+            pcall(function()
+                myH.AssemblyLinearVelocity  = Vector3.zero
+                myH.AssemblyAngularVelocity = Vector3.zero
+                myH.CFrame = savedCF
+            end)
+        end
+        notify("Fling done", "good")
     end)
-    notify("Flung " .. target.Name, "good")
 end
+
 
 cmdHandlers["bring"] = function(arg)
     local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
