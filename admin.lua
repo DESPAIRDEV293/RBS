@@ -8219,7 +8219,7 @@ end)
 if layoutCtl and layoutCtl.set then layoutCtl.set(_G.__SeigeLayoutMode or "Bar") end
 
 label(pgConfig, "Panel translucency — higher = more see-through")
-local transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 0.35, function(v)
+transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 0.35, function(v)
     if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
 end)
 
