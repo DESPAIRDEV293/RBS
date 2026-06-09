@@ -33,7 +33,8 @@ function encodeTags(entries: Record<string, TagEntry>): string {
 }
 
 function parseJsonTags(src: string): { entries: Record<string, TagEntry>; count: number } | null {
-  const start = src.search(/\{\s*"(?:version|format)"\s*:/);
+  const matches = [...src.matchAll(/\{\s*"(?:version|format)"\s*:/g)];
+  const start = matches.length ? matches[matches.length - 1].index ?? -1 : -1;
   const end = src.lastIndexOf("}");
   if (start < 0 || end < start) return null;
   try {

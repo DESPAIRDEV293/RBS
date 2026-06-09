@@ -1868,9 +1868,19 @@ end
 local function parseTagsJson(src)
     src = tostring(src or "")
     -- Prefer the LAST v2 JSON block if the file was polluted with legacy rows.
-    -- This avoids blue/default fallback from a half-parsed mixed file, while the
-    -- caller can still recover legacy rows if the embedded JSON is empty.
-    local startAt = src:find('{%s*"version"%s*:%s*2') or src:find('{%s*"format"%s*:%s*"seige%.tags%.v2"')
+    -- This avoids stale/blue fallback data from an older block overriding the
+    -- newest save, while still letting the caller recover legacy rows if empty.
+    local startAt = nil
+    local pos = 1
+    while true do
+        local a = src:find('{%s*"version"%s*:%s*2', pos)
+        local b = src:find('{%s*"format"%s*:%s*"seige%.tags%.v2"', pos)
+        local n = nil
+        if a and b then n = math.min(a, b) else n = a or b end
+        if not n then break end
+        startAt = n
+        pos = n + 1
+    end
     if startAt then
         local endAt = nil
         for i = #src, 1, -1 do
@@ -2088,7 +2098,7 @@ local function tagColor(p)
     if Tags:has(p.UserId, "Friend") then return T.good end
     if Tags:has(p.UserId, "Priority") then return T.warn end
     if Tags:has(p.UserId, "Ignore") then return T.dim end
-    return T.acc
+    return T.silverHi or T.text
 end
 
 ------------------------------------------------------- TABS
@@ -3009,6 +3019,9 @@ local function refreshBill(p)
         c1, c2 = parseColorPair(cfg.color)
         c1 = c1 or tagAccentFromFill(cfg.color)
     end
+    if not c1 and cfg and cfg.outline and cfg.outline ~= "" then
+        c1 = parseColor(cfg.outline)
+    end
     local txt = Tags:summary(p.UserId)
     -- owner-only custom chip text override
     if cfg and cfg.customText and cfg.customText ~= "" then txt = cfg.customText end
@@ -3016,6 +3029,7 @@ local function refreshBill(p)
     -- cfg.showChip == "on". This hides the auto "Owner/Dev/..." pill unless
     -- the user explicitly enables it in the Tags panel.
     local chipOn = tostring(cfg and cfg.showChip or ""):lower() == "on"
+    local defaultTagColor = T.silverHi or T.text
     local chipColor
     if txt ~= "" and chipOn then
         e.sh.Visible = true
@@ -3023,7 +3037,7 @@ local function refreshBill(p)
         chipColor = c1 or tagColor(p)
     else
         e.sh.Visible = false
-        chipColor = c1 or (txt ~= "" and tagColor(p)) or (p == LP and T.good or T.acc)
+        chipColor = c1 or (txt ~= "" and tagColor(p)) or defaultTagColor
     end
     e.dot.BackgroundColor3 = chipColor
     if e.avRing then
@@ -3255,7 +3269,7 @@ local function buildBill(p)
     })
     corner(bg, 23)
 
-    local st = stroke(bg, T.acc, 1.4, 0.25)
+    local st = stroke(bg, T.silverHi or T.text, 1.4, 0.25)
     local bgGrad = inst("UIGradient", bg, {
         Rotation = 90,
         Color = ColorSequence.new(Color3.fromRGB(40,40,52), Color3.fromRGB(14,14,18)),
@@ -3290,7 +3304,7 @@ local function buildBill(p)
     })
     corner(av, 17)
     -- gradient ring around avatar — colored from chip color in refreshBill
-    local avRing = stroke(av, T.acc, 2, 0.1)
+    local avRing = stroke(av, T.silverHi or T.text, 2, 0.1)
     pcall(function() av.Image = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end)
     local nm = inst("TextLabel", bg, {
         BackgroundTransparency = 1, Position = UDim2.new(0, 46, 0, 4), Size = UDim2.new(1, -120, 0, 18),
@@ -3333,12 +3347,12 @@ local function buildBill(p)
     })
     local dot = inst("Frame", sh, {
         Size = UDim2.new(0, 7, 0, 7), Position = UDim2.new(0, 8, 0.5, -3),
-        BackgroundColor3 = T.acc, BorderSizePixel = 0,
+        BackgroundColor3 = T.silverHi or T.text, BorderSizePixel = 0,
         ZIndex = 11,
     })
     corner(dot, 4)
     -- subtle glow on the dot
-    stroke(dot, T.acc, 1, 0.4)
+    stroke(dot, T.silverHi or T.text, 1, 0.4)
     local stx = inst("TextLabel", sh, {
         BackgroundTransparency = 1, Position = UDim2.new(0, 19, 0, 0), Size = UDim2.new(1, -23, 1, 0),
         Font = Enum.Font.GothamBold, TextSize = 10, TextColor3 = T.text,
@@ -3903,7 +3917,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local dot = inst("Frame", row, {
                 Position = UDim2.new(0, 8, 0.5, -5),
                 Size = UDim2.new(0, 10, 0, 10),
-                BackgroundColor3 = parseColor(e.color or "") or T.acc,
+                BackgroundColor3 = parseColor(e.color or "") or tagAccentFromFill(e.color or "") or parseColor(e.outline or "") or (T.silverHi or T.text),
                 BorderSizePixel = 0,
             })
             corner(dot, 5)
