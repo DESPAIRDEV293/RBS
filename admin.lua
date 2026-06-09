@@ -12429,6 +12429,20 @@ end)()
             }
             pcall(putList, out)
             pcall(renderList, out)
+            -- Update the in-server scripter set so the floating-tag system can
+            -- light up tags for other seige.lol users in this exact JobId
+            -- without requiring "show everyone" mode.
+            do
+                local set = {}
+                local myJob = tostring(game.JobId or "")
+                for _, e in ipairs(out) do
+                    if type(e) == "table" and e.userId and tostring(e.jobId or "") == myJob then
+                        set[tonumber(e.userId)] = true
+                    end
+                end
+                _G.__SeigeScripters = set
+                if _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
+            end
             task.wait(30)
         end
     end)
