@@ -3016,6 +3016,7 @@ local function refreshBill(p)
     -- cfg.showChip == "on". This hides the auto "Owner/Dev/..." pill unless
     -- the user explicitly enables it in the Tags panel.
     local chipOn = tostring(cfg and cfg.showChip or ""):lower() == "on"
+    local defaultTagColor = T.silverHi or T.text
     local chipColor
     if txt ~= "" and chipOn then
         e.sh.Visible = true
@@ -3023,7 +3024,7 @@ local function refreshBill(p)
         chipColor = c1 or tagColor(p)
     else
         e.sh.Visible = false
-        chipColor = c1 or (txt ~= "" and tagColor(p)) or (p == LP and T.good or T.acc)
+        chipColor = c1 or (txt ~= "" and tagColor(p)) or defaultTagColor
     end
     e.dot.BackgroundColor3 = chipColor
     if e.avRing then
