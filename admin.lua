@@ -1775,6 +1775,17 @@ local function parseFill(s)
         return nil
     end
 end
+
+local function tagAccentFromFill(raw)
+    local fill = parseFill(raw)
+    if fill then
+        if fill.kind == "solid" then return fill.c end
+        if fill.kind == "split" then return fill.c1 end
+        if fill.kind == "gradient" and fill.stops and fill.stops[1] then return fill.stops[1] end
+    end
+    local c1 = parseColorPair(raw)
+    return c1
+end
 function TagDB:configFor(p)
     if not p then return nil end
     local byName = self.entries[(p.Name or ""):lower()]
@@ -1855,7 +1866,14 @@ local function cleanTagEntry(entry)
     return out
 end
 local function parseTagsJson(src)
-    local ok, decoded = pcall(function() return HttpService:JSONDecode(tostring(src or "")) end)
+    src = tostring(src or "")
+    -- If the Gist ever contains old pipe rows plus a v2 JSON document, trust the
+    -- JSON document. This prevents stale legacy rows from overriding newly saved
+    -- colors/fills when Roblox reloads the repo.
+    local embedded = src:match('({%s*"version"%s*:%s*2.-})%s*$')
+                  or src:match('({%s*"format"%s*:%s*"seige%.tags%.v2".-})%s*$')
+    if embedded then src = embedded end
+    local ok, decoded = pcall(function() return HttpService:JSONDecode(src) end)
     if not ok or type(decoded) ~= "table" then return nil, 0, false end
     local source = decoded.tags or decoded.entries or decoded
     if type(source) ~= "table" then return nil, 0, false end
@@ -2920,7 +2938,10 @@ local function refreshBill(p)
 
     -- Side chip / color (supports single hex or "#aaa/#bbb" split)
     local c1, c2 = nil, nil
-    if cfg and cfg.color then c1, c2 = parseColorPair(cfg.color) end
+    if cfg and cfg.color then
+        c1, c2 = parseColorPair(cfg.color)
+        c1 = c1 or tagAccentFromFill(cfg.color)
+    end
     local txt = Tags:summary(p.UserId)
     -- owner-only custom chip text override
     if cfg and cfg.customText and cfg.customText ~= "" then txt = cfg.customText end
@@ -4202,6 +4223,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local BOT_URL  = "https://seigelollua.lovable.app/api/public/pastebin"
     local BOT_AUTH = "1f0957eaf8dd4ed89bb594440220eb4c"
     local lastPullHash = nil
+    local lastPushHash = nil
+    local lastPushAt = 0
 
     local function hashStr(s)
         s = tostring(s or "")
@@ -4293,7 +4316,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             end
         end
         if status >= 200 and status < 300 and savedOk(txt) then
-            lastPullHash = hashStr(body)
+            lastPushHash = hashStr(body)
+            lastPushAt = tick()
+            lastPullHash = lastPushHash
             if not silent then notify("Pushed to GitHub gist", "good") end
             return true, "ok"
         end
@@ -4326,6 +4351,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             return false, "fetch failed"
         end
         local h = hashStr(src)
+        -- GitHub raw/gist reads can lag a few seconds after a write. Without this
+        -- guard, auto-pull can immediately fetch the OLD blue tag JSON and
+        -- overwrite the just-saved color/fill in memory, making Save look like it
+        -- worked and then "reload" back to blue.
+        if lastPushHash and h ~= lastPushHash and (tick() - lastPushAt) < 90 then
+            if not silent then notify("GitHub is still updating — keeping your saved tag", "warn") end
+            return true, "waiting for fresh push"
+        end
         if lastPullHash and h == lastPullHash then
             if not silent then notify("GitHub: no changes", "dim") end
             return true, "unchanged"
