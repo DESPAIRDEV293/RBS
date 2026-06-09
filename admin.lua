@@ -3918,7 +3918,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     local function applyToMatchingPlayer(user)
         for _, p in ipairs(Players:GetPlayers()) do
-            if p.Name:lower() == user:lower() then
+            if p.Name:lower() == user:lower() or tostring(p.DisplayName or ""):lower() == user:lower() then
                 TagDB:applyTo(p)
                 -- Rebuild the bubble from scratch so a brand-new entry (or a
                 -- changed displayName/customHandle) is picked up cleanly. Just
