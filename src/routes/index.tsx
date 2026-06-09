@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 // Preview-only decoy. The real live loadstring is gated and never shipped to the client.
 // Retyping or copying what is shown here will NOT execute — the URL points nowhere real.
