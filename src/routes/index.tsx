@@ -28,14 +28,22 @@ const RAIN = Array.from({ length: 140 }, (_, i) => {
   };
 });
 
-const DROPLETS = Array.from({ length: 28 }, (_, i) => {
-  const r = ((i * 1103515245 + 12345) >>> 0) / 0xffffffff;
-  const r2 = ((i * 22695477 + 1) >>> 0) / 0xffffffff;
+// Better hash so droplets actually scatter across the viewport
+function hash(n: number, seed: number) {
+  let x = Math.sin(n * 9999 + seed * 374761) * 43758.5453;
+  return x - Math.floor(x);
+}
+const DROPLETS = Array.from({ length: 90 }, (_, i) => {
+  const r1 = hash(i, 1);
+  const r2 = hash(i, 2);
+  const r3 = hash(i, 3);
+  const r4 = hash(i, 4);
   return {
-    top: 4 + r * 92,
-    left: 3 + r2 * 94,
-    size: 6 + (i % 5) * 4,
-    delay: (i * 0.4) % 6,
+    top: r1 * 100,
+    left: r2 * 100,
+    size: 5 + r3 * 16,
+    delay: r4 * 8,
+    duration: 5 + r3 * 6,
   };
 });
 
@@ -97,6 +105,24 @@ function Index() {
       {/* mist at bottom */}
       <div className="storm-mist absolute inset-x-0 bottom-0 h-1/2 pointer-events-none" />
 
+      {/* full-screen droplet layer */}
+      <div className="absolute inset-0 pointer-events-none z-[1]">
+        {DROPLETS.map((d, i) => (
+          <span
+            key={i}
+            className="storm-droplet"
+            style={{
+              top: `${d.top}%`,
+              left: `${d.left}%`,
+              width: `${d.size}px`,
+              height: `${d.size * 1.15}px`,
+              animationDelay: `${d.delay}s`,
+              animationDuration: `${d.duration}s`,
+            }}
+          />
+        ))}
+      </div>
+
       <main className="relative z-10 mx-auto flex min-h-screen max-w-4xl flex-col justify-center gap-10 px-6 py-16">
         <header className="space-y-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.4em] text-indigo-300/80">
@@ -111,25 +137,11 @@ function Index() {
           </p>
         </header>
 
-        {/* glass card with droplets */}
+        {/* glass card */}
         <section className="storm-card relative overflow-hidden rounded-2xl p-6 sm:p-7">
           <div className="storm-card-glow absolute inset-0 pointer-events-none" />
-          {/* droplets on the glass */}
-          <div className="absolute inset-0 pointer-events-none">
-            {DROPLETS.map((d, i) => (
-              <span
-                key={i}
-                className="storm-droplet"
-                style={{
-                  top: `${d.top}%`,
-                  left: `${d.left}%`,
-                  width: `${d.size}px`,
-                  height: `${d.size * 1.15}px`,
-                  animationDelay: `${d.delay}s`,
-                }}
-              />
-            ))}
-          </div>
+
+
 
           <div className="relative flex items-center justify-between gap-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-indigo-200/70">
