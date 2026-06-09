@@ -2066,7 +2066,11 @@ function TagDB:load()
         warn("[Tags] eval failed: " .. tostring(data)); self.entries = {}; self:mergeLocal(); return
     end
     local entries = {}
-    for k, v in pairs(data) do entries[tostring(k):lower()] = stripTagSpecials(v) end
+    for k, v in pairs(data) do
+        local key = normTagKey(k)
+        local clean = cleanTagEntry(v)
+        if key ~= "" and clean then entries[key] = clean end
+    end
     self.entries = entries
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
 end
