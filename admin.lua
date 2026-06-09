@@ -6332,10 +6332,20 @@ local HELP_CMDS = {
         { "!spectate <player>", "Spectate a player" },
         { "!unspectate", "Stop spectating" },
         { "!face <player>", "Face a player" },
-        { "!headsit <player>", "Sit on a player's head and lock there until !headsit or !unhead" },
+        { "!headsit <player>", "Sit on a player's head — toggle in the Headsit panel" },
+        { "!unheadsit", "Eject yourself / rider off head" },
+        { "!shouldersit <player>", "Sit on a player's shoulders" },
+        { "!carry <player>", "Pick a player up (carry above you)" },
+        { "!piggyback <player>", "Piggyback ride on a player's back" },
+        { "!uncarry / !unpiggy / !unshoulder", "Stop carry / piggy / shoulder" },
         { "!fling <player>", "Fling a player" },
         { "!stalk / !unstalk", "Pick a player and watch their position, mic, and chat" },
     }},
+    { "Admin / owner", {
+        { "!timestop", "Freeze everyone except you (admin/owner only)" },
+        { "!untimestop", "Release the freeze" },
+    }},
+    { "_pad", {
     { "Animations", {
         { "!reanim", "Free the humanoid for custom animations" },
         { "!unreanim", "Stop reanim" },
