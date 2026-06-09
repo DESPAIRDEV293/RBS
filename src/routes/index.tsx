@@ -46,6 +46,24 @@ const DROPLETS = Array.from({ length: 90 }, (_, i) => {
   };
 });
 
+function WaterText({ text, accent = false }: { text: string; accent?: boolean }) {
+  return (
+    <span className={`water-text inline-block ${accent ? "water-text-accent" : ""}`}>
+      {text.split("").map((ch, i) => (
+        <span
+          key={i}
+          className="water-letter"
+          style={{ animationDelay: `${i * 0.12}s` }}
+        >
+          <span className="water-letter-glyph">{ch}</span>
+          <span className="water-ripple" style={{ animationDelay: `${i * 0.12 + 0.4}s` }} />
+          <span className="water-ripple water-ripple-2" style={{ animationDelay: `${i * 0.12 + 1.1}s` }} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function Index() {
 
   return (
