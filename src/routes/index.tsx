@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const loadstringCommand = 'loadstring(game:HttpGet("https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/admin.lua?fresh=" .. tostring(os.time())))()';
+const loadstringCommand = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/seige.lua"))()';
 
 export const Route = createFileRoute("/")({
   head: () => ({
