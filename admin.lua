@@ -9948,7 +9948,18 @@ do
                 if p.frame and p.frame.Visible then p.frame.BackgroundTransparency = t end
             end
         end
+        -- Sync floating command popups (Bang, Reanim, Circle, Help, etc.)
+        if _G.__SeigePopupPanels then
+            for win, _ in pairs(_G.__SeigePopupPanels) do
+                if win and win.Parent then
+                    pcall(function() win.BackgroundTransparency = t end)
+                else
+                    _G.__SeigePopupPanels[win] = nil
+                end
+            end
+        end
     end
+
 
     -- Close menu when clicking outside.
     UIS.InputBegan:Connect(function(i)
