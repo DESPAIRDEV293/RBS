@@ -3840,15 +3840,21 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         local c1 = pick(form.color, tbColor.Text)
         local c2 = pick(form.color2, tbColor2.Text)
         if fillRaw ~= "" then
-            -- advanced fill takes priority. Normalize common shorthand so the
-            -- pastebin export round-trips: a bare asset id (e.g. "132151218054089")
-            -- or rbxassetid url becomes "image:<id>"; a single hex stays as-is so
-            -- it parses as solid; everything else (grad:/image:/img:) saved verbatim.
+            -- advanced fill takes priority. Normalize anything image-shaped
+            -- (bare id, rbxassetid url, roblox.com library/asset/decal URL) into
+            -- a clean "image:<id>" so the pill renderer reliably uses it as an
+            -- image fill instead of trying to parse it as a color/gradient spec.
             local fLow = fillRaw:lower()
+            local function digitsFromUrl(u)
+                return u:match("[?&]id=(%d+)") or u:match("/(%d+)")
+            end
             if fillRaw:match("^%d+$") then
                 entry.color = "image:" .. fillRaw
             elseif fLow:match("^rbxassetid://") then
                 entry.color = "image:" .. fillRaw:gsub("rbxassetid://", "")
+            elseif fLow:match("roblox%.com") then
+                local id = digitsFromUrl(fillRaw)
+                entry.color = id and ("image:" .. id) or fillRaw
             else
                 entry.color = fillRaw
             end
