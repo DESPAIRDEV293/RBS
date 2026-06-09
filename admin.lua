@@ -6345,7 +6345,7 @@ local HELP_CMDS = {
         { "!timestop", "Freeze everyone except you (admin/owner only)" },
         { "!untimestop", "Release the freeze" },
     }},
-    { "_pad", {
+    
     { "Animations", {
         { "!reanim", "Free the humanoid for custom animations" },
         { "!unreanim", "Stop reanim" },
