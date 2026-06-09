@@ -8156,12 +8156,15 @@ local snapshotCfg, applyCfg, saveCfg, loadCfg
 local layoutCtl, transCtl
 
 ------------------------------------------------------- SAVE / RESET (top)
-section(pgConfig, "Save & Reset")
-label(pgConfig, "Settings save for this session (and to disk if your executor supports writefile). Reset clears them.")
-button(pgConfig, "💾  Save Config", function()
+-- Pin these to the very top of the Config tab using negative LayoutOrder so
+-- they sort above the Background / Themes / Typography sections (which are
+-- added to the same page earlier in the file via pgThemes = pgConfig).
+local _saveSec = section(pgConfig, "Save & Reset")
+local _saveLbl = label(pgConfig, "Save persists translucency, layout, typography, tag font, animations, theme colors, background & panel images. Reset clears them.")
+local _saveBtn = button(pgConfig, "💾  Save Config", function()
     if saveCfg then saveCfg() else notify("Config not ready yet", "warn") end
 end)
-button(pgConfig, "↺  Reset to Defaults", function()
+local _resetBtn = button(pgConfig, "↺  Reset to Defaults", function()
     _G.__SeigeSessionCfg = nil
     local wf = rawget(getfenv(), "delfile") or delfile
     if wf then pcall(wf, CFG_FILE) end
@@ -8170,6 +8173,11 @@ button(pgConfig, "↺  Reset to Defaults", function()
         notify("Config reset to defaults", "good")
     end
 end)
+pcall(function() _saveSec.LayoutOrder = -1000 end)
+pcall(function() (_saveLbl.frame or _saveLbl).LayoutOrder = -999 end)
+pcall(function() _saveBtn.LayoutOrder = -998 end)
+pcall(function() _resetBtn.LayoutOrder = -997 end)
+
 
 section(pgConfig, "Settings")
 local toggleKey = Enum.KeyCode.F2
