@@ -4173,40 +4173,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     })
 
     local function buildExport()
-        local keys = {}
-        for k in pairs(TagDB.entries) do keys[#keys+1] = k end
-        table.sort(keys)
-        local lines = {}
-        for _, k in ipairs(keys) do
-            local e = TagDB.entries[k]
-            local tagsStr = (e.tags and table.concat(e.tags, ",")) or ""
-            local fields = {
-                k,
-                e.displayName or "",
-                e.color or "",
-                "",
-                e.icon or "",
-                tagsStr,
-                e.textFx or "",
-                e.customText or "",
-                e.customHandle or "",
-                e.outline or "",
-                e.font or "",
-                "",
-                e.textColor or "",
-                e.textOutline or "",
-                e.avatarOutline or "",
-                e.showChip or "",
-            }
-            -- Trim trailing empty fields so each row stays compact like the
-            -- legacy entries (e.g. eyk_a). The loader pads missing tail fields
-            -- with empty strings, so dropping them here is round-trip safe.
-            while #fields > 1 and (fields[#fields] == nil or fields[#fields] == "") do
-                fields[#fields] = nil
-            end
-            lines[#lines+1] = table.concat(fields, " | ")
+        local out = { version = 2, format = TAGS_JSON_FORMAT, tags = {} }
+        for k, e in pairs(TagDB.entries) do
+            local key = normTagKey(k)
+            local clean = cleanTagEntry(e)
+            if key ~= "" and clean then out.tags[key] = clean end
         end
-        return table.concat(lines, "\n")
+        local ok, encoded = pcall(function() return HttpService:JSONEncode(out) end)
+        if ok and type(encoded) == "string" then return encoded end
+        return '{"version":2,"format":"seige.tags.v2","tags":{}}'
     end
 
 
