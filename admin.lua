@@ -8329,6 +8329,25 @@ end
 snapshotCfg = function()
     local fx = {}
     for _, k in ipairs(FX_TABS) do fx[k] = _G.__SeigeFx[k] == true end
+    -- Snapshot theme color overrides
+    local theme = {}
+    pcall(function()
+        for k, v in pairs(T) do
+            if typeof(v) == "Color3" then
+                theme[k] = string.format("#%02X%02X%02X",
+                    math.floor(v.R*255+0.5), math.floor(v.G*255+0.5), math.floor(v.B*255+0.5))
+            end
+        end
+    end)
+    local bgSnap = { image = "", trans = 0.4 }
+    pcall(function() bgSnap.image = bgState.image or ""; bgSnap.trans = bgState.trans or 0.4 end)
+    local pbgSnap = { image = "", trans = 0.5, panels = {}, icons = {} }
+    pcall(function()
+        pbgSnap.image  = panelBgState.image  or ""
+        pbgSnap.trans  = panelBgState.trans  or 0.5
+        pbgSnap.panels = panelBgState.panels or {}
+        pbgSnap.icons  = panelBgState.icons  or {}
+    end)
     return {
         toggleKey     = toggleKey.Name,
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
@@ -8341,6 +8360,17 @@ snapshotCfg = function()
             Ft = skyboxFaces.Ft, Bk = skyboxFaces.Bk,
         },
         fx            = fx,
+        -- Theme / appearance extensions
+        theme         = theme,
+        bg            = bgSnap,
+        panelBg       = pbgSnap,
+        fontOverride  = _G.__SeigeFontOverride or "Default (mixed)",
+        fontScale     = tonumber(_G.__SeigeFontScale) or 1.0,
+        tagFont       = _G.__SeigeTagFont or "Default",
+        bubbleAnim    = _G.__SeigeBubbleAnim or "None",
+        bubbleAmt     = tonumber(_G.__SeigeBubbleAmt) or 0.5,
+        pageAnim      = _G.__SeigePageAnim or "Fade",
+        pageAnimSpeed = tonumber(_G.__SeigePageAnimSpeed) or 0.24,
     }
 end
 
@@ -8372,6 +8402,55 @@ applyCfg = function(cfg, opts)
     if opts.applySkybox then
         if (sb.Up or "") ~= "" or (sb.Dn or "") ~= "" then applySkybox() else resetSkybox() end
     end
+    -- Theme / appearance extensions
+    if type(cfg.theme) == "table" and _G.__SeigeApplyThemeHex then
+        pcall(_G.__SeigeApplyThemeHex, cfg.theme)
+    elseif type(cfg.theme) == "table" then
+        -- Fallback: use the themes' loadCfg path by writing temp state.
+        pcall(function()
+            local newT = {}
+            for k, hex in pairs(cfg.theme) do
+                local h = tostring(hex):gsub("^#","")
+                if #h == 6 then
+                    local r = tonumber(h:sub(1,2),16) or 0
+                    local g = tonumber(h:sub(3,4),16) or 0
+                    local b = tonumber(h:sub(5,6),16) or 0
+                    newT[k] = Color3.fromRGB(r,g,b)
+                end
+            end
+            if _G.__SeigeApplyTheme then _G.__SeigeApplyTheme(newT) end
+        end)
+    end
+    if type(cfg.bg) == "table" then
+        pcall(function()
+            bgState.image = cfg.bg.image or ""
+            bgState.trans = tonumber(cfg.bg.trans) or 0.4
+            if _G.__SeigeApplyBg then _G.__SeigeApplyBg() end
+        end)
+    end
+    if type(cfg.panelBg) == "table" then
+        pcall(function()
+            panelBgState.image  = cfg.panelBg.image  or ""
+            panelBgState.trans  = tonumber(cfg.panelBg.trans) or 0.5
+            panelBgState.panels = (type(cfg.panelBg.panels) == "table") and cfg.panelBg.panels or {}
+            panelBgState.icons  = (type(cfg.panelBg.icons)  == "table") and cfg.panelBg.icons  or {}
+            if _G.__SeigeApplyPanelBg    then _G.__SeigeApplyPanelBg()    end
+            if _G.__SeigeApplyIconImages then _G.__SeigeApplyIconImages() end
+        end)
+    end
+    if cfg.fontOverride or cfg.fontScale then
+        _G.__SeigeFontOverride = cfg.fontOverride or _G.__SeigeFontOverride
+        _G.__SeigeFontScale    = tonumber(cfg.fontScale) or _G.__SeigeFontScale or 1.0
+        if _G.__SeigeApplyTypography then pcall(_G.__SeigeApplyTypography) end
+    end
+    if cfg.tagFont then
+        _G.__SeigeTagFont = cfg.tagFont
+        if _G.__SeigeApplyTagFont then pcall(_G.__SeigeApplyTagFont) end
+    end
+    if cfg.bubbleAnim then _G.__SeigeBubbleAnim = cfg.bubbleAnim end
+    if cfg.bubbleAmt  then _G.__SeigeBubbleAmt  = tonumber(cfg.bubbleAmt)  or _G.__SeigeBubbleAmt  end
+    if cfg.pageAnim   then _G.__SeigePageAnim   = cfg.pageAnim end
+    if cfg.pageAnimSpeed then _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed end
 end
 
 
@@ -8382,6 +8461,10 @@ saveCfg = function()
     -- "Reset to Defaults" or the player rejoins.
     local snap = snapshotCfg()
     _G.__SeigeSessionCfg = snap
+
+    -- Also forward to the legacy themes config file so the existing themes
+    -- loader picks up colors / background / panel images on next inject.
+    if _G.__AdminSaveCfg then pcall(_G.__AdminSaveCfg) end
 
     local wf = rawget(getfenv(), "writefile") or writefile
     if not wf then
@@ -8395,6 +8478,7 @@ saveCfg = function()
     local okW = pcall(wf, CFG_FILE, raw)
     if okW then notify("Config saved", "good") else notify("Config saved for this session", "good") end
 end
+
 
 loadCfg = function()
     -- Prefer in-memory session config (set by saveCfg this session) so the
