@@ -1856,9 +1856,9 @@ local function cleanTagEntry(entry)
 end
 local function parseTagsJson(src)
     local ok, decoded = pcall(function() return HttpService:JSONDecode(tostring(src or "")) end)
-    if not ok or type(decoded) ~= "table" then return nil, 0 end
+    if not ok or type(decoded) ~= "table" then return nil, 0, false end
     local source = decoded.tags or decoded.entries or decoded
-    if type(source) ~= "table" then return nil, 0 end
+    if type(source) ~= "table" then return nil, 0, false end
     local entries, count = {}, 0
     for rawKey, rawEntry in pairs(source) do
         local key = normTagKey(rawKey)
@@ -1868,11 +1868,11 @@ local function parseTagsJson(src)
             count = count + 1
         end
     end
-    return entries, count
+    return entries, count, true
 end
 local function parsePastebin(src)
-    local jsonEntries, jsonCount = parseTagsJson(src)
-    if jsonCount > 0 then return jsonEntries, jsonCount end
+    local jsonEntries, jsonCount, isJson = parseTagsJson(src)
+    if isJson then return jsonEntries, jsonCount, true end
     local entries = {}
     local count = 0
     for raw in tostring(src):gmatch("[^\r\n]+") do
@@ -1911,7 +1911,7 @@ local function parsePastebin(src)
             end
         end
     end
-    return entries, count
+    return entries, count, false
 end
 
 local function stripTagSpecials(entry)
