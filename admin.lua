@@ -11642,7 +11642,9 @@ end
 
 cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !god !goto !to !spectate !fling !heal !save !load !help"
 
--- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command
+-- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command.
+-- We ALSO intercept the message at the outgoing send layer so the avatar never
+-- broadcasts the "!cmd" text into public chat — commands are hidden.
 pcall(function()
     LP.Chatted:Connect(function(msg)
         if type(msg) ~= "string" then return end
@@ -11650,6 +11652,73 @@ pcall(function()
         runBarCmd(msg)
     end)
 end)
+
+-- Hide outgoing "!cmd" messages so they never appear as a chat bubble / chat line.
+-- Hooks TextChatService (new chat) and the legacy SayMessageRequest remote.
+pcall(function()
+    local hookmm    = rawget(getfenv(), "hookmetamethod")
+    local getraw    = rawget(getfenv(), "getrawmetatable")
+    local setread   = rawget(getfenv(), "setreadonly")
+    local getnc     = rawget(getfenv(), "getnamecallmethod")
+    local newccl    = rawget(getfenv(), "newcclosure") or function(f) return f end
+
+    local function isAdminCmd(s)
+        if type(s) ~= "string" then return false end
+        local t = s:gsub("^%s+", "")
+        return t:sub(1, 1) == "!"
+    end
+
+    -- Preferred: hookmetamethod (Synapse / Fluxus / most modern executors)
+    if hookmm then
+        local old
+        old = hookmm(game, "__namecall", newccl(function(self, ...)
+            local method = getnc and getnc() or ""
+            if method == "SendAsync" and typeof(self) == "Instance"
+               and self:IsA("TextChannel") then
+                local args = {...}
+                if isAdminCmd(args[1]) then
+                    task.spawn(function() runBarCmd(args[1]) end)
+                    return nil -- swallow: nothing leaves the client
+                end
+            elseif method == "FireServer" and typeof(self) == "Instance"
+                   and self.Name == "SayMessageRequest" then
+                local args = {...}
+                if isAdminCmd(args[1]) then
+                    task.spawn(function() runBarCmd(args[1]) end)
+                    return nil
+                end
+            end
+            return old(self, ...)
+        end))
+    elseif getraw and setread then
+        -- Fallback: manual metatable swap
+        local mt = getraw(game)
+        local oldNc = mt.__namecall
+        setread(mt, false)
+        mt.__namecall = newccl(function(self, ...)
+            local method = getnc and getnc() or ""
+            if method == "SendAsync" and typeof(self) == "Instance"
+               and self:IsA("TextChannel") then
+                local args = {...}
+                if isAdminCmd(args[1]) then
+                    task.spawn(function() runBarCmd(args[1]) end)
+                    return nil
+                end
+            elseif method == "FireServer" and typeof(self) == "Instance"
+                   and self.Name == "SayMessageRequest" then
+                local args = {...}
+                if isAdminCmd(args[1]) then
+                    task.spawn(function() runBarCmd(args[1]) end)
+                    return nil
+                end
+            end
+            return oldNc(self, ...)
+        end)
+        pcall(setread, mt, true)
+    end
+end)
+
+
 
 
 local barPinned = false
