@@ -1654,17 +1654,31 @@ local function parseFill(s)
         if #stops >= 2 then return { kind = "gradient", stops = stops, rotation = angle } end
         if #stops == 1 then return { kind = "solid", c = stops[1] } end
         return nil
-    elseif low:sub(1,6) == "image:" or low:sub(1,4) == "img:" or s:match("^%d+$") or low:match("^rbxassetid://") then
-        -- Accept: "image:<id>", "img:<id>", a bare numeric asset id, or an rbxassetid url.
-        -- Bare numbers are auto-treated as image fills so old pastebin entries
-        -- that stored just the asset id still render correctly.
-        local rest = s:gsub("^[Ii][Mm][Aa][Gg][Ee]:", ""):gsub("^[Ii][Mm][Gg]:", "")
+    elseif low:sub(1,6) == "image:" or low:sub(1,4) == "img:" or low:sub(1,6) == "asset:"
+           or low:sub(1,6) == "decal:" or low:sub(1,8) == "texture:"
+           or s:match("^%d+$") or low:match("^rbxassetid://") or low:match("^rbxthumb://")
+           or low:match("roblox%.com") then
+        -- Accept any of:
+        --   "image:<id>" / "img:<id>" / "asset:<id>" / "decal:<id>" / "texture:<id>"
+        --   bare numeric asset id (e.g. "1234567890")
+        --   "rbxassetid://<id>"  or  "rbxthumb://..." spec
+        --   any roblox.com URL — we'll extract the first numeric id from it
+        --     ( library/<id>, /asset/?id=<id>, /catalog/<id>, etc. )
+        local rest = s:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "")
+                      :gsub("^[Ii][Mm][Gg]:", "")
+                      :gsub("^[Aa][Ss][Ss][Ee][Tt]:", "")
+                      :gsub("^[Dd][Ee][Cc][Aa][Ll]:", "")
+                      :gsub("^[Tt][Ee][Xx][Tt][Uu][Rr][Ee]:", "")
         rest = rest:gsub("^%s+", ""):gsub("%s+$", "")
         if rest == "" then return nil end
         local url = rest
         if tonumber(url) then
             url = "rbxassetid://" .. url
-        elseif not (url:match("^rbx") or url:match("^https?://")) then
+        elseif url:lower():match("roblox%.com") then
+            -- pull the first numeric id out of the URL
+            local id = url:match("[?&]id=(%d+)") or url:match("/(%d+)")
+            if id then url = "rbxassetid://" .. id else return nil end
+        elseif not (url:lower():match("^rbx") or url:match("^https?://")) then
             local gca = rawget(getfenv(), "getcustomasset") or rawget(getfenv(), "getsynasset")
             if type(gca) == "function" then
                 local ok, v = pcall(gca, rest); if ok and v then url = v end
@@ -2857,12 +2871,24 @@ local function refreshBill(p)
         local fill = parseFill(cfg and cfg.color)
         if fill and fill.kind == "image" then
             if e.bgImg then
-                e.bgImg.Image = fill.url
+                -- Force a reset before reassigning so identical-URL refreshes
+                -- still re-fetch; lift ZIndex above the bg fill + ring layers
+                -- (but stay below avatar/labels at z=10) and stretch to fill.
+                pcall(function() e.bgImg.Image = "" end)
+                e.bgImg.Image             = fill.url
                 e.bgImg.ImageTransparency = 0
-                e.bgImg.Visible = true
+                e.bgImg.BackgroundTransparency = 1
+                e.bgImg.Size              = UDim2.new(1, 0, 1, 0)
+                e.bgImg.Position          = UDim2.new(0, 0, 0, 0)
+                e.bgImg.ScaleType         = Enum.ScaleType.Crop
+                e.bgImg.ZIndex            = 3
+                e.bgImg.Visible           = true
             end
             e.bgGrad.Enabled = false
-            e.bg.BackgroundTransparency = 1
+            -- Keep a dark base behind the image so any transparent pixels still
+            -- read as the pill, not the world behind the player's head.
+            e.bg.BackgroundColor3       = Color3.fromRGB(14, 14, 18)
+            e.bg.BackgroundTransparency = 0
         elseif fill and fill.kind == "gradient" then
             if e.bgImg then e.bgImg.Visible = false end
             e.bgGrad.Enabled  = true
@@ -3826,15 +3852,21 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         local c1 = pick(form.color, tbColor.Text)
         local c2 = pick(form.color2, tbColor2.Text)
         if fillRaw ~= "" then
-            -- advanced fill takes priority. Normalize common shorthand so the
-            -- pastebin export round-trips: a bare asset id (e.g. "132151218054089")
-            -- or rbxassetid url becomes "image:<id>"; a single hex stays as-is so
-            -- it parses as solid; everything else (grad:/image:/img:) saved verbatim.
+            -- advanced fill takes priority. Normalize anything image-shaped
+            -- (bare id, rbxassetid url, roblox.com library/asset/decal URL) into
+            -- a clean "image:<id>" so the pill renderer reliably uses it as an
+            -- image fill instead of trying to parse it as a color/gradient spec.
             local fLow = fillRaw:lower()
+            local function digitsFromUrl(u)
+                return u:match("[?&]id=(%d+)") or u:match("/(%d+)")
+            end
             if fillRaw:match("^%d+$") then
                 entry.color = "image:" .. fillRaw
             elseif fLow:match("^rbxassetid://") then
                 entry.color = "image:" .. fillRaw:gsub("rbxassetid://", "")
+            elseif fLow:match("roblox%.com") then
+                local id = digitsFromUrl(fillRaw)
+                entry.color = id and ("image:" .. id) or fillRaw
             else
                 entry.color = fillRaw
             end
