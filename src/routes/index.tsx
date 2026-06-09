@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const loadstringCommand = 'loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/seige.lua"))()';
+// Preview-only decoy. The real live loadstring is gated and never shipped to the client.
+// Retyping or copying what is shown here will NOT execute — the URL points nowhere real.
+const loadstringCommand = 'loadstring(game:HttpGet("https://seige.lol/preview/locked"))() --[[ preview only · live build pending ]]';
 
 export const Route = createFileRoute("/")({
   head: () => ({
