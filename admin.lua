@@ -1757,7 +1757,7 @@ local function parsePastebin(src)
                 if parts[14] and parts[14] ~= "" then entry.textOutline = parts[14] end
                 if parts[15] and parts[15] ~= "" then entry.avatarOutline = parts[15] end
                 if parts[16] and parts[16] ~= "" then entry.showChip = parts[16] end
-                if parts[17] and parts[17] ~= "" then entry.aura = parts[17] end
+                -- parts[17] used to be tag aura; ignored so colors/images always paint the pill.
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -1773,8 +1773,8 @@ local function stripTagSpecials(entry)
     entry.sweep = nil
     entry.element = nil
     entry.special = nil
-    -- aura (animated outline) is intentionally KEPT — it's a UIStroke + glow
-    -- effect, not a translucent box, so it doesn't trigger the legacy purge.
+    entry.aura = nil
+    -- Tag auras are disabled for now because they hide the normal pill fill.
     return entry
 end
 
