@@ -2966,7 +2966,9 @@ local function buildBill(p)
     local gui = inst("BillboardGui", pchar(p), {
         Name = "SeigeTagBB", Adornee = head,
         Active = true,
-        Size = UDim2.new(0, 240, 0, 46),
+        -- Wrapper matches the compact minimum pill (100x46) + 12px halo on each
+        -- side / 6px top+bottom for aura room. refreshBill resizes to fit text.
+        Size = UDim2.new(0, 124, 0, 58),
         StudsOffset = Vector3.new(0, 1.7, 0),
         AlwaysOnTop = true, LightInfluence = 0,
     })
