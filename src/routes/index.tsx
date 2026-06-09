@@ -91,18 +91,6 @@ function Index() {
   // Also pauses all storm animations when the tab is hidden so we don't waste CPU.
   const [lowFx, setLowFx] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [reanimOpen, setReanimOpen] = useState(false);
-  const [reanimCopied, setReanimCopied] = useState(false);
-
-  const copyReanim = async () => {
-    try {
-      await navigator.clipboard.writeText(reanimLoadstring);
-      setReanimCopied(true);
-      setTimeout(() => setReanimCopied(false), 1800);
-    } catch {
-      /* ignore */
-    }
-  };
 
   useEffect(() => {
     const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
