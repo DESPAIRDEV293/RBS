@@ -10143,6 +10143,102 @@ cmdHandlers["unbang"] = function()
     notify("Bang stopped", "good")
 end
 
+-- ===== Hold (shouldersit / carry / piggyback) =====
+-- One shared loop; kind controls offset & whose CFrame is driven.
+_G.__SeigeHold = _G.__SeigeHold or { conn = nil, target = nil, kind = nil }
+local function _holdStop()
+    local H = _G.__SeigeHold
+    if H.conn then pcall(function() H.conn:Disconnect() end); H.conn = nil end
+    H.target = nil; H.kind = nil
+    local mh = hum(); if mh then mh.Sit = false end
+end
+local function _holdStart(target, kind)
+    if not target or not target.Character then notify("Player not found", "bad"); return end
+    _holdStop()
+    local H = _G.__SeigeHold
+    H.target = target; H.kind = kind
+    H.conn = RunService.Heartbeat:Connect(function()
+        local t = H.target
+        if not t or not t.Parent then _holdStop(); return end
+        local tc = t.Character; if not tc then return end
+        local thrp = tc:FindFirstChild("HumanoidRootPart")
+        local thead = tc:FindFirstChild("Head")
+        local me   = hrp()
+        local mh   = hum()
+        if not me or not thrp then return end
+        if kind == "shouldersit" then
+            -- sit on their right shoulder
+            if mh then mh.Sit = true end
+            local base = (tc:FindFirstChild("UpperTorso") or thrp).CFrame
+            me.CFrame = base * CFrame.new(0.9, 1.8, 0)
+        elseif kind == "carry" then
+            -- target is held in front of us, slightly above
+            local tH = tc:FindFirstChildOfClass("Humanoid"); if tH then tH.Sit = true end
+            thrp.CFrame = me.CFrame * CFrame.new(0, 2.2, -1.6)
+        elseif kind == "piggyback" then
+            -- we ride on target's back
+            if mh then mh.Sit = true end
+            me.CFrame = thrp.CFrame * CFrame.new(0, 1.6, 1.2)
+        end
+    end)
+end
+cmdHandlers["shouldersit"] = function(arg)
+    local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
+    _holdStart(target, "shouldersit"); notify("Sitting on " .. target.Name .. "'s shoulders — !unshoulder to stop", "good")
+end
+cmdHandlers["unshoulder"]    = function() _holdStop(); notify("Off shoulders", "good") end
+cmdHandlers["unshouldersit"] = cmdHandlers["unshoulder"]
+cmdHandlers["carry"] = function(arg)
+    local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
+    _holdStart(target, "carry"); notify("Carrying " .. target.Name .. " — !uncarry to stop", "good")
+end
+cmdHandlers["uncarry"] = function() _holdStop(); notify("Dropped", "good") end
+cmdHandlers["piggyback"] = function(arg)
+    local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
+    _holdStart(target, "piggyback"); notify("Piggyback on " .. target.Name .. " — !unpiggy to stop", "good")
+end
+cmdHandlers["unpiggy"]     = function() _holdStop(); notify("Off back", "good") end
+cmdHandlers["unpiggyback"] = cmdHandlers["unpiggy"]
+
+-- ===== Timestop (admin/owner only) — freeze all other players locally =====
+_G.__SeigeTimestop = _G.__SeigeTimestop or { on = false, anchored = {}, conn = nil }
+local function _timestopRelease()
+    local TS = _G.__SeigeTimestop
+    for part, _ in pairs(TS.anchored) do
+        if part and part.Parent then pcall(function() part.Anchored = false end) end
+    end
+    TS.anchored = {}
+    if TS.conn then pcall(function() TS.conn:Disconnect() end); TS.conn = nil end
+    TS.on = false
+end
+local function _timestopApply()
+    local TS = _G.__SeigeTimestop
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP and p.Character then
+            for _, d in ipairs(p.Character:GetDescendants()) do
+                if d:IsA("BasePart") and not d.Anchored then
+                    pcall(function() d.Anchored = true end)
+                    TS.anchored[d] = true
+                end
+            end
+        end
+    end
+end
+cmdHandlers["timestop"] = function()
+    if not (_G.__SeigeCan and _G.__SeigeCan("freeze")) then notify("Admin/owner only", "bad"); return end
+    local TS = _G.__SeigeTimestop
+    if TS.on then _timestopRelease(); notify("Time resumes", "good"); return end
+    TS.on = true
+    _timestopApply()
+    -- re-apply on heartbeat so newly-spawned parts / respawns stay frozen
+    TS.conn = RunService.Heartbeat:Connect(function()
+        if not TS.on then return end
+        _timestopApply()
+    end)
+    notify("Time stopped — !untimestop to release", "good")
+end
+cmdHandlers["untimestop"] = function() _timestopRelease(); notify("Time resumes", "good") end
+
 -- !cir <player> — orbit the target. Adjustable radius/speed via panel.
 _G.__SeigeCircle = _G.__SeigeCircle or { radius = 6, speed = 2, height = 0 }
 function _seigeCircleStop()
