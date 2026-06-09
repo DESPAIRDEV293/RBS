@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 // Preview-only decoy. The real live loadstring is gated and never shipped to the client.
 // Retyping or copying what is shown here will NOT execute — the URL points nowhere real.
@@ -17,7 +18,8 @@ export const Route = createFileRoute("/")({
 });
 
 // pre-built deterministic raindrops/droplets so SSR === client
-const RAIN = Array.from({ length: 140 }, (_, i) => {
+// Counts trimmed for perf — fewer animated nodes = less paint/composite work.
+const RAIN = Array.from({ length: 70 }, (_, i) => {
   const seed = (i * 9301 + 49297) % 233280;
   const r = seed / 233280;
   return {
@@ -34,7 +36,7 @@ function hash(n: number, seed: number) {
   let x = Math.sin(n * 9999 + seed * 374761) * 43758.5453;
   return x - Math.floor(x);
 }
-const DROPLETS = Array.from({ length: 90 }, (_, i) => {
+const DROPLETS = Array.from({ length: 35 }, (_, i) => {
   const r1 = hash(i, 1);
   const r2 = hash(i, 2);
   const r3 = hash(i, 3);
@@ -85,9 +87,29 @@ function WaterText({ text, accent = false }: { text: string; accent?: boolean })
 }
 
 function Index() {
+  // Anti-lag: detect low-power devices on the client (SSR-safe defaults to full FX).
+  // Also pauses all storm animations when the tab is hidden so we don't waste CPU.
+  const [lowFx, setLowFx] = useState(false);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+    const cores = nav.hardwareConcurrency ?? 8;
+    const mem = nav.deviceMemory ?? 8;
+    const saveData = nav.connection?.saveData === true;
+    const coarse = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+    if (cores <= 4 || mem <= 4 || saveData || coarse) setLowFx(true);
+
+    const onVis = () => setPaused(document.hidden);
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
 
   return (
-    <div className="storm-root relative min-h-screen overflow-hidden text-slate-100">
+    <div
+      className={`storm-root relative min-h-screen overflow-hidden text-slate-100 ${lowFx ? "storm-low-fx" : ""} ${paused ? "storm-paused" : ""}`}
+    >
+
       {/* sky gradient */}
       <div className="storm-sky absolute inset-0" />
       {/* rolling cloud layers */}
@@ -204,6 +226,28 @@ function Index() {
       </p>
 
       <style>{`
+        /* Pause every storm animation when the tab is hidden — saves real CPU. */
+        .storm-paused *,
+        .storm-paused *::before,
+        .storm-paused *::after {
+          animation-play-state: paused !important;
+        }
+        /* Low-power devices: drop the heaviest layers entirely. */
+        .storm-low-fx .storm-drop,
+        .storm-low-fx .storm-droplet,
+        .storm-low-fx .storm-bolt,
+        .storm-low-fx .storm-clouds-2,
+        .storm-low-fx .water-ripple {
+          display: none !important;
+        }
+        .storm-low-fx .storm-lightning {
+          animation-duration: 16s !important;
+        }
+        .storm-low-fx .storm-card {
+          backdrop-filter: blur(6px) !important;
+          -webkit-backdrop-filter: blur(6px) !important;
+        }
+
         .storm-root {
           background: #05070d;
         }
@@ -280,10 +324,11 @@ function Index() {
           background: linear-gradient(180deg, transparent, rgba(180,200,255,0.85));
           animation: storm-rain linear infinite;
           transform: translateY(0) skewX(-12deg);
+          will-change: transform;
         }
         @keyframes storm-rain {
-          0%   { transform: translateY(-20vh) skewX(-12deg); }
-          100% { transform: translateY(120vh) skewX(-12deg); }
+          0%   { transform: translate3d(0,-20vh,0) skewX(-12deg); }
+          100% { transform: translate3d(0,120vh,0) skewX(-12deg); }
         }
 
         .storm-mist {
@@ -331,11 +376,31 @@ function Index() {
             0 1px 2px rgba(0,0,0,0.4);
           opacity: 0.85;
           animation: storm-droplet-slip 7s ease-in infinite;
+          will-change: transform, opacity;
         }
         @keyframes storm-droplet-slip {
-          0%, 70% { transform: translateY(0); opacity: 0.85; }
-          90%     { transform: translateY(60px); opacity: 0.6; }
-          100%    { transform: translateY(120px); opacity: 0; }
+          0%, 70% { transform: translate3d(0,0,0); opacity: 0.85; }
+          90%     { transform: translate3d(0,60px,0); opacity: 0.6; }
+          100%    { transform: translate3d(0,120px,0); opacity: 0; }
+        }
+
+        /* Anti-lag: kill heavy animations for users who prefer reduced motion
+           or are on low-power devices (Save-Data hint). */
+        @media (prefers-reduced-motion: reduce) {
+          .storm-clouds,
+          .storm-lightning,
+          .storm-bolt,
+          .storm-drop,
+          .storm-droplet,
+          .water-letter,
+          .water-ripple,
+          .disclaimer-glow {
+            animation: none !important;
+          }
+          .storm-card {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+          }
         }
 
         .storm-btn {
