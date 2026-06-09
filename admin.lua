@@ -3155,7 +3155,9 @@ bind(RunService.Heartbeat:Connect(function()
             local anim = _G.__SeigeBubbleAnim or "None"
             if anim == "None" and e.bg and e.bg.Parent then
                 local hoverY = math.sin(t * 1.5 + e.base) * 2
-                e.bg.Position = UDim2.new(0, 0, 0, hoverY)
+                -- AnchorPoint is (0.5, 0.5); keep the pill centred and only
+                -- bob it vertically by hoverY pixels.
+                e.bg.Position = UDim2.new(0.5, 0, 0.5, hoverY)
             end
         end
     end
@@ -3167,27 +3169,35 @@ bind(RunService.Heartbeat:Connect(function(dt)
     local amt  = tonumber(_G.__SeigeBubbleAmt) or 0.5
     for _, e in pairs(tagBills) do
         -- ----- Bubble animation (Themes tab) -----
-        if anim ~= "None" and e.bg and e.bg.Parent then
-            local sc = e.bg:FindFirstChildOfClass("UIScale")
-            if not sc then sc = Instance.new("UIScale"); sc.Scale = 1; sc.Parent = e.bg end
-            local phase = (e.base or 0) + t
-            if anim == "Bounce" then
-                sc.Scale = 1 + math.abs(math.sin(phase * 3)) * 0.15 * amt
-            elseif anim == "Pulse" then
-                sc.Scale = 1 + math.sin(phase * 4) * 0.08 * amt
-            elseif anim == "Float" then
-                pcall(function()
-                    e.bg.Position = UDim2.new(0.5, 0, 0, math.sin(phase * 2) * 6 * amt)
-                end)
-            elseif anim == "Wobble" then
-                pcall(function() e.bg.Rotation = math.sin(phase * 3) * 6 * amt end)
-            elseif anim == "Shake" then
-                pcall(function()
-                    e.bg.Position = UDim2.new(0.5, math.sin(phase * 30) * 2 * amt, 0, math.cos(phase * 27) * 2 * amt)
-                end)
-            elseif anim == "Heartbeat" then
-                local b = math.sin(phase * 6); b = b * b
-                sc.Scale = 1 + b * 0.18 * amt
+        if e.bg and e.bg.Parent then
+            if anim ~= "None" then
+                local sc = e.bg:FindFirstChildOfClass("UIScale")
+                if not sc then sc = Instance.new("UIScale"); sc.Scale = 1; sc.Parent = e.bg end
+                local phase = (e.base or 0) + t
+                if anim == "Bounce" then
+                    sc.Scale = 1 + math.abs(math.sin(phase * 3)) * 0.15 * amt
+                elseif anim == "Pulse" then
+                    sc.Scale = 1 + math.sin(phase * 4) * 0.08 * amt
+                elseif anim == "Float" then
+                    pcall(function()
+                        e.bg.Position = UDim2.new(0.5, 0, 0.5, math.sin(phase * 2) * 6 * amt)
+                    end)
+                elseif anim == "Wobble" then
+                    pcall(function() e.bg.Rotation = math.sin(phase * 3) * 6 * amt end)
+                elseif anim == "Shake" then
+                    pcall(function()
+                        e.bg.Position = UDim2.new(0.5, math.sin(phase * 30) * 2 * amt, 0.5, math.cos(phase * 27) * 2 * amt)
+                    end)
+                elseif anim == "Heartbeat" then
+                    local b = math.sin(phase * 6); b = b * b
+                    sc.Scale = 1 + b * 0.18 * amt
+                end
+            else
+                -- Anim switched back to None — reset any leftover UIScale and
+                -- rotation so the pill returns to its true pillW x 46 size.
+                local sc = e.bg:FindFirstChildOfClass("UIScale")
+                if sc and sc.Scale ~= 1 then sc.Scale = 1 end
+                if e.bg.Rotation ~= 0 then e.bg.Rotation = 0 end
             end
         end
     end
