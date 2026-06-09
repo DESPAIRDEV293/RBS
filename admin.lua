@@ -7934,12 +7934,26 @@ end -- end shaders scope
 
 ------------------------------------------------------- CONFIG TAB
 
+-- defaults for everything saveable in this tab
+local CFG_DEFAULTS = {
+    toggleKey   = "F2",
+    uiScale     = 1,
+    reducedMotion = false,
+    skybox      = { Up = "", Dn = "", Lf = "", Rt = "", Ft = "", Bk = "" },
+}
+local CFG_FILE = "SeigeAdmin/config.json"
+
 section(pgConfig, "Settings")
 local toggleKey = Enum.KeyCode.F2
 local awaitingKey = false
 local keyBtn = button(pgConfig, "Toggle key: F2  (click to rebind)", function()
     awaitingKey = true
 end)
+local function setToggleKey(name)
+    local kc = Enum.KeyCode[name] or Enum.KeyCode.F2
+    toggleKey = kc
+    keyBtn.Text = "Toggle key: " .. kc.Name .. "  (click to rebind)"
+end
 bind(UIS.InputBegan:Connect(function(i, gp)
     if awaitingKey and i.UserInputType == Enum.UserInputType.Keyboard then
         toggleKey = i.KeyCode
@@ -7952,29 +7966,25 @@ bind(UIS.InputBegan:Connect(function(i, gp)
     end
 end))
 
-slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
+local uiScaleCtl = slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
     local s = Win:FindFirstChildOfClass("UIScale") or inst("UIScale", Win, { Scale = 1 })
     s.Scale = v
 end)
 
-toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, function(v)
+local reducedCtl = toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, function(v)
     _G.__SeigeReducedMotion = v
 end)
 
 section(pgConfig, "World Image (Skybox)")
 label(pgConfig, "6 cubed faces — paste a Roblox asset id/URL, or a local image file path from your PC")
+local skyboxFaces, skyboxBoxes, applySkybox, resetSkybox
 do
     local Lighting = game:GetService("Lighting")
-    -- executor helpers (optional; safely probed)
-    local _readfile     = rawget(getfenv(), "readfile")     or readfile
     local _isfile       = rawget(getfenv(), "isfile")       or isfile
-    local _getcustom    = (getcustomasset or getsynasset
-                          or (syn and syn.queue_on_teleport and syn.request and getsynasset)
-                          or nil)
+    local _getcustom    = (getcustomasset or getsynasset or nil)
 
     local function isLocalPath(v)
         if type(v) ~= "string" or v == "" then return false end
-        -- treat as local file if it has an image extension and exists on disk
         if not v:lower():match("%.png$") and not v:lower():match("%.jpe?g$")
            and not v:lower():match("%.bmp$") and not v:lower():match("%.tga$") then
             return false
@@ -7989,7 +7999,6 @@ do
     local function norm(v)
         v = tostring(v or ""):gsub("^%s+", ""):gsub("%s+$", "")
         if v == "" then return "" end
-        -- local file from PC
         if isLocalPath(v) then
             if not _getcustom then
                 notify("Your executor does not support local file uploads (getcustomasset)", "warn")
@@ -8000,52 +8009,117 @@ do
             notify("Failed to load local file: " .. v, "err")
             return ""
         end
-        -- bare numeric asset id
         if v:match("^%d+$") then return "rbxassetid://" .. v end
-        -- catalog/library URL → extract id
         local id = v:match("[?&]id=(%d+)") or v:match("/(%d+)/?$")
         if id then return "rbxassetid://" .. id end
         return v
     end
 
-    local faces = { Up = "", Dn = "", Lf = "", Rt = "", Ft = "", Bk = "" }
+    skyboxFaces = { Up = "", Dn = "", Lf = "", Rt = "", Ft = "", Bk = "" }
+    skyboxBoxes = {}
     local labels = { Up = "Top (Up)", Dn = "Bottom (Down)", Lf = "Left", Rt = "Right", Ft = "Front", Bk = "Back" }
     for _, k in ipairs({ "Up", "Dn", "Lf", "Rt", "Ft", "Bk" }) do
-        textbox(pgConfig, labels[k] .. " — asset id / URL / PC file path", function(v)
-            faces[k] = norm(v)
+        skyboxBoxes[k] = textbox(pgConfig, labels[k] .. " — asset id / URL / PC file path", function(v)
+            skyboxFaces[k] = norm(v)
         end)
     end
 
     button(pgConfig, "Apply To All Faces (single image)", function()
-        -- copies the Top value into every face for quick single-image skies
-        local v = faces.Up
+        local v = skyboxFaces.Up
         if v == "" then notify("Fill the Top field first", "warn") return end
-        faces.Dn, faces.Lf, faces.Rt, faces.Ft, faces.Bk = v, v, v, v, v
+        skyboxFaces.Dn, skyboxFaces.Lf, skyboxFaces.Rt, skyboxFaces.Ft, skyboxFaces.Bk = v, v, v, v, v
         notify("Copied Top to all faces", "ok")
     end)
 
-    button(pgConfig, "Apply Skybox", function()
+    applySkybox = function()
         for _, c in ipairs(Lighting:GetChildren()) do
             if c:IsA("Sky") then c:Destroy() end
         end
         local sky = Instance.new("Sky")
         sky.Name = "__SeigeSky"
-        sky.SkyboxUp    = faces.Up
-        sky.SkyboxDn    = faces.Dn
-        sky.SkyboxLf    = faces.Lf
-        sky.SkyboxRt    = faces.Rt
-        sky.SkyboxFt    = faces.Ft
-        sky.SkyboxBk    = faces.Bk
+        sky.SkyboxUp = skyboxFaces.Up
+        sky.SkyboxDn = skyboxFaces.Dn
+        sky.SkyboxLf = skyboxFaces.Lf
+        sky.SkyboxRt = skyboxFaces.Rt
+        sky.SkyboxFt = skyboxFaces.Ft
+        sky.SkyboxBk = skyboxFaces.Bk
         sky.Parent = Lighting
-        notify("Skybox applied", "ok")
-    end)
-    button(pgConfig, "Reset Skybox", function()
+    end
+    resetSkybox = function()
         for _, c in ipairs(Lighting:GetChildren()) do
             if c:IsA("Sky") then c:Destroy() end
         end
-        notify("Skybox reset", "ok")
+    end
+
+    button(pgConfig, "Apply Skybox", function()
+        applySkybox(); notify("Skybox applied", "ok")
+    end)
+    button(pgConfig, "Reset Skybox", function()
+        resetSkybox(); notify("Skybox reset", "ok")
     end)
 end
+
+------------------------------------------------------- SAVE / RESET CONFIG
+section(pgConfig, "Save & Reset")
+
+local function snapshotCfg()
+    return {
+        toggleKey     = toggleKey.Name,
+        uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
+        reducedMotion = reducedCtl and reducedCtl.get and reducedCtl.get() or false,
+        skybox        = {
+            Up = skyboxFaces.Up, Dn = skyboxFaces.Dn,
+            Lf = skyboxFaces.Lf, Rt = skyboxFaces.Rt,
+            Ft = skyboxFaces.Ft, Bk = skyboxFaces.Bk,
+        },
+    }
+end
+
+local function applyCfg(cfg, opts)
+    cfg = cfg or {}
+    opts = opts or {}
+    setToggleKey(cfg.toggleKey or CFG_DEFAULTS.toggleKey)
+    if uiScaleCtl and uiScaleCtl.set then uiScaleCtl.set(cfg.uiScale or CFG_DEFAULTS.uiScale) end
+    if reducedCtl and reducedCtl.set then reducedCtl.set(cfg.reducedMotion == true) end
+    local sb = cfg.skybox or CFG_DEFAULTS.skybox
+    for _, k in ipairs({ "Up", "Dn", "Lf", "Rt", "Ft", "Bk" }) do
+        skyboxFaces[k] = sb[k] or ""
+        if skyboxBoxes[k] then skyboxBoxes[k].Text = "" end
+    end
+    if opts.applySkybox then
+        if (sb.Up or "") ~= "" or (sb.Dn or "") ~= "" then applySkybox() else resetSkybox() end
+    end
+end
+
+local function saveCfg()
+    local wf = rawget(getfenv(), "writefile") or writefile
+    if not wf then notify("Executor has no writefile — cannot save", "warn") return end
+    local mf = rawget(getfenv(), "makefolder") or makefolder
+    if mf then pcall(mf, "SeigeAdmin") end
+    local ok, raw = pcall(HttpService.JSONEncode, HttpService, snapshotCfg())
+    if not ok then notify("Failed to encode config", "bad") return end
+    local okW = pcall(wf, CFG_FILE, raw)
+    if okW then notify("Config saved", "good") else notify("Failed to write config", "bad") end
+end
+
+local function loadCfg()
+    local rf  = rawget(getfenv(), "readfile") or readfile
+    local isf = rawget(getfenv(), "isfile")   or isfile
+    if not rf or not isf then return end
+    local ok, exists = pcall(isf, CFG_FILE); if not (ok and exists) then return end
+    local okR, raw = pcall(rf, CFG_FILE); if not (okR and raw) then return end
+    local okD, data = pcall(HttpService.JSONDecode, HttpService, raw)
+    if okD and type(data) == "table" then applyCfg(data, { applySkybox = true }) end
+end
+
+button(pgConfig, "Save Config", saveCfg)
+button(pgConfig, "Reset to Defaults", function()
+    applyCfg(CFG_DEFAULTS, { applySkybox = true })
+    notify("Config reset to defaults", "ok")
+end)
+
+-- auto-load saved config on startup
+pcall(loadCfg)
 
 
 section(pgConfig, "About")
