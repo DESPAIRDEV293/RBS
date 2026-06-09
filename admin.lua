@@ -8011,6 +8011,21 @@ local CFG_DEFAULTS = {
 }
 local CFG_FILE = "SeigeAdmin/config.json"
 
+-- forward declarations so the Save/Reset buttons can live at the very top
+local snapshotCfg, applyCfg, saveCfg, loadCfg
+
+------------------------------------------------------- SAVE / RESET (top)
+section(pgConfig, "Save & Reset")
+label(pgConfig, "Persist or restore every setting on this tab")
+button(pgConfig, "💾  Save Config", function()
+    if saveCfg then saveCfg() else notify("Config not ready yet", "warn") end
+end)
+button(pgConfig, "↺  Reset to Defaults", function()
+    if applyCfg then
+        applyCfg(CFG_DEFAULTS, { applySkybox = true })
+        notify("Config reset to defaults", "ok")
+    end
+end)
 
 section(pgConfig, "Settings")
 local toggleKey = Enum.KeyCode.F2
