@@ -3924,7 +3924,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     local function applyToMatchingPlayer(user)
         for _, p in ipairs(Players:GetPlayers()) do
-            if p.Name:lower() == user:lower() then
+            if p.Name:lower() == user:lower() or tostring(p.DisplayName or ""):lower() == user:lower() then
                 TagDB:applyTo(p)
                 -- Rebuild the bubble from scratch so a brand-new entry (or a
                 -- changed displayName/customHandle) is picked up cleanly. Just
@@ -4570,7 +4570,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     local ntUser   = _ntField(pgNtTags, "Username (required)", "e.g. SomeUser")
     local ntTags   = _ntField(pgNtTags, "Tag names (comma separated)", "Owner, Dev")
-    local ntColor  = _ntField(pgNtTags, "Color (hex)", "#ff3b6b")
+    local ntColor  = _ntField(pgNtTags, "Color / fill (hex or Roblox image ID)", "#ff3b6b or image:1234567890")
     local ntColor2 = _ntField(pgNtTags, "Second color (optional · split bubble)", "#00aaff")
     local ntIcon   = _ntField(pgNtTags, "Image / icon (Roblox asset ID)", "1234567890")
 
@@ -4586,15 +4586,12 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local a, b = c:match("^([^/]+)/([^/]+)$")
             ntColor.Text  = a or ""
             ntColor2.Text = b or ""
-        elseif c:sub(1,6) == "image:" then
-            ntColor.Text = ""; ntColor2.Text = ""
-            ntIcon.Text = c:sub(7)
+        elseif normalizeTagImageSpec(c) then
+            ntColor.Text = normalizeTagImageSpec(c) or c; ntColor2.Text = ""
         else
             ntColor.Text = c; ntColor2.Text = ""
         end
-        if e.icon and e.icon ~= "" and ntIcon.Text == "" then
-            ntIcon.Text = tostring(e.icon)
-        end
+        ntIcon.Text = tostring(e.icon or "")
     end
 
     button(pgNtTags, "Save / Update entry", function()
