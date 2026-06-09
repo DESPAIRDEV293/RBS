@@ -2485,6 +2485,13 @@ end)
 
 ------------------------------------------------------- FLOATING TAGS (driven by tags.lua DB)
 local floatOn = false
+local scriptersOn = false        -- show tags for nearby seige.lol users
+_G.__SeigeScripters = _G.__SeigeScripters or {} -- [userId] = true
+local function isScripter(p)
+    if not p then return false end
+    if p == LP then return true end
+    return _G.__SeigeScripters[p.UserId] == true
+end
 local tagBills = {}
 
 -- Stash original Humanoid display settings so we can restore them when a bubble goes away
