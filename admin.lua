@@ -8201,6 +8201,23 @@ local reducedCtl = toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, f
     _G.__SeigeReducedMotion = v
 end)
 
+------------------------------------------------------- LAYOUT & TRANSLUCENCY
+section(pgConfig, "Layout")
+label(pgConfig, "Top bar style. Hamburger collapses the bar into a ≡ menu — tabs drop down from it.")
+local _layoutMode = _G.__SeigeLayoutMode or "Bar"
+local layoutCtl
+layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger" }, function(v)
+    _layoutMode = v
+    if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout(v) end
+end)
+if layoutCtl and layoutCtl.set then layoutCtl.set(_G.__SeigeLayoutMode or "Bar") end
+
+label(pgConfig, "Panel translucency — higher = more see-through")
+local transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 0.35, function(v)
+    if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
+end)
+
+
 section(pgConfig, "World Image (Skybox)")
 label(pgConfig, "6 cubed faces — paste a Roblox asset id/URL, or a local image file path from your PC")
 local skyboxFaces, skyboxBoxes, applySkybox, resetSkybox
