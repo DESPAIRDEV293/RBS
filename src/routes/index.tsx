@@ -333,11 +333,31 @@ function Index() {
             0 1px 2px rgba(0,0,0,0.4);
           opacity: 0.85;
           animation: storm-droplet-slip 7s ease-in infinite;
+          will-change: transform, opacity;
         }
         @keyframes storm-droplet-slip {
-          0%, 70% { transform: translateY(0); opacity: 0.85; }
-          90%     { transform: translateY(60px); opacity: 0.6; }
-          100%    { transform: translateY(120px); opacity: 0; }
+          0%, 70% { transform: translate3d(0,0,0); opacity: 0.85; }
+          90%     { transform: translate3d(0,60px,0); opacity: 0.6; }
+          100%    { transform: translate3d(0,120px,0); opacity: 0; }
+        }
+
+        /* Anti-lag: kill heavy animations for users who prefer reduced motion
+           or are on low-power devices (Save-Data hint). */
+        @media (prefers-reduced-motion: reduce) {
+          .storm-clouds,
+          .storm-lightning,
+          .storm-bolt,
+          .storm-drop,
+          .storm-droplet,
+          .water-letter,
+          .water-ripple,
+          .disclaimer-glow {
+            animation: none !important;
+          }
+          .storm-card {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+          }
         }
 
         .storm-btn {
