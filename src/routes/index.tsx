@@ -226,6 +226,28 @@ function Index() {
       </p>
 
       <style>{`
+        /* Pause every storm animation when the tab is hidden — saves real CPU. */
+        .storm-paused *,
+        .storm-paused *::before,
+        .storm-paused *::after {
+          animation-play-state: paused !important;
+        }
+        /* Low-power devices: drop the heaviest layers entirely. */
+        .storm-low-fx .storm-drop,
+        .storm-low-fx .storm-droplet,
+        .storm-low-fx .storm-bolt,
+        .storm-low-fx .storm-clouds-2,
+        .storm-low-fx .water-ripple {
+          display: none !important;
+        }
+        .storm-low-fx .storm-lightning {
+          animation-duration: 16s !important;
+        }
+        .storm-low-fx .storm-card {
+          backdrop-filter: blur(6px) !important;
+          -webkit-backdrop-filter: blur(6px) !important;
+        }
+
         .storm-root {
           background: #05070d;
         }
