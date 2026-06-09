@@ -365,7 +365,7 @@ local function showRoleHelp()
     pad(scroll, 4)
 
     for _, item in ipairs(HELP_COMMANDS) do
-        local has = false
+        local has = (#item.perms == 0)  -- empty perms = available to everyone
         for _, p in ipairs(item.perms) do
             if _G.__SeigeCan(p) then has = true; break end
         end
