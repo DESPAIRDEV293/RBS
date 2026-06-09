@@ -351,11 +351,12 @@ function Index() {
         }
 
         .storm-card {
+          /* Solid translucent gradient instead of backdrop-blur.
+             backdrop-filter re-samples the animated rain layer every frame
+             in Chrome, which was the main source of lag. */
           background:
-            linear-gradient(180deg, rgba(20,28,52,0.55), rgba(8,12,24,0.65));
-          border: 1px solid rgba(165,180,252,0.18);
-          backdrop-filter: blur(14px) saturate(140%);
-          -webkit-backdrop-filter: blur(14px) saturate(140%);
+            linear-gradient(180deg, rgba(14,20,38,0.92), rgba(6,10,20,0.95));
+          border: 1px solid rgba(165,180,252,0.22);
           box-shadow:
             0 1px 0 rgba(255,255,255,0.06) inset,
             0 30px 80px -20px rgba(0,0,0,0.7),
