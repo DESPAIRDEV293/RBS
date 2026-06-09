@@ -6925,8 +6925,33 @@ button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
 button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "Stalk  —  pick a player to listen (!stalk)", function() _runCmd("!stalk") end)
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
-button(pgCmds, "!headsit <player>",     function() _openCmd("!headsit ") end)
-button(pgCmds, "!unheadsit",            function() _runCmd("!unheadsit") end)
+button(pgCmds, "Headsit  —  sit on / eject (!headsit)", function()
+    _openPanel("headsit", "Headsit  ·  sit on a player's head", 230, function(body)
+        local tbox = inst("TextBox", body, {
+            Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
+            TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+            PlaceholderText = "  Player name…", Text = "", ClearTextOnFocus = false,
+        })
+        toggle(body, "Sitting on head", _G.__HeadLock ~= nil, function(on)
+            if on then
+                local name = tbox.Text
+                if not name or name == "" then notify("Type a player name", "warn"); return end
+                _runCmd("!headsit " .. name)
+            else
+                _runCmd("!unheadsit")
+            end
+        end)
+        button(body, "Eject rider / stand up (!unheadsit)", function() _runCmd("!unheadsit") end)
+    end)
+end)
+button(pgCmds, "!shouldersit <player>",  function() _openCmd("!shouldersit ") end)
+button(pgCmds, "!carry <player>",        function() _openCmd("!carry ") end)
+button(pgCmds, "!piggyback <player>",    function() _openCmd("!piggyback ") end)
+button(pgCmds, "!uncarry / !unpiggy / !unshoulder", function() _runCmd("!uncarry"); _runCmd("!unpiggy"); _runCmd("!unshoulder") end)
+button(pgCmds, "Timestop  —  freeze everyone (admin/owner)", function()
+    if not (_G.__SeigeCan and _G.__SeigeCan("freeze")) then notify("Admin/owner only", "bad"); return end
+    if _G.__SeigeTimestop and _G.__SeigeTimestop.on then _runCmd("!untimestop") else _runCmd("!timestop") end
+end)
 button(pgCmds, "Bang  —  front / face / back (!bang)", function()
     _openPanel("bang", "Bang  ·  front / face / back", 320, function(body)
         local B = _G.__SeigeBang
