@@ -197,11 +197,11 @@ function Index() {
           <span>⛈  storm-grade · Real time syncing</span>
           <span className="font-mono text-indigo-300/70">v.beta</span>
         </footer>
-
-        <p className="text-center text-[11px] text-slate-500/50">
-          Using these scripts in Roblox is a risk. We aren't responsible for bans and account deletion.
-        </p>
       </main>
+
+      <p className="absolute bottom-4 left-0 right-0 z-10 text-center text-[11px] text-red-900/80">
+        Using these scripts in Roblox is a risk. We aren't responsible for bans and account deletion.
+      </p>
 
       <style>{`
         .storm-root {
