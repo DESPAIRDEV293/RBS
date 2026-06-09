@@ -9851,6 +9851,19 @@ cmdHandlers["unhead"] = function()
         notify("Head-lock off", "good")
     end
 end
+cmdHandlers["unheadsit"] = function()
+    local h = hum()
+    local r = hrp()
+    if h then
+        h.Sit = false
+        h.Jump = true
+    end
+    if r then
+        pcall(function() r.Velocity = Vector3.new(0, 50, 0) end)
+        pcall(function() r.CFrame = r.CFrame + Vector3.new(0, 6, 0) end)
+    end
+    notify("Headsit broken — player shaken off", "good")
+end
 cmdHandlers["bang"] = function(arg)
     local target = findPlr(arg)
     if not target then notify("Player not found", "bad"); return end
