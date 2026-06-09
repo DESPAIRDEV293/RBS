@@ -6329,7 +6329,7 @@ local HELP_CMDS = {
         { "!spectate <player>", "Spectate a player" },
         { "!unspectate", "Stop spectating" },
         { "!face <player>", "Face a player" },
-        { "!head <player>", "Sit on a player's head and lock there until !head or !unhead" },
+        { "!headsit <player>", "Sit on a player's head and lock there until !headsit or !unhead" },
         { "!fling <player>", "Fling a player" },
         { "!stalk / !unstalk", "Pick a player and watch their position, mic, and chat" },
     }},
@@ -6893,7 +6893,7 @@ button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
 button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "Stalk  —  pick a player to listen (!stalk)", function() _runCmd("!stalk") end)
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
-button(pgCmds, "!head <player>",        function() _openCmd("!head ") end)
+button(pgCmds, "!headsit <player>",     function() _openCmd("!headsit ") end)
 button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
 button(pgCmds, "Circle  —  orbit a player (!cir)", function()
     _openPanel("circle", "Circle  ·  orbit a player", 240, function(body)
@@ -9811,8 +9811,8 @@ cmdHandlers["face"] = function(arg)
     myH.CFrame = CFrame.new(pos, Vector3.new(thrp.Position.X, pos.Y, thrp.Position.Z))
     notify("Facing " .. target.Name, "good")
 end
-cmdHandlers["head"] = function(arg)
-    -- Toggle: !head <player> locks you sitting on their head; !head (no arg) unlocks
+cmdHandlers["headsit"] = function(arg)
+    -- Toggle: !headsit <player> locks you sitting on their head; !headsit (no arg) unlocks
     if _G.__HeadLock then
         if _G.__HeadLock.conn then pcall(function() _G.__HeadLock.conn:Disconnect() end) end
         _G.__HeadLock = nil
@@ -9820,7 +9820,7 @@ cmdHandlers["head"] = function(arg)
         notify("Head-lock off", "good")
         if not arg or arg == "" then return end
     end
-    if not arg or arg == "" then notify("Usage: !head <player>  (run again to unlock)", "warn"); return end
+    if not arg or arg == "" then notify("Usage: !headsit <player>  (run again to unlock)", "warn"); return end
     local target = findPlr(arg)
     if not target then notify("Player not found", "bad"); return end
     local myH = hrp(); local h = hum()
@@ -9841,7 +9841,7 @@ cmdHandlers["head"] = function(arg)
             if mh then mh.Sit = true end
         end
     end)
-    notify("Sitting on " .. target.Name .. "'s head — !head again to unlock", "good")
+    notify("Sitting on " .. target.Name .. "'s head — !headsit again to unlock", "good")
 end
 cmdHandlers["unhead"] = function()
     if _G.__HeadLock then
