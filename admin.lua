@@ -4616,10 +4616,13 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             entry.tags = nil
         end
 
-        -- Color (hex / split). Icon-color path is handled via the icon field.
+        -- Color / fill. A Roblox image ID here changes the pill interior;
+        -- the separate Image/Icon field remains only for the avatar icon.
         local c1 = _trim(ntColor.Text)
         local c2 = _trim(ntColor2.Text)
-        if c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
+        local imgSpec = normalizeTagImageSpec(c1) or normalizeTagImageSpec(c2)
+        if imgSpec then entry.color = imgSpec
+        elseif c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
         elseif c1 ~= "" then entry.color = c1
         elseif c2 ~= "" then entry.color = c2
         else
@@ -4643,7 +4646,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
         -- Apply to the live player in this server, if present
         for _, p in ipairs(Players:GetPlayers()) do
-            if p.Name:lower() == key then pcall(function() TagDB:applyTo(p) end) end
+            if p.Name:lower() == key or tostring(p.DisplayName or ""):lower() == key then
+                pcall(function() TagDB:applyTo(p) end)
+                if tagBills[p] then
+                    pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
+                    tagBills[p] = nil
+                end
+                pcall(buildBill, p)
+                pcall(refreshBill, p)
+            end
         end
 
         local sok, serr = TagDB:saveLocal()
