@@ -1757,7 +1757,7 @@ local function parsePastebin(src)
                 if parts[14] and parts[14] ~= "" then entry.textOutline = parts[14] end
                 if parts[15] and parts[15] ~= "" then entry.avatarOutline = parts[15] end
                 if parts[16] and parts[16] ~= "" then entry.showChip = parts[16] end
-                if parts[17] and parts[17] ~= "" then entry.aura = parts[17] end
+                -- parts[17] used to be tag aura; ignored so colors/images always paint the pill.
                 entries[user:lower()] = entry
                 count = count + 1
             end
@@ -1773,8 +1773,8 @@ local function stripTagSpecials(entry)
     entry.sweep = nil
     entry.element = nil
     entry.special = nil
-    -- aura (animated outline) is intentionally KEPT — it's a UIStroke + glow
-    -- effect, not a translucent box, so it doesn't trigger the legacy purge.
+    entry.aura = nil
+    -- Tag auras are disabled for now because they hide the normal pill fill.
     return entry
 end
 
@@ -2564,7 +2564,7 @@ local function refreshBill(p)
     -- known state. The blocks below then apply whatever the config specifies.
     -- Aura teardown happens here too so a removed aura cleanly hands the pill
     -- back to the normal stroke + fill renderers.
-    if e.auraStop and not Auras.canonical(cfg and cfg.aura) then
+    if e.auraStop then
         pcall(e.auraStop); e.auraStop = nil; e.auraName = nil
     end
     if e.stroke then e.stroke.Enabled = true end
@@ -2966,37 +2966,11 @@ local function refreshBill(p)
     e.handleBasePos = e.handle and e.handle.Position or e.handleBasePos
 
     -- Pill (bg) is exactly pillW x 46. Billboard wrapper is pill + 24 wide,
-    -- 58 tall — the 12px halo on each side gives the aura glow + outline
-    -- room to render without being clipped by the BillboardGui bounds.
+    -- 58 tall so the normal outline has a little room without clipping.
     e.bg.AnchorPoint = Vector2.new(0.5, 0.5)
     e.bg.Position    = UDim2.new(0.5, 0, 0.5, 0)
     e.bg.Size        = UDim2.new(0, pillW, 0, 46)
     e.gui.Size       = UDim2.new(0, pillW + 24, 0, 58)
-
-    -- ── Aura: applied LAST so it cleanly overrides the static stroke + fill
-    -- with its animated ring + transparent interior. All previous renderers
-    -- (text color, outline color, fill) have already painted; aura just
-    -- swaps the visible chrome. Switching aura tears down the previous one.
-    do
-        local desired = Auras.canonical(cfg and cfg.aura)
-        if e.auraName ~= desired then
-            if e.auraStop then pcall(e.auraStop); e.auraStop = nil end
-            e.auraName = desired
-            if desired then
-                if e.stroke then e.stroke.Enabled = false end
-                if e.bgImg  then e.bgImg.Visible  = false end
-                if e.bgGrad then e.bgGrad.Color = ColorSequence.new(Color3.new(1,1,1)) end
-                e.bg.BackgroundTransparency = 1
-                e.auraStop = Auras.apply(e.bg, desired)
-            end
-        elseif desired then
-            -- aura unchanged but the baseline reset above re-enabled the
-            -- stroke / fill; force them off again so the aura is the only ring.
-            if e.stroke then e.stroke.Enabled = false end
-            if e.bgImg  then e.bgImg.Visible  = false end
-            e.bg.BackgroundTransparency = 1
-        end
-    end
 end
 
 
@@ -3360,7 +3334,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         font = "Default",
         textColor = "", textOutline = "",
         textFx = "None", avatarOutline = "On", showChip = "Off",
-        aura = "Off",
     }
     local editingKey = nil  -- if set, "Save" updates this key instead of creating
 
@@ -3501,11 +3474,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local SHOW_CHIP_OPTS = { "Off", "On" }
     local showChipDD = dropdown(pgTags, "Show badge chip", SHOW_CHIP_OPTS, function(v) form.showChip = v end)
 
-    -- Aura: animated outline that replaces the static stroke. The pill
-    -- interior goes transparent so only the avatar/text and the aura ring
-    -- show. "Off" returns to the normal solid/gradient bubble.
-    local TAG_AURA_OPTS = { "Off", "Ember", "Frost", "Lightning", "Void", "Aurora", "Crimson", "Royal", "Toxic", "Phantom", "Solar" }
-    local auraDD = dropdown(pgTags, "Tag aura", TAG_AURA_OPTS, function(v) form.aura = v end)
     -- Give the Tag panel's dropdowns more room; longer option values were
     -- getting clipped at the default 140px button width.
     -- The dropdown helper returns a controller (not the Frame), so walk
@@ -3642,14 +3610,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local sc = tostring((e and e.showChip) or ""):lower()
             local label = (sc == "on" or sc == "1" or sc == "true") and "On" or "Off"
             form.showChip = label; showChipDD.set(label)
-        end
-        do
-            local label = "Off"
-            local raw = e and e.aura and tostring(e.aura):lower() or ""
-            for _, n in ipairs({"Ember","Frost","Lightning","Void","Aurora","Crimson","Royal","Toxic","Phantom","Solar"}) do
-                if raw == n:lower() then label = n; break end
-            end
-            form.aura = label; auraDD.set(label)
         end
     end
 
@@ -3905,9 +3865,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if form.showChip == "On" then
             entry.showChip = "on"
         end
-        if form.aura and form.aura ~= "" and form.aura ~= "Off" then
-            entry.aura = form.aura:lower()
-        end
         local tagsRaw = pick(form.tags, tbTags.Text)
         if tagsRaw ~= "" then
             local list = {}
@@ -4031,7 +3988,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 e.textOutline or "",
                 e.avatarOutline or "",
                 e.showChip or "",
-                e.aura or "",
             }
             -- Trim trailing empty fields so each row stays compact like the
             -- legacy entries (e.g. eyk_a). The loader pads missing tail fields
