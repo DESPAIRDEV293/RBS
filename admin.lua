@@ -4204,6 +4204,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- preview/dev-domain bot pages being mistaken for a successful GitHub save.
     local BOT_URL  = "https://seigelollua.lovable.app/api/public/pastebin"
     local BOT_AUTH = "1f0957eaf8dd4ed89bb594440220eb4c"
+    local lastPullHash = nil
+
+    local function hashStr(s)
+        s = tostring(s or "")
+        local sum = 0
+        for i = 1, #s do sum = (sum + s:byte(i) * i) % 2147483647 end
+        return #s .. ":" .. sum
+    end
 
     local function pushToGithub(silent)
         local body = buildExport()
@@ -4288,6 +4296,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             end
         end
         if status >= 200 and status < 300 and savedOk(txt) then
+            lastPullHash = hashStr(body)
             if not silent then notify("Pushed to GitHub gist", "good") end
             return true, "ok"
         end
@@ -4310,14 +4319,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- the in-game tag editor so changes made on the gist show up
     -- as editable entries without a rejoin.
     ------------------------------------------------------------------
-    local lastPullHash = nil
-    local function hashStr(s)
-        s = tostring(s or "")
-        local sum = 0
-        for i = 1, #s do sum = (sum + s:byte(i) * i) % 2147483647 end
-        return #s .. ":" .. sum
-    end
-
     local function pullFromGithub(silent)
         local src
         local ok = pcall(function()
