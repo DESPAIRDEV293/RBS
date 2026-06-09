@@ -9987,53 +9987,75 @@ cmdHandlers["unheadsit"] = function()
 
     notify("Headsit cleared — rider ejected", "good")
 end
--- mode: "front" (in front, facing them), "back" (behind, facing their back), "face" (at head, facing them)
-local function _startBang(arg, mode)
-    local target = findPlr(arg)
-    if not target then notify("Player not found", "bad"); return end
+-- Shared bang config used by panel + commands
+_G.__SeigeBang = _G.__SeigeBang or {
+    mode = "front",     -- "front" | "back" | "face"
+    distance = 1.2,
+    height = 0,
+    speed = 3,
+    autoFace = true,    -- face the target (front/face modes)
+    spin = false,       -- orbit around them
+    spinSpeed = 4,
+}
+local function _bangStop()
+    if _G.__BangConn then pcall(function() _G.__BangConn:Disconnect() end); _G.__BangConn = nil end
+    if _G.__BangTrack then pcall(function() _G.__BangTrack:Stop() end); _G.__BangTrack = nil end
+end
+local function _bangStart(target)
     local c = LP.Character
     local h = c and c:FindFirstChildOfClass("Humanoid")
     local thrp = phrp(target)
     if not (h and thrp) then notify("Missing humanoid/target", "bad"); return end
-    -- stop any existing bang first
-    if _G.__BangConn then pcall(function() _G.__BangConn:Disconnect() end); _G.__BangConn = nil end
-    if _G.__BangTrack then pcall(function() _G.__BangTrack:Stop() end); _G.__BangTrack = nil end
+    _bangStop()
     pcall(function()
         local anim = Instance.new("Animation")
         anim.AnimationId = "rbxassetid://5918726674"
         local track = h:LoadAnimation(anim)
         track:Play()
-        track:AdjustSpeed(3)
+        track:AdjustSpeed(_G.__SeigeBang.speed or 3)
         _G.__BangTrack = track
+        local t0 = tick()
         _G.__BangConn = RunService.Heartbeat:Connect(function()
             local myH = hrp()
             local tH = phrp(target)
             if not myH or not tH then return end
-            if mode == "back" then
-                -- behind them, facing same direction as them (their back)
-                myH.CFrame = tH * CFrame.new(0, 0, 1.2)
-            elseif mode == "face" then
-                -- at their head, facing them
+            local B = _G.__SeigeBang
+            local dist = B.distance or 1.2
+            local hOff = Vector3.new(0, B.height or 0, 0)
+            if B.spin then
+                local ang = (tick() - t0) * (B.spinSpeed or 4)
+                local off = Vector3.new(math.cos(ang) * dist, B.height or 0, math.sin(ang) * dist)
+                myH.CFrame = CFrame.new(tH.Position + off, tH.Position)
+            elseif B.mode == "back" then
+                myH.CFrame = tH * CFrame.new(0, B.height or 0, dist)
+            elseif B.mode == "face" then
                 local head = target.Character and target.Character:FindFirstChild("Head")
-                local hp = head and head.Position or (tH.Position + Vector3.new(0, 1.5, 0))
-                local front = tH.LookVector
-                local pos = hp + front * 0.6
+                local hp = (head and head.Position or (tH.Position + Vector3.new(0,1.5,0))) + hOff
+                local pos = hp + tH.LookVector * (dist * 0.5)
                 myH.CFrame = CFrame.new(pos, hp)
             else
-                -- front: in front of them, facing them
-                local pos = tH.Position + tH.LookVector * 1.2
-                myH.CFrame = CFrame.new(pos, tH.Position)
+                local pos = tH.Position + tH.LookVector * dist + hOff
+                if B.autoFace then
+                    myH.CFrame = CFrame.new(pos, tH.Position)
+                else
+                    myH.CFrame = tH * CFrame.new(0, B.height or 0, -dist)
+                end
             end
         end)
     end)
-    notify("Bang (" .. mode .. ") " .. target.Name .. " — !unbang to stop", "good")
+    notify("Bang (" .. (_G.__SeigeBang.mode) .. ") " .. target.Name .. " — !unbang to stop", "good")
+end
+local function _startBang(arg, mode)
+    local target = findPlr(arg)
+    if not target then notify("Player not found", "bad"); return end
+    _G.__SeigeBang.mode = mode
+    _bangStart(target)
 end
 cmdHandlers["bang"]     = function(arg) _startBang(arg, "front") end
 cmdHandlers["facebang"] = function(arg) _startBang(arg, "face")  end
 cmdHandlers["backbang"] = function(arg) _startBang(arg, "back")  end
 cmdHandlers["unbang"] = function()
-    if _G.__BangConn then _G.__BangConn:Disconnect(); _G.__BangConn = nil end
-    if _G.__BangTrack then pcall(function() _G.__BangTrack:Stop() end); _G.__BangTrack = nil end
+    _bangStop()
     notify("Bang stopped", "good")
 end
 
