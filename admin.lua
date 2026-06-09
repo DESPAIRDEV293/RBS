@@ -4117,33 +4117,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         local fillRaw = pick(form.fill, tbFill.Text)
         local c1 = pick(form.color, tbColor.Text)
         local c2 = pick(form.color2, tbColor2.Text)
-        -- Detect Roblox image specs in ANY of the color/fill fields so the user
-        -- can paste an asset id (or rbxassetid://, decal/library URL) into the
-        -- "Hex color" box and have the black pill background swap to that
-        -- texture, not just the dedicated Advanced fill field.
-        local function digitsFromUrl(u)
-            return u:match("[?&]id=(%d+)") or u:match("/(%d+)")
-        end
-        local function normalizeImageSpec(raw)
-            if not raw or raw == "" then return nil end
-            local low = raw:lower()
-            if low:sub(1,6) == "image:" or low:sub(1,4) == "img:"
-               or low:sub(1,6) == "asset:" or low:sub(1,6) == "decal:"
-               or low:sub(1,8) == "texture:" then
-                return raw
-            end
-            if raw:match("^%d+$") then return "image:" .. raw end
-            if low:match("^rbxassetid://") then return "image:" .. raw:gsub("rbxassetid://", "") end
-            if low:match("^rbxthumb://") then return raw end
-            if low:match("roblox%.com") then
-                local id = digitsFromUrl(raw); if id then return "image:" .. id end
-            end
-            if low:match("^https?://") and (low:match("%.png") or low:match("%.jpg") or low:match("%.jpeg") or low:match("%.gif") or low:match("%.webp")) then
-                return "image:" .. raw
-            end
-            return nil
-        end
-        local imgSpec = normalizeImageSpec(fillRaw) or normalizeImageSpec(c1) or normalizeImageSpec(c2)
+        local imgSpec = normalizeTagFillSpec(fillRaw) or normalizeTagFillSpec(c1) or normalizeTagFillSpec(c2)
         if imgSpec then
             entry.color = imgSpec
         elseif fillRaw ~= "" then
