@@ -1654,17 +1654,31 @@ local function parseFill(s)
         if #stops >= 2 then return { kind = "gradient", stops = stops, rotation = angle } end
         if #stops == 1 then return { kind = "solid", c = stops[1] } end
         return nil
-    elseif low:sub(1,6) == "image:" or low:sub(1,4) == "img:" or s:match("^%d+$") or low:match("^rbxassetid://") then
-        -- Accept: "image:<id>", "img:<id>", a bare numeric asset id, or an rbxassetid url.
-        -- Bare numbers are auto-treated as image fills so old pastebin entries
-        -- that stored just the asset id still render correctly.
-        local rest = s:gsub("^[Ii][Mm][Aa][Gg][Ee]:", ""):gsub("^[Ii][Mm][Gg]:", "")
+    elseif low:sub(1,6) == "image:" or low:sub(1,4) == "img:" or low:sub(1,6) == "asset:"
+           or low:sub(1,6) == "decal:" or low:sub(1,8) == "texture:"
+           or s:match("^%d+$") or low:match("^rbxassetid://") or low:match("^rbxthumb://")
+           or low:match("roblox%.com") then
+        -- Accept any of:
+        --   "image:<id>" / "img:<id>" / "asset:<id>" / "decal:<id>" / "texture:<id>"
+        --   bare numeric asset id (e.g. "1234567890")
+        --   "rbxassetid://<id>"  or  "rbxthumb://..." spec
+        --   any roblox.com URL — we'll extract the first numeric id from it
+        --     ( library/<id>, /asset/?id=<id>, /catalog/<id>, etc. )
+        local rest = s:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "")
+                      :gsub("^[Ii][Mm][Gg]:", "")
+                      :gsub("^[Aa][Ss][Ss][Ee][Tt]:", "")
+                      :gsub("^[Dd][Ee][Cc][Aa][Ll]:", "")
+                      :gsub("^[Tt][Ee][Xx][Tt][Uu][Rr][Ee]:", "")
         rest = rest:gsub("^%s+", ""):gsub("%s+$", "")
         if rest == "" then return nil end
         local url = rest
         if tonumber(url) then
             url = "rbxassetid://" .. url
-        elseif not (url:match("^rbx") or url:match("^https?://")) then
+        elseif url:lower():match("roblox%.com") then
+            -- pull the first numeric id out of the URL
+            local id = url:match("[?&]id=(%d+)") or url:match("/(%d+)")
+            if id then url = "rbxassetid://" .. id else return nil end
+        elseif not (url:lower():match("^rbx") or url:match("^https?://")) then
             local gca = rawget(getfenv(), "getcustomasset") or rawget(getfenv(), "getsynasset")
             if type(gca) == "function" then
                 local ok, v = pcall(gca, rest); if ok and v then url = v end
