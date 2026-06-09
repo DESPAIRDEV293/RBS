@@ -2895,21 +2895,21 @@ local function refreshBill(p)
     local handleW = measureText(handleStr or "", handleFont, 10)
     local textW   = math.ceil(math.max(nameW, handleW))
     -- breathing room for text-fx jitter (glitch chars, shake)
-    e.name.Size   = UDim2.new(0, textW + 6, 0, 18)
-    e.handle.Size = UDim2.new(0, textW + 6, 0, 14)
+    e.name.Size   = UDim2.new(0, textW + 4, 0, 18)
+    e.handle.Size = UDim2.new(0, textW + 4, 0, 14)
 
     local chipBlock = 0
     if e.sh and e.sh.Visible then
         local statW = measureText(e.stat.Text or "", e.stat.Font or Enum.Font.GothamBold, 10)
         local shW   = math.ceil(statW + 22)
         e.sh.Size   = UDim2.new(0, shW, 0, 22)
-        chipBlock   = shW + 6
+        chipBlock   = shW + 4
     end
 
-    -- Layout: leftPad(5) + avatar(34) + gap(5) + text + chipBlock + rightPad(8)
-    -- Enforced minimum pill width of 120px so single-word names still render
-    -- as a recognisable pill rather than collapsing to a tiny chip.
-    local pillW = math.max(120, 5 + 34 + 5 + textW + chipBlock + 8)
+    -- Layout: leftPad(4) + avatar(34) + gap(4) + text + chipBlock + rightPad(6)
+    -- Compact default minimum (100px) — pill hugs short names tightly and
+    -- auto-expands for longer display names / @handles.
+    local pillW = math.max(100, 4 + 34 + 4 + textW + chipBlock + 6)
     -- Reposition labels so they start tight after the avatar (override the
     -- 46px hardcoded offset from buildBill's initial placement).
     if e.name   then e.name.Position   = UDim2.new(0, 44, 0, 4)  end
