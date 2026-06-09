@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-live-sync-tags"
+local ADMIN_BUILD = "2026-06-09-tag-fill-image-rebuild"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -1668,6 +1668,56 @@ local function resolveIconUrl(raw)
     return raw
 end
 
+local function normalizeTagImageSpec(raw)
+    raw = tostring(raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if raw == "" then return nil end
+    local low = raw:lower()
+    local body = raw
+    if low:sub(1,6) == "image:" or low:sub(1,4) == "img:"
+       or low:sub(1,6) == "asset:" or low:sub(1,6) == "decal:"
+       or low:sub(1,8) == "texture:" then
+        body = raw:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "")
+                  :gsub("^[Ii][Mm][Gg]:", "")
+                  :gsub("^[Aa][Ss][Ss][Ee][Tt]:", "")
+                  :gsub("^[Dd][Ee][Cc][Aa][Ll]:", "")
+                  :gsub("^[Tt][Ee][Xx][Tt][Uu][Rr][Ee]:", "")
+        body = body:gsub("^%s+", ""):gsub("%s+$", "")
+        low = body:lower()
+    end
+    if body:match("^%d+$") then return "image:" .. body end
+    local assetId = low:match("^rbxassetid://(%d+)") or low:match("^rbxasset://(%d+)")
+    if assetId then return "image:" .. assetId end
+    if low:match("^rbxthumb://") then return "image:" .. body end
+    if low:match("roblox%.com") then
+        local id = body:match("[?&]id=(%d+)") or body:match("/(%d+)")
+        if id then return "image:" .. id end
+    end
+    if low:match("^https?://") and (low:match("%.png") or low:match("%.jpg") or low:match("%.jpeg") or low:match("%.gif") or low:match("%.webp")) then
+        return "image:" .. body
+    end
+    return nil
+end
+
+local function resolveTagFillImageUrl(raw)
+    local spec = normalizeTagImageSpec(raw)
+    if spec then raw = spec:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "") end
+    raw = tostring(raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if raw == "" then return nil end
+    local low = raw:lower()
+    local id = raw:match("^%d+$") or low:match("^rbxassetid://(%d+)") or low:match("^rbxasset://(%d+)")
+    if id then return "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420" end
+    if low:match("^rbxthumb://") or low:match("^https?://") then return raw end
+    if low:match("roblox%.com") then
+        id = raw:match("[?&]id=(%d+)") or raw:match("/(%d+)")
+        if id then return "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420" end
+    end
+    local gca = rawget(getfenv(), "getcustomasset") or rawget(getfenv(), "getsynasset")
+    if type(gca) == "function" then
+        local ok, v = pcall(gca, raw); if ok and v then return v end
+    end
+    return raw
+end
+
 
 
 ------------------------------------------------------- TAG DATABASE (GitHub-backed)
@@ -1754,19 +1804,8 @@ local function parseFill(s)
                       :gsub("^[Tt][Ee][Xx][Tt][Uu][Rr][Ee]:", "")
         rest = rest:gsub("^%s+", ""):gsub("%s+$", "")
         if rest == "" then return nil end
-        local url = rest
-        if tonumber(url) then
-            url = "rbxassetid://" .. url
-        elseif url:lower():match("roblox%.com") then
-            -- pull the first numeric id out of the URL
-            local id = url:match("[?&]id=(%d+)") or url:match("/(%d+)")
-            if id then url = "rbxassetid://" .. id else return nil end
-        elseif not (url:lower():match("^rbx") or url:match("^https?://")) then
-            local gca = rawget(getfenv(), "getcustomasset") or rawget(getfenv(), "getsynasset")
-            if type(gca) == "function" then
-                local ok, v = pcall(gca, rest); if ok and v then url = v end
-            end
-        end
+        local url = resolveTagFillImageUrl(rest)
+        if not url or url == "" then return nil end
         return { kind = "image", url = url }
     else
         local c1, c2 = parseColorPair(s)
@@ -3822,21 +3861,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         -- never in the hex color box.
         local rawColor = (e and e.color) or ""
         local rcLow = rawColor:lower()
+        local imgSpec = normalizeTagImageSpec(rawColor)
         local isFill =
             rcLow:sub(1,5) == "grad:" or rcLow:sub(1,9) == "gradient:"
-            or rcLow:sub(1,6) == "image:" or rcLow:sub(1,4) == "img:"
-            or rcLow:sub(1,13) == "rbxassetid://"
-            or (rawColor ~= "" and rawColor:match("^%d+$") ~= nil)
+            or imgSpec ~= nil
         if isFill then
             -- Normalize raw asset ids / rbxassetid urls into an image: spec so
             -- the advanced-fill box shows a recognisable form.
-            if rawColor:match("^%d+$") then
-                tbFill.Text = "image:" .. rawColor
-            elseif rcLow:sub(1,13) == "rbxassetid://" then
-                tbFill.Text = "image:" .. rawColor:sub(14)
-            else
-                tbFill.Text = rawColor
-            end
+            tbFill.Text = imgSpec or rawColor
             tbColor.Text = ""; tbColor2.Text = ""
         else
             tbFill.Text = ""
@@ -3892,7 +3924,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     local function applyToMatchingPlayer(user)
         for _, p in ipairs(Players:GetPlayers()) do
-            if p.Name:lower() == user:lower() then
+            if p.Name:lower() == user:lower() or tostring(p.DisplayName or ""):lower() == user:lower() then
                 TagDB:applyTo(p)
                 -- Rebuild the bubble from scratch so a brand-new entry (or a
                 -- changed displayName/customHandle) is picked up cleanly. Just
@@ -4091,33 +4123,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         local fillRaw = pick(form.fill, tbFill.Text)
         local c1 = pick(form.color, tbColor.Text)
         local c2 = pick(form.color2, tbColor2.Text)
-        -- Detect Roblox image specs in ANY of the color/fill fields so the user
-        -- can paste an asset id (or rbxassetid://, decal/library URL) into the
-        -- "Hex color" box and have the black pill background swap to that
-        -- texture, not just the dedicated Advanced fill field.
-        local function digitsFromUrl(u)
-            return u:match("[?&]id=(%d+)") or u:match("/(%d+)")
-        end
-        local function normalizeImageSpec(raw)
-            if not raw or raw == "" then return nil end
-            local low = raw:lower()
-            if low:sub(1,6) == "image:" or low:sub(1,4) == "img:"
-               or low:sub(1,6) == "asset:" or low:sub(1,6) == "decal:"
-               or low:sub(1,8) == "texture:" then
-                return raw
-            end
-            if raw:match("^%d+$") then return "image:" .. raw end
-            if low:match("^rbxassetid://") then return "image:" .. raw:gsub("rbxassetid://", "") end
-            if low:match("^rbxthumb://") then return raw end
-            if low:match("roblox%.com") then
-                local id = digitsFromUrl(raw); if id then return "image:" .. id end
-            end
-            if low:match("^https?://") and (low:match("%.png") or low:match("%.jpg") or low:match("%.jpeg") or low:match("%.gif") or low:match("%.webp")) then
-                return "image:" .. raw
-            end
-            return nil
-        end
-        local imgSpec = normalizeImageSpec(fillRaw) or normalizeImageSpec(c1) or normalizeImageSpec(c2)
+        -- Detect Roblox image specs in ANY of the color/fill fields so an asset
+        -- id immediately replaces the pill's inner black fill after Save.
+        local imgSpec = normalizeTagImageSpec(fillRaw) or normalizeTagImageSpec(c1) or normalizeTagImageSpec(c2)
         if imgSpec then
             entry.color = imgSpec
         elseif fillRaw ~= "" then
@@ -4562,7 +4570,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     local ntUser   = _ntField(pgNtTags, "Username (required)", "e.g. SomeUser")
     local ntTags   = _ntField(pgNtTags, "Tag names (comma separated)", "Owner, Dev")
-    local ntColor  = _ntField(pgNtTags, "Color (hex)", "#ff3b6b")
+    local ntColor  = _ntField(pgNtTags, "Color / fill (hex or Roblox image ID)", "#ff3b6b or image:1234567890")
     local ntColor2 = _ntField(pgNtTags, "Second color (optional · split bubble)", "#00aaff")
     local ntIcon   = _ntField(pgNtTags, "Image / icon (Roblox asset ID)", "1234567890")
 
@@ -4578,15 +4586,12 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local a, b = c:match("^([^/]+)/([^/]+)$")
             ntColor.Text  = a or ""
             ntColor2.Text = b or ""
-        elseif c:sub(1,6) == "image:" then
-            ntColor.Text = ""; ntColor2.Text = ""
-            ntIcon.Text = c:sub(7)
+        elseif normalizeTagImageSpec(c) then
+            ntColor.Text = normalizeTagImageSpec(c) or c; ntColor2.Text = ""
         else
             ntColor.Text = c; ntColor2.Text = ""
         end
-        if e.icon and e.icon ~= "" and ntIcon.Text == "" then
-            ntIcon.Text = tostring(e.icon)
-        end
+        ntIcon.Text = tostring(e.icon or "")
     end
 
     button(pgNtTags, "Save / Update entry", function()
@@ -4611,10 +4616,13 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             entry.tags = nil
         end
 
-        -- Color (hex / split). Icon-color path is handled via the icon field.
+        -- Color / fill. A Roblox image ID here changes the pill interior;
+        -- the separate Image/Icon field remains only for the avatar icon.
         local c1 = _trim(ntColor.Text)
         local c2 = _trim(ntColor2.Text)
-        if c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
+        local imgSpec = normalizeTagImageSpec(c1) or normalizeTagImageSpec(c2)
+        if imgSpec then entry.color = imgSpec
+        elseif c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
         elseif c1 ~= "" then entry.color = c1
         elseif c2 ~= "" then entry.color = c2
         else
@@ -4638,7 +4646,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
         -- Apply to the live player in this server, if present
         for _, p in ipairs(Players:GetPlayers()) do
-            if p.Name:lower() == key then pcall(function() TagDB:applyTo(p) end) end
+            if p.Name:lower() == key or tostring(p.DisplayName or ""):lower() == key then
+                pcall(function() TagDB:applyTo(p) end)
+                if tagBills[p] then
+                    pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
+                    tagBills[p] = nil
+                end
+                pcall(buildBill, p)
+                pcall(refreshBill, p)
+            end
         end
 
         local sok, serr = TagDB:saveLocal()
