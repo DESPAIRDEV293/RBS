@@ -317,6 +317,16 @@ function Index() {
           box-shadow: 0 0 24px -2px rgba(129,140,248,0.6);
           transform: translateY(-1px);
         }
+        .storm-btn-disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+          filter: grayscale(0.6);
+        }
+        .storm-btn-disabled:hover {
+          background: linear-gradient(180deg, rgba(129,140,248,0.25), rgba(67,56,202,0.35));
+          box-shadow: none;
+          transform: none;
+        }
       `}</style>
     </div>
   );
