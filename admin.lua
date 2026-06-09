@@ -1670,35 +1670,11 @@ end
 
 
 
-------------------------------------------------------- TAG DATABASE (script-managed)
--- Two sources are tried, in order:
---   1) TAGS_PASTEBIN_URL  — a raw Pastebin (or any plain-text URL) using the
---      super-simple line format below. EASIEST to edit, no code knowledge needed.
---   2) TAGS_DB_URL        — the legacy tags.lua on GitHub (Lua table).
---
--- Pastebin line format (one player per line, pipe-separated):
---   username | displayName | #hexcolor | ignored | icon | tag1,tag2,tag3 | ignored | customText | customHandle | outline | font
---
---   - Only `username` is required. Leave any field blank to skip it (keep the |).
---   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
---               to split the bubble in half (left/right), e.g. #ff3b6b/#00aaff,
---               OR an advanced fill spec like grad:#a,#b@90 or image:1234567890
---   - icon:   Roblox image ID (raw number, e.g. 1234567890), OR an animated
---             sprite-sheet spec "gif:assetId:cols:rows:fps[:sheetSize]"
---             e.g. gif:1234567890:4:4:12   (16-frame 4x4 sheet at 12 fps;
---             sheetSize defaults to 1024)
---   - customText:   optional override for the right-side chip text (owner-only)
---   - customHandle: optional override for the "@name" line on the tag (owner-only).
---                   Anyone without an entry shows the anonymous "user" / "@user".
---   - outline: hex color for the tag text outline, or "off" to disable
---   - font:    per-user tag font name (Default | PermanentMarker | LuckiestGuy | Creepster)
---   - Lines starting with # or // are comments. Blank lines are ignored.
---
--- Example paste:
---   DESPAIRDEV293 | Despair | #ff3b6b/#00aaff | nebula |  | Owner,Dev | glitch | VIP | despair | #ffffff | LuckiestGuy
---   Builderman    | Builderman | #00aaff | sparkle | 156 | Roblox
---
--- To change tags: edit the paste, hit Save, rejoin (or wait for next load).
+------------------------------------------------------- TAG DATABASE (GitHub-backed)
+-- The GitHub gist now stores one JSON document so every Tags panel option
+-- round-trips exactly instead of being squeezed through fragile pipe columns.
+-- Legacy pipe rows are still accepted for old backups, but all new saves write:
+-- { version = 2, format = "seige.tags.v2", tags = { username = { ... } } }
 local TAGS_PASTEBIN_URL = "https://seigelollua.lovable.app/api/public/pastebin?raw=1"
 local TAGS_DB_URL       = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
 
