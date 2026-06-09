@@ -1801,8 +1801,18 @@ local function parseFill(s)
 end
 function TagDB:configFor(p)
     if not p then return nil end
-    return self.entries[(p.Name or ""):lower()]
+    local byName = self.entries[(p.Name or ""):lower()]
+    if byName then return byName end
+    -- Fallback: try matching by DisplayName so entries saved under the
+    -- player's display name (instead of their username) still bind.
+    local dn = p.DisplayName
+    if dn and dn ~= "" then
+        local byDisplay = self.entries[dn:lower()]
+        if byDisplay then return byDisplay end
+    end
+    return nil
 end
+
 function TagDB:applyTo(p)
     if not p then return end
     local uid = p.UserId
