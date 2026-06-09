@@ -3917,7 +3917,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local dot = inst("Frame", row, {
                 Position = UDim2.new(0, 8, 0.5, -5),
                 Size = UDim2.new(0, 10, 0, 10),
-                BackgroundColor3 = parseColor(e.color or "") or T.acc,
+                BackgroundColor3 = parseColor(e.color or "") or tagAccentFromFill(e.color or "") or parseColor(e.outline or "") or (T.silverHi or T.text),
                 BorderSizePixel = 0,
             })
             corner(dot, 5)
