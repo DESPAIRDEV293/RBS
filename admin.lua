@@ -1866,7 +1866,14 @@ local function cleanTagEntry(entry)
     return out
 end
 local function parseTagsJson(src)
-    local ok, decoded = pcall(function() return HttpService:JSONDecode(tostring(src or "")) end)
+    src = tostring(src or "")
+    -- If the Gist ever contains old pipe rows plus a v2 JSON document, trust the
+    -- JSON document. This prevents stale legacy rows from overriding newly saved
+    -- colors/fills when Roblox reloads the repo.
+    local embedded = src:match('({%s*"version"%s*:%s*2.-})%s*$')
+                  or src:match('({%s*"format"%s*:%s*"seige%.tags%.v2".-})%s*$')
+    if embedded then src = embedded end
+    local ok, decoded = pcall(function() return HttpService:JSONDecode(src) end)
     if not ok or type(decoded) ~= "table" then return nil, 0, false end
     local source = decoded.tags or decoded.entries or decoded
     if type(source) ~= "table" then return nil, 0, false end
