@@ -11536,7 +11536,73 @@ end)()
         pcall(function() s = game:GetService("VoiceChatService") end)
         return s
     end
+
+    -- ===== Voice moderation bypass =====
+    -- Pattern: under getService("VoiceChatService"), if PlayerService is present
+    -- then turn on bypass -> allow PlayerService. Neutralises the client-side
+    -- moderation reporter so swearing on mic doesn't get auto-flagged/banned.
+    _G.__SeigeVCBypassInstalled = _G.__SeigeVCBypassInstalled or false
+    local function installBypass()
+        if _G.__SeigeVCBypassInstalled then return true end
+        local VCS = svcPublic()
+        local PlayerService = nil
+        pcall(function() PlayerService = game:GetService("Players") end)
+        if not VCS or not PlayerService then return false end
+
+        -- turn on bypass
+        pcall(function() VCS.EnableDefaultVoice = false end)
+        pcall(function() VCS:SetProperty("EnableDefaultVoice", false) end)
+
+        -- allow PlayerService: silence the moderation -> player reporter path.
+        local function hookRemote(r)
+            if not r then return end
+            local nm = ""
+            pcall(function() nm = (r.Name or ""):lower() end)
+            if nm == "" then return end
+            if not (nm:find("voice") or nm:find("moder") or nm:find("report")
+                    or nm:find("transcript") or nm:find("abuse")) then return end
+            pcall(function() r.FireServer = function() end end)
+            pcall(function() r.InvokeServer = function() return nil end end)
+        end
+        pcall(function()
+            for _, d in ipairs(VCS:GetDescendants()) do hookRemote(d) end
+            VCS.DescendantAdded:Connect(hookRemote)
+        end)
+        pcall(function()
+            for _, d in ipairs(PlayerService:GetDescendants()) do hookRemote(d) end
+            PlayerService.DescendantAdded:Connect(hookRemote)
+        end)
+
+        -- Global namecall guard: drop voice/moderation remote traffic before
+        -- it reaches Roblox's server moderation pipeline.
+        if hookmetamethod and not _G.__SeigeVCNamecallHooked then
+            _G.__SeigeVCNamecallHooked = true
+            pcall(function()
+                local oldNC
+                oldNC = hookmetamethod(game, "__namecall", function(self, ...)
+                    local method = getnamecallmethod and getnamecallmethod() or ""
+                    if method == "FireServer" or method == "InvokeServer" then
+                        local nm = ""
+                        pcall(function() nm = (self.Name or ""):lower() end)
+                        if nm:find("voicemoderation") or nm:find("voicereport")
+                            or nm:find("voicetranscript") or nm:find("voiceabuse")
+                            or nm:find("reportabuse") then
+                            return nil
+                        end
+                    end
+                    return oldNC(self, ...)
+                end)
+            end)
+        end
+
+        _G.__SeigeVCBypassInstalled = true
+        return true
+    end
+    -- Install on load so swearing protection is on the moment voice activates.
+    task.spawn(function() pcall(installBypass) end)
+
     local V = {}
+    V.installBypass = installBypass
     function V.isAvailable()
         return svcInternal() ~= nil or svcPublic() ~= nil
     end
