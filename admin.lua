@@ -6900,6 +6900,8 @@ button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
 button(pgCmds, "!headsit <player>",     function() _openCmd("!headsit ") end)
 button(pgCmds, "!unheadsit",            function() _runCmd("!unheadsit") end)
 button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
+button(pgCmds, "!facebang <player>",    function() _openCmd("!facebang ") end)
+button(pgCmds, "!backbang <player>",    function() _openCmd("!backbang ") end)
 button(pgCmds, "Circle  —  orbit a player (!cir)", function()
     _openPanel("circle", "Circle  ·  orbit a player", 240, function(body)
         _G.__SeigeCircle = _G.__SeigeCircle or { radius = 6, speed = 2, height = 0 }
