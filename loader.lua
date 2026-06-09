@@ -1,15 +1,17 @@
--- Force-reload loader for Roblox Admin.
+-- Live-sync loader for Roblox Admin.
 -- Run:
---   loadstring(game:HttpGet("https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/loader.lua"))()
+--   loadstring(game:HttpGet("https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/admin.lua?fresh=" .. tostring(os.time())))()
 --
--- Strategy: GitHub's raw CDN caches ~5min and IGNORES query strings.
--- The only reliable bypass is to fetch the latest commit SHA via the API,
--- then load admin.lua pinned to that SHA (content-addressed = always fresh).
+-- Strategy: hit the Lovable public script endpoint first. It serves the bundled
+-- admin.lua with no-store headers, so changes go live after publishing.
+-- GitHub is kept only as a last fallback.
 
 local OWNER  = "DESPAIRDEV293"
 local REPO   = "roblox-script-buddy"
 local BRANCH = "main"
 local FILE   = "admin.lua"
+local LIVE_URL = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/admin.lua"
+local PUBLISHED_URL = "https://seigelollua.lovable.app/api/public/admin.lua"
 
 -- 1) Tear down any previous instance.
 if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -28,40 +30,56 @@ local function httpGet(url)
     return res
 end
 
--- 2) Resolve latest commit SHA on the branch (uncached JSON endpoint).
-local sha
-local apiUrl = ("https://api.github.com/repos/%s/%s/commits/%s?_=%d"):format(
-    OWNER, REPO, BRANCH, os.time()
-)
-local apiBody, apiErr = httpGet(apiUrl)
-if apiBody then
-    local ok, data = pcall(function() return HttpService:JSONDecode(apiBody) end)
-    if ok and type(data) == "table" and type(data.sha) == "string" then
-        sha = data.sha
+-- 2) Prefer Lovable's no-cache live script endpoint.
+local nonce = tostring(os.time()) .. "-" .. tostring(math.random(1, 1e9))
+local source, srcErr
+for _, url in ipairs({
+    LIVE_URL .. "?fresh=" .. nonce,
+    LIVE_URL .. "?v=" .. nonce,
+    LIVE_URL .. "?nocache=" .. nonce,
+    PUBLISHED_URL .. "?fresh=" .. nonce,
+}) do
+    source, srcErr = httpGet(url)
+    if source and source:find("ADMIN_BUILD", 1, true) then
+        print(("[AdminLoader] Loaded live Lovable script (%d bytes)"):format(#source))
+        break
     end
+    source = nil
 end
 
--- 3) Build source URL. Pinned-to-SHA is content-addressed and never cached stale.
-local sourceUrl
-if sha then
-    sourceUrl = ("https://raw.githubusercontent.com/%s/%s/%s/%s"):format(OWNER, REPO, sha, FILE)
-    print(("[AdminLoader] Pinned to commit %s"):format(sha:sub(1, 7)))
-else
-    -- Fallback: jsdelivr (separate CDN, different cache window) then raw with nonce.
-    warn("[AdminLoader] GitHub API unavailable (" .. tostring(apiErr) .. "), falling back")
-    sourceUrl = ("https://cdn.jsdelivr.net/gh/%s/%s@%s/%s?v=%d"):format(
-        OWNER, REPO, BRANCH, FILE, os.time()
-    )
-end
-
-local source, srcErr = httpGet(sourceUrl)
+-- 3) Fallback: resolve latest commit SHA on the branch.
+local sha
 if not source then
-    -- Last-ditch fallback
-    local fallback = ("https://raw.githubusercontent.com/%s/%s/%s/%s?v=%d-%d"):format(
-        OWNER, REPO, BRANCH, FILE, os.time(), math.random(1, 1e9)
+    local apiUrl = ("https://api.github.com/repos/%s/%s/commits/%s?_=%d"):format(
+        OWNER, REPO, BRANCH, os.time()
     )
-    source = httpGet(fallback)
-    if not source then error("Admin loader: failed to fetch source: " .. tostring(srcErr)) end
+    local apiBody, apiErr = httpGet(apiUrl)
+    if apiBody then
+        local ok, data = pcall(function() return HttpService:JSONDecode(apiBody) end)
+        if ok and type(data) == "table" and type(data.sha) == "string" then
+            sha = data.sha
+        end
+    end
+
+    local sourceUrl
+    if sha then
+        sourceUrl = ("https://raw.githubusercontent.com/%s/%s/%s/%s"):format(OWNER, REPO, sha, FILE)
+        print(("[AdminLoader] Pinned to commit %s"):format(sha:sub(1, 7)))
+    else
+        warn("[AdminLoader] GitHub API unavailable (" .. tostring(apiErr) .. "), falling back")
+        sourceUrl = ("https://cdn.jsdelivr.net/gh/%s/%s@%s/%s?v=%d"):format(
+            OWNER, REPO, BRANCH, FILE, os.time()
+        )
+    end
+
+    source, srcErr = httpGet(sourceUrl)
+    if not source then
+        local fallback = ("https://raw.githubusercontent.com/%s/%s/%s/%s?v=%d-%d"):format(
+            OWNER, REPO, BRANCH, FILE, os.time(), math.random(1, 1e9)
+        )
+        source = httpGet(fallback)
+        if not source then error("Admin loader: failed to fetch source: " .. tostring(srcErr)) end
+    end
 end
 
 local fn, compileErr = loadstring(source)
