@@ -17,7 +17,8 @@ export const Route = createFileRoute("/")({
 });
 
 // pre-built deterministic raindrops/droplets so SSR === client
-const RAIN = Array.from({ length: 140 }, (_, i) => {
+// Counts trimmed for perf — fewer animated nodes = less paint/composite work.
+const RAIN = Array.from({ length: 70 }, (_, i) => {
   const seed = (i * 9301 + 49297) % 233280;
   const r = seed / 233280;
   return {
@@ -34,7 +35,7 @@ function hash(n: number, seed: number) {
   let x = Math.sin(n * 9999 + seed * 374761) * 43758.5453;
   return x - Math.floor(x);
 }
-const DROPLETS = Array.from({ length: 90 }, (_, i) => {
+const DROPLETS = Array.from({ length: 35 }, (_, i) => {
   const r1 = hash(i, 1);
   const r2 = hash(i, 2);
   const r3 = hash(i, 3);
