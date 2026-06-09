@@ -105,6 +105,24 @@ function Index() {
       {/* mist at bottom */}
       <div className="storm-mist absolute inset-x-0 bottom-0 h-1/2 pointer-events-none" />
 
+      {/* full-screen droplet layer */}
+      <div className="absolute inset-0 pointer-events-none z-[1]">
+        {DROPLETS.map((d, i) => (
+          <span
+            key={i}
+            className="storm-droplet"
+            style={{
+              top: `${d.top}%`,
+              left: `${d.left}%`,
+              width: `${d.size}px`,
+              height: `${d.size * 1.15}px`,
+              animationDelay: `${d.delay}s`,
+              animationDuration: `${d.duration}s`,
+            }}
+          />
+        ))}
+      </div>
+
       <main className="relative z-10 mx-auto flex min-h-screen max-w-4xl flex-col justify-center gap-10 px-6 py-16">
         <header className="space-y-4">
           <p className="text-[11px] font-semibold uppercase tracking-[0.4em] text-indigo-300/80">
