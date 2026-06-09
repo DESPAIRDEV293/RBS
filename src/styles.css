@@ -165,18 +165,16 @@
 }
 .water-ripple {
   position: absolute;
-  left: 50%;
-  bottom: -6px;
-  width: 14px;
-  height: 14px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  border: 1.5px solid rgba(165,180,252,0.7);
-  transform: translate(-50%, 0) scale(0.2);
+  border: 1.5px solid rgba(165,180,252,0.75);
+  transform: translate(-50%, -50%) scale(0.2);
   opacity: 0;
   animation: water-ripple 3.4s ease-out infinite;
   pointer-events: none;
+  mix-blend-mode: screen;
 }
-.water-ripple-2 { border-color: rgba(199,210,254,0.5); animation-duration: 4.2s; }
 
 @keyframes water-bob {
   0%, 100% { transform: translateY(0) rotate(0deg); }
@@ -189,7 +187,7 @@
   50%      { filter: drop-shadow(0 4px 12px rgba(99,102,241,0.6)) brightness(1.15); }
 }
 @keyframes water-ripple {
-  0%   { transform: translate(-50%, 0) scale(0.2); opacity: 0.9; }
-  70%  { opacity: 0.25; }
-  100% { transform: translate(-50%, 0) scale(2.6); opacity: 0; }
+  0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0.9; }
+  70%  { opacity: 0.3; }
+  100% { transform: translate(-50%, -50%) scale(3.2); opacity: 0; }
 }
