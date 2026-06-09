@@ -8175,6 +8175,12 @@ end))
         ClipsDescendants = true, ZIndex = 2,
     })
     corner(heroFx, 16)
+    local NEBULA_COLORS = {
+        Color3.fromRGB(120, 90, 220),
+        Color3.fromRGB(80, 140, 230),
+        Color3.fromRGB(220, 110, 180),
+        Color3.fromRGB(90, 200, 220),
+    }
     local function heroSparkle()
         local col = ({
             Color3.fromRGB(255, 240, 180),
@@ -8208,13 +8214,19 @@ end))
               Size = UDim2.new(0, sz + 18, 0, sz + 18) }):Play()
         task.delay(3.1, function() if f then f:Destroy() end end)
     end
+    _G.__SeigeFx = _G.__SeigeFx or { Profile = true, Players = false, Cmds = false, Shaders = false, Spotify = false, Misc = false }
     task.spawn(function()
         while hero and hero.Parent do
-            if math.random() < 0.55 then heroSparkle() end
-            if math.random() < 0.10 then heroNebula() end
+            if _G.__SeigeFx.Profile then
+                pcall(function()
+                    if math.random() < 0.55 then heroSparkle() end
+                    if math.random() < 0.10 then heroNebula() end
+                end)
+            end
             task.wait(0.12)
         end
     end)
+
 
     -- subtle glow ring behind avatar
     local ring = inst("Frame", hero, {
