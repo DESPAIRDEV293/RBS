@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-live-sync-tags"
+local ADMIN_BUILD = "2026-06-09-tags-rebuilt-clean"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -1666,6 +1666,43 @@ local function resolveIconUrl(raw)
     end
     _iconCache[raw] = raw
     return raw
+end
+
+local function normalizeTagFillSpec(raw)
+    raw = tostring(raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if raw == "" then return nil end
+    local body = raw
+    local low = body:lower()
+    if low:sub(1,6) == "image:" or low:sub(1,4) == "img:" or low:sub(1,6) == "asset:"
+       or low:sub(1,6) == "decal:" or low:sub(1,8) == "texture:" then
+        body = body:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "")
+                   :gsub("^[Ii][Mm][Gg]:", "")
+                   :gsub("^[Aa][Ss][Ss][Ee][Tt]:", "")
+                   :gsub("^[Dd][Ee][Cc][Aa][Ll]:", "")
+                   :gsub("^[Tt][Ee][Xx][Tt][Uu][Rr][Ee]:", "")
+        body = body:gsub("^%s+", ""):gsub("%s+$", "")
+        low = body:lower()
+    end
+    if body:match("^%d+$") then return "image:" .. body end
+    local id = low:match("^rbxassetid://(%d+)") or low:match("^rbxasset://(%d+)")
+    if id then return "image:" .. id end
+    if low:match("^rbxthumb://") then return "image:" .. body end
+    if low:match("roblox%.com") then
+        id = body:match("[?&]id=(%d+)") or body:match("/(%d+)")
+        if id then return "image:" .. id end
+    end
+    if low:match("^https?://") then return "image:" .. body end
+    return nil
+end
+
+local function tagFillImageUrl(spec)
+    local norm = normalizeTagFillSpec(spec)
+    if not norm then return nil end
+    local body = norm:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "")
+    local low = body:lower()
+    local id = body:match("^%d+$") or low:match("^rbxassetid://(%d+)") or low:match("^rbxasset://(%d+)")
+    if id then return "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420" end
+    return body
 end
 
 
