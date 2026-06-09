@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-live-sync-tags"
+local ADMIN_BUILD = "2026-06-09-tag-fill-image-rebuild"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -1665,6 +1665,56 @@ local function resolveIconUrl(raw)
         return raw
     end
     _iconCache[raw] = raw
+    return raw
+end
+
+local function normalizeTagImageSpec(raw)
+    raw = tostring(raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if raw == "" then return nil end
+    local low = raw:lower()
+    local body = raw
+    if low:sub(1,6) == "image:" or low:sub(1,4) == "img:"
+       or low:sub(1,6) == "asset:" or low:sub(1,6) == "decal:"
+       or low:sub(1,8) == "texture:" then
+        body = raw:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "")
+                  :gsub("^[Ii][Mm][Gg]:", "")
+                  :gsub("^[Aa][Ss][Ss][Ee][Tt]:", "")
+                  :gsub("^[Dd][Ee][Cc][Aa][Ll]:", "")
+                  :gsub("^[Tt][Ee][Xx][Tt][Uu][Rr][Ee]:", "")
+        body = body:gsub("^%s+", ""):gsub("%s+$", "")
+        low = body:lower()
+    end
+    if body:match("^%d+$") then return "image:" .. body end
+    local assetId = low:match("^rbxassetid://(%d+)") or low:match("^rbxasset://(%d+)")
+    if assetId then return "image:" .. assetId end
+    if low:match("^rbxthumb://") then return "image:" .. body end
+    if low:match("roblox%.com") then
+        local id = body:match("[?&]id=(%d+)") or body:match("/(%d+)")
+        if id then return "image:" .. id end
+    end
+    if low:match("^https?://") and (low:match("%.png") or low:match("%.jpg") or low:match("%.jpeg") or low:match("%.gif") or low:match("%.webp")) then
+        return "image:" .. body
+    end
+    return nil
+end
+
+local function resolveTagFillImageUrl(raw)
+    local spec = normalizeTagImageSpec(raw)
+    if spec then raw = spec:gsub("^[Ii][Mm][Aa][Gg][Ee]:", "") end
+    raw = tostring(raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if raw == "" then return nil end
+    local low = raw:lower()
+    local id = raw:match("^%d+$") or low:match("^rbxassetid://(%d+)") or low:match("^rbxasset://(%d+)")
+    if id then return "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420" end
+    if low:match("^rbxthumb://") or low:match("^https?://") then return raw end
+    if low:match("roblox%.com") then
+        id = raw:match("[?&]id=(%d+)") or raw:match("/(%d+)")
+        if id then return "rbxthumb://type=Asset&id=" .. id .. "&w=420&h=420" end
+    end
+    local gca = rawget(getfenv(), "getcustomasset") or rawget(getfenv(), "getsynasset")
+    if type(gca) == "function" then
+        local ok, v = pcall(gca, raw); if ok and v then return v end
+    end
     return raw
 end
 
