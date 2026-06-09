@@ -9823,16 +9823,56 @@ cmdHandlers["rj"] = function()
 end
 cmdHandlers["tprj"] = function()
     local h = hrp()
-    if h then
-        local c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12 = h.CFrame:GetComponents()
-        local restore = string.format(
-            "task.spawn(function() local p=game:GetService('Players').LocalPlayer local cf=CFrame.new(%.4f,%.4f,%.4f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f) local function apply(c) local r=c:WaitForChild('HumanoidRootPart',10) if r then task.wait(0.4) for i=1,8 do pcall(function() r.CFrame=cf end) task.wait(0.15) end end end local c=p.Character or p.CharacterAdded:Wait() apply(c) p.CharacterAdded:Connect(apply) end)",
-            c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12)
-        local q = (syn and syn.queue_on_teleport)
-            or rawget(getfenv(), "queue_on_teleport")
-            or (fluxus and fluxus.queue_on_teleport)
-            or (getgenv and getgenv().queue_on_teleport)
-        if q then pcall(q, restore) else notify("Your executor lacks queue_on_teleport — position won't restore", "warn") end
+    if not h then notify("No character to snapshot", "bad"); return end
+    local c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12 = h.CFrame:GetComponents()
+    -- Robust position restore for the next server:
+    --  • waits for the character + humanoid to fully load
+    --  • anchors the HRP so spawn logic can't shove us back
+    --  • holds the CFrame for ~6 seconds across every CharacterAdded
+    --  • unanchors cleanly so movement works after
+    local restore = string.format([[
+task.spawn(function()
+    local p = game:GetService('Players').LocalPlayer
+    local cf = CFrame.new(%.4f,%.4f,%.4f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)
+    local function apply(c)
+        local r = c:WaitForChild('HumanoidRootPart', 15)
+        local hum = c:FindFirstChildOfClass('Humanoid') or c:WaitForChild('Humanoid', 5)
+        if not r then return end
+        -- wait until the humanoid actually owns the root (avoids "in-falling" snap)
+        for _ = 1, 30 do
+            if hum and hum.RootPart == r and r.Parent then break end
+            task.wait(0.1)
+        end
+        task.wait(0.25)
+        local wasAnchored = r.Anchored
+        r.Anchored = true
+        local t0 = tick()
+        while tick() - t0 < 6 do
+            if not r.Parent then return end
+            pcall(function() r.CFrame = cf end)
+            pcall(function()
+                r.AssemblyLinearVelocity  = Vector3.zero
+                r.AssemblyAngularVelocity = Vector3.zero
+            end)
+            task.wait(0.1)
+        end
+        pcall(function() r.Anchored = wasAnchored end)
+    end
+    local c = p.Character or p.CharacterAdded:Wait()
+    apply(c)
+    p.CharacterAdded:Connect(apply)
+end)
+]], c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12)
+
+    local q = (syn and syn.queue_on_teleport)
+        or rawget(getfenv(), "queue_on_teleport")
+        or (fluxus and fluxus.queue_on_teleport)
+        or (getgenv and getgenv().queue_on_teleport)
+    if q then
+        local okQ, errQ = pcall(q, restore)
+        if not okQ then notify("queue_on_teleport failed: " .. tostring(errQ), "bad") end
+    else
+        notify("Your executor lacks queue_on_teleport — position won't restore", "warn")
     end
     notify("Teleport rejoin (restoring position)...", "good")
     local ok = pcall(function()
