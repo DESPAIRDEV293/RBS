@@ -6899,9 +6899,40 @@ button(pgCmds, "Stalk  —  pick a player to listen (!stalk)", function() _runCm
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
 button(pgCmds, "!headsit <player>",     function() _openCmd("!headsit ") end)
 button(pgCmds, "!unheadsit",            function() _runCmd("!unheadsit") end)
-button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
-button(pgCmds, "!facebang <player>",    function() _openCmd("!facebang ") end)
-button(pgCmds, "!backbang <player>",    function() _openCmd("!backbang ") end)
+button(pgCmds, "Bang  —  front / face / back (!bang)", function()
+    _openPanel("bang", "Bang  ·  front / face / back", 320, function(body)
+        local B = _G.__SeigeBang
+        local tbox = inst("TextBox", body, {
+            Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
+            TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+            PlaceholderText = "  Player name…", Text = "", ClearTextOnFocus = false,
+        })
+        local modeBtn
+        local function refreshMode() modeBtn.Text = "Mode: " .. B.mode .. "  (click to cycle)" end
+        modeBtn = button(body, "", function()
+            B.mode = (B.mode == "front") and "face" or (B.mode == "face") and "back" or "front"
+            refreshMode()
+        end)
+        refreshMode()
+        button(body, "Start bang", function()
+            local name = tbox.Text
+            if not name or name == "" then notify("Type a player name", "warn"); return end
+            local target = findPlr(name)
+            if not target then notify("Player not found", "bad"); return end
+            _bangStart(target)
+        end)
+        slider(body, "Distance", 0, 6, B.distance, function(v) B.distance = v end)
+        slider(body, "Height offset", -6, 6, B.height, function(v) B.height = v end)
+        slider(body, "Anim speed", 1, 10, B.speed, function(v)
+            B.speed = v
+            if _G.__BangTrack then pcall(function() _G.__BangTrack:AdjustSpeed(v) end) end
+        end)
+        toggle(body, "Auto-face target (front)", B.autoFace, function(s) B.autoFace = s end)
+        toggle(body, "Spin / orbit around them", B.spin, function(s) B.spin = s end)
+        slider(body, "Spin speed", 1, 16, B.spinSpeed, function(v) B.spinSpeed = v end)
+        button(body, "Stop (!unbang)", function() _bangStop(); notify("Bang stopped", "good") end)
+    end)
+end)
 button(pgCmds, "Circle  —  orbit a player (!cir)", function()
     _openPanel("circle", "Circle  ·  orbit a player", 240, function(body)
         _G.__SeigeCircle = _G.__SeigeCircle or { radius = 6, speed = 2, height = 0 }
