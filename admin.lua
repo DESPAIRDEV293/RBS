@@ -3645,7 +3645,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     local tbUser     = field(pgTags, "Username (required)", "username", "DESPAIRDEV293")
     local tbDisplay  = field(pgTags, "Display name (optional)", "displayName", "Despair")
-    local tbColor    = field(pgTags, "Hex color (left half)", "color", "#ff3b6b")
+    local tbColor    = field(pgTags, "Hex color or Roblox image ID (left half / pill fill)", "color", "#ff3b6b   or   1234567890")
     local tbColor2   = field(pgTags, "Hex color 2 (right half — optional)", "color2", "#00aaff")
     local tbFill     = field(pgTags, "Advanced fill (overrides hex) — grad:#a,#b@90  or  image:1234567",
                               "fill", "grad:#ff3b6b,#00aaff@45   or   image:1234567890")
