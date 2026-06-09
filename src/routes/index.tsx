@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 // Preview-only decoy. The real live loadstring is gated and never shipped to the client.
 // Retyping or copying what is shown here will NOT execute — the URL points nowhere real.
 const loadstringCommand = 'loadstring(game:HttpGet("https://seige.lol/preview/locked"))() --[[ preview only · live build pending ]]';
-const reanimLoadstring = 'loadstring(game:HttpGet("https://seigescript.online/api/public/reanim.lua"))()';
 
 export const Route = createFileRoute("/")({
   head: () => ({
