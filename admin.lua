@@ -3950,13 +3950,11 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         -- handlers can miss the very last edit if the user clicks Save before
         -- defocus, which would drop fields from the export.
         local function trimStr(s) return (tostring(s or ""):gsub("^%s+",""):gsub("%s+$","")) end
-        local function pick(formVal, tbText)
+        local function pick(_formVal, tbText)
             -- The textbox is the truth. The old code accidentally preferred
             -- cached form values first, so a quick Save could reuse the old
             -- color/fill even though the visible box showed Cosmic/custom fill.
-            local direct = trimStr(tbText)
-            if direct ~= "" or trimStr(formVal) == "" then return direct end
-            return trimStr(formVal)
+            return trimStr(tbText)
         end
         local u = pick(form.username, tbUser.Text)
         if u == "" then notify("Username required", "bad"); return end
