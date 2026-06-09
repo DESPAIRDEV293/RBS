@@ -555,6 +555,18 @@ function Index() {
               0 0 64px rgba(220, 40, 0, 0.5);
           }
         }
+
+        .storm-feature-card {
+          background: linear-gradient(180deg, rgba(16,22,40,0.85), rgba(8,12,22,0.92));
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .storm-feature-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 20px 50px -12px rgba(0,0,0,0.5), 0 0 40px -8px rgba(99,102,241,0.2);
+        }
+        .storm-feature-glow {
+          background: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(129,140,248,0.10), transparent 70%);
+        }
       `}</style>
     </div>
   );
