@@ -228,64 +228,6 @@ function Index() {
           </p>
         </section>
 
-        {/* Reanim launcher + panel */}
-        <section className="space-y-3">
-          <button
-            type="button"
-            onClick={() => setReanimOpen((v) => !v)}
-            aria-expanded={reanimOpen}
-            className="storm-btn reanim-launcher w-full rounded-2xl px-5 py-4 text-left"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-indigo-200/70">
-                  Script
-                </p>
-                <p className="mt-1 text-lg font-bold text-slate-100">Reanim</p>
-                <p className="text-xs text-slate-400/80">
-                  Reanimation toolkit — tap to {reanimOpen ? "hide" : "open"} its panel
-                </p>
-              </div>
-              <span
-                className={`reanim-chev text-indigo-200 transition-transform ${reanimOpen ? "rotate-180" : ""}`}
-                aria-hidden
-              >
-                ▾
-              </span>
-            </div>
-          </button>
-
-          {reanimOpen && (
-            <div className="storm-card reanim-panel relative overflow-hidden rounded-2xl p-6 sm:p-7">
-              <div className="storm-card-glow absolute inset-0 pointer-events-none" />
-              <div className="relative flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-indigo-200/70">
-                    Reanim Loadstring
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400/80">
-                    Paste into your executor — always serves the latest build.
-                  </p>
-                </div>
-                <button
-                  onClick={copyReanim}
-                  className="storm-btn rounded-lg px-3.5 py-1.5 text-xs font-semibold tracking-wide"
-                >
-                  {reanimCopied ? "Copied!" : "Copy"}
-                </button>
-              </div>
-
-              <pre className="relative mt-3 overflow-x-auto rounded-xl border border-white/10 bg-black/50 p-4 text-sm text-indigo-100/90">
-                <code>{reanimLoadstring}</code>
-              </pre>
-
-              <p className="relative mt-4 text-[11px] uppercase tracking-[0.25em] text-indigo-300/70">
-                ⛧ Reanim · purple-storm build
-              </p>
-            </div>
-          )}
-        </section>
-
         <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400/70">
           <span>⛈  storm-grade · Real time syncing</span>
           <span className="font-mono text-indigo-300/70">v.beta</span>
