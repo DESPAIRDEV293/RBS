@@ -2871,12 +2871,24 @@ local function refreshBill(p)
         local fill = parseFill(cfg and cfg.color)
         if fill and fill.kind == "image" then
             if e.bgImg then
-                e.bgImg.Image = fill.url
+                -- Force a reset before reassigning so identical-URL refreshes
+                -- still re-fetch; lift ZIndex above the bg fill + ring layers
+                -- (but stay below avatar/labels at z=10) and stretch to fill.
+                pcall(function() e.bgImg.Image = "" end)
+                e.bgImg.Image             = fill.url
                 e.bgImg.ImageTransparency = 0
-                e.bgImg.Visible = true
+                e.bgImg.BackgroundTransparency = 1
+                e.bgImg.Size              = UDim2.new(1, 0, 1, 0)
+                e.bgImg.Position          = UDim2.new(0, 0, 0, 0)
+                e.bgImg.ScaleType         = Enum.ScaleType.Crop
+                e.bgImg.ZIndex            = 3
+                e.bgImg.Visible           = true
             end
             e.bgGrad.Enabled = false
-            e.bg.BackgroundTransparency = 1
+            -- Keep a dark base behind the image so any transparent pixels still
+            -- read as the pill, not the world behind the player's head.
+            e.bg.BackgroundColor3       = Color3.fromRGB(14, 14, 18)
+            e.bg.BackgroundTransparency = 0
         elseif fill and fill.kind == "gradient" then
             if e.bgImg then e.bgImg.Visible = false end
             e.bgGrad.Enabled  = true
