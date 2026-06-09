@@ -148,19 +148,19 @@ function Index() {
               Live command
             </p>
             <button
-              onClick={copy}
-              className="storm-btn rounded-lg px-3.5 py-1.5 text-xs font-semibold tracking-wide"
+              disabled
+              className="storm-btn storm-btn-disabled rounded-lg px-3.5 py-1.5 text-xs font-semibold tracking-wide"
             >
-              {copied ? "Copied ⚡" : "Copy"}
+              Copy
             </button>
           </div>
 
-          <pre className="relative mt-3 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-indigo-100 backdrop-blur">
+          <pre className="relative mt-3 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-slate-500/80 backdrop-blur select-none">
             <code>{loadstringCommand}</code>
           </pre>
 
-          <p className="relative mt-4 text-xs text-slate-300/70">
-            Paste into your executor. Reconnects to the newest preview every run.
+          <p className="relative mt-4 text-xs text-slate-400/60">
+            Script is currently unavailable — check back soon.
           </p>
         </section>
 
