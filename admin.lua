@@ -6342,7 +6342,9 @@ local HELP_CMDS = {
         { "!reanimurl <url> [speed]", "Fetch + play .txt/.json keyframe data" },
         { "!reanimdata <raw>", "Play pasted JSON/Lua keyframe data" },
         { "!stopanim", "Stop all reanim tracks" },
-        { "!bang <player>", "Roblox classic" },
+        { "!bang <player>", "Front bang (face them)" },
+        { "!facebang <player>", "Bang their face" },
+        { "!backbang <player>", "Bang from behind" },
         { "!unbang", "Stop" },
         { "!cir <player> / !uncir", "Orbit a player — adjust distance/speed in the panel" },
     }},
@@ -6898,6 +6900,8 @@ button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
 button(pgCmds, "!headsit <player>",     function() _openCmd("!headsit ") end)
 button(pgCmds, "!unheadsit",            function() _runCmd("!unheadsit") end)
 button(pgCmds, "!bang <player>",        function() _openCmd("!bang ") end)
+button(pgCmds, "!facebang <player>",    function() _openCmd("!facebang ") end)
+button(pgCmds, "!backbang <player>",    function() _openCmd("!backbang ") end)
 button(pgCmds, "Circle  —  orbit a player (!cir)", function()
     _openPanel("circle", "Circle  ·  orbit a player", 240, function(body)
         _G.__SeigeCircle = _G.__SeigeCircle or { radius = 6, speed = 2, height = 0 }
@@ -9983,13 +9987,17 @@ cmdHandlers["unheadsit"] = function()
 
     notify("Headsit cleared — rider ejected", "good")
 end
-cmdHandlers["bang"] = function(arg)
+-- mode: "front" (in front, facing them), "back" (behind, facing their back), "face" (at head, facing them)
+local function _startBang(arg, mode)
     local target = findPlr(arg)
     if not target then notify("Player not found", "bad"); return end
     local c = LP.Character
     local h = c and c:FindFirstChildOfClass("Humanoid")
     local thrp = phrp(target)
     if not (h and thrp) then notify("Missing humanoid/target", "bad"); return end
+    -- stop any existing bang first
+    if _G.__BangConn then pcall(function() _G.__BangConn:Disconnect() end); _G.__BangConn = nil end
+    if _G.__BangTrack then pcall(function() _G.__BangTrack:Stop() end); _G.__BangTrack = nil end
     pcall(function()
         local anim = Instance.new("Animation")
         anim.AnimationId = "rbxassetid://5918726674"
@@ -9999,12 +10007,30 @@ cmdHandlers["bang"] = function(arg)
         _G.__BangTrack = track
         _G.__BangConn = RunService.Heartbeat:Connect(function()
             local myH = hrp()
-            if not myH or not phrp(target) then return end
-            myH.CFrame = phrp(target).CFrame * CFrame.new(0, 0, -1.2)
+            local tH = phrp(target)
+            if not myH or not tH then return end
+            if mode == "back" then
+                -- behind them, facing same direction as them (their back)
+                myH.CFrame = tH * CFrame.new(0, 0, 1.2)
+            elseif mode == "face" then
+                -- at their head, facing them
+                local head = target.Character and target.Character:FindFirstChild("Head")
+                local hp = head and head.Position or (tH.Position + Vector3.new(0, 1.5, 0))
+                local front = tH.LookVector
+                local pos = hp + front * 0.6
+                myH.CFrame = CFrame.new(pos, hp)
+            else
+                -- front: in front of them, facing them
+                local pos = tH.Position + tH.LookVector * 1.2
+                myH.CFrame = CFrame.new(pos, tH.Position)
+            end
         end)
     end)
-    notify("Bang " .. target.Name .. " (!unbang to stop)", "good")
+    notify("Bang (" .. mode .. ") " .. target.Name .. " — !unbang to stop", "good")
 end
+cmdHandlers["bang"]     = function(arg) _startBang(arg, "front") end
+cmdHandlers["facebang"] = function(arg) _startBang(arg, "face")  end
+cmdHandlers["backbang"] = function(arg) _startBang(arg, "back")  end
 cmdHandlers["unbang"] = function()
     if _G.__BangConn then _G.__BangConn:Disconnect(); _G.__BangConn = nil end
     if _G.__BangTrack then pcall(function() _G.__BangTrack:Stop() end); _G.__BangTrack = nil end
