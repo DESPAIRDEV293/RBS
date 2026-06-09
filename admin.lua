@@ -2985,7 +2985,7 @@ local function buildBill(p)
         -- full-wrapper-width rectangle. refreshBill resizes to actual textW.
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position    = UDim2.new(0.5, 0, 0.5, 0),
-        Size        = UDim2.new(0, 120, 0, 46),
+        Size        = UDim2.new(0, 100, 0, 46),
         BackgroundColor3 = T.bg, BackgroundTransparency = 0, BorderSizePixel = 0,
         ClipsDescendants = true,
         ZIndex = 1,
