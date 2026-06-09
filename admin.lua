@@ -3531,7 +3531,7 @@ end))
 Tags:onChange(function(uid)
     for _, p in ipairs(Players:GetPlayers()) do
         if p.UserId == uid then
-            if tagBills[p] then refreshBill(p) else if floatOn or p == LP then buildBill(p) end end
+            if tagBills[p] then refreshBill(p) else if floatOn or p == LP or (scriptersOn and isScripter(p)) then buildBill(p) end end
         end
     end
     refreshPlayerList()
@@ -3543,7 +3543,7 @@ local function hookCharBill(p)
         -- always build the bubble for LP, for everyone if floatOn,
         -- and for ANY player that has a saved tag entry (so rejoining users
         -- always see their persisted custom tag).
-        if floatOn or p == LP or TagDB:configFor(p) then buildBill(p) end
+        if floatOn or p == LP or (scriptersOn and isScripter(p)) or TagDB:configFor(p) then buildBill(p) end
     end))
 end
 
@@ -3553,7 +3553,7 @@ bind(Players.PlayerAdded:Connect(function(p)
     -- if the player has a persisted tag entry and is already in their character,
     -- build immediately so we don't have to wait for the next respawn.
     task.defer(function()
-        if pchar(p) and not tagBills[p] and (floatOn or TagDB:configFor(p)) then
+        if pchar(p) and not tagBills[p] and (floatOn or (scriptersOn and isScripter(p)) or TagDB:configFor(p)) then
             pcall(buildBill, p)
         end
     end)
@@ -3568,7 +3568,7 @@ task.spawn(function()
     for _, p in ipairs(Players:GetPlayers()) do
         TagDB:applyTo(p)
         -- ensure persisted entries get a bubble on script reload too
-        if pchar(p) and not tagBills[p] and (floatOn or p == LP or TagDB:configFor(p)) then
+        if pchar(p) and not tagBills[p] and (floatOn or p == LP or (scriptersOn and isScripter(p)) or TagDB:configFor(p)) then
             pcall(buildBill, p)
         end
     end
@@ -3989,7 +3989,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                             pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end)
                             tagBills[p] = nil
                         end
-                        if floatOn or p == LP or TagDB:configFor(p) then pcall(buildBill, p) end
+                        if floatOn or p == LP or (scriptersOn and isScripter(p)) or TagDB:configFor(p) then pcall(buildBill, p) end
                     end
                 end
                 rebuildList()
