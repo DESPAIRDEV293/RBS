@@ -195,8 +195,12 @@ function Index() {
 
         <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400/70">
           <span>⛈  storm-grade · Real time syncing</span>
-          <span className="font-mono text-indigo-300/70">v.live</span>
+          <span className="font-mono text-indigo-300/70">v.beta</span>
         </footer>
+
+        <p className="text-center text-[11px] text-slate-500/50">
+          Using these scripts in Roblox is a risk. We aren't responsible for bans and account deletion.
+        </p>
       </main>
 
       <style>{`
