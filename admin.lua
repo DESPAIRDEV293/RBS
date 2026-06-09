@@ -2086,6 +2086,54 @@ local pgWorld   = pgMisc
 local pgThemes  = pgConfig  -- Themes/colors live under the Settings (Config) tab
 local pgDetect  = pgMisc
 
+------------------------------------------------------- PARTICLE FX (per-page)
+_G.__SeigeFx = _G.__SeigeFx or { Profile = true, Players = false, Cmds = false, Shaders = false, Spotify = false, Misc = false }
+local _PAGE_FX_COLORS = {
+    Color3.fromRGB(255, 240, 180),
+    Color3.fromRGB(180, 210, 255),
+    Color3.fromRGB(220, 170, 255),
+    Color3.fromRGB(170, 255, 220),
+}
+local function attachPageParticles(page, key)
+    if not page then return end
+    local fx = inst("Frame", page, {
+        Size = UDim2.new(1, 0, 0, 120),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        ZIndex = 2,
+    })
+    local function spark()
+        local col = _PAGE_FX_COLORS[math.random(1, #_PAGE_FX_COLORS)]
+        local f = inst("Frame", fx, {
+            Size = UDim2.new(0, 2, 0, 2),
+            Position = UDim2.new(math.random(), 0, math.random(), 0),
+            BackgroundColor3 = col, BorderSizePixel = 0, ZIndex = 3,
+        })
+        corner(f, 1)
+        TweenService:Create(f, TweenInfo.new(0.9, Enum.EasingStyle.Quad),
+            { Size = UDim2.new(0, 7, 0, 7), BackgroundTransparency = 1 }):Play()
+        task.delay(1, function() if f then f:Destroy() end end)
+    end
+    task.spawn(function()
+        while fx and fx.Parent do
+            if _G.__SeigeFx[key] then
+                pcall(function()
+                    if math.random() < 0.5 then spark() end
+                end)
+            end
+            task.wait(0.14)
+        end
+    end)
+    return fx
+end
+attachPageParticles(pgPlayers, "Players")
+attachPageParticles(pgCmds,    "Cmds")
+attachPageParticles(pgShaders, "Shaders")
+attachPageParticles(pgSpotify, "Spotify")
+attachPageParticles(pgMisc,    "Misc")
+
+
 ------------------------------------------------------- HELPERS
 local function char()  return LP.Character end
 local function hum()   local c = char(); return c and c:FindFirstChildOfClass("Humanoid") end
