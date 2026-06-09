@@ -8148,6 +8148,8 @@ local CFG_DEFAULTS = {
     toggleKey   = "F2",
     uiScale     = 1,
     reducedMotion = false,
+    layoutMode  = "Bar",
+    uiTrans     = 0.35,
     skybox      = { Up = "", Dn = "", Lf = "", Rt = "", Ft = "", Bk = "" },
     fx          = { Profile = true, Players = false, Cmds = false, Shaders = false, Spotify = false, Misc = false },
 }
@@ -8155,17 +8157,21 @@ local CFG_FILE = "SeigeAdmin/config.json"
 
 -- forward declarations so the Save/Reset buttons can live at the very top
 local snapshotCfg, applyCfg, saveCfg, loadCfg
+local layoutCtl, transCtl
 
 ------------------------------------------------------- SAVE / RESET (top)
 section(pgConfig, "Save & Reset")
-label(pgConfig, "Persist or restore every setting on this tab")
+label(pgConfig, "Settings save for this session (and to disk if your executor supports writefile). Reset clears them.")
 button(pgConfig, "💾  Save Config", function()
     if saveCfg then saveCfg() else notify("Config not ready yet", "warn") end
 end)
 button(pgConfig, "↺  Reset to Defaults", function()
+    _G.__SeigeSessionCfg = nil
+    local wf = rawget(getfenv(), "delfile") or delfile
+    if wf then pcall(wf, CFG_FILE) end
     if applyCfg then
         applyCfg(CFG_DEFAULTS, { applySkybox = true })
-        notify("Config reset to defaults", "ok")
+        notify("Config reset to defaults", "good")
     end
 end)
 
