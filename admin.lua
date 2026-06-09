@@ -1817,7 +1817,62 @@ function TagDB:applyTo(p)
 end
 
 local function trim(s) return (tostring(s or ""):gsub("^%s+",""):gsub("%s+$","")) end
+local TAGS_JSON_FORMAT = "seige.tags.v2"
+local TAG_ALLOWED_FIELDS = {
+    displayName = true, color = true, icon = true, tags = true,
+    textFx = true, customText = true, customHandle = true, outline = true,
+    font = true, textColor = true, textOutline = true,
+    avatarOutline = true, showChip = true,
+}
+local function normTagKey(raw)
+    return trim(raw):gsub("^@", ""):lower()
+end
+local function cleanTagEntry(entry)
+    if type(entry) ~= "table" then return nil end
+    local out = {}
+    for k in pairs(TAG_ALLOWED_FIELDS) do
+        local v = entry[k]
+        if k == "tags" then
+            if type(v) == "table" then
+                local list = {}
+                for _, t in ipairs(v) do
+                    t = trim(t)
+                    if t ~= "" then list[#list + 1] = t end
+                end
+                if #list > 0 then out.tags = list end
+            elseif type(v) == "string" and trim(v) ~= "" then
+                local list = {}
+                for t in (v .. ","):gmatch("([^,]*),") do
+                    t = trim(t)
+                    if t ~= "" then list[#list + 1] = t end
+                end
+                if #list > 0 then out.tags = list end
+            end
+        elseif v ~= nil and tostring(v) ~= "" then
+            out[k] = tostring(v)
+        end
+    end
+    return stripTagSpecials(out)
+end
+local function parseTagsJson(src)
+    local ok, decoded = pcall(function() return HttpService:JSONDecode(tostring(src or "")) end)
+    if not ok or type(decoded) ~= "table" then return nil, 0 end
+    local source = decoded.tags or decoded.entries or decoded
+    if type(source) ~= "table" then return nil, 0 end
+    local entries, count = {}, 0
+    for rawKey, rawEntry in pairs(source) do
+        local key = normTagKey(rawKey)
+        local entry = cleanTagEntry(rawEntry)
+        if key ~= "" and entry then
+            entries[key] = entry
+            count = count + 1
+        end
+    end
+    return entries, count
+end
 local function parsePastebin(src)
+    local jsonEntries, jsonCount = parseTagsJson(src)
+    if jsonCount > 0 then return jsonEntries, jsonCount end
     local entries = {}
     local count = 0
     for raw in tostring(src):gmatch("[^\r\n]+") do
