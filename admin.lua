@@ -9755,35 +9755,138 @@ do
     end
 end
 
--- Pill compact toggle (hides stats/icons/clock, leaves a hamburger)
+-- Pill compact toggle + hamburger dropdown menu
 do
-    local collapsed = false
     local hidden = { brandBlock, fpsBox, pingBox, iconsRow, clockBox }
-    -- also hide every divider frame in the pill except the toggle itself
     local dividers = {}
     for _, ch in ipairs(Pill:GetChildren()) do
         if ch:IsA("Frame") and ch.Size.X.Offset == 1 then dividers[#dividers+1] = ch end
     end
+
+    -- Dropdown menu (hidden by default), used when layout = "Hamburger".
+    local menu = inst("Frame", Root, {
+        Name = "PillMenu", Visible = false,
+        Size = UDim2.new(0, 200, 0, 0),
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = T.bg,
+        BackgroundTransparency = (_G.__SeigeUITrans or 0.35),
+        BorderSizePixel = 0, ZIndex = 130,
+    })
+    corner(menu, 10); stroke(menu, T.text, 1, 0.7)
+    inst("UIListLayout", menu, {
+        Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder,
+    })
+    inst("UIPadding", menu, {
+        PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6),
+        PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6),
+    })
+    _G.__SeigeMenu = menu
+
+    local function rebuildMenu()
+        for _, c in ipairs(menu:GetChildren()) do
+            if c:IsA("TextButton") then c:Destroy() end
+        end
+        local i = 0
+        for name, p in pairs(panels) do
+            i = i + 1
+            local row = inst("TextButton", menu, {
+                Size = UDim2.new(1, 0, 0, 28), LayoutOrder = i,
+                BackgroundColor3 = T.bg3,
+                BackgroundTransparency = (_G.__SeigeUITrans or 0.35) + 0.1,
+                AutoButtonColor = false, BorderSizePixel = 0,
+                Font = Enum.Font.GothamSemibold, TextSize = 12,
+                TextColor3 = T.text, Text = "  " .. name,
+                TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 131,
+            })
+            corner(row, 6)
+            row.MouseEnter:Connect(function() tween(row, 0.1, { BackgroundTransparency = 0.1 }) end)
+            row.MouseLeave:Connect(function() tween(row, 0.1, { BackgroundTransparency = (_G.__SeigeUITrans or 0.35) + 0.1 }) end)
+            row.MouseButton1Click:Connect(function()
+                local newVis = not p.frame.Visible
+                if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, newVis) else p.frame.Visible = newVis end
+                menu.Visible = false
+            end)
+        end
+    end
+
+    local function positionMenu()
+        local abs = pillToggle.AbsolutePosition
+        local sz  = pillToggle.AbsoluteSize
+        menu.Position = UDim2.new(0, abs.X + sz.X - 200, 0, abs.Y + sz.Y + 6)
+    end
+
     pillToggle.MouseEnter:Connect(function()
         tween(pillToggle, 0.12, { BackgroundTransparency = 0.78 })
     end)
     pillToggle.MouseLeave:Connect(function()
         tween(pillToggle, 0.12, { BackgroundTransparency = 0.88 })
     end)
-    pillToggle.MouseButton1Click:Connect(function()
-        collapsed = not collapsed
-        for _, f in ipairs(hidden) do f.Visible = not collapsed end
-        for _, d in ipairs(dividers) do d.Visible = not collapsed end
-        if collapsed then
-            pillToggleImg.Visible = false
-            pillToggle.Text = "≡"
-            for _, p in pairs(panels) do
-                if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
-            end
+
+    local barCollapsed = false
+    local function setBarCollapsed(c)
+        barCollapsed = c
+        for _, f in ipairs(hidden) do f.Visible = not c end
+        for _, d in ipairs(dividers) do d.Visible = not c end
+        if c then
+            pillToggleImg.Visible = false; pillToggle.Text = "≡"
         else
-            pillToggle.Text = ""
-            pillToggleImg.Visible = true
+            pillToggle.Text = ""; pillToggleImg.Visible = true
         end
+    end
+
+    pillToggle.MouseButton1Click:Connect(function()
+        if (_G.__SeigeLayoutMode or "Bar") == "Hamburger" then
+            if not menu.Visible then rebuildMenu(); positionMenu() end
+            menu.Visible = not menu.Visible
+        else
+            setBarCollapsed(not barCollapsed)
+            if barCollapsed then
+                for _, p in pairs(panels) do
+                    if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
+                end
+            end
+        end
+    end)
+
+    -- Public: apply a layout mode.
+    _G.__SeigeApplyLayout = function(mode)
+        _G.__SeigeLayoutMode = mode
+        if mode == "Hamburger" then
+            -- Hide bar contents, leave only ≡; close any open panels.
+            setBarCollapsed(true)
+            for _, p in pairs(panels) do
+                if p.frame then p.frame.Visible = false end
+            end
+            menu.Visible = false
+        else
+            setBarCollapsed(false)
+            menu.Visible = false
+        end
+    end
+
+    -- Public: apply UI translucency to Pill + every panel + menu.
+    _G.__SeigeApplyUITrans = function(t)
+        _G.__SeigeUITrans = t
+        if Pill then Pill.BackgroundTransparency = math.max(0.05, t - 0.1) end
+        if menu then menu.BackgroundTransparency = t end
+        if _G.__SeigePanels then
+            for _, p in pairs(_G.__SeigePanels) do
+                if p.frame and p.frame.Visible then p.frame.BackgroundTransparency = t end
+            end
+        end
+    end
+
+    -- Close menu when clicking outside.
+    UIS.InputBegan:Connect(function(i)
+        if not menu.Visible then return end
+        if i.UserInputType ~= Enum.UserInputType.MouseButton1
+           and i.UserInputType ~= Enum.UserInputType.Touch then return end
+        local mp = i.Position
+        local a, b = menu.AbsolutePosition, menu.AbsoluteSize
+        local insideMenu = mp.X >= a.X and mp.X <= a.X + b.X and mp.Y >= a.Y and mp.Y <= a.Y + b.Y
+        local pa, pb = pillToggle.AbsolutePosition, pillToggle.AbsoluteSize
+        local insideToggle = mp.X >= pa.X and mp.X <= pa.X + pb.X and mp.Y >= pa.Y and mp.Y <= pa.Y + pb.Y
+        if not insideMenu and not insideToggle then menu.Visible = false end
     end)
 end
 
