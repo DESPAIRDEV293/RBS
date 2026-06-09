@@ -7988,8 +7988,10 @@ local CFG_DEFAULTS = {
     uiScale     = 1,
     reducedMotion = false,
     skybox      = { Up = "", Dn = "", Lf = "", Rt = "", Ft = "", Bk = "" },
+    fx          = { Profile = true, Players = false, Cmds = false, Shaders = false, Spotify = false, Misc = false },
 }
 local CFG_FILE = "SeigeAdmin/config.json"
+
 
 section(pgConfig, "Settings")
 local toggleKey = Enum.KeyCode.F2
