@@ -1870,12 +1870,14 @@ local function parseTagsJson(src)
     -- Prefer the LAST v2 JSON block if the file was polluted with legacy rows.
     -- This avoids blue/default fallback from a half-parsed mixed file, while the
     -- caller can still recover legacy rows if the embedded JSON is empty.
-    local embedded = nil
-    for block in src:gmatch('({%s*"version"%s*:%s*2.-})') do embedded = block end
-    for block in src:gmatch('({%s*"format"%s*:%s*"seige%.tags%.v2".-})') do embedded = block end
-    if embedded then src = embedded end
-    local closeAt = src:match('^.*()}.%s*$')
-    if closeAt then src = src:sub(1, closeAt) end
+    local startAt = src:find('{%s*"version"%s*:%s*2') or src:find('{%s*"format"%s*:%s*"seige%.tags%.v2"')
+    if startAt then
+        local endAt = nil
+        for i = #src, 1, -1 do
+            if src:sub(i, i) == "}" then endAt = i; break end
+        end
+        if endAt and endAt >= startAt then src = src:sub(startAt, endAt) end
+    end
     local ok, decoded = pcall(function() return HttpService:JSONDecode(src) end)
     if not ok or type(decoded) ~= "table" then return nil, 0, false end
     local source = decoded.tags or decoded.entries or decoded
