@@ -2982,7 +2982,7 @@ local function buildBill(p)
     -- Pill is the only visible layer behind the tag content. Fully opaque so
     -- nothing reads as a transparent rectangle behind/around the pill.
     local bg = inst("Frame", gui, {
-        -- Start at the enforced minimum pill size (120x46) centered inside the
+        -- Start at the compact minimum pill size (100x46) centered inside the
         -- BillboardGui wrapper, so the pre-refresh frame doesn't flash a
         -- full-wrapper-width rectangle. refreshBill resizes to actual textW.
         AnchorPoint = Vector2.new(0.5, 0.5),
