@@ -993,23 +993,33 @@ do
 end
 
 ------------------------------------------------------- SIDEBAR / TABS
-local SIDE_W = 52
+local SIDE_W = 156
 local HEADER_H = 38
 
 local Side = inst("Frame", Body, {
     Size = UDim2.new(0, SIDE_W, 1, -12),
     Position = UDim2.new(0, 8, 0, 4),
-    BackgroundColor3 = T.bg2,
-    BackgroundTransparency = 0.2,
+    BackgroundColor3 = T.silverHi,
+    BackgroundTransparency = 0.78,
     BorderSizePixel = 0,
 })
-corner(Side, 12); stroke(Side, T.line, 1, 0.5)
+corner(Side, 16); stroke(Side, T.silver, 1, 0.55)
+-- silver sheen on the rail itself
+inst("UIGradient", Side, {
+    Rotation = 110,
+    Color = ColorSequence.new(T.silverHi, T.silver),
+    Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.55),
+        NumberSequenceKeypoint.new(1, 0.85),
+    },
+})
 inst("UIListLayout", Side, {
     Padding = UDim.new(0, 6),
     SortOrder = Enum.SortOrder.LayoutOrder,
     HorizontalAlignment = Enum.HorizontalAlignment.Center,
 })
 pad(Side, 8)
+
 
 local ContentArea = inst("Frame", Body, {
     Position = UDim2.new(0, SIDE_W + 16, 0, 4),
