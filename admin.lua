@@ -8157,7 +8157,7 @@ end
 ------------------------------------------------------- SAVE / RESET CONFIG
 section(pgConfig, "Save & Reset")
 
-local function snapshotCfg()
+snapshotCfg = function()
     local fx = {}
     for _, k in ipairs(FX_TABS) do fx[k] = _G.__SeigeFx[k] == true end
     return {
@@ -8173,7 +8173,7 @@ local function snapshotCfg()
     }
 end
 
-local function applyCfg(cfg, opts)
+applyCfg = function(cfg, opts)
     cfg = cfg or {}
     opts = opts or {}
     setToggleKey(cfg.toggleKey or CFG_DEFAULTS.toggleKey)
@@ -8196,7 +8196,7 @@ local function applyCfg(cfg, opts)
 end
 
 
-local function saveCfg()
+saveCfg = function()
     local wf = rawget(getfenv(), "writefile") or writefile
     if not wf then notify("Executor has no writefile — cannot save", "warn") return end
     local mf = rawget(getfenv(), "makefolder") or makefolder
@@ -8207,7 +8207,7 @@ local function saveCfg()
     if okW then notify("Config saved", "good") else notify("Failed to write config", "bad") end
 end
 
-local function loadCfg()
+loadCfg = function()
     local rf  = rawget(getfenv(), "readfile") or readfile
     local isf = rawget(getfenv(), "isfile")   or isfile
     if not rf or not isf then return end
@@ -8217,14 +8217,9 @@ local function loadCfg()
     if okD and type(data) == "table" then applyCfg(data, { applySkybox = true }) end
 end
 
-button(pgConfig, "Save Config", saveCfg)
-button(pgConfig, "Reset to Defaults", function()
-    applyCfg(CFG_DEFAULTS, { applySkybox = true })
-    notify("Config reset to defaults", "ok")
-end)
-
 -- auto-load saved config on startup
 pcall(loadCfg)
+
 
 
 section(pgConfig, "About")
