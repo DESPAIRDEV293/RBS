@@ -1852,7 +1852,7 @@ local function cleanTagEntry(entry)
             out[k] = tostring(v)
         end
     end
-    return stripTagSpecials(out)
+    return out
 end
 local function parseTagsJson(src)
     local ok, decoded = pcall(function() return HttpService:JSONDecode(tostring(src or "")) end)
