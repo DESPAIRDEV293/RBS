@@ -3956,7 +3956,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             -- color/fill even though the visible box showed Cosmic/custom fill.
             return trimStr(tbText)
         end
-        local u = pick(form.username, tbUser.Text)
+        local u = pick(form.username, tbUser.Text):gsub("^@", "")
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
         local entry = {}
@@ -4462,7 +4462,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     end
 
     button(pgNtTags, "Save / Update entry", function()
-        local u = _trim(ntUser.Text)
+        local u = _trim(ntUser.Text):gsub("^@", "")
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
         -- Start from existing entry so we preserve fields NT can't edit
