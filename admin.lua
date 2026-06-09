@@ -11652,6 +11652,7 @@ end)()
         if V.isPublishing() == false then
             return false, "Unmute your mic in Roblox first"
         end
+        pcall(installBypass) -- ensure swear/ban bypass is live before mic opens
         _G.__SeigeVoiceActivated = true
         return true
     end
