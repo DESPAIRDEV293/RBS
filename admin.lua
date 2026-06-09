@@ -1804,19 +1804,8 @@ local function parseFill(s)
                       :gsub("^[Tt][Ee][Xx][Tt][Uu][Rr][Ee]:", "")
         rest = rest:gsub("^%s+", ""):gsub("%s+$", "")
         if rest == "" then return nil end
-        local url = rest
-        if tonumber(url) then
-            url = "rbxassetid://" .. url
-        elseif url:lower():match("roblox%.com") then
-            -- pull the first numeric id out of the URL
-            local id = url:match("[?&]id=(%d+)") or url:match("/(%d+)")
-            if id then url = "rbxassetid://" .. id else return nil end
-        elseif not (url:lower():match("^rbx") or url:match("^https?://")) then
-            local gca = rawget(getfenv(), "getcustomasset") or rawget(getfenv(), "getsynasset")
-            if type(gca) == "function" then
-                local ok, v = pcall(gca, rest); if ok and v then url = v end
-            end
-        end
+        local url = resolveTagFillImageUrl(rest)
+        if not url or url == "" then return nil end
         return { kind = "image", url = url }
     else
         local c1, c2 = parseColorPair(s)
