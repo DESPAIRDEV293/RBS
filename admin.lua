@@ -2086,6 +2086,54 @@ local pgWorld   = pgMisc
 local pgThemes  = pgConfig  -- Themes/colors live under the Settings (Config) tab
 local pgDetect  = pgMisc
 
+------------------------------------------------------- PARTICLE FX (per-page)
+_G.__SeigeFx = _G.__SeigeFx or { Profile = true, Players = false, Cmds = false, Shaders = false, Spotify = false, Misc = false }
+local _PAGE_FX_COLORS = {
+    Color3.fromRGB(255, 240, 180),
+    Color3.fromRGB(180, 210, 255),
+    Color3.fromRGB(220, 170, 255),
+    Color3.fromRGB(170, 255, 220),
+}
+local function attachPageParticles(page, key)
+    if not page then return end
+    local fx = inst("Frame", page, {
+        Size = UDim2.new(1, 0, 0, 120),
+        Position = UDim2.new(0, 0, 0, 0),
+        BackgroundTransparency = 1,
+        ClipsDescendants = true,
+        ZIndex = 2,
+    })
+    local function spark()
+        local col = _PAGE_FX_COLORS[math.random(1, #_PAGE_FX_COLORS)]
+        local f = inst("Frame", fx, {
+            Size = UDim2.new(0, 2, 0, 2),
+            Position = UDim2.new(math.random(), 0, math.random(), 0),
+            BackgroundColor3 = col, BorderSizePixel = 0, ZIndex = 3,
+        })
+        corner(f, 1)
+        TweenService:Create(f, TweenInfo.new(0.9, Enum.EasingStyle.Quad),
+            { Size = UDim2.new(0, 7, 0, 7), BackgroundTransparency = 1 }):Play()
+        task.delay(1, function() if f then f:Destroy() end end)
+    end
+    task.spawn(function()
+        while fx and fx.Parent do
+            if _G.__SeigeFx[key] then
+                pcall(function()
+                    if math.random() < 0.5 then spark() end
+                end)
+            end
+            task.wait(0.14)
+        end
+    end)
+    return fx
+end
+attachPageParticles(pgPlayers, "Players")
+attachPageParticles(pgCmds,    "Cmds")
+attachPageParticles(pgShaders, "Shaders")
+attachPageParticles(pgSpotify, "Spotify")
+attachPageParticles(pgMisc,    "Misc")
+
+
 ------------------------------------------------------- HELPERS
 local function char()  return LP.Character end
 local function hum()   local c = char(); return c and c:FindFirstChildOfClass("Humanoid") end
@@ -7940,8 +7988,10 @@ local CFG_DEFAULTS = {
     uiScale     = 1,
     reducedMotion = false,
     skybox      = { Up = "", Dn = "", Lf = "", Rt = "", Ft = "", Bk = "" },
+    fx          = { Profile = true, Players = false, Cmds = false, Shaders = false, Spotify = false, Misc = false },
 }
 local CFG_FILE = "SeigeAdmin/config.json"
+
 
 section(pgConfig, "Settings")
 local toggleKey = Enum.KeyCode.F2
@@ -8059,10 +8109,23 @@ do
     end)
 end
 
+------------------------------------------------------- PARTICLE EFFECTS
+section(pgConfig, "Particle Effects")
+label(pgConfig, "Animated sparkles & nebulae layered over each tab")
+local FX_TABS = { "Profile", "Players", "Cmds", "Shaders", "Spotify", "Misc" }
+local fxCtls = {}
+for _, k in ipairs(FX_TABS) do
+    fxCtls[k] = toggle(pgConfig, k .. " particles", _G.__SeigeFx[k] == true, function(v)
+        _G.__SeigeFx[k] = v
+    end)
+end
+
 ------------------------------------------------------- SAVE / RESET CONFIG
 section(pgConfig, "Save & Reset")
 
 local function snapshotCfg()
+    local fx = {}
+    for _, k in ipairs(FX_TABS) do fx[k] = _G.__SeigeFx[k] == true end
     return {
         toggleKey     = toggleKey.Name,
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
@@ -8072,6 +8135,7 @@ local function snapshotCfg()
             Lf = skyboxFaces.Lf, Rt = skyboxFaces.Rt,
             Ft = skyboxFaces.Ft, Bk = skyboxFaces.Bk,
         },
+        fx            = fx,
     }
 end
 
@@ -8086,10 +8150,17 @@ local function applyCfg(cfg, opts)
         skyboxFaces[k] = sb[k] or ""
         if skyboxBoxes[k] then skyboxBoxes[k].Text = "" end
     end
+    local fx = cfg.fx or CFG_DEFAULTS.fx
+    for _, k in ipairs(FX_TABS) do
+        local v = fx[k] == true
+        _G.__SeigeFx[k] = v
+        if fxCtls[k] and fxCtls[k].set then fxCtls[k].set(v) end
+    end
     if opts.applySkybox then
         if (sb.Up or "") ~= "" or (sb.Dn or "") ~= "" then applySkybox() else resetSkybox() end
     end
 end
+
 
 local function saveCfg()
     local wf = rawget(getfenv(), "writefile") or writefile
@@ -8175,6 +8246,12 @@ end))
         ClipsDescendants = true, ZIndex = 2,
     })
     corner(heroFx, 16)
+    local NEBULA_COLORS = {
+        Color3.fromRGB(120, 90, 220),
+        Color3.fromRGB(80, 140, 230),
+        Color3.fromRGB(220, 110, 180),
+        Color3.fromRGB(90, 200, 220),
+    }
     local function heroSparkle()
         local col = ({
             Color3.fromRGB(255, 240, 180),
@@ -8208,13 +8285,19 @@ end))
               Size = UDim2.new(0, sz + 18, 0, sz + 18) }):Play()
         task.delay(3.1, function() if f then f:Destroy() end end)
     end
+    _G.__SeigeFx = _G.__SeigeFx or { Profile = true, Players = false, Cmds = false, Shaders = false, Spotify = false, Misc = false }
     task.spawn(function()
         while hero and hero.Parent do
-            if math.random() < 0.55 then heroSparkle() end
-            if math.random() < 0.10 then heroNebula() end
+            if _G.__SeigeFx.Profile then
+                pcall(function()
+                    if math.random() < 0.55 then heroSparkle() end
+                    if math.random() < 0.10 then heroNebula() end
+                end)
+            end
             task.wait(0.12)
         end
     end)
+
 
     -- subtle glow ring behind avatar
     local ring = inst("Frame", hero, {
