@@ -6302,6 +6302,8 @@ local HELP_CMDS = {
     { "Rejoin & teleport", {
         { "!rj", "Rejoin the same place (new server)" },
         { "!tprj", "Rejoin THIS server and restore your position via queue_on_teleport" },
+        { "!randomserver / !jrs / !hop", "Join a random public server" },
+        { "!bypass <msg>", "Send chat that bypasses the censor (no ### replacement)" },
         
     }},
     { "Character", {
