@@ -86,6 +86,27 @@ function WaterText({ text, accent = false }: { text: string; accent?: boolean })
   );
 }
 
+function FeatureCard({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="storm-feature-card relative overflow-hidden rounded-xl border border-white/[0.08] p-4">
+      <div className="absolute inset-0 storm-feature-glow pointer-events-none" />
+      <h3 className="relative text-sm font-bold text-indigo-200">{title}</h3>
+      <p className="relative mt-1.5 text-xs leading-relaxed text-slate-400/80">{desc}</p>
+    </div>
+  );
+}
+
+function CmdExample({ cmd, desc }: { cmd: string; desc: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-black/30 px-3 py-2.5">
+      <code className="shrink-0 rounded bg-indigo-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-300">
+        {cmd}
+      </code>
+      <span className="text-xs text-slate-400/80">{desc}</span>
+    </div>
+  );
+}
+
 function Index() {
   // Anti-lag: detect low-power devices on the client (SSR-safe defaults to full FX).
   // Also pauses all storm animations when the tab is hidden so we don't waste CPU.
@@ -213,6 +234,89 @@ function Index() {
           <p className="relative mt-4 text-xs text-slate-400/60">
             Script is currently unavailable — check back soon.
           </p>
+        </section>
+
+        {/* Features grid */}
+        <section className="relative z-10 space-y-6">
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-indigo-400/20" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-indigo-200/60">
+              What this script can do
+            </span>
+            <span className="h-px flex-1 bg-indigo-400/20" />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <FeatureCard
+              title="Sleek Dark Glass UI"
+              desc="Modern glass-morphism admin panel with smooth animations, customizable themes, typography, and transparency."
+            />
+            <FeatureCard
+              title="Role-Based Permissions"
+              desc="Owner, Admin, Staff, and NT Team roles with gated command access. Owner-only kill switch and audit logging."
+            />
+            <FeatureCard
+              title="50+ Built-in Commands"
+              desc="From trolling to utility — everything is one ! command away in the chat or via the GUI."
+            />
+            <FeatureCard
+              title="Movement"
+              desc="Fly with adjustable speed, Noclip, Infinite Jump, Walk Speed, Jump Power, Hip Height, and Click Teleport."
+            />
+            <FeatureCard
+              title="Player Interactions"
+              desc="Goto, Bring, Carry, Headsit, Shouldersit, Piggyback, Bang, Facebang, Backbang, Fling, Stalk, and Spectate."
+            />
+            <FeatureCard
+              title="Trolling"
+              desc="Timestop to freeze everyone, Circle players, force-chat with !usay, private banners with !allp."
+            />
+            <FeatureCard
+              title="Performance Boost"
+              desc="FPS Booster, Ping Booster, and full Optimize mode — or hit !maxboost for everything at once."
+            />
+            <FeatureCard
+              title="Tags System"
+              desc="Tag players as Friend, Target, Ignore, or Priority. Search and inspect tags across servers."
+            />
+            <FeatureCard
+              title="Reanim GUI"
+              desc="Built-in ROT animation loader with a full animation browser, preview, playback speed, and custom folder support."
+            />
+          </div>
+        </section>
+
+        {/* Command examples */}
+        <section className="relative z-10 space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-indigo-400/20" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-indigo-200/60">
+              Command Examples
+            </span>
+            <span className="h-px flex-1 bg-indigo-400/20" />
+          </div>
+
+          <div className="storm-card relative overflow-hidden rounded-2xl p-5 sm:p-6">
+            <div className="storm-card-glow absolute inset-0 pointer-events-none" />
+            <div className="relative grid gap-3 sm:grid-cols-2">
+              <CmdExample cmd="!fly" desc="Toggle flight mode" />
+              <CmdExample cmd="!noclip" desc="Walk through walls" />
+              <CmdExample cmd="!goto <player>" desc="Teleport to a player" />
+              <CmdExample cmd="!bring <player>" desc="Teleport player to you" />
+              <CmdExample cmd="!headsit <player>" desc="Sit on their head" />
+              <CmdExample cmd="!bang <player>" desc="Start bang animation" />
+              <CmdExample cmd="!facebang <player>" desc="Face-to-face bang" />
+              <CmdExample cmd="!fling <player>" desc="Launch a player" />
+              <CmdExample cmd="!stalk <player>" desc="Follow and listen" />
+              <CmdExample cmd="!timestop" desc="Freeze everyone (admin)" />
+              <CmdExample cmd="!circle <player>" desc="Orbit around target" />
+              <CmdExample cmd="!allp <msg>" desc="Banner to all script users" />
+              <CmdExample cmd="!ws 100" desc="Set walk speed" />
+              <CmdExample cmd="!jp 150" desc="Set jump power" />
+              <CmdExample cmd="!maxboost" desc="Enable all performance" />
+              <CmdExample cmd="!reanim" desc="Open animation GUI" />
+            </div>
+          </div>
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400/70">
@@ -450,6 +554,18 @@ function Index() {
               0 0 40px rgba(240, 50, 0, 0.65),
               0 0 64px rgba(220, 40, 0, 0.5);
           }
+        }
+
+        .storm-feature-card {
+          background: linear-gradient(180deg, rgba(16,22,40,0.85), rgba(8,12,22,0.92));
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .storm-feature-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 20px 50px -12px rgba(0,0,0,0.5), 0 0 40px -8px rgba(99,102,241,0.2);
+        }
+        .storm-feature-glow {
+          background: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(129,140,248,0.10), transparent 70%);
         }
       `}</style>
     </div>
