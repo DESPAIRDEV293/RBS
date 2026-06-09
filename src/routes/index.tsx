@@ -120,7 +120,8 @@ function Index() {
             seige.lol  ·  storm build
           </p>
           <h1 className="storm-title text-5xl font-black leading-[0.95] tracking-tight sm:text-7xl">
-            Seige <span className="storm-title-accent">Loadstring</span>
+            <WaterText text="Seige" />{" "}
+            <WaterText text="Loadstring" accent />
           </h1>
           <p className="max-w-2xl text-base leading-relaxed text-slate-300/85">
             Your script your way. Quick, Reliable, Safe. Enjoy seige soon
