@@ -2088,7 +2088,7 @@ local function tagColor(p)
     if Tags:has(p.UserId, "Friend") then return T.good end
     if Tags:has(p.UserId, "Priority") then return T.warn end
     if Tags:has(p.UserId, "Ignore") then return T.dim end
-    return T.acc
+    return T.silverHi or T.text
 end
 
 ------------------------------------------------------- TABS
