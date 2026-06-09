@@ -2564,7 +2564,7 @@ local function refreshBill(p)
     -- known state. The blocks below then apply whatever the config specifies.
     -- Aura teardown happens here too so a removed aura cleanly hands the pill
     -- back to the normal stroke + fill renderers.
-    if e.auraStop and not Auras.canonical(cfg and cfg.aura) then
+    if e.auraStop then
         pcall(e.auraStop); e.auraStop = nil; e.auraName = nil
     end
     if e.stroke then e.stroke.Enabled = true end
@@ -2966,37 +2966,11 @@ local function refreshBill(p)
     e.handleBasePos = e.handle and e.handle.Position or e.handleBasePos
 
     -- Pill (bg) is exactly pillW x 46. Billboard wrapper is pill + 24 wide,
-    -- 58 tall — the 12px halo on each side gives the aura glow + outline
-    -- room to render without being clipped by the BillboardGui bounds.
+    -- 58 tall so the normal outline has a little room without clipping.
     e.bg.AnchorPoint = Vector2.new(0.5, 0.5)
     e.bg.Position    = UDim2.new(0.5, 0, 0.5, 0)
     e.bg.Size        = UDim2.new(0, pillW, 0, 46)
     e.gui.Size       = UDim2.new(0, pillW + 24, 0, 58)
-
-    -- ── Aura: applied LAST so it cleanly overrides the static stroke + fill
-    -- with its animated ring + transparent interior. All previous renderers
-    -- (text color, outline color, fill) have already painted; aura just
-    -- swaps the visible chrome. Switching aura tears down the previous one.
-    do
-        local desired = Auras.canonical(cfg and cfg.aura)
-        if e.auraName ~= desired then
-            if e.auraStop then pcall(e.auraStop); e.auraStop = nil end
-            e.auraName = desired
-            if desired then
-                if e.stroke then e.stroke.Enabled = false end
-                if e.bgImg  then e.bgImg.Visible  = false end
-                if e.bgGrad then e.bgGrad.Color = ColorSequence.new(Color3.new(1,1,1)) end
-                e.bg.BackgroundTransparency = 1
-                e.auraStop = Auras.apply(e.bg, desired)
-            end
-        elseif desired then
-            -- aura unchanged but the baseline reset above re-enabled the
-            -- stroke / fill; force them off again so the aura is the only ring.
-            if e.stroke then e.stroke.Enabled = false end
-            if e.bgImg  then e.bgImg.Visible  = false end
-            e.bg.BackgroundTransparency = 1
-        end
-    end
 end
 
 
