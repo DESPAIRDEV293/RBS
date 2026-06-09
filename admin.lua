@@ -2541,6 +2541,7 @@ local function refreshBill(p)
         pcall(e.auraStop); e.auraStop = nil; e.auraName = nil
     end
     if e.stroke then e.stroke.Enabled = true end
+    if e.bgGrad then e.bgGrad.Enabled = true end
     if e.bg then e.bg.BackgroundTransparency = 0 end
 
     -- Default everyone to anonymous "user" unless an admin set an override.
@@ -2836,7 +2837,9 @@ local function refreshBill(p)
         e.stroke.Color = oc
     end
 
-    -- Bubble fill: solid / split / gradient / image
+    -- Bubble fill: solid / split / gradient / image. UIGradient is enabled
+    -- ONLY when actually rendering a gradient — for solid fills we paint
+    -- BackgroundColor3 directly so a flat color always renders cleanly.
     if e.bgGrad then
         local fill = parseFill(cfg and cfg.color)
         if fill and fill.kind == "image" then
@@ -2845,10 +2848,11 @@ local function refreshBill(p)
                 e.bgImg.ImageTransparency = 0
                 e.bgImg.Visible = true
             end
+            e.bgGrad.Enabled = false
             e.bg.BackgroundTransparency = 1
-            e.bgGrad.Color = ColorSequence.new(Color3.new(1, 1, 1))
         elseif fill and fill.kind == "gradient" then
             if e.bgImg then e.bgImg.Visible = false end
+            e.bgGrad.Enabled  = true
             e.bgGrad.Rotation = fill.rotation or 90
             local n = #fill.stops
             local kps = {}
@@ -2861,6 +2865,7 @@ local function refreshBill(p)
             e.bg.BackgroundTransparency = 0
         elseif fill and fill.kind == "split" then
             if e.bgImg then e.bgImg.Visible = false end
+            e.bgGrad.Enabled  = true
             e.bgGrad.Rotation = 0
             e.bgGrad.Color = ColorSequence.new({
                 ColorSequenceKeypoint.new(0,     fill.c1),
@@ -2872,16 +2877,19 @@ local function refreshBill(p)
             e.bg.BackgroundTransparency = 0
         elseif fill and fill.kind == "solid" then
             if e.bgImg then e.bgImg.Visible = false end
-            e.bgGrad.Rotation = 90
-            e.bgGrad.Color = ColorSequence.new(fill.c, fill.c)
-            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+            -- paint solid colors directly on BackgroundColor3 — bypasses the
+            -- UIGradient so the pill reliably shows the user's exact hex.
+            e.bgGrad.Enabled = false
+            e.bg.BackgroundColor3    = fill.c
             e.bg.BackgroundTransparency = 0
         else
             if e.bgImg then e.bgImg.Visible = false end
+            -- Default dark gradient when no per-entry color is set.
+            e.bgGrad.Enabled  = true
             e.bgGrad.Rotation = 90
             e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
-            e.bg.BackgroundColor3 = T.bg
-            e.bg.BackgroundTransparency = 0.1
+            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+            e.bg.BackgroundTransparency = 0
         end
     end
 
