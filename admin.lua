@@ -1767,26 +1767,39 @@ end
 -- Local persistence: any tag the owner saves/deletes in the in-game panel is
 -- written to disk so it survives rejoin even if the pastebin doesn't have it.
 -- Local overrides take priority over the pastebin entry for the same username.
-local TAGS_LOCAL_FILE = "seige_tags_overrides.json"
--- One-time wipe: clear any tags persisted by previous script runs so every
--- user starts from a clean slate after the v2 pill rewrite. Gated by a
--- marker file so it only runs once per executor install.
+--
+-- IMPORTANT: scope the file per-LocalPlayer UserId so tags saved while user A
+-- is logged in do NOT leak into user B's session on the same machine. Older
+-- script versions used a single shared file ("seige_tags_overrides.json")
+-- which caused exactly that bleed-over (e.g. "displayName (username)" stub
+-- entries from another user showing up after fresh injection).
+local TAGS_LOCAL_FILE = ("seige_tags_overrides_%d.json"):format(LP and LP.UserId or 0)
+-- One-time cleanup: nuke the legacy shared file + any stale per-user files
+-- from the v2 era so every fresh injection starts from a known clean slate.
+-- Gated by a per-user marker so we only do this once per executor install.
 do
     local isfile   = rawget(getfenv(), "isfile")
     local writefile = rawget(getfenv(), "writefile")
     local delfile  = rawget(getfenv(), "delfile")
-    local WIPE_MARKER = "seige_tags_wiped_v2"
+    local WIPE_MARKER = ("seige_tags_wiped_v3_%d"):format(LP and LP.UserId or 0)
     if isfile and writefile then
         local okMark, hasMark = pcall(isfile, WIPE_MARKER)
         if not (okMark and hasMark) then
-            -- nuke local overrides
+            -- nuke the legacy shared file (pre-per-user scoping)
+            local LEGACY = "seige_tags_overrides.json"
+            local okL, hasL = pcall(isfile, LEGACY)
+            if okL and hasL then
+                if delfile then pcall(delfile, LEGACY)
+                else pcall(writefile, LEGACY, "{}") end
+            end
+            -- nuke this user's own override file too, so injection = clean slate
             local okExists, exists = pcall(isfile, TAGS_LOCAL_FILE)
             if okExists and exists then
                 if delfile then pcall(delfile, TAGS_LOCAL_FILE)
                 else pcall(writefile, TAGS_LOCAL_FILE, "{}") end
             end
             pcall(writefile, WIPE_MARKER, tostring(os.time()))
-            print("[Tags] cleared local tag overrides (v2 wipe)")
+            print("[Tags] cleared local tag overrides (v3 per-user wipe)")
         end
     end
 end
