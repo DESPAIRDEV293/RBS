@@ -6789,7 +6789,24 @@ button(pgCmds, "Character  —  reset / refresh / click-TP", function()
             task.wait(0.6)
             LP.CharacterAdded:Wait():WaitForChild("HumanoidRootPart").CFrame = cf
         end)
-        toggle(body, "Click teleport (Ctrl + click)", clickTp, function(s) clickTp = s end)
+        toggle(body, "Click teleport (hold key + click)", clickTp, function(s) clickTp = s end)
+        local awaitingCtp = false
+        local ctpBtn
+        ctpBtn = button(body, "Hold key: " .. _G.__ClickTpKey.Name .. "  (click to set)", function()
+            awaitingCtp = not awaitingCtp
+            ctpBtn.Text = awaitingCtp and "Press any key…" or ("Hold key: " .. _G.__ClickTpKey.Name .. "  (click to set)")
+        end)
+        local ctpConn = UIS.InputBegan:Connect(function(i, gp)
+            if not awaitingCtp or gp then return end
+            if i.UserInputType == Enum.UserInputType.Keyboard then
+                _G.__ClickTpKey = i.KeyCode
+                awaitingCtp = false
+                ctpBtn.Text = "Hold key: " .. i.KeyCode.Name .. "  (click to set)"
+            end
+        end)
+        body.AncestryChanged:Connect(function()
+            if not body.Parent then pcall(function() ctpConn:Disconnect() end) end
+        end)
     end)
 end)
 
