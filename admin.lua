@@ -12420,6 +12420,34 @@ end)()
     end)
 
     -- Heartbeat: publish presence + refresh UI every 30s
+    local function presenceTick()
+        local list = getList()
+        local now = os.time()
+        local out = {}
+        for _, e in ipairs(list) do
+            if type(e) == "table" and e.userId and tonumber(e.userId) ~= LP.UserId
+               and (now - (tonumber(e.ts) or 0)) < 180 then
+                out[#out+1] = e
+            end
+        end
+        out[#out+1] = {
+            userId = LP.UserId, name = LP.Name, displayName = LP.DisplayName,
+            placeId = game.PlaceId, jobId = game.JobId, gameName = myGameName,
+            ts = now,
+        }
+        pcall(putList, out)
+        pcall(renderList, out)
+        local set = {}
+        local myJob = tostring(game.JobId or "")
+        for _, e in ipairs(out) do
+            if type(e) == "table" and e.userId and tostring(e.jobId or "") == myJob then
+                set[tonumber(e.userId)] = true
+            end
+        end
+        _G.__SeigeScripters = set
+        if _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
+    end
+    _G.__SeigePresenceRefresh = function() task.spawn(presenceTick) end
     task.spawn(function()
         while _G.__AdminLoaded do
             local list = getList()
