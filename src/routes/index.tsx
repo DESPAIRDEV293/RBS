@@ -198,7 +198,7 @@ function Index() {
           <span className="font-mono text-indigo-300/70">v.beta</span>
         </footer>
 
-        <p className="relative z-10 mx-auto max-w-4xl px-6 pb-8 text-center text-[11px] text-slate-500/50">
+        <p className="text-center text-[11px] text-slate-500/50">
           Using these scripts in Roblox is a risk. We aren't responsible for bans and account deletion.
         </p>
       </main>
