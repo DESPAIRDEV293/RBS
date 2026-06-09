@@ -123,8 +123,7 @@ function Index() {
             Seige <span className="storm-title-accent">Loadstring</span>
           </h1>
           <p className="max-w-2xl text-base leading-relaxed text-slate-300/85">
-            Always-fresh Roblox admin loader. Tags, fixes, and shader presets sync
-            from the newest preview build — no GitHub raw cache lag.
+            your script your way
           </p>
         </header>
 
