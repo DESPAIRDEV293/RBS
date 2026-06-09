@@ -1775,6 +1775,17 @@ local function parseFill(s)
         return nil
     end
 end
+
+local function tagAccentFromFill(raw)
+    local fill = parseFill(raw)
+    if fill then
+        if fill.kind == "solid" then return fill.c end
+        if fill.kind == "split" then return fill.c1 end
+        if fill.kind == "gradient" and fill.stops and fill.stops[1] then return fill.stops[1] end
+    end
+    local c1 = parseColorPair(raw)
+    return c1
+end
 function TagDB:configFor(p)
     if not p then return nil end
     local byName = self.entries[(p.Name or ""):lower()]
@@ -2920,7 +2931,10 @@ local function refreshBill(p)
 
     -- Side chip / color (supports single hex or "#aaa/#bbb" split)
     local c1, c2 = nil, nil
-    if cfg and cfg.color then c1, c2 = parseColorPair(cfg.color) end
+    if cfg and cfg.color then
+        c1, c2 = parseColorPair(cfg.color)
+        c1 = c1 or tagAccentFromFill(cfg.color)
+    end
     local txt = Tags:summary(p.UserId)
     -- owner-only custom chip text override
     if cfg and cfg.customText and cfg.customText ~= "" then txt = cfg.customText end
