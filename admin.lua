@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-r15-fling"
+local ADMIN_BUILD = "2026-06-09-unheadsit-tprj-fix"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -9823,16 +9823,56 @@ cmdHandlers["rj"] = function()
 end
 cmdHandlers["tprj"] = function()
     local h = hrp()
-    if h then
-        local c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12 = h.CFrame:GetComponents()
-        local restore = string.format(
-            "task.spawn(function() local p=game:GetService('Players').LocalPlayer local cf=CFrame.new(%.4f,%.4f,%.4f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f) local function apply(c) local r=c:WaitForChild('HumanoidRootPart',10) if r then task.wait(0.4) for i=1,8 do pcall(function() r.CFrame=cf end) task.wait(0.15) end end end local c=p.Character or p.CharacterAdded:Wait() apply(c) p.CharacterAdded:Connect(apply) end)",
-            c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12)
-        local q = (syn and syn.queue_on_teleport)
-            or rawget(getfenv(), "queue_on_teleport")
-            or (fluxus and fluxus.queue_on_teleport)
-            or (getgenv and getgenv().queue_on_teleport)
-        if q then pcall(q, restore) else notify("Your executor lacks queue_on_teleport — position won't restore", "warn") end
+    if not h then notify("No character to snapshot", "bad"); return end
+    local c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12 = h.CFrame:GetComponents()
+    -- Robust position restore for the next server:
+    --  • waits for the character + humanoid to fully load
+    --  • anchors the HRP so spawn logic can't shove us back
+    --  • holds the CFrame for ~6 seconds across every CharacterAdded
+    --  • unanchors cleanly so movement works after
+    local restore = string.format([[
+task.spawn(function()
+    local p = game:GetService('Players').LocalPlayer
+    local cf = CFrame.new(%.4f,%.4f,%.4f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)
+    local function apply(c)
+        local r = c:WaitForChild('HumanoidRootPart', 15)
+        local hum = c:FindFirstChildOfClass('Humanoid') or c:WaitForChild('Humanoid', 5)
+        if not r then return end
+        -- wait until the humanoid actually owns the root (avoids "in-falling" snap)
+        for _ = 1, 30 do
+            if hum and hum.RootPart == r and r.Parent then break end
+            task.wait(0.1)
+        end
+        task.wait(0.25)
+        local wasAnchored = r.Anchored
+        r.Anchored = true
+        local t0 = tick()
+        while tick() - t0 < 6 do
+            if not r.Parent then return end
+            pcall(function() r.CFrame = cf end)
+            pcall(function()
+                r.AssemblyLinearVelocity  = Vector3.zero
+                r.AssemblyAngularVelocity = Vector3.zero
+            end)
+            task.wait(0.1)
+        end
+        pcall(function() r.Anchored = wasAnchored end)
+    end
+    local c = p.Character or p.CharacterAdded:Wait()
+    apply(c)
+    p.CharacterAdded:Connect(apply)
+end)
+]], c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12)
+
+    local q = (syn and syn.queue_on_teleport)
+        or rawget(getfenv(), "queue_on_teleport")
+        or (fluxus and fluxus.queue_on_teleport)
+        or (getgenv and getgenv().queue_on_teleport)
+    if q then
+        local okQ, errQ = pcall(q, restore)
+        if not okQ then notify("queue_on_teleport failed: " .. tostring(errQ), "bad") end
+    else
+        notify("Your executor lacks queue_on_teleport — position won't restore", "warn")
     end
     notify("Teleport rejoin (restoring position)...", "good")
     local ok = pcall(function()
@@ -9898,17 +9938,49 @@ cmdHandlers["unhead"] = function()
     end
 end
 cmdHandlers["unheadsit"] = function()
-    local h = hum()
-    local r = hrp()
+    -- 1) If WE are the one sitting on someone's head, kill the head-lock loop first.
+    --    Without this, the heartbeat re-clamps us back onto the target's head
+    --    every frame and the "stand up" never sticks.
+    if _G.__HeadLock then
+        if _G.__HeadLock.conn then pcall(function() _G.__HeadLock.conn:Disconnect() end) end
+        _G.__HeadLock = nil
+    end
+
+    local mychar = LP.Character
+    local h  = mychar and mychar:FindFirstChildOfClass("Humanoid")
+    local r  = mychar and mychar:FindFirstChild("HumanoidRootPart")
     if h then
-        h.Sit = false
-        h.Jump = true
+        h.Sit          = false
+        h.PlatformStand = false
+        h.Jump         = true
     end
+    -- 2) Eject ourselves: detach any SeatWeld parented to the HRP and pop upward.
     if r then
-        pcall(function() r.Velocity = Vector3.new(0, 50, 0) end)
-        pcall(function() r.CFrame = r.CFrame + Vector3.new(0, 6, 0) end)
+        for _, w in ipairs(r:GetChildren()) do
+            if w:IsA("Weld") and (w.Name == "SeatWeld" or w.Part0 and w.Part0:IsA("Seat")) then
+                pcall(function() w:Destroy() end)
+            end
+        end
+        pcall(function()
+            r.AssemblyLinearVelocity  = Vector3.new(0, 60, 0)
+            r.AssemblyAngularVelocity = Vector3.zero
+            r.CFrame = r.CFrame + Vector3.new(0, 8, 0)
+        end)
     end
-    notify("Headsit broken — player shaken off", "good")
+
+    -- 3) If SOMEONE ELSE is sitting on OUR head, shove them off. We can't move
+    --    their body (no network ownership), but we can yank our head out from
+    --    under them — drop into the floor briefly, then pop back up. The rider
+    --    loses their anchor frame and falls off.
+    if r then
+        local saved = r.CFrame
+        pcall(function() r.CFrame = saved - Vector3.new(0, 12, 0) end)
+        task.wait(0.15)
+        pcall(function() r.CFrame = saved + Vector3.new(0, 4, 0) end)
+        if h then h.Jump = true end
+    end
+
+    notify("Headsit cleared — rider ejected", "good")
 end
 cmdHandlers["bang"] = function(arg)
     local target = findPlr(arg)
