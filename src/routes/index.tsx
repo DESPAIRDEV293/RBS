@@ -194,7 +194,7 @@ function Index() {
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400/70">
-          <span>⛈  storm-grade · live tag sync</span>
+          <span>⛈  storm-grade · Real time syncing</span>
           <span className="font-mono text-indigo-300/70">v.live</span>
         </footer>
       </main>
