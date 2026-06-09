@@ -2024,16 +2024,15 @@ function TagDB:load()
         src = game:HttpGet(TAGS_DB_URL .. "?v=" .. tostring(os.time()))
     end)
     if not src then
-        warn("[Tags] DB fetch failed — using local overrides only")
+        warn("[Tags] DB fetch failed — using empty tag DB")
         self.entries = {}
-        self:mergeLocal()
         return
     end
     local fn, err = loadstring(src)
-    if not fn then warn("[Tags] compile: " .. tostring(err)); self.entries = {}; self:mergeLocal(); return end
+    if not fn then warn("[Tags] compile: " .. tostring(err)); self.entries = {}; return end
     local ok, data = pcall(fn)
     if not ok or type(data) ~= "table" then
-        warn("[Tags] eval failed: " .. tostring(data)); self.entries = {}; self:mergeLocal(); return
+        warn("[Tags] eval failed: " .. tostring(data)); self.entries = {}; return
     end
     local entries = {}
     for k, v in pairs(data) do
@@ -4088,12 +4087,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         end)
     end)
 
-    button(pgTags, "Reapply my saved tags", function()
+    button(pgTags, "Reapply current tag data", function()
         task.spawn(function()
-            -- Re-merge per-user save file over the in-memory DB, then
-            -- fully tear down + rebuild every player's tag bubble so colors
-            -- and image fills render from the saved data.
-            local n = TagDB:mergeLocal() or 0
+            -- Fully tear down + rebuild every player's tag bubble from the
+            -- current GitHub/cache data. Local override files are ignored.
             TagDB.appliedTags  = {}
             TagDB.appliedIcons = {}
             for _, p in ipairs(Players:GetPlayers()) do
@@ -4106,7 +4103,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 pcall(buildBill, p)
             end
             pcall(rebuildList)
-            notify(("Reapplied %d saved tag(s)"):format(n), "good")
+            notify("Reapplied current tag data", "good")
         end)
     end)
 
