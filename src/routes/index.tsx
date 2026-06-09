@@ -119,25 +119,11 @@ function Index() {
           </p>
         </header>
 
-        {/* glass card with droplets */}
+        {/* glass card */}
         <section className="storm-card relative overflow-hidden rounded-2xl p-6 sm:p-7">
           <div className="storm-card-glow absolute inset-0 pointer-events-none" />
-          {/* droplets on the glass */}
-          <div className="absolute inset-0 pointer-events-none">
-            {DROPLETS.map((d, i) => (
-              <span
-                key={i}
-                className="storm-droplet"
-                style={{
-                  top: `${d.top}%`,
-                  left: `${d.left}%`,
-                  width: `${d.size}px`,
-                  height: `${d.size * 1.15}px`,
-                  animationDelay: `${d.delay}s`,
-                }}
-              />
-            ))}
-          </div>
+
+
 
           <div className="relative flex items-center justify-between gap-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-indigo-200/70">
