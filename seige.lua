@@ -1,6 +1,6 @@
 -- seige.lol — live-sync Roblox Admin loader
 -- Run:
---   loadstring(game:HttpGet("https://seigelollua.lovable.app/api/public/admin.lua?fresh=" .. tostring(os.time())))()
+--   loadstring(game:HttpGet("https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/admin.lua?fresh=" .. tostring(os.time())))()
 
 local OWNER, REPO, BRANCH, FILE = "DESPAIRDEV293", "roblox-script-buddy", "main", "admin.lua"
 local BRAND = "seige.lol"

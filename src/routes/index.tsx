@@ -22,7 +22,7 @@ function Index() {
           <p className="text-sm font-semibold uppercase tracking-normal text-muted-foreground">seige.lol</p>
           <h1 className="text-4xl font-bold tracking-normal sm:text-5xl">Seige Loadstring</h1>
           <p className="max-w-2xl text-base text-muted-foreground">
-            Use this live endpoint so script and tag fixes load from the newest published build instead of cached GitHub raw files.
+            Use this live endpoint so script and tag fixes load from the newest preview build instead of cached GitHub raw files.
           </p>
         </section>
 
