@@ -9211,7 +9211,7 @@ local function makePanel(name, entry)
         Name = "Panel_" .. name,
         Position = UDim2.new(1, -350 - slotX * 14, 0, 80 + slotY * 32),
         Size = UDim2.new(0, 320, 0, 380),
-        BackgroundColor3 = T.bg, BackgroundTransparency = 0.04, BorderSizePixel = 0,
+        BackgroundColor3 = T.bg, BackgroundTransparency = (_G.__SeigeUITrans or 0.35), BorderSizePixel = 0,
         Visible = false, Active = true, ZIndex = 110,
     })
     corner(frame, 12); stroke(frame, T.line, 1, 0.4)
