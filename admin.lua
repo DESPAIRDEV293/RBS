@@ -44,7 +44,14 @@ local T = {
     good   = Color3.fromRGB(96, 220, 150),
     warn   = Color3.fromRGB(235, 190, 80),
     bad    = Color3.fromRGB(235, 90, 110),
+    -- Silver glass + magenta pill palette (panel makeover)
+    silver   = Color3.fromRGB(190, 196, 210),
+    silverHi = Color3.fromRGB(232, 236, 244),
+    silverLo = Color3.fromRGB(120, 126, 140),
+    pink     = Color3.fromRGB(255, 120, 170),
+    magenta  = Color3.fromRGB(220, 70, 150),
 }
+
 
 ------------------------------------------------------- UTILITY
 local function inst(class, parent, props)
