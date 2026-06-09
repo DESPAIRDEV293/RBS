@@ -11,9 +11,8 @@ export const Route = createFileRoute("/api/public/admin.lua")({
           status: 200,
           headers: {
             "content-type": "text/plain; charset=utf-8",
-            // Roblox executors don't honor caching, but proxies do — keep it
-            // short so edits ship quickly on rejoin.
-            "cache-control": "public, max-age=30, must-revalidate",
+            // Always serve the newest bundled script after panel/tag fixes.
+            "cache-control": "no-store, max-age=0",
             "access-control-allow-origin": "*",
           },
         });

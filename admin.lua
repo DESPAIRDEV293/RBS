@@ -3950,8 +3950,13 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         -- handlers can miss the very last edit if the user clicks Save before
         -- defocus, which would drop fields from the export.
         local function trimStr(s) return (tostring(s or ""):gsub("^%s+",""):gsub("%s+$","")) end
-        local function pick(formVal, tbText) return trimStr(formVal ~= "" and formVal or tbText) end
-        local u = pick(form.username, tbUser.Text)
+        local function pick(_formVal, tbText)
+            -- The textbox is the truth. The old code accidentally preferred
+            -- cached form values first, so a quick Save could reuse the old
+            -- color/fill even though the visible box showed Cosmic/custom fill.
+            return trimStr(tbText)
+        end
+        local u = pick(form.username, tbUser.Text):gsub("^@", "")
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
         local entry = {}
@@ -4217,9 +4222,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if wf then pcall(wf, PB_CFG_FILE, HttpService:JSONEncode(pbCfg)) end
     end
 
-    -- Use the stable dev endpoint so the Roblox script gets the newest sync
-    -- route immediately after edits, without waiting on a manual publish.
-    local BOT_URL  = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/pastebin"
+    -- Save through the same published host the loader reads from. This avoids
+    -- preview/dev-domain bot pages being mistaken for a successful GitHub save.
+    local BOT_URL  = "https://seigelollua.lovable.app/api/public/pastebin"
     local BOT_AUTH = "1f0957eaf8dd4ed89bb594440220eb4c"
 
     local function pushToGithub(silent)
@@ -4267,6 +4272,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 return game:HttpGet(getUrl, true)
             end)
         end
+        local function savedOk(body)
+            local ok, data = pcall(function() return HttpService:JSONDecode(tostring(body or "")) end)
+            return ok and type(data) == "table" and data.ok == true
+        end
         local status, txt = 0, ""
         if req then
             local ok, res = pcall(req, { Url = writeUrl, Method = "POST", Headers = headers, Body = payload })
@@ -4300,7 +4309,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 txt = res
             end
         end
-        if status >= 200 and status < 300 then
+        if status >= 200 and status < 300 and savedOk(txt) then
             if not silent then notify("Pushed to GitHub gist", "good") end
             return true, "ok"
         end
@@ -4457,7 +4466,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     end
 
     button(pgNtTags, "Save / Update entry", function()
-        local u = _trim(ntUser.Text)
+        local u = _trim(ntUser.Text):gsub("^@", "")
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
         -- Start from existing entry so we preserve fields NT can't edit
