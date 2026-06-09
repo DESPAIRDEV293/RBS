@@ -8049,9 +8049,53 @@ local function applyShader(preset)
         fxDOF.Enabled = true; fxDOF.FocusDistance = 50; fxDOF.InFocusRadius = 25; fxDOF.FarIntensity = 0.3; fxDOF.NearIntensity = 0.05
         fxBlur.Enabled = false
         fxSun.Enabled = true; fxSun.Intensity = 0.15; fxSun.Spread = 0.9
+    elseif preset == "8K Photoreal" then
+        -- next-tier upgrade of 4K Ultra: razor-sharp, neutral, balanced HDR feel
+        fxBlur.Enabled = false
+        fxColor.Enabled = true
+        fxColor.Brightness = 0.02
+        fxColor.Contrast   = 0.34
+        fxColor.Saturation = 0.32
+        fxColor.TintColor  = Color3.fromRGB(255, 252, 248)
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.45; fxBloom.Size = 16; fxBloom.Threshold = 1.25
+        fxSun.Enabled = true; fxSun.Intensity = 0.22; fxSun.Spread = 0.95
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 80; fxDOF.InFocusRadius = 55; fxDOF.FarIntensity = 0.3; fxDOF.NearIntensity = 0.04
+        pcall(function()
+            Lighting.GlobalShadows = true; Lighting.ShadowSoftness = 0.15
+            Lighting.EnvironmentDiffuseScale = 1; Lighting.EnvironmentSpecularScale = 1
+            Lighting.Technology = Enum.Technology.Future
+        end)
+    elseif preset == "Anime" then
+        fxBlur.Enabled = false
+        fxColor.Enabled = true; fxColor.Saturation = 0.8; fxColor.Contrast = 0.25; fxColor.Brightness = 0.05
+        fxColor.TintColor = Color3.fromRGB(255, 245, 255)
+        fxBloom.Enabled = true; fxBloom.Intensity = 1.2; fxBloom.Size = 28; fxBloom.Threshold = 0.85
+        fxSun.Enabled = true; fxSun.Intensity = 0.4; fxSun.Spread = 1
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 35; fxDOF.InFocusRadius = 16; fxDOF.FarIntensity = 0.45; fxDOF.NearIntensity = 0.1
+    elseif preset == "Retro CRT" then
+        fxColor.Enabled = true; fxColor.Saturation = -0.05; fxColor.Contrast = 0.4; fxColor.Brightness = -0.06
+        fxColor.TintColor = Color3.fromRGB(220, 235, 220)
+        fxBloom.Enabled = true; fxBloom.Intensity = 1.0; fxBloom.Size = 36; fxBloom.Threshold = 0.65
+        fxBlur.Enabled = true; fxBlur.Size = 2
+        fxSun.Enabled = false
+        fxDOF.Enabled = false
+    elseif preset == "Underwater" then
+        fxColor.Enabled = true; fxColor.Saturation = 0.2; fxColor.Contrast = 0.1; fxColor.Brightness = -0.05
+        fxColor.TintColor = Color3.fromRGB(90, 170, 220)
+        fxBlur.Enabled = true; fxBlur.Size = 8
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.6; fxBloom.Size = 30; fxBloom.Threshold = 0.95
+        fxSun.Enabled = true; fxSun.Intensity = 0.5; fxSun.Spread = 1
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 20; fxDOF.InFocusRadius = 8; fxDOF.FarIntensity = 0.7; fxDOF.NearIntensity = 0.25
+    elseif preset == "Horror" then
+        fxColor.Enabled = true; fxColor.Saturation = -0.6; fxColor.Contrast = 0.45; fxColor.Brightness = -0.18
+        fxColor.TintColor = Color3.fromRGB(180, 190, 200)
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.3; fxBloom.Size = 18; fxBloom.Threshold = 1.4
+        fxBlur.Enabled = true; fxBlur.Size = 3
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 22; fxDOF.InFocusRadius = 6; fxDOF.FarIntensity = 0.85; fxDOF.NearIntensity = 0.3
+        fxSun.Enabled = false
     end
 end
-for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant","4K Ultra","Pink","Molten","Matrix","Cyberpunk","Golden Hour","Vaporwave","Winter"}) do
+for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant","4K Ultra","8K Photoreal","Anime","Retro CRT","Underwater","Horror","Pink","Molten","Matrix","Cyberpunk","Golden Hour","Vaporwave","Winter"}) do
     button(pgShaders, name, function() applyShader(name) end)
 end
 end -- end shaders scope
