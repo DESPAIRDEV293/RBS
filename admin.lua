@@ -3433,11 +3433,26 @@ local function rebuildBills()
     clearBills()
     -- LP's tag always shown
     buildBill(LP)
-    if not floatOn then return end
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP then buildBill(p) end
+        if p ~= LP then
+            if floatOn or (scriptersOn and isScripter(p)) or TagDB:configFor(p) then
+                buildBill(p)
+            end
+        end
     end
 end
+-- Incremental update: add/remove bills based on the current scripter set so
+-- newly detected seige.lol users in the server get a tag without rebuilding
+-- everyone (avoids the glitchy flash from clearBills()).
+local function syncScripterBills()
+    if not scriptersOn then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP and isScripter(p) and not tagBills[p] and pchar(p) then
+            pcall(buildBill, p)
+        end
+    end
+end
+_G.__SeigeSyncScripterBills = syncScripterBills
 -- Floating tag visibility and icons are now controlled by the script DB (tags.lua)
 -- and the bottom-right "Enable player tags" prompt.
 
