@@ -2438,9 +2438,10 @@ local infJump = false
 bind(UIS.JumpRequest:Connect(function() if infJump then local h = hum(); if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end end end))
 
 local clickTp = false
+_G.__ClickTpKey = _G.__ClickTpKey or Enum.KeyCode.LeftShift
 bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
-    if i.UserInputType == Enum.UserInputType.MouseButton1 and clickTp and UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+    if i.UserInputType == Enum.UserInputType.MouseButton1 and clickTp and UIS:IsKeyDown(_G.__ClickTpKey) then
         if mouse.Hit and hrp() then hrp().CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0)) end
     end
 end))
