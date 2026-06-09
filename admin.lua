@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-pill-redesign-v7"
+local ADMIN_BUILD = "2026-06-09-bypass-shaders-jrs"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -6302,6 +6302,8 @@ local HELP_CMDS = {
     { "Rejoin & teleport", {
         { "!rj", "Rejoin the same place (new server)" },
         { "!tprj", "Rejoin THIS server and restore your position via queue_on_teleport" },
+        { "!randomserver / !jrs / !hop", "Join a random public server" },
+        { "!bypass <msg>", "Send chat that bypasses the censor (no ### replacement)" },
         
     }},
     { "Character", {
@@ -8049,9 +8051,53 @@ local function applyShader(preset)
         fxDOF.Enabled = true; fxDOF.FocusDistance = 50; fxDOF.InFocusRadius = 25; fxDOF.FarIntensity = 0.3; fxDOF.NearIntensity = 0.05
         fxBlur.Enabled = false
         fxSun.Enabled = true; fxSun.Intensity = 0.15; fxSun.Spread = 0.9
+    elseif preset == "8K Photoreal" then
+        -- next-tier upgrade of 4K Ultra: razor-sharp, neutral, balanced HDR feel
+        fxBlur.Enabled = false
+        fxColor.Enabled = true
+        fxColor.Brightness = 0.02
+        fxColor.Contrast   = 0.34
+        fxColor.Saturation = 0.32
+        fxColor.TintColor  = Color3.fromRGB(255, 252, 248)
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.45; fxBloom.Size = 16; fxBloom.Threshold = 1.25
+        fxSun.Enabled = true; fxSun.Intensity = 0.22; fxSun.Spread = 0.95
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 80; fxDOF.InFocusRadius = 55; fxDOF.FarIntensity = 0.3; fxDOF.NearIntensity = 0.04
+        pcall(function()
+            Lighting.GlobalShadows = true; Lighting.ShadowSoftness = 0.15
+            Lighting.EnvironmentDiffuseScale = 1; Lighting.EnvironmentSpecularScale = 1
+            Lighting.Technology = Enum.Technology.Future
+        end)
+    elseif preset == "Anime" then
+        fxBlur.Enabled = false
+        fxColor.Enabled = true; fxColor.Saturation = 0.8; fxColor.Contrast = 0.25; fxColor.Brightness = 0.05
+        fxColor.TintColor = Color3.fromRGB(255, 245, 255)
+        fxBloom.Enabled = true; fxBloom.Intensity = 1.2; fxBloom.Size = 28; fxBloom.Threshold = 0.85
+        fxSun.Enabled = true; fxSun.Intensity = 0.4; fxSun.Spread = 1
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 35; fxDOF.InFocusRadius = 16; fxDOF.FarIntensity = 0.45; fxDOF.NearIntensity = 0.1
+    elseif preset == "Retro CRT" then
+        fxColor.Enabled = true; fxColor.Saturation = -0.05; fxColor.Contrast = 0.4; fxColor.Brightness = -0.06
+        fxColor.TintColor = Color3.fromRGB(220, 235, 220)
+        fxBloom.Enabled = true; fxBloom.Intensity = 1.0; fxBloom.Size = 36; fxBloom.Threshold = 0.65
+        fxBlur.Enabled = true; fxBlur.Size = 2
+        fxSun.Enabled = false
+        fxDOF.Enabled = false
+    elseif preset == "Underwater" then
+        fxColor.Enabled = true; fxColor.Saturation = 0.2; fxColor.Contrast = 0.1; fxColor.Brightness = -0.05
+        fxColor.TintColor = Color3.fromRGB(90, 170, 220)
+        fxBlur.Enabled = true; fxBlur.Size = 8
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.6; fxBloom.Size = 30; fxBloom.Threshold = 0.95
+        fxSun.Enabled = true; fxSun.Intensity = 0.5; fxSun.Spread = 1
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 20; fxDOF.InFocusRadius = 8; fxDOF.FarIntensity = 0.7; fxDOF.NearIntensity = 0.25
+    elseif preset == "Horror" then
+        fxColor.Enabled = true; fxColor.Saturation = -0.6; fxColor.Contrast = 0.45; fxColor.Brightness = -0.18
+        fxColor.TintColor = Color3.fromRGB(180, 190, 200)
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.3; fxBloom.Size = 18; fxBloom.Threshold = 1.4
+        fxBlur.Enabled = true; fxBlur.Size = 3
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 22; fxDOF.InFocusRadius = 6; fxDOF.FarIntensity = 0.85; fxDOF.NearIntensity = 0.3
+        fxSun.Enabled = false
     end
 end
-for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant","4K Ultra","Pink","Molten","Matrix","Cyberpunk","Golden Hour","Vaporwave","Winter"}) do
+for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant","4K Ultra","8K Photoreal","Anime","Retro CRT","Underwater","Horror","Pink","Molten","Matrix","Cyberpunk","Golden Hour","Vaporwave","Winter"}) do
     button(pgShaders, name, function() applyShader(name) end)
 end
 end -- end shaders scope
@@ -10809,7 +10855,7 @@ cmdHandlers["freecam"] = function()
 end
 cmdHandlers["unfreecam"] = cmdHandlers["freecam"]
 
--- 9) Server hop — teleport to a random public server
+-- 9) Server hop — teleport to a RANDOM public server
 cmdHandlers["hop"] = function()
     notify("Searching server...", "good")
     task.spawn(function()
@@ -10819,17 +10865,61 @@ cmdHandlers["hop"] = function()
             return game:GetService("HttpService"):JSONDecode(raw)
         end)
         if ok and list and list.data then
+            local pool = {}
             for _, s in ipairs(list.data) do
-                if s.id ~= game.JobId and s.playing < s.maxPlayers then
-                    pcall(function() TeleportSrv:TeleportToPlaceInstance(game.PlaceId, s.id, LP) end)
-                    return
+                if s.id ~= game.JobId and s.playing and s.maxPlayers and s.playing < s.maxPlayers then
+                    pool[#pool+1] = s.id
                 end
             end
+            if #pool > 0 then
+                local pick = pool[math.random(1, #pool)]
+                pcall(function() TeleportSrv:TeleportToPlaceInstance(game.PlaceId, pick, LP) end)
+                return
+            end
         end
+        notify("No public servers found, doing plain rejoin", "warn")
         pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
     end)
 end
-cmdHandlers["serverhop"] = cmdHandlers["hop"]
+cmdHandlers["serverhop"]    = cmdHandlers["hop"]
+cmdHandlers["randomserver"] = cmdHandlers["hop"]
+cmdHandlers["jrs"]          = cmdHandlers["hop"]
+cmdHandlers["joinrandom"]   = cmdHandlers["hop"]
+
+-- !bypass — send a chat message that bypasses Roblox text censoring
+-- Inserts a zero-width joiner between characters so the filter cannot tokenize
+-- the words while humans still read the text normally (no ### replacement).
+cmdHandlers["bypass"] = function(arg)
+    if not arg or arg == "" then notify("Usage: !bypass <message>", "warn"); return end
+    local zwj = "\226\128\141" -- U+200D zero-width joiner (UTF-8)
+    local out = {}
+    -- walk by UTF-8 codepoints so we don't corrupt multi-byte chars
+    local i = 1
+    while i <= #arg do
+        local b = arg:byte(i)
+        local len = 1
+        if b >= 0xF0 then len = 4
+        elseif b >= 0xE0 then len = 3
+        elseif b >= 0xC0 then len = 2 end
+        out[#out+1] = arg:sub(i, i + len - 1)
+        i = i + len
+    end
+    local payload = table.concat(out, zwj)
+    local TextChat = game:GetService("TextChatService")
+    local sent = pcall(function()
+        local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral") or TextChat.TextChannels:GetChildren()[1]
+        if ch then ch:SendAsync(payload) end
+    end)
+    if not sent then
+        pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents")
+                :WaitForChild("SayMessageRequest"):FireServer(payload, "All")
+        end)
+    end
+    notify("Bypass sent", "good")
+end
+cmdHandlers["bp"]       = cmdHandlers["bypass"]
+cmdHandlers["nocensor"] = cmdHandlers["bypass"]
 
 -- 10) Chat say — send a message in chat from the command bar
 cmdHandlers["say"] = function(arg)
