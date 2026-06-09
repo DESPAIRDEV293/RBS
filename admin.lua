@@ -2966,7 +2966,9 @@ local function buildBill(p)
     local gui = inst("BillboardGui", pchar(p), {
         Name = "SeigeTagBB", Adornee = head,
         Active = true,
-        Size = UDim2.new(0, 240, 0, 46),
+        -- Wrapper matches the compact minimum pill (100x46) + 12px halo on each
+        -- side / 6px top+bottom for aura room. refreshBill resizes to fit text.
+        Size = UDim2.new(0, 124, 0, 58),
         StudsOffset = Vector3.new(0, 1.7, 0),
         AlwaysOnTop = true, LightInfluence = 0,
     })
@@ -2980,7 +2982,7 @@ local function buildBill(p)
     -- Pill is the only visible layer behind the tag content. Fully opaque so
     -- nothing reads as a transparent rectangle behind/around the pill.
     local bg = inst("Frame", gui, {
-        -- Start at the enforced minimum pill size (120x46) centered inside the
+        -- Start at the compact minimum pill size (100x46) centered inside the
         -- BillboardGui wrapper, so the pre-refresh frame doesn't flash a
         -- full-wrapper-width rectangle. refreshBill resizes to actual textW.
         AnchorPoint = Vector2.new(0.5, 0.5),
