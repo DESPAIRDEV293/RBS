@@ -8154,8 +8154,8 @@ for _, k in ipairs(FX_TABS) do
     end)
 end
 
-------------------------------------------------------- SAVE / RESET CONFIG
-section(pgConfig, "Save & Reset")
+------------------------------------------------------- SAVE / RESET CONFIG (impl)
+
 
 snapshotCfg = function()
     local fx = {}
