@@ -771,35 +771,53 @@ showLoadScreen()
 local Win = inst("Frame", Root, {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.5, 0, 0.5, 0),
-    Size = UDim2.new(0, 620, 0, 440),
+    Size = UDim2.new(0, 660, 0, 460),
     BackgroundColor3 = T.bg,
     BackgroundTransparency = 0.05,
     BorderSizePixel = 0,
     Active = true,
 })
-corner(Win, 14)
-stroke(Win, T.line, 1, 0.4)
--- glass gradient
+corner(Win, 20)
+stroke(Win, T.silver, 1, 0.55)
+-- silver glass gradient (subtle sheen across the whole panel)
 inst("UIGradient", Win, {
-    Rotation = 120,
+    Rotation = 130,
     Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, T.bg2),
-        ColorSequenceKeypoint.new(1, T.bg),
+        ColorSequenceKeypoint.new(0, T.silverHi),
+        ColorSequenceKeypoint.new(0.45, T.silver),
+        ColorSequenceKeypoint.new(1, T.silverLo),
     },
-    Transparency = NumberSequence.new(0.08),
+    Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.55),
+        NumberSequenceKeypoint.new(0.5, 0.7),
+        NumberSequenceKeypoint.new(1, 0.55),
+    },
 })
--- soft outer glow
+-- soft outer glow (silver halo, stronger spread)
 local glow = inst("ImageLabel", Win, {
     BackgroundTransparency = 1,
     Image = "rbxasset://textures/ui/Controls/DropShadow.png",
-    ImageColor3 = T.acc,
-    ImageTransparency = 0.85,
+    ImageColor3 = T.silverHi,
+    ImageTransparency = 0.7,
     ScaleType = Enum.ScaleType.Slice,
     SliceCenter = Rect.new(12,12,244,244),
-    Size = UDim2.new(1, 36, 1, 36),
-    Position = UDim2.new(0, -18, 0, -18),
+    Size = UDim2.new(1, 56, 1, 56),
+    Position = UDim2.new(0, -28, 0, -28),
     ZIndex = 0,
 })
+-- inner magenta wash bleeding from the active rail (matches the reference)
+inst("ImageLabel", Win, {
+    BackgroundTransparency = 1,
+    Image = "rbxasset://textures/ui/Controls/DropShadow.png",
+    ImageColor3 = T.magenta,
+    ImageTransparency = 0.88,
+    ScaleType = Enum.ScaleType.Slice,
+    SliceCenter = Rect.new(12,12,244,244),
+    Size = UDim2.new(1, 80, 1, 80),
+    Position = UDim2.new(0, -40, 0, -40),
+    ZIndex = 0,
+})
+
 
 -- Custom background (image / gif via spritesheet) -- lives behind glass
 local Backdrop = inst("ImageLabel", Win, {
