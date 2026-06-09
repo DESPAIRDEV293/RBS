@@ -1709,6 +1709,12 @@ local function parseColor(c)
         -- accept "#aaa/#bbb" — use the first one
         local first = c:match("([^/]+)")
         local hex = (first or c):gsub("#",""):gsub("%s","")
+        -- 8-char w/ alpha: drop the trailing alpha pair so "#ff3b6bff" still works
+        if #hex == 8 then hex = hex:sub(1, 6) end
+        -- 3-char shorthand: "#fa3" -> "#ffaa33"
+        if #hex == 3 then
+            hex = hex:sub(1,1):rep(2) .. hex:sub(2,2):rep(2) .. hex:sub(3,3):rep(2)
+        end
         if #hex == 6 then
             local r = tonumber(hex:sub(1,2), 16)
             local g = tonumber(hex:sub(3,4), 16)
@@ -1717,6 +1723,7 @@ local function parseColor(c)
         end
     end
 end
+
 -- returns (c1, c2) where c2 may be nil. Accepts "#aaa", "#aaa/#bbb"
 local function parseColorPair(c)
     if type(c) ~= "string" then return parseColor(c), nil end
@@ -1794,8 +1801,18 @@ local function parseFill(s)
 end
 function TagDB:configFor(p)
     if not p then return nil end
-    return self.entries[(p.Name or ""):lower()]
+    local byName = self.entries[(p.Name or ""):lower()]
+    if byName then return byName end
+    -- Fallback: try matching by DisplayName so entries saved under the
+    -- player's display name (instead of their username) still bind.
+    local dn = p.DisplayName
+    if dn and dn ~= "" then
+        local byDisplay = self.entries[dn:lower()]
+        if byDisplay then return byDisplay end
+    end
+    return nil
 end
+
 function TagDB:applyTo(p)
     if not p then return end
     local uid = p.UserId
@@ -3022,14 +3039,27 @@ local function refreshBill(p)
             e.bg.BackgroundColor3    = fill.c
             e.bg.BackgroundTransparency = 0
         else
-            if e.bgImg then e.bgImg.Visible = false end
-            -- Default dark gradient when no per-entry color is set.
-            e.bgGrad.Enabled  = true
-            e.bgGrad.Rotation = 90
-            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
-            e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
-            e.bg.BackgroundTransparency = 0
+            -- User typed something we couldn't parse: keep whatever color/image
+            -- is currently on the pill instead of stomping it with the dark
+            -- default, and surface a warn so they see the parse failure.
+            local raw = cfg and cfg.color
+            if raw and tostring(raw):gsub("%s","") ~= "" then
+                if not e._badFillWarned or e._badFillWarned ~= raw then
+                    warn(("[Tags] could not parse color/fill %q for %s — keeping previous pill"):format(tostring(raw), p.Name or "?"))
+                    e._badFillWarned = raw
+                end
+                -- intentionally do nothing — leave e.bgImg / e.bgGrad / e.bg as-is
+            else
+                if e.bgImg then e.bgImg.Visible = false end
+                -- Default dark gradient ONLY when no per-entry color is set.
+                e.bgGrad.Enabled  = true
+                e.bgGrad.Rotation = 90
+                e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
+                e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+                e.bg.BackgroundTransparency = 0
+            end
         end
+
     end
 
     -- Auto-size bubble to hug the visible text. Measure the FULL display name
