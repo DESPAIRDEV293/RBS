@@ -2043,7 +2043,6 @@ function TagDB:load()
             if isJson or count > 0 then
                 self.entries = entries
                 print(("[Tags] GitHub tag DB loaded — %d entries"):format(count))
-                self:mergeLocal()
                 return
             end
         end
@@ -2070,7 +2069,6 @@ function TagDB:load()
     for k, v in pairs(data) do entries[tostring(k):lower()] = stripTagSpecials(v) end
     self.entries = entries
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
-    self:mergeLocal()
 end
 
 
