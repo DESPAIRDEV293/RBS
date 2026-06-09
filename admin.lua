@@ -296,6 +296,7 @@ local HELP_COMMANDS = {
     { perms = {"nt_cmd"},    cmd = "!tagcheck <user>",      desc = "Check if a player has a tag entry" },
     { perms = {"nt_cmd"},    cmd = "!tagfind <keyword>",    desc = "Search tag database by username or tag" },
     { perms = {"nt_cmd"},    cmd = "!tagcolors",            desc = "Show colors used in the tag database" },
+    { perms = {},            cmd = "!reanim",               desc = "Launch the Reanim GUI (purple-storm build)" },
 }
 
 local helpGui = nil
@@ -12172,6 +12173,23 @@ cmdHandlers["tagcolors"] = function()
     table.sort(rows, function(a, b) return a._n > b._n end)
     _openResultPanel("tagcolors", ("Tag colors · %d unique"):format(#rows), rows,
         { empty = "No colors found in tag database.", height = 360 })
+end
+
+-- !reanim — launch the Reanim GUI (purple-storm build). Available to every script user.
+cmdHandlers["reanim"] = function()
+    notify("Loading Reanim…", "good")
+    task.spawn(function()
+        local ok, src = pcall(function()
+            return game:HttpGet("https://seigescript.online/api/public/reanim.lua")
+        end)
+        if not ok or type(src) ~= "string" or src == "" then
+            notify("Reanim fetch failed", "bad"); return
+        end
+        local fn, perr = (loadstring or load)(src, "=reanim")
+        if not fn then notify("Reanim parse error: " .. tostring(perr), "bad"); return end
+        local rok, rerr = pcall(fn)
+        if not rok then notify("Reanim runtime error: " .. tostring(rerr), "bad") end
+    end)
 end
 
 

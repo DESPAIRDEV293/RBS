@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 // Preview-only decoy. The real live loadstring is gated and never shipped to the client.
 // Retyping or copying what is shown here will NOT execute — the URL points nowhere real.
 const loadstringCommand = 'loadstring(game:HttpGet("https://seige.lol/preview/locked"))() --[[ preview only · live build pending ]]';
-const reanimLoadstring = 'loadstring(game:HttpGet("https://seigescript.online/api/public/reanim.lua"))()';
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -92,18 +91,6 @@ function Index() {
   // Also pauses all storm animations when the tab is hidden so we don't waste CPU.
   const [lowFx, setLowFx] = useState(false);
   const [paused, setPaused] = useState(false);
-  const [reanimOpen, setReanimOpen] = useState(false);
-  const [reanimCopied, setReanimCopied] = useState(false);
-
-  const copyReanim = async () => {
-    try {
-      await navigator.clipboard.writeText(reanimLoadstring);
-      setReanimCopied(true);
-      setTimeout(() => setReanimCopied(false), 1800);
-    } catch {
-      /* ignore */
-    }
-  };
 
   useEffect(() => {
     const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
@@ -226,64 +213,6 @@ function Index() {
           <p className="relative mt-4 text-xs text-slate-400/60">
             Script is currently unavailable — check back soon.
           </p>
-        </section>
-
-        {/* Reanim launcher + panel */}
-        <section className="space-y-3">
-          <button
-            type="button"
-            onClick={() => setReanimOpen((v) => !v)}
-            aria-expanded={reanimOpen}
-            className="storm-btn reanim-launcher w-full rounded-2xl px-5 py-4 text-left"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.35em] text-indigo-200/70">
-                  Script
-                </p>
-                <p className="mt-1 text-lg font-bold text-slate-100">Reanim</p>
-                <p className="text-xs text-slate-400/80">
-                  Reanimation toolkit — tap to {reanimOpen ? "hide" : "open"} its panel
-                </p>
-              </div>
-              <span
-                className={`reanim-chev text-indigo-200 transition-transform ${reanimOpen ? "rotate-180" : ""}`}
-                aria-hidden
-              >
-                ▾
-              </span>
-            </div>
-          </button>
-
-          {reanimOpen && (
-            <div className="storm-card reanim-panel relative overflow-hidden rounded-2xl p-6 sm:p-7">
-              <div className="storm-card-glow absolute inset-0 pointer-events-none" />
-              <div className="relative flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-indigo-200/70">
-                    Reanim Loadstring
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400/80">
-                    Paste into your executor — always serves the latest build.
-                  </p>
-                </div>
-                <button
-                  onClick={copyReanim}
-                  className="storm-btn rounded-lg px-3.5 py-1.5 text-xs font-semibold tracking-wide"
-                >
-                  {reanimCopied ? "Copied!" : "Copy"}
-                </button>
-              </div>
-
-              <pre className="relative mt-3 overflow-x-auto rounded-xl border border-white/10 bg-black/50 p-4 text-sm text-indigo-100/90">
-                <code>{reanimLoadstring}</code>
-              </pre>
-
-              <p className="relative mt-4 text-[11px] uppercase tracking-[0.25em] text-indigo-300/70">
-                ⛧ Reanim · purple-storm build
-              </p>
-            </div>
-          )}
         </section>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400/70">
