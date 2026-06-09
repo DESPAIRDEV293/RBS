@@ -12193,6 +12193,7 @@ cmdHandlers["reanim"] = function()
 end
 
 
+local function runBarCmd(raw)
     if not raw or raw == "" then return end
     local s = raw:gsub("^%s+", ""):gsub("%s+$", "")
     s = s:gsub("^[!:;]+", "")
