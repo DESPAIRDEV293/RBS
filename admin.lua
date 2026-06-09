@@ -44,7 +44,14 @@ local T = {
     good   = Color3.fromRGB(96, 220, 150),
     warn   = Color3.fromRGB(235, 190, 80),
     bad    = Color3.fromRGB(235, 90, 110),
+    -- Silver glass + magenta pill palette (panel makeover)
+    silver   = Color3.fromRGB(190, 196, 210),
+    silverHi = Color3.fromRGB(232, 236, 244),
+    silverLo = Color3.fromRGB(120, 126, 140),
+    pink     = Color3.fromRGB(255, 120, 170),
+    magenta  = Color3.fromRGB(220, 70, 150),
 }
+
 
 ------------------------------------------------------- UTILITY
 local function inst(class, parent, props)
@@ -764,35 +771,53 @@ showLoadScreen()
 local Win = inst("Frame", Root, {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.5, 0, 0.5, 0),
-    Size = UDim2.new(0, 620, 0, 440),
+    Size = UDim2.new(0, 660, 0, 460),
     BackgroundColor3 = T.bg,
     BackgroundTransparency = 0.05,
     BorderSizePixel = 0,
     Active = true,
 })
-corner(Win, 14)
-stroke(Win, T.line, 1, 0.4)
--- glass gradient
+corner(Win, 20)
+stroke(Win, T.silver, 1, 0.55)
+-- silver glass gradient (subtle sheen across the whole panel)
 inst("UIGradient", Win, {
-    Rotation = 120,
+    Rotation = 130,
     Color = ColorSequence.new{
-        ColorSequenceKeypoint.new(0, T.bg2),
-        ColorSequenceKeypoint.new(1, T.bg),
+        ColorSequenceKeypoint.new(0, T.silverHi),
+        ColorSequenceKeypoint.new(0.45, T.silver),
+        ColorSequenceKeypoint.new(1, T.silverLo),
     },
-    Transparency = NumberSequence.new(0.08),
+    Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.55),
+        NumberSequenceKeypoint.new(0.5, 0.7),
+        NumberSequenceKeypoint.new(1, 0.55),
+    },
 })
--- soft outer glow
+-- soft outer glow (silver halo, stronger spread)
 local glow = inst("ImageLabel", Win, {
     BackgroundTransparency = 1,
     Image = "rbxasset://textures/ui/Controls/DropShadow.png",
-    ImageColor3 = T.acc,
-    ImageTransparency = 0.85,
+    ImageColor3 = T.silverHi,
+    ImageTransparency = 0.7,
     ScaleType = Enum.ScaleType.Slice,
     SliceCenter = Rect.new(12,12,244,244),
-    Size = UDim2.new(1, 36, 1, 36),
-    Position = UDim2.new(0, -18, 0, -18),
+    Size = UDim2.new(1, 56, 1, 56),
+    Position = UDim2.new(0, -28, 0, -28),
     ZIndex = 0,
 })
+-- inner magenta wash bleeding from the active rail (matches the reference)
+inst("ImageLabel", Win, {
+    BackgroundTransparency = 1,
+    Image = "rbxasset://textures/ui/Controls/DropShadow.png",
+    ImageColor3 = T.magenta,
+    ImageTransparency = 0.88,
+    ScaleType = Enum.ScaleType.Slice,
+    SliceCenter = Rect.new(12,12,244,244),
+    Size = UDim2.new(1, 80, 1, 80),
+    Position = UDim2.new(0, -40, 0, -40),
+    ZIndex = 0,
+})
+
 
 -- Custom background (image / gif via spritesheet) -- lives behind glass
 local Backdrop = inst("ImageLabel", Win, {
@@ -887,7 +912,7 @@ local closeBtn = topBtn("✕", -38, function()
 end)
 local minBtn = topBtn("—", -72, function()
     minimized = not minimized
-    tween(Win, 0.18, { Size = minimized and UDim2.new(0,620,0,44) or UDim2.new(0,620,0,440) })
+    tween(Win, 0.18, { Size = minimized and UDim2.new(0,660,0,44) or UDim2.new(0,660,0,460) })
     Body.Visible = not minimized
 end)
 local helpBtn = topBtn("?", -106, showRoleHelp)
@@ -943,7 +968,7 @@ toggleBtn.MouseButton1Click:Connect(function()
         closeBtn.Visible = true
         minBtn.Visible = true
         helpBtn.Visible = _hasRole()
-        tween(Win, 0.18, { Size = prevMinimized and UDim2.new(0,620,0,44) or UDim2.new(0,620,0,440) })
+        tween(Win, 0.18, { Size = prevMinimized and UDim2.new(0,660,0,44) or UDim2.new(0,660,0,460) })
         Body.Visible = not prevMinimized
     end
 end)
@@ -968,23 +993,33 @@ do
 end
 
 ------------------------------------------------------- SIDEBAR / TABS
-local SIDE_W = 52
+local SIDE_W = 156
 local HEADER_H = 38
 
 local Side = inst("Frame", Body, {
     Size = UDim2.new(0, SIDE_W, 1, -12),
     Position = UDim2.new(0, 8, 0, 4),
-    BackgroundColor3 = T.bg2,
-    BackgroundTransparency = 0.2,
+    BackgroundColor3 = T.silverHi,
+    BackgroundTransparency = 0.78,
     BorderSizePixel = 0,
 })
-corner(Side, 12); stroke(Side, T.line, 1, 0.5)
+corner(Side, 16); stroke(Side, T.silver, 1, 0.55)
+-- silver sheen on the rail itself
+inst("UIGradient", Side, {
+    Rotation = 110,
+    Color = ColorSequence.new(T.silverHi, T.silver),
+    Transparency = NumberSequence.new{
+        NumberSequenceKeypoint.new(0, 0.55),
+        NumberSequenceKeypoint.new(1, 0.85),
+    },
+})
 inst("UIListLayout", Side, {
     Padding = UDim.new(0, 6),
     SortOrder = Enum.SortOrder.LayoutOrder,
     HorizontalAlignment = Enum.HorizontalAlignment.Center,
 })
 pad(Side, 8)
+
 
 local ContentArea = inst("Frame", Body, {
     Position = UDim2.new(0, SIDE_W + 16, 0, 4),
@@ -1072,22 +1107,37 @@ local function setTab(name)
     local e = tabs[name]; if not e then return end
     for n, x in pairs(tabs) do
         if n ~= name then
-            if _G.__SeigeReducedMotion then
-                x.btn.BackgroundTransparency = 1
-            else
-                tween(x.btn, 0.12, { BackgroundTransparency = 1 })
+            -- Inactive: hide gradient pill, dim icon badge + label
+            if x.pill then
+                if _G.__SeigeReducedMotion then
+                    x.pill.BackgroundTransparency = 1
+                else
+                    tween(x.pill, 0.15, { BackgroundTransparency = 1 })
+                end
             end
-            x.ico.TextColor3 = T.sub
+            if x.icoBadge then
+                x.icoBadge.BackgroundTransparency = 0.45
+                x.icoBadge.BackgroundColor3 = T.silverHi
+            end
+            x.ico.TextColor3 = T.silverLo
+            if x.lbl then x.lbl.TextColor3 = T.silverLo end
             if x.page.Visible then _animPageSwap(x.page, false) end
         end
     end
-    if _G.__SeigeReducedMotion then
-        e.btn.BackgroundTransparency = 0.15
-        e.btn.BackgroundColor3 = T.acc
-    else
-        tween(e.btn, 0.12, { BackgroundTransparency = 0.15, BackgroundColor3 = T.acc })
+    -- Active: show pink->magenta gradient pill, brighten icon + label
+    if e.pill then
+        if _G.__SeigeReducedMotion then
+            e.pill.BackgroundTransparency = 0
+        else
+            tween(e.pill, 0.18, { BackgroundTransparency = 0 })
+        end
     end
-    e.ico.TextColor3 = T.text
+    if e.icoBadge then
+        e.icoBadge.BackgroundTransparency = 0
+        e.icoBadge.BackgroundColor3 = T.silverHi
+    end
+    e.ico.TextColor3 = T.magenta
+    if e.lbl then e.lbl.TextColor3 = T.text end
     _animPageSwap(e.page, true)
     HeaderTitle.Text = e.title or name
     HeaderSub.Text   = e.subtitle or ""
@@ -1095,20 +1145,71 @@ local function setTab(name)
 end
 
 local function makeTab(name, icon, subtitle)
+    -- Row container: full-width, holds the gradient pill (active),
+    -- the circular icon badge, and the label.
     local btn = inst("TextButton", Side, {
-        Size = UDim2.new(0, 36, 0, 36),
-        BackgroundColor3 = T.bg3,
+        Size = UDim2.new(1, 0, 0, 38),
         BackgroundTransparency = 1,
         AutoButtonColor = false,
         Text = "",
     })
-    corner(btn, 10)
-    local ico = inst("TextLabel", btn, {
+
+    -- Pink->magenta gradient "pill" behind the active row (hidden by default).
+    local pill = inst("Frame", btn, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3 = T.pink,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        ZIndex = 1,
+    })
+    corner(pill, 19)
+    inst("UIGradient", pill, {
+        Rotation = 0,
+        Color = ColorSequence.new(T.pink, T.magenta),
+    })
+    -- soft inner glow under the pill
+    inst("ImageLabel", pill, {
+        BackgroundTransparency = 1,
+        Image = "rbxasset://textures/ui/Controls/DropShadow.png",
+        ImageColor3 = T.magenta,
+        ImageTransparency = 0.55,
+        ScaleType = Enum.ScaleType.Slice,
+        SliceCenter = Rect.new(12,12,244,244),
+        Size = UDim2.new(1, 24, 1, 24),
+        Position = UDim2.new(0, -12, 0, -12),
+        ZIndex = 0,
+    })
+
+    -- Circular icon badge on the left
+    local icoBadge = inst("Frame", btn, {
+        Position = UDim2.new(0, 5, 0.5, -14),
+        Size = UDim2.new(0, 28, 0, 28),
+        BackgroundColor3 = T.silverHi,
+        BackgroundTransparency = 0.45,
+        BorderSizePixel = 0,
+        ZIndex = 2,
+    })
+    corner(icoBadge, 14)
+    stroke(icoBadge, T.silver, 1, 0.5)
+    local ico = inst("TextLabel", icoBadge, {
         BackgroundTransparency = 1,
         Size = UDim2.new(1, 0, 1, 0),
-        Font = Enum.Font.GothamBold, TextSize = 18,
-        TextColor3 = T.sub,
+        Font = Enum.Font.GothamBold, TextSize = 14,
+        TextColor3 = T.silverLo,
         Text = icon or "•",
+        ZIndex = 3,
+    })
+
+    -- Row label
+    local lbl = inst("TextLabel", btn, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 42, 0, 0),
+        Size = UDim2.new(1, -48, 1, 0),
+        Font = Enum.Font.GothamSemibold, TextSize = 13,
+        TextColor3 = T.silverLo,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = name,
+        ZIndex = 3,
     })
 
     local page = inst("ScrollingFrame", Pages, {
@@ -1117,7 +1218,7 @@ local function makeTab(name, icon, subtitle)
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
         ScrollBarThickness = 3,
-        ScrollBarImageColor3 = T.acc,
+        ScrollBarImageColor3 = T.magenta,
         CanvasSize = UDim2.new(0, 0, 0, 0),
         AutomaticCanvasSize = Enum.AutomaticSize.Y,
         ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -1128,32 +1229,31 @@ local function makeTab(name, icon, subtitle)
     })
     pad(page, 4)
 
-    local entry = { btn = btn, page = page, ico = ico, title = name, subtitle = subtitle }
+    local entry = {
+        btn = btn, page = page, ico = ico, icoBadge = icoBadge,
+        lbl = lbl, pill = pill, title = name, subtitle = subtitle,
+    }
     tabs[name] = entry
 
     btn.MouseEnter:Connect(function()
         if currentTab ~= name then
-            tween(btn, 0.12, { BackgroundTransparency = 0.55, BackgroundColor3 = T.bg3 })
+            icoBadge.BackgroundTransparency = 0.15
             ico.TextColor3 = T.text
+            lbl.TextColor3 = T.text
         end
-        local pad = 14
-        Tip.Text = name
-        Tip.Size = UDim2.new(0, math.max(60, #name * 7 + pad), 0, 22)
-        local abs = btn.AbsolutePosition; local sz = btn.AbsoluteSize
-        local winPos = Win.AbsolutePosition
-        Tip.Position = UDim2.new(0, abs.X - winPos.X + sz.X + 8, 0, abs.Y - winPos.Y + (sz.Y/2) - 11)
-        Tip.Visible = true
     end)
     btn.MouseLeave:Connect(function()
         if currentTab ~= name then
-            tween(btn, 0.12, { BackgroundTransparency = 1 })
-            ico.TextColor3 = T.sub
+            icoBadge.BackgroundTransparency = 0.45
+            ico.TextColor3 = T.silverLo
+            lbl.TextColor3 = T.silverLo
         end
-        Tip.Visible = false
     end)
     btn.MouseButton1Click:Connect(function() setTab(name) end)
     return page
 end
+
+
 
 ------------------------------------------------------- COMPONENTS
 local function section(parent, text)
