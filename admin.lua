@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-translucent-hamburger-cfg"
+local ADMIN_BUILD = "2026-06-09-popup-scroll-trans"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -6173,14 +6173,27 @@ do
             DisplayOrder = 220, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
         })
         safeParent(gui)
+        -- Cap window height so it never spills off the viewport — overflow
+        -- becomes scrollable inside the body.
+        local viewportH = (workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.Y) or 600
+        local maxH = math.max(160, viewportH - 80)
+        local reqH = height or 200
+        local winH = math.min(reqH, maxH)
+        local _trans = _G.__SeigeUITrans or 0.35
         local win = inst("Frame", gui, {
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 300, 0, height or 200),
-            BackgroundColor3 = T.bg, BorderSizePixel = 0,
+            Size = UDim2.new(0, 300, 0, winH),
+            BackgroundColor3 = T.bg, BackgroundTransparency = _trans, BorderSizePixel = 0,
         })
         corner(win, 10); stroke(win, T.line, 1, 0.3)
         active[key] = { gui = gui, win = win }
+        -- Register so global Panel translucency slider updates this popup too.
+        _G.__SeigePopupPanels = _G.__SeigePopupPanels or {}
+        _G.__SeigePopupPanels[win] = true
+        win.AncestryChanged:Connect(function(_, parent)
+            if not parent and _G.__SeigePopupPanels then _G.__SeigePopupPanels[win] = nil end
+        end)
         local bar = inst("Frame", win, {
             Size = UDim2.new(1, 0, 0, 32),
             BackgroundColor3 = T.bg2, BorderSizePixel = 0,
@@ -6219,16 +6232,24 @@ do
                 if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
             end)
         end
-        local body = inst("Frame", win, {
+        -- Body is a ScrollingFrame so panels with many controls (bang, reanim,
+        -- voice, etc.) never clip — overflow scrolls vertically.
+        local body = inst("ScrollingFrame", win, {
             Position = UDim2.new(0, 6, 0, 36),
             Size = UDim2.new(1, -12, 1, -42),
-            BackgroundTransparency = 1,
+            BackgroundTransparency = 1, BorderSizePixel = 0,
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            ScrollBarThickness = 4, ScrollBarImageColor3 = T.line,
         })
         inst("UIListLayout", body, { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder })
+        inst("UIPadding", body, { PaddingRight = UDim.new(0, 6) })
         pcall(builder, body)
         _animOpen(win)
     end
 end
+
 
 -- Generic command result window: pops a draggable list of rows so commands
 -- like !taglist, !list, !tagfind etc. show results in a GUI instead of a toast.
@@ -9927,7 +9948,18 @@ do
                 if p.frame and p.frame.Visible then p.frame.BackgroundTransparency = t end
             end
         end
+        -- Sync floating command popups (Bang, Reanim, Circle, Help, etc.)
+        if _G.__SeigePopupPanels then
+            for win, _ in pairs(_G.__SeigePopupPanels) do
+                if win and win.Parent then
+                    pcall(function() win.BackgroundTransparency = t end)
+                else
+                    _G.__SeigePopupPanels[win] = nil
+                end
+            end
+        end
     end
+
 
     -- Close menu when clicking outside.
     UIS.InputBegan:Connect(function(i)
