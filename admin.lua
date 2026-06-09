@@ -1868,9 +1868,19 @@ end
 local function parseTagsJson(src)
     src = tostring(src or "")
     -- Prefer the LAST v2 JSON block if the file was polluted with legacy rows.
-    -- This avoids blue/default fallback from a half-parsed mixed file, while the
-    -- caller can still recover legacy rows if the embedded JSON is empty.
-    local startAt = src:find('{%s*"version"%s*:%s*2') or src:find('{%s*"format"%s*:%s*"seige%.tags%.v2"')
+    -- This avoids stale/blue fallback data from an older block overriding the
+    -- newest save, while still letting the caller recover legacy rows if empty.
+    local startAt = nil
+    local pos = 1
+    while true do
+        local a = src:find('{%s*"version"%s*:%s*2', pos)
+        local b = src:find('{%s*"format"%s*:%s*"seige%.tags%.v2"', pos)
+        local n = nil
+        if a and b then n = math.min(a, b) else n = a or b end
+        if not n then break end
+        startAt = n
+        pos = n + 1
+    end
     if startAt then
         local endAt = nil
         for i = #src, 1, -1 do
