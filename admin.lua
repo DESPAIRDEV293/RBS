@@ -8109,10 +8109,23 @@ do
     end)
 end
 
+------------------------------------------------------- PARTICLE EFFECTS
+section(pgConfig, "Particle Effects")
+label(pgConfig, "Animated sparkles & nebulae layered over each tab")
+local FX_TABS = { "Profile", "Players", "Cmds", "Shaders", "Spotify", "Misc" }
+local fxCtls = {}
+for _, k in ipairs(FX_TABS) do
+    fxCtls[k] = toggle(pgConfig, k .. " particles", _G.__SeigeFx[k] == true, function(v)
+        _G.__SeigeFx[k] = v
+    end)
+end
+
 ------------------------------------------------------- SAVE / RESET CONFIG
 section(pgConfig, "Save & Reset")
 
 local function snapshotCfg()
+    local fx = {}
+    for _, k in ipairs(FX_TABS) do fx[k] = _G.__SeigeFx[k] == true end
     return {
         toggleKey     = toggleKey.Name,
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
@@ -8122,6 +8135,7 @@ local function snapshotCfg()
             Lf = skyboxFaces.Lf, Rt = skyboxFaces.Rt,
             Ft = skyboxFaces.Ft, Bk = skyboxFaces.Bk,
         },
+        fx            = fx,
     }
 end
 
@@ -8136,10 +8150,17 @@ local function applyCfg(cfg, opts)
         skyboxFaces[k] = sb[k] or ""
         if skyboxBoxes[k] then skyboxBoxes[k].Text = "" end
     end
+    local fx = cfg.fx or CFG_DEFAULTS.fx
+    for _, k in ipairs(FX_TABS) do
+        local v = fx[k] == true
+        _G.__SeigeFx[k] = v
+        if fxCtls[k] and fxCtls[k].set then fxCtls[k].set(v) end
+    end
     if opts.applySkybox then
         if (sb.Up or "") ~= "" or (sb.Dn or "") ~= "" then applySkybox() else resetSkybox() end
     end
 end
+
 
 local function saveCfg()
     local wf = rawget(getfenv(), "writefile") or writefile
