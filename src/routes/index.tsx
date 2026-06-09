@@ -49,17 +49,35 @@ const DROPLETS = Array.from({ length: 90 }, (_, i) => {
 function WaterText({ text, accent = false }: { text: string; accent?: boolean }) {
   return (
     <span className={`water-text inline-block ${accent ? "water-text-accent" : ""}`}>
-      {text.split("").map((ch, i) => (
-        <span
-          key={i}
-          className="water-letter"
-          style={{ animationDelay: `${i * 0.12}s` }}
-        >
-          <span className="water-letter-glyph">{ch}</span>
-          <span className="water-ripple" style={{ animationDelay: `${i * 0.12 + 0.4}s` }} />
-          <span className="water-ripple water-ripple-2" style={{ animationDelay: `${i * 0.12 + 1.1}s` }} />
-        </span>
-      ))}
+      {text.split("").map((ch, i) => {
+        const ripples = [
+          { top: 18, left: 30, delay: i * 0.12 + 0.1, dur: 3.2 },
+          { top: 55, left: 70, delay: i * 0.12 + 0.9, dur: 3.8 },
+          { top: 78, left: 40, delay: i * 0.12 + 1.7, dur: 3.4 },
+          { top: 35, left: 85, delay: i * 0.12 + 2.4, dur: 4.0 },
+        ];
+        return (
+          <span
+            key={i}
+            className="water-letter"
+            style={{ animationDelay: `${i * 0.12}s` }}
+          >
+            <span className="water-letter-glyph">{ch}</span>
+            {ripples.map((r, j) => (
+              <span
+                key={j}
+                className="water-ripple"
+                style={{
+                  top: `${r.top}%`,
+                  left: `${r.left}%`,
+                  animationDelay: `${r.delay}s`,
+                  animationDuration: `${r.dur}s`,
+                }}
+              />
+            ))}
+          </span>
+        );
+      })}
     </span>
   );
 }
