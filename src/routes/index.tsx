@@ -360,6 +360,30 @@ function Index() {
           box-shadow: none;
           transform: none;
         }
+        .disclaimer-glow {
+          text-shadow:
+            0 0 6px rgba(255, 50, 0, 0.8),
+            0 0 14px rgba(255, 80, 0, 0.6),
+            0 0 28px rgba(220, 40, 0, 0.5),
+            0 0 48px rgba(200, 30, 0, 0.4);
+          animation: disclaimer-inferno-pulse 2.5s ease-in-out infinite;
+        }
+        @keyframes disclaimer-inferno-pulse {
+          0%, 100% {
+            text-shadow:
+              0 0 6px rgba(255, 50, 0, 0.8),
+              0 0 14px rgba(255, 80, 0, 0.6),
+              0 0 28px rgba(220, 40, 0, 0.5),
+              0 0 48px rgba(200, 30, 0, 0.4);
+          }
+          50% {
+            text-shadow:
+              0 0 10px rgba(255, 60, 0, 0.95),
+              0 0 22px rgba(255, 100, 0, 0.8),
+              0 0 40px rgba(240, 50, 0, 0.65),
+              0 0 64px rgba(220, 40, 0, 0.5);
+          }
+        }
       `}</style>
     </div>
   );
