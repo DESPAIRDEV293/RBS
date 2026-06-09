@@ -771,7 +771,8 @@ showLoadScreen()
 local Win = inst("Frame", Root, {
     AnchorPoint = Vector2.new(0.5, 0.5),
     Position = UDim2.new(0.5, 0, 0.5, 0),
-    Size = UDim2.new(0, 660, 0, 460),
+    Size = UDim2.new(0, 780, 0, 540),
+    ClipsDescendants = true,
     BackgroundColor3 = T.bg,
     BackgroundTransparency = 0.05,
     BorderSizePixel = 0,
