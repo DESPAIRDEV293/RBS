@@ -236,6 +236,89 @@ function Index() {
           </p>
         </section>
 
+        {/* Features grid */}
+        <section className="relative z-10 space-y-6">
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-indigo-400/20" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-indigo-200/60">
+              What this script can do
+            </span>
+            <span className="h-px flex-1 bg-indigo-400/20" />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <FeatureCard
+              title="Sleek Dark Glass UI"
+              desc="Modern glass-morphism admin panel with smooth animations, customizable themes, typography, and transparency."
+            />
+            <FeatureCard
+              title="Role-Based Permissions"
+              desc="Owner, Admin, Staff, and NT Team roles with gated command access. Owner-only kill switch and audit logging."
+            />
+            <FeatureCard
+              title="50+ Built-in Commands"
+              desc="From trolling to utility — everything is one ! command away in the chat or via the GUI."
+            />
+            <FeatureCard
+              title="Movement"
+              desc="Fly with adjustable speed, Noclip, Infinite Jump, Walk Speed, Jump Power, Hip Height, and Click Teleport."
+            />
+            <FeatureCard
+              title="Player Interactions"
+              desc="Goto, Bring, Carry, Headsit, Shouldersit, Piggyback, Bang, Facebang, Backbang, Fling, Stalk, and Spectate."
+            />
+            <FeatureCard
+              title="Trolling"
+              desc="Timestop to freeze everyone, Circle players, force-chat with !usay, private banners with !allp."
+            />
+            <FeatureCard
+              title="Performance Boost"
+              desc="FPS Booster, Ping Booster, and full Optimize mode — or hit !maxboost for everything at once."
+            />
+            <FeatureCard
+              title="Tags System"
+              desc="Tag players as Friend, Target, Ignore, or Priority. Search and inspect tags across servers."
+            />
+            <FeatureCard
+              title="Reanim GUI"
+              desc="Built-in ROT animation loader with a full animation browser, preview, playback speed, and custom folder support."
+            />
+          </div>
+        </section>
+
+        {/* Command examples */}
+        <section className="relative z-10 space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-indigo-400/20" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.35em] text-indigo-200/60">
+              Command Examples
+            </span>
+            <span className="h-px flex-1 bg-indigo-400/20" />
+          </div>
+
+          <div className="storm-card relative overflow-hidden rounded-2xl p-5 sm:p-6">
+            <div className="storm-card-glow absolute inset-0 pointer-events-none" />
+            <div className="relative grid gap-3 sm:grid-cols-2">
+              <CmdExample cmd="!fly" desc="Toggle flight mode" />
+              <CmdExample cmd="!noclip" desc="Walk through walls" />
+              <CmdExample cmd="!goto <player>" desc="Teleport to a player" />
+              <CmdExample cmd="!bring <player>" desc="Teleport player to you" />
+              <CmdExample cmd="!headsit <player>" desc="Sit on their head" />
+              <CmdExample cmd="!bang <player>" desc="Start bang animation" />
+              <CmdExample cmd="!facebang <player>" desc="Face-to-face bang" />
+              <CmdExample cmd="!fling <player>" desc="Launch a player" />
+              <CmdExample cmd="!stalk <player>" desc="Follow and listen" />
+              <CmdExample cmd="!timestop" desc="Freeze everyone (admin)" />
+              <CmdExample cmd="!circle <player>" desc="Orbit around target" />
+              <CmdExample cmd="!allp <msg>" desc="Banner to all script users" />
+              <CmdExample cmd="!ws 100" desc="Set walk speed" />
+              <CmdExample cmd="!jp 150" desc="Set jump power" />
+              <CmdExample cmd="!maxboost" desc="Enable all performance" />
+              <CmdExample cmd="!reanim" desc="Open animation GUI" />
+            </div>
+          </div>
+        </section>
+
         <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400/70">
           <span>⛈  storm-grade · Real time syncing</span>
           <span className="font-mono text-indigo-300/70">v.beta</span>
