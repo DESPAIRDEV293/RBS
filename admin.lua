@@ -10326,28 +10326,42 @@ cmdHandlers["bring"] = function(arg)
     local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
     local thrp, myH = phrp(target), hrp()
     if not (thrp and myH) then notify("Missing character", "bad"); return end
-    notify("Bringing " .. target.Name .. "...", "good")
+    notify("Bringing " .. target.Name .. " (freeze + rubber-band back)...", "good")
     task.spawn(function()
-        for i = 1, 25 do
-            if not phrp(target) or not hrp() then break end
-            pcall(function() phrp(target).CFrame = hrp().CFrame + Vector3.new(0, 3, 0) end)
-            task.wait(0.05)
+        -- Snapshot the bring spot relative to our HRP at the moment of the command
+        -- so the target keeps freezing at THAT spot even if we move afterwards.
+        local bringCF = myH.CFrame + Vector3.new(0, 3, 0)
+        -- Hold them in place. We do NOT manually teleport them back — Roblox's
+        -- server-side movement validation remembers their last legitimate
+        -- position and will rubber-band them home once we stop writing CFrame.
+        local FREEZE_TIME = 2.0
+        local STEP = 0.04
+        local steps = math.floor(FREEZE_TIME / STEP)
+        for i = 1, steps do
+            local t = phrp(target); if not t then break end
+            pcall(function()
+                t.CFrame = bringCF
+                t.AssemblyLinearVelocity  = Vector3.zero
+                t.AssemblyAngularVelocity = Vector3.zero
+            end)
+            task.wait(STEP)
         end
+        -- Optional tool-touch pass during the freeze window (kept from old logic)
         local tool = LP.Backpack:FindFirstChildOfClass("Tool")
             or (LP.Character and LP.Character:FindFirstChildOfClass("Tool"))
         if tool and tool:FindFirstChild("Handle") and typeof(firetouchinterest) == "function" then
             pcall(function()
                 tool.Parent = LP.Character
-                local saved = myH.CFrame
-                for i = 1, 20 do
+                for i = 1, 12 do
                     local t = phrp(target); if not t then break end
-                    myH.CFrame = t.CFrame
                     pcall(function() firetouchinterest(tool.Handle, t, 0) end); task.wait()
-                    pcall(function() firetouchinterest(tool.Handle, t, 1) end); task.wait(0.05)
+                    pcall(function() firetouchinterest(tool.Handle, t, 1) end); task.wait(0.04)
                 end
-                myH.CFrame = saved
             end)
         end
+        -- Stop writing — Roblox will snap the target back to their server-side
+        -- remembered position on its own.
+        notify(target.Name .. " released — Roblox will rubber-band them back", "good")
     end)
 end
 end)()
