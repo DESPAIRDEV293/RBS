@@ -4386,8 +4386,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             return true, "unchanged"
         end
         lastPullHash = h
-        local entries, count = parsePastebin(src)
-        if count == 0 then
+        local entries, count, isJson = parsePastebin(src)
+        if count == 0 and not isJson then
             if not silent then notify("GitHub parse returned 0 entries", "warn") end
             return false, "empty parse"
         end
