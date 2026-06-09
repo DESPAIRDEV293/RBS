@@ -281,10 +281,11 @@ function Index() {
           background: linear-gradient(180deg, transparent, rgba(180,200,255,0.85));
           animation: storm-rain linear infinite;
           transform: translateY(0) skewX(-12deg);
+          will-change: transform;
         }
         @keyframes storm-rain {
-          0%   { transform: translateY(-20vh) skewX(-12deg); }
-          100% { transform: translateY(120vh) skewX(-12deg); }
+          0%   { transform: translate3d(0,-20vh,0) skewX(-12deg); }
+          100% { transform: translate3d(0,120vh,0) skewX(-12deg); }
         }
 
         .storm-mist {
