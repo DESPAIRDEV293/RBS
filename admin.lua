@@ -10809,7 +10809,7 @@ cmdHandlers["freecam"] = function()
 end
 cmdHandlers["unfreecam"] = cmdHandlers["freecam"]
 
--- 9) Server hop — teleport to a random public server
+-- 9) Server hop — teleport to a RANDOM public server
 cmdHandlers["hop"] = function()
     notify("Searching server...", "good")
     task.spawn(function()
@@ -10819,17 +10819,61 @@ cmdHandlers["hop"] = function()
             return game:GetService("HttpService"):JSONDecode(raw)
         end)
         if ok and list and list.data then
+            local pool = {}
             for _, s in ipairs(list.data) do
-                if s.id ~= game.JobId and s.playing < s.maxPlayers then
-                    pcall(function() TeleportSrv:TeleportToPlaceInstance(game.PlaceId, s.id, LP) end)
-                    return
+                if s.id ~= game.JobId and s.playing and s.maxPlayers and s.playing < s.maxPlayers then
+                    pool[#pool+1] = s.id
                 end
             end
+            if #pool > 0 then
+                local pick = pool[math.random(1, #pool)]
+                pcall(function() TeleportSrv:TeleportToPlaceInstance(game.PlaceId, pick, LP) end)
+                return
+            end
         end
+        notify("No public servers found, doing plain rejoin", "warn")
         pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
     end)
 end
-cmdHandlers["serverhop"] = cmdHandlers["hop"]
+cmdHandlers["serverhop"]    = cmdHandlers["hop"]
+cmdHandlers["randomserver"] = cmdHandlers["hop"]
+cmdHandlers["jrs"]          = cmdHandlers["hop"]
+cmdHandlers["joinrandom"]   = cmdHandlers["hop"]
+
+-- !bypass — send a chat message that bypasses Roblox text censoring
+-- Inserts a zero-width joiner between characters so the filter cannot tokenize
+-- the words while humans still read the text normally (no ### replacement).
+cmdHandlers["bypass"] = function(arg)
+    if not arg or arg == "" then notify("Usage: !bypass <message>", "warn"); return end
+    local zwj = "\226\128\141" -- U+200D zero-width joiner (UTF-8)
+    local out = {}
+    -- walk by UTF-8 codepoints so we don't corrupt multi-byte chars
+    local i = 1
+    while i <= #arg do
+        local b = arg:byte(i)
+        local len = 1
+        if b >= 0xF0 then len = 4
+        elseif b >= 0xE0 then len = 3
+        elseif b >= 0xC0 then len = 2 end
+        out[#out+1] = arg:sub(i, i + len - 1)
+        i = i + len
+    end
+    local payload = table.concat(out, zwj)
+    local TextChat = game:GetService("TextChatService")
+    local sent = pcall(function()
+        local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral") or TextChat.TextChannels:GetChildren()[1]
+        if ch then ch:SendAsync(payload) end
+    end)
+    if not sent then
+        pcall(function()
+            game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents")
+                :WaitForChild("SayMessageRequest"):FireServer(payload, "All")
+        end)
+    end
+    notify("Bypass sent", "good")
+end
+cmdHandlers["bp"]       = cmdHandlers["bypass"]
+cmdHandlers["nocensor"] = cmdHandlers["bypass"]
 
 -- 10) Chat say — send a message in chat from the command bar
 cmdHandlers["say"] = function(arg)
