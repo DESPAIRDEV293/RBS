@@ -4048,7 +4048,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         -- pushed to pastebin, so don't scare the user with a failure toast.
         local noFs = (not sok) and tostring(serr or ""):find("writefile not available", 1, true)
         if sok then
-            notify("Saved tag for " .. u .. " (persisted)", "good")
+            notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
         elseif noFs then
             notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
         else
