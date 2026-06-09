@@ -86,6 +86,27 @@ function WaterText({ text, accent = false }: { text: string; accent?: boolean })
   );
 }
 
+function FeatureCard({ title, desc }: { title: string; desc: string }) {
+  return (
+    <div className="storm-feature-card relative overflow-hidden rounded-xl border border-white/[0.08] p-4">
+      <div className="absolute inset-0 storm-feature-glow pointer-events-none" />
+      <h3 className="relative text-sm font-bold text-indigo-200">{title}</h3>
+      <p className="relative mt-1.5 text-xs leading-relaxed text-slate-400/80">{desc}</p>
+    </div>
+  );
+}
+
+function CmdExample({ cmd, desc }: { cmd: string; desc: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-white/[0.06] bg-black/30 px-3 py-2.5">
+      <code className="shrink-0 rounded bg-indigo-500/15 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-300">
+        {cmd}
+      </code>
+      <span className="text-xs text-slate-400/80">{desc}</span>
+    </div>
+  );
+}
+
 function Index() {
   // Anti-lag: detect low-power devices on the client (SSR-safe defaults to full FX).
   // Also pauses all storm animations when the tab is hidden so we don't waste CPU.
