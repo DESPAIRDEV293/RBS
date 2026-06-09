@@ -123,7 +123,7 @@ function Index() {
             Seige <span className="storm-title-accent">Loadstring</span>
           </h1>
           <p className="max-w-2xl text-base leading-relaxed text-slate-300/85">
-            your script your way. Quick, Reliable, Safe. Enjoy seige soon
+            Your script your way. Quick, Reliable, Safe. Enjoy seige soon
           </p>
         </header>
 
