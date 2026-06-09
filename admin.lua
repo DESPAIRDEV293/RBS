@@ -1670,35 +1670,11 @@ end
 
 
 
-------------------------------------------------------- TAG DATABASE (script-managed)
--- Two sources are tried, in order:
---   1) TAGS_PASTEBIN_URL  — a raw Pastebin (or any plain-text URL) using the
---      super-simple line format below. EASIEST to edit, no code knowledge needed.
---   2) TAGS_DB_URL        — the legacy tags.lua on GitHub (Lua table).
---
--- Pastebin line format (one player per line, pipe-separated):
---   username | displayName | #hexcolor | ignored | icon | tag1,tag2,tag3 | ignored | customText | customHandle | outline | font
---
---   - Only `username` is required. Leave any field blank to skip it (keep the |).
---   - hexcolor: a single hex like #ff3b6b, OR two hex values separated by `/`
---               to split the bubble in half (left/right), e.g. #ff3b6b/#00aaff,
---               OR an advanced fill spec like grad:#a,#b@90 or image:1234567890
---   - icon:   Roblox image ID (raw number, e.g. 1234567890), OR an animated
---             sprite-sheet spec "gif:assetId:cols:rows:fps[:sheetSize]"
---             e.g. gif:1234567890:4:4:12   (16-frame 4x4 sheet at 12 fps;
---             sheetSize defaults to 1024)
---   - customText:   optional override for the right-side chip text (owner-only)
---   - customHandle: optional override for the "@name" line on the tag (owner-only).
---                   Anyone without an entry shows the anonymous "user" / "@user".
---   - outline: hex color for the tag text outline, or "off" to disable
---   - font:    per-user tag font name (Default | PermanentMarker | LuckiestGuy | Creepster)
---   - Lines starting with # or // are comments. Blank lines are ignored.
---
--- Example paste:
---   DESPAIRDEV293 | Despair | #ff3b6b/#00aaff | nebula |  | Owner,Dev | glitch | VIP | despair | #ffffff | LuckiestGuy
---   Builderman    | Builderman | #00aaff | sparkle | 156 | Roblox
---
--- To change tags: edit the paste, hit Save, rejoin (or wait for next load).
+------------------------------------------------------- TAG DATABASE (GitHub-backed)
+-- The GitHub gist now stores one JSON document so every Tags panel option
+-- round-trips exactly instead of being squeezed through fragile pipe columns.
+-- Legacy pipe rows are still accepted for old backups, but all new saves write:
+-- { version = 2, format = "seige.tags.v2", tags = { username = { ... } } }
 local TAGS_PASTEBIN_URL = "https://seigelollua.lovable.app/api/public/pastebin?raw=1"
 local TAGS_DB_URL       = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
 
@@ -1841,7 +1817,62 @@ function TagDB:applyTo(p)
 end
 
 local function trim(s) return (tostring(s or ""):gsub("^%s+",""):gsub("%s+$","")) end
+local TAGS_JSON_FORMAT = "seige.tags.v2"
+local TAG_ALLOWED_FIELDS = {
+    displayName = true, color = true, icon = true, tags = true,
+    textFx = true, customText = true, customHandle = true, outline = true,
+    font = true, textColor = true, textOutline = true,
+    avatarOutline = true, showChip = true,
+}
+local function normTagKey(raw)
+    return trim(raw):gsub("^@", ""):lower()
+end
+local function cleanTagEntry(entry)
+    if type(entry) ~= "table" then return nil end
+    local out = {}
+    for k in pairs(TAG_ALLOWED_FIELDS) do
+        local v = entry[k]
+        if k == "tags" then
+            if type(v) == "table" then
+                local list = {}
+                for _, t in ipairs(v) do
+                    t = trim(t)
+                    if t ~= "" then list[#list + 1] = t end
+                end
+                if #list > 0 then out.tags = list end
+            elseif type(v) == "string" and trim(v) ~= "" then
+                local list = {}
+                for t in (v .. ","):gmatch("([^,]*),") do
+                    t = trim(t)
+                    if t ~= "" then list[#list + 1] = t end
+                end
+                if #list > 0 then out.tags = list end
+            end
+        elseif v ~= nil and tostring(v) ~= "" then
+            out[k] = tostring(v)
+        end
+    end
+    return out
+end
+local function parseTagsJson(src)
+    local ok, decoded = pcall(function() return HttpService:JSONDecode(tostring(src or "")) end)
+    if not ok or type(decoded) ~= "table" then return nil, 0, false end
+    local source = decoded.tags or decoded.entries or decoded
+    if type(source) ~= "table" then return nil, 0, false end
+    local entries, count = {}, 0
+    for rawKey, rawEntry in pairs(source) do
+        local key = normTagKey(rawKey)
+        local entry = cleanTagEntry(rawEntry)
+        if key ~= "" and entry then
+            entries[key] = entry
+            count = count + 1
+        end
+    end
+    return entries, count, true
+end
 local function parsePastebin(src)
+    local jsonEntries, jsonCount, isJson = parseTagsJson(src)
+    if isJson then return jsonEntries, jsonCount, true end
     local entries = {}
     local count = 0
     for raw in tostring(src):gmatch("[^\r\n]+") do
@@ -1875,12 +1906,12 @@ local function parsePastebin(src)
                 if parts[15] and parts[15] ~= "" then entry.avatarOutline = parts[15] end
                 if parts[16] and parts[16] ~= "" then entry.showChip = parts[16] end
                 -- parts[17] used to be tag aura; ignored so colors/images always paint the pill.
-                entries[user:lower()] = entry
+                entries[normTagKey(user)] = cleanTagEntry(entry)
                 count = count + 1
             end
         end
     end
-    return entries, count
+    return entries, count, false
 end
 
 local function stripTagSpecials(entry)
@@ -1961,41 +1992,11 @@ function TagDB:loadLocal()
     return out
 end
 function TagDB:mergeLocal()
-    -- CRITICAL: never clobber the in-memory localEntries map. On executors
-    -- without writefile/readfile (most of them), loadLocal() returns nil,
-    -- and the old code would reset self.localEntries = {}, wiping every
-    -- unsaved-to-disk edit. That caused tag edits to silently revert the
-    -- next time mergeLocal ran (auto-pull, "Apply all", reload, etc.) —
-    -- the exact "save looks like it works then reverts" bug.
-    local fromDisk = self:loadLocal()
-    if type(fromDisk) == "table" then
-        -- Disk has data: union it into the in-memory map so disk-stored
-        -- overrides survive AND fresh in-memory edits (not yet flushed to
-        -- disk because writefile may be missing) are preserved.
-        self.localEntries = self.localEntries or {}
-        for k, v in pairs(fromDisk) do
-            -- In-memory wins if both exist — the editor just wrote it and
-            -- it represents the user's latest intent.
-            if self.localEntries[k] == nil then
-                self.localEntries[k] = v
-            end
-        end
-    else
-        -- No disk access: keep whatever we already have in memory.
-        self.localEntries = self.localEntries or {}
-    end
-    -- Local edits win over the remote pastebin. Overlay every local entry
-    -- (disk + in-memory) on top of the remote entries map so the editor
-    -- and apply pipeline see the user's edits as the source of truth.
-    local n = 0
-    for k, v in pairs(self.localEntries) do
-        self.entries[k] = v
-        n = n + 1
-    end
-    if n > 0 then
-        print(("[Tags] applied %d local override(s)"):format(n))
-    end
-    return n
+    -- GitHub is now the single source of truth. Old executor-local override
+    -- files are intentionally ignored because they were the exact reason a tag
+    -- could look saved, then reload back to stale colors/fills/images.
+    self.localEntries = self.localEntries or {}
+    return 0
 end
 
 
@@ -2008,11 +2009,10 @@ function TagDB:load()
             src = game:HttpGet(TAGS_PASTEBIN_URL .. (TAGS_PASTEBIN_URL:find("?") and "&" or "?") .. "v=" .. tostring(os.time()))
         end)
         if src and src ~= "" then
-            local entries, count = parsePastebin(src)
-            if count > 0 then
+            local entries, count, isJson = parsePastebin(src)
+            if isJson or count > 0 then
                 self.entries = entries
-                print(("[Tags] Pastebin DB loaded — %d entries"):format(count))
-                self:mergeLocal()
+                print(("[Tags] GitHub tag DB loaded — %d entries"):format(count))
                 return
             end
         end
@@ -2024,22 +2024,24 @@ function TagDB:load()
         src = game:HttpGet(TAGS_DB_URL .. "?v=" .. tostring(os.time()))
     end)
     if not src then
-        warn("[Tags] DB fetch failed — using local overrides only")
+        warn("[Tags] DB fetch failed — using empty tag DB")
         self.entries = {}
-        self:mergeLocal()
         return
     end
     local fn, err = loadstring(src)
-    if not fn then warn("[Tags] compile: " .. tostring(err)); self.entries = {}; self:mergeLocal(); return end
+    if not fn then warn("[Tags] compile: " .. tostring(err)); self.entries = {}; return end
     local ok, data = pcall(fn)
     if not ok or type(data) ~= "table" then
-        warn("[Tags] eval failed: " .. tostring(data)); self.entries = {}; self:mergeLocal(); return
+        warn("[Tags] eval failed: " .. tostring(data)); self.entries = {}; return
     end
     local entries = {}
-    for k, v in pairs(data) do entries[tostring(k):lower()] = stripTagSpecials(v) end
+    for k, v in pairs(data) do
+        local key = normTagKey(k)
+        local clean = cleanTagEntry(v)
+        if key ~= "" and clean then entries[key] = clean end
+    end
     self.entries = entries
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
-    self:mergeLocal()
 end
 
 
@@ -4045,7 +4047,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         -- pushed to pastebin, so don't scare the user with a failure toast.
         local noFs = (not sok) and tostring(serr or ""):find("writefile not available", 1, true)
         if sok then
-            notify("Saved tag for " .. u .. " (persisted)", "good")
+            notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
         elseif noFs then
             notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
         else
@@ -4085,12 +4087,10 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         end)
     end)
 
-    button(pgTags, "Reapply my saved tags", function()
+    button(pgTags, "Reapply current tag data", function()
         task.spawn(function()
-            -- Re-merge per-user save file over the in-memory DB, then
-            -- fully tear down + rebuild every player's tag bubble so colors
-            -- and image fills render from the saved data.
-            local n = TagDB:mergeLocal() or 0
+            -- Fully tear down + rebuild every player's tag bubble from the
+            -- current GitHub/cache data. Local override files are ignored.
             TagDB.appliedTags  = {}
             TagDB.appliedIcons = {}
             for _, p in ipairs(Players:GetPlayers()) do
@@ -4103,7 +4103,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 pcall(buildBill, p)
             end
             pcall(rebuildList)
-            notify(("Reapplied %d saved tag(s)"):format(n), "good")
+            notify("Reapplied current tag data", "good")
         end)
     end)
 
@@ -4142,40 +4142,15 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     })
 
     local function buildExport()
-        local keys = {}
-        for k in pairs(TagDB.entries) do keys[#keys+1] = k end
-        table.sort(keys)
-        local lines = {}
-        for _, k in ipairs(keys) do
-            local e = TagDB.entries[k]
-            local tagsStr = (e.tags and table.concat(e.tags, ",")) or ""
-            local fields = {
-                k,
-                e.displayName or "",
-                e.color or "",
-                "",
-                e.icon or "",
-                tagsStr,
-                e.textFx or "",
-                e.customText or "",
-                e.customHandle or "",
-                e.outline or "",
-                e.font or "",
-                "",
-                e.textColor or "",
-                e.textOutline or "",
-                e.avatarOutline or "",
-                e.showChip or "",
-            }
-            -- Trim trailing empty fields so each row stays compact like the
-            -- legacy entries (e.g. eyk_a). The loader pads missing tail fields
-            -- with empty strings, so dropping them here is round-trip safe.
-            while #fields > 1 and (fields[#fields] == nil or fields[#fields] == "") do
-                fields[#fields] = nil
-            end
-            lines[#lines+1] = table.concat(fields, " | ")
+        local out = { version = 2, format = TAGS_JSON_FORMAT, tags = {} }
+        for k, e in pairs(TagDB.entries) do
+            local key = normTagKey(k)
+            local clean = cleanTagEntry(e)
+            if key ~= "" and clean then out.tags[key] = clean end
         end
-        return table.concat(lines, "\n")
+        local ok, encoded = pcall(function() return HttpService:JSONEncode(out) end)
+        if ok and type(encoded) == "string" then return encoded end
+        return '{"version":2,"format":"seige.tags.v2","tags":{}}'
     end
 
 
@@ -4226,6 +4201,14 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- preview/dev-domain bot pages being mistaken for a successful GitHub save.
     local BOT_URL  = "https://seigelollua.lovable.app/api/public/pastebin"
     local BOT_AUTH = "1f0957eaf8dd4ed89bb594440220eb4c"
+    local lastPullHash = nil
+
+    local function hashStr(s)
+        s = tostring(s or "")
+        local sum = 0
+        for i = 1, #s do sum = (sum + s:byte(i) * i) % 2147483647 end
+        return #s .. ":" .. sum
+    end
 
     local function pushToGithub(silent)
         local body = buildExport()
@@ -4310,6 +4293,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             end
         end
         if status >= 200 and status < 300 and savedOk(txt) then
+            lastPullHash = hashStr(body)
             if not silent then notify("Pushed to GitHub gist", "good") end
             return true, "ok"
         end
@@ -4332,14 +4316,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- the in-game tag editor so changes made on the gist show up
     -- as editable entries without a rejoin.
     ------------------------------------------------------------------
-    local lastPullHash = nil
-    local function hashStr(s)
-        s = tostring(s or "")
-        local sum = 0
-        for i = 1, #s do sum = (sum + s:byte(i) * i) % 2147483647 end
-        return #s .. ":" .. sum
-    end
-
     local function pullFromGithub(silent)
         local src
         local ok = pcall(function()
@@ -4355,8 +4331,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             return true, "unchanged"
         end
         lastPullHash = h
-        local entries, count = parsePastebin(src)
-        if count == 0 then
+        local entries, count, isJson = parsePastebin(src)
+        if count == 0 and not isJson then
             if not silent then notify("GitHub parse returned 0 entries", "warn") end
             return false, "empty parse"
         end
