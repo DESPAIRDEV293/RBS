@@ -11717,19 +11717,22 @@ end)()
     _G.__SeigeCycleVoice = V.cycle
 
     cmdHandlers["antivc"] = function()
-        _G.__SeigeAntiVC = _G.__SeigeAntiVC or { on = false, interval = 25 }
+        _G.__SeigeAntiVC = _G.__SeigeAntiVC or { on = false, interval = 10 }
         if _G.__SeigeAntiVC.on then
             _G.__SeigeAntiVC.on = false
             notify("AntiVC OFF", "warn"); return
         end
         local ok, why = V.gateCheck("antivc")
         if not ok then notify(why, "bad"); return end
+        pcall(function() V.installBypass() end)
         _G.__SeigeAntiVC.on = true
-        notify("AntiVC ON — recycling voice (undetected)", "good")
+        notify("AntiVC ON — bypass + recycle (swear-safe)", "good")
         task.spawn(function()
             while _G.__SeigeAntiVC and _G.__SeigeAntiVC.on do
-                local base = tonumber(_G.__SeigeAntiVC.interval) or 25
-                task.wait(math.max(4, base) + math.random() * 4)
+                -- Short interval beats Roblox's voice transcription window so
+                -- no full phrase ever reaches the moderation classifier.
+                local base = tonumber(_G.__SeigeAntiVC.interval) or 10
+                task.wait(math.max(6, base) + math.random() * 3)
                 if not (_G.__SeigeAntiVC and _G.__SeigeAntiVC.on) then break end
                 V.cycle()
             end
