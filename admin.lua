@@ -4659,7 +4659,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     local ntUser   = _ntField(pgNtTags, "Username (required)", "e.g. SomeUser")
     local ntTags   = _ntField(pgNtTags, "Tag names (comma separated)", "Owner, Dev")
-    local ntColor  = _ntField(pgNtTags, "Color (hex)", "#ff3b6b")
+    local ntColor  = _ntField(pgNtTags, "Color / pill fill (hex or image ID)", "#ff3b6b or image:1234567890")
     local ntColor2 = _ntField(pgNtTags, "Second color (optional · split bubble)", "#00aaff")
     local ntIcon   = _ntField(pgNtTags, "Image / icon (Roblox asset ID)", "1234567890")
 
@@ -4675,15 +4675,12 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local a, b = c:match("^([^/]+)/([^/]+)$")
             ntColor.Text  = a or ""
             ntColor2.Text = b or ""
-        elseif c:sub(1,6) == "image:" then
-            ntColor.Text = ""; ntColor2.Text = ""
-            ntIcon.Text = c:sub(7)
+        elseif normalizeTagFillSpec(c) then
+            ntColor.Text = normalizeTagFillSpec(c) or c; ntColor2.Text = ""
         else
             ntColor.Text = c; ntColor2.Text = ""
         end
-        if e.icon and e.icon ~= "" and ntIcon.Text == "" then
-            ntIcon.Text = tostring(e.icon)
-        end
+        ntIcon.Text = tostring(e.icon or "")
     end
 
     button(pgNtTags, "Save / Update entry", function()
@@ -4708,10 +4705,12 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             entry.tags = nil
         end
 
-        -- Color (hex / split). Icon-color path is handled via the icon field.
+        -- Color/fill: image IDs here change the pill interior, icon field changes avatar image.
         local c1 = _trim(ntColor.Text)
         local c2 = _trim(ntColor2.Text)
-        if c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
+        local imgSpec = normalizeTagFillSpec(c1) or normalizeTagFillSpec(c2)
+        if imgSpec then entry.color = imgSpec
+        elseif c1 ~= "" and c2 ~= "" then entry.color = c1 .. "/" .. c2
         elseif c1 ~= "" then entry.color = c1
         elseif c2 ~= "" then entry.color = c2
         else
@@ -4735,7 +4734,11 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
         -- Apply to the live player in this server, if present
         for _, p in ipairs(Players:GetPlayers()) do
-            if p.Name:lower() == key then pcall(function() TagDB:applyTo(p) end) end
+            if p.Name:lower() == key or tostring(p.DisplayName or ""):lower() == key then
+                pcall(function() TagDB:applyTo(p) end)
+                if tagBills[p] then pcall(NameHider.restore, p); pcall(function() tagBills[p].gui:Destroy() end); tagBills[p] = nil end
+                pcall(buildBill, p); pcall(refreshBill, p)
+            end
         end
 
         local sok, serr = TagDB:saveLocal()
