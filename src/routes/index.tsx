@@ -46,6 +46,24 @@ const DROPLETS = Array.from({ length: 90 }, (_, i) => {
   };
 });
 
+function WaterText({ text, accent = false }: { text: string; accent?: boolean }) {
+  return (
+    <span className={`water-text inline-block ${accent ? "water-text-accent" : ""}`}>
+      {text.split("").map((ch, i) => (
+        <span
+          key={i}
+          className="water-letter"
+          style={{ animationDelay: `${i * 0.12}s` }}
+        >
+          <span className="water-letter-glyph">{ch}</span>
+          <span className="water-ripple" style={{ animationDelay: `${i * 0.12 + 0.4}s` }} />
+          <span className="water-ripple water-ripple-2" style={{ animationDelay: `${i * 0.12 + 1.1}s` }} />
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function Index() {
 
   return (
@@ -120,7 +138,8 @@ function Index() {
             seige.lol  ·  storm build
           </p>
           <h1 className="storm-title text-5xl font-black leading-[0.95] tracking-tight sm:text-7xl">
-            Seige <span className="storm-title-accent">Loadstring</span>
+            <WaterText text="Seige" />{" "}
+            <WaterText text="Loadstring" accent />
           </h1>
           <p className="max-w-2xl text-base leading-relaxed text-slate-300/85">
             Your script your way. Quick, Reliable, Safe. Enjoy seige soon
