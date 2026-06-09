@@ -2969,7 +2969,7 @@ local function buildBill(p)
         Active = true,
         -- Wrapper matches the compact minimum pill (100x46) + 12px halo on each
         -- side / 6px top+bottom for aura room. refreshBill resizes to fit text.
-        Size = UDim2.new(0, 124, 0, 58),
+        Size = UDim2.new(0, 142, 0, 58),
         StudsOffset = Vector3.new(0, 1.7, 0),
         AlwaysOnTop = true, LightInfluence = 0,
     })
