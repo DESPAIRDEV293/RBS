@@ -6442,27 +6442,49 @@ button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp t
 button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
 button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
 
--- ===== Performance: FPS booster + Ping booster (in one popout) =====
+-- ===== Performance & Optimize — unified panel =====
+-- One place for FPS booster, Ping booster, and Optimize.
+-- All three actually do work: uncap fps, drop quality, kill effects,
+-- disable shadows/water/decoration, push network priority.
 do
-    -- Save originals once so toggling off restores them
-    local saved
-    local function snapshot()
-        if saved then return end
-        saved = {
-            qLevel = pcall(function() return settings().Rendering.QualityLevel end) and settings().Rendering.QualityLevel,
-            lagSim = pcall(function() return settings().Network.IncomingReplicationLag end) and settings().Network.IncomingReplicationLag,
-            shadows = Lighting.GlobalShadows,
-            fogEnd = Lighting.FogEnd,
-            fogStart = Lighting.FogStart,
-            brightness = Lighting.Brightness,
-            envDif = Lighting.EnvironmentDiffuseScale,
-            envSpc = Lighting.EnvironmentSpecularScale,
-            streamPause = pcall(function() return workspace.StreamingPauseMode end) and workspace.StreamingPauseMode,
-        }
+    local Lighting   = game:GetService("Lighting")
+    local RunService = game:GetService("RunService")
+    local Stats      = game:GetService("Stats")
+
+    local function _userSettings()
+        local ok, s = pcall(function() return settings():GetService("UserGameSettings") end)
+        return ok and s or nil
     end
 
-    local fpsOn, pingOn = false, false
-    local fpsToken = 0
+    _G.__SeigePerf = _G.__SeigePerf or {
+        fps = false, ping = false, opt = false,
+        saved = nil, conn = nil, fpsTok = 0,
+    }
+    local P = _G.__SeigePerf
+
+    local function snapshot()
+        if P.saved then return end
+        local Terrain = workspace:FindFirstChildOfClass("Terrain")
+        local US = _userSettings()
+        P.saved = {
+            qLevel        = pcall(function() return settings().Rendering.QualityLevel end) and settings().Rendering.QualityLevel,
+            savedQuality  = US and US.SavedQualityLevel,
+            lagSim        = pcall(function() return settings().Network.IncomingReplicationLag end) and settings().Network.IncomingReplicationLag,
+            shadows       = Lighting.GlobalShadows,
+            fogEnd        = Lighting.FogEnd,
+            fogStart      = Lighting.FogStart,
+            brightness    = Lighting.Brightness,
+            envDif        = Lighting.EnvironmentDiffuseScale,
+            envSpc        = Lighting.EnvironmentSpecularScale,
+            technology    = Lighting.Technology,
+            streamPause   = pcall(function() return workspace.StreamingPauseMode end) and workspace.StreamingPauseMode,
+            waterWaveSize    = Terrain and Terrain.WaterWaveSize,
+            waterReflectance = Terrain and Terrain.WaterReflectance,
+            waterTransparency= Terrain and Terrain.WaterTransparency,
+            waterWaveSpeed   = Terrain and Terrain.WaterWaveSpeed,
+            decoration       = Terrain and Terrain.Decoration,
+        }
+    end
 
     local function setFpsCap(v)
         local s = rawget(getfenv(), "setfpscap")
@@ -6471,61 +6493,65 @@ do
         return false
     end
 
+    -- Walk workspace + lighting and kill cosmetic effects.
+    local function stripEffects()
+        for _, v in ipairs(Lighting:GetDescendants()) do
+            if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("BloomEffect")
+               or v:IsA("SunRaysEffect") or v:IsA("DepthOfFieldEffect")
+               or v:IsA("ColorCorrectionEffect") or v:IsA("Atmosphere") then
+                pcall(function() v.Enabled = false end)
+            end
+        end
+        for _, v in ipairs(workspace:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke")
+               or v:IsA("Fire") or v:IsA("Sparkles") then
+                pcall(function() v.Enabled = false end)
+            elseif v:IsA("Explosion") then
+                pcall(function() v.BlastPressure = 0; v.BlastRadius = 0 end)
+            elseif v:IsA("MeshPart") then
+                pcall(function() v.RenderFidelity = Enum.RenderFidelity.Performance end)
+                pcall(function() v.CastShadow = false end)
+            elseif v:IsA("BasePart") then
+                pcall(function() v.CastShadow = false end)
+            end
+        end
+    end
+
     local function applyFps(on)
         snapshot()
         if on then
-            -- Uncap fps via executor
-            setFpsCap(0)  -- 0 = unlimited on most executors
-            -- Drop graphics quality to bare minimum
+            setFpsCap(0)
             pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+            local US = _userSettings()
+            if US then pcall(function() US.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1 end) end
             pcall(function() Lighting.GlobalShadows = false end)
-            pcall(function() Lighting.FogEnd = 1e6 end)
-            pcall(function() Lighting.FogStart = 1e6 end)
+            pcall(function() Lighting.FogEnd = 1e9 end)
+            pcall(function() Lighting.FogStart = 1e9 end)
             pcall(function() Lighting.EnvironmentDiffuseScale = 0 end)
             pcall(function() Lighting.EnvironmentSpecularScale = 0 end)
-            -- Kill expensive effects
-            for _, v in ipairs(Lighting:GetDescendants()) do
-                if v:IsA("PostEffect") or v:IsA("BlurEffect") or v:IsA("BloomEffect")
-                   or v:IsA("SunRaysEffect") or v:IsA("DepthOfFieldEffect")
-                   or v:IsA("ColorCorrectionEffect") then
-                    pcall(function() v.Enabled = false end)
-                end
-            end
-            -- Strip heavy workspace effects (particles, smoke, fire, trails, meshes' textures)
+            pcall(function() Lighting.Technology = Enum.Technology.Compatibility end)
+            task.spawn(stripEffects)
+            -- re-apply every 5s in case the game resets
+            P.fpsTok = P.fpsTok + 1
+            local tok = P.fpsTok
             task.spawn(function()
-                local tok = fpsToken + 1; fpsToken = tok
-                for _, v in ipairs(workspace:GetDescendants()) do
-                    if tok ~= fpsToken then return end
-                    if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke")
-                       or v:IsA("Fire") or v:IsA("Sparkles") then
-                        pcall(function() v.Enabled = false end)
-                    elseif v:IsA("Explosion") then
-                        pcall(function() v.BlastPressure = 0; v.BlastRadius = 0 end)
-                    elseif v:IsA("MeshPart") then
-                        pcall(function() v.RenderFidelity = Enum.RenderFidelity.Performance end)
-                    end
-                end
-            end)
-            -- Periodically re-apply (some games reset settings)
-            task.spawn(function()
-                local tok = fpsToken
-                while fpsOn and tok == fpsToken do
+                while P.fps and tok == P.fpsTok do
                     setFpsCap(0)
                     pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
                     task.wait(5)
                 end
             end)
         else
-            fpsToken = fpsToken + 1
-            -- Restore
+            P.fpsTok = P.fpsTok + 1
             setFpsCap(240)
-            if saved then
-                pcall(function() if saved.qLevel then settings().Rendering.QualityLevel = saved.qLevel end end)
-                pcall(function() Lighting.GlobalShadows = saved.shadows end)
-                pcall(function() Lighting.FogEnd = saved.fogEnd end)
-                pcall(function() Lighting.FogStart = saved.fogStart end)
-                pcall(function() Lighting.EnvironmentDiffuseScale = saved.envDif end)
-                pcall(function() Lighting.EnvironmentSpecularScale = saved.envSpc end)
+            if P.saved then
+                pcall(function() if P.saved.qLevel then settings().Rendering.QualityLevel = P.saved.qLevel end end)
+                pcall(function() Lighting.GlobalShadows = P.saved.shadows end)
+                pcall(function() Lighting.FogEnd = P.saved.fogEnd end)
+                pcall(function() Lighting.FogStart = P.saved.fogStart end)
+                pcall(function() Lighting.EnvironmentDiffuseScale = P.saved.envDif end)
+                pcall(function() Lighting.EnvironmentSpecularScale = P.saved.envSpc end)
+                pcall(function() Lighting.Technology = P.saved.technology end)
             end
         end
     end
@@ -6533,11 +6559,8 @@ do
     local function applyPing(on)
         snapshot()
         if on then
-            -- Push network as hard as the client allows
             pcall(function() settings().Network.IncomingReplicationLag = 0 end)
-            -- Reduce streaming pauses (heavy lag-spike trigger)
             pcall(function() workspace.StreamingPauseMode = Enum.StreamingPauseMode.Disabled end)
-            -- Bump task scheduler priority where exposed
             pcall(function()
                 local sched = settings():GetService("TaskScheduler")
                 if sched then
@@ -6546,17 +6569,55 @@ do
                 end
             end)
         else
-            if saved then
-                pcall(function() settings().Network.IncomingReplicationLag = saved.lagSim or 0 end)
-                pcall(function() workspace.StreamingPauseMode = saved.streamPause end)
+            if P.saved then
+                pcall(function() settings().Network.IncomingReplicationLag = P.saved.lagSim or 0 end)
+                pcall(function() workspace.StreamingPauseMode = P.saved.streamPause end)
             end
         end
     end
 
-    button(pgCmds, "Performance  —  FPS & Ping booster", function()
-        _openPanel("perfboost", "Performance  ·  FPS & Ping booster", 220, function(body)
-            -- live pings/fps readout
-            local stats = game:GetService("Stats")
+    local function applyOpt(on)
+        snapshot()
+        local Terrain = workspace:FindFirstChildOfClass("Terrain")
+        if on then
+            if Terrain then
+                pcall(function() Terrain.WaterWaveSize = 0 end)
+                pcall(function() Terrain.WaterReflectance = 0 end)
+                pcall(function() Terrain.WaterTransparency = 1 end)
+                pcall(function() Terrain.WaterWaveSpeed = 0 end)
+                pcall(function() Terrain.Decoration = false end)
+            end
+            stripEffects()
+            if not P.conn then
+                P.conn = workspace.DescendantAdded:Connect(function(d)
+                    if not P.opt then return end
+                    if d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Smoke")
+                       or d:IsA("Fire") or d:IsA("Sparkles") then
+                        pcall(function() d.Enabled = false end)
+                    elseif d:IsA("BasePart") then
+                        pcall(function() d.CastShadow = false end)
+                    end
+                end)
+            end
+        else
+            if P.conn then pcall(function() P.conn:Disconnect() end); P.conn = nil end
+            if P.saved and Terrain then
+                pcall(function() Terrain.WaterWaveSize = P.saved.waterWaveSize end)
+                pcall(function() Terrain.WaterReflectance = P.saved.waterReflectance end)
+                pcall(function() Terrain.WaterTransparency = P.saved.waterTransparency end)
+                pcall(function() Terrain.WaterWaveSpeed = P.saved.waterWaveSpeed end)
+                pcall(function() Terrain.Decoration = P.saved.decoration end)
+            end
+        end
+    end
+
+    local function applyAll(on)
+        P.fps, P.ping, P.opt = on, on, on
+        applyFps(on); applyPing(on); applyOpt(on)
+    end
+
+    local function _openPerfPanel()
+        _openPanel("perf", "Performance  ·  FPS / Ping / Optimize", 320, function(body)
             local readout = inst("TextLabel", body, {
                 Size = UDim2.new(1, 0, 0, 28), BackgroundColor3 = T.bg3,
                 BackgroundTransparency = 0.4, BorderSizePixel = 0,
@@ -6575,31 +6636,48 @@ do
                     end
                     local ping = 0
                     pcall(function()
-                        ping = math.floor(stats.Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
+                        ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
                     end)
                     readout.Text = ("FPS: %d   Ping: %d ms"):format(fps, ping)
                     task.wait(0.1)
                 end
             end)
-            toggle(body, "FPS booster (uncap + strip effects)", fpsOn, function(v)
-                fpsOn = v; applyFps(v)
+            toggle(body, "FPS booster (uncap + low quality + strip FX)", P.fps, function(v)
+                P.fps = v; applyFps(v)
                 notify("FPS booster " .. (v and "ON" or "OFF"), v and "good" or "dim")
             end)
-            toggle(body, "Ping booster (push network priority)", pingOn, function(v)
-                pingOn = v; applyPing(v)
+            toggle(body, "Ping booster (network priority + no stream pause)", P.ping, function(v)
+                P.ping = v; applyPing(v)
                 notify("Ping booster " .. (v and "ON" or "OFF"), v and "good" or "dim")
             end)
-            button(body, "Boost BOTH (max performance)", function()
-                fpsOn = true; pingOn = true
-                applyFps(true); applyPing(true)
-                notify("Max performance mode ON", "good")
+            toggle(body, "Optimize (water/decor off, block new FX)", P.opt, function(v)
+                P.opt = v; applyOpt(v)
+                notify("Optimize " .. (v and "ON" or "OFF"), v and "good" or "dim")
+            end)
+            button(body, "MAX BOOST (all three)", function()
+                applyAll(true); notify("Max performance ON", "good")
             end)
             button(body, "Restore defaults", function()
-                fpsOn = false; pingOn = false
-                applyFps(false); applyPing(false)
-                notify("Performance restored", "warn")
+                applyAll(false); notify("Performance restored", "warn")
             end)
         end)
+    end
+
+    button(pgCmds, "Performance  —  FPS / Ping / Optimize", _openPerfPanel)
+    _G.__SeigeOpenPerf = _openPerfPanel
+    task.defer(function()
+        if _G.__SeigeCmds then
+            _G.__SeigeCmds["performance"] = _openPerfPanel
+            _G.__SeigeCmds["perf"]        = _openPerfPanel
+            _G.__SeigeCmds["fpsboost"]    = function() P.fps = true; applyFps(true); notify("FPS booster ON", "good") end
+            _G.__SeigeCmds["unfpsboost"]  = function() P.fps = false; applyFps(false); notify("FPS booster OFF", "warn") end
+            _G.__SeigeCmds["pingboost"]   = function() P.ping = true; applyPing(true); notify("Ping booster ON", "good") end
+            _G.__SeigeCmds["unpingboost"] = function() P.ping = false; applyPing(false); notify("Ping booster OFF", "warn") end
+            _G.__SeigeCmds["optimize"]    = function() P.opt = true; applyOpt(true); notify("Optimize ON", "good") end
+            _G.__SeigeCmds["unoptimize"]  = function() P.opt = false; applyOpt(false); notify("Optimize OFF", "warn") end
+            _G.__SeigeCmds["maxboost"]    = function() applyAll(true); notify("Max performance ON", "good") end
+            _G.__SeigeCmds["unboost"]     = function() applyAll(false); notify("Performance restored", "warn") end
+        end
     end)
 end
 
