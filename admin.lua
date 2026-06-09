@@ -1874,6 +1874,8 @@ local function parseTagsJson(src)
     for block in src:gmatch('({%s*"version"%s*:%s*2.-})') do embedded = block end
     for block in src:gmatch('({%s*"format"%s*:%s*"seige%.tags%.v2".-})') do embedded = block end
     if embedded then src = embedded end
+    local closeAt = src:match('^.*()}.%s*$')
+    if closeAt then src = src:sub(1, closeAt) end
     local ok, decoded = pcall(function() return HttpService:JSONDecode(src) end)
     if not ok or type(decoded) ~= "table" then return nil, 0, false end
     local source = decoded.tags or decoded.entries or decoded
