@@ -8323,6 +8323,8 @@ snapshotCfg = function()
         toggleKey     = toggleKey.Name,
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
         reducedMotion = reducedCtl and reducedCtl.get and reducedCtl.get() or false,
+        layoutMode    = _G.__SeigeLayoutMode or "Bar",
+        uiTrans       = _G.__SeigeUITrans or 0.35,
         skybox        = {
             Up = skyboxFaces.Up, Dn = skyboxFaces.Dn,
             Lf = skyboxFaces.Lf, Rt = skyboxFaces.Rt,
@@ -8338,6 +8340,14 @@ applyCfg = function(cfg, opts)
     setToggleKey(cfg.toggleKey or CFG_DEFAULTS.toggleKey)
     if uiScaleCtl and uiScaleCtl.set then uiScaleCtl.set(cfg.uiScale or CFG_DEFAULTS.uiScale) end
     if reducedCtl and reducedCtl.set then reducedCtl.set(cfg.reducedMotion == true) end
+    if cfg.layoutMode and _G.__SeigeApplyLayout then
+        _G.__SeigeApplyLayout(cfg.layoutMode)
+        if layoutCtl and layoutCtl.set then layoutCtl.set(cfg.layoutMode) end
+    end
+    if cfg.uiTrans and _G.__SeigeApplyUITrans then
+        _G.__SeigeApplyUITrans(tonumber(cfg.uiTrans) or 0.35)
+        if transCtl and transCtl.set then transCtl.set(tonumber(cfg.uiTrans) or 0.35) end
+    end
     local sb = cfg.skybox or CFG_DEFAULTS.skybox
     for _, k in ipairs({ "Up", "Dn", "Lf", "Rt", "Ft", "Bk" }) do
         skyboxFaces[k] = sb[k] or ""
@@ -8356,17 +8366,34 @@ end
 
 
 saveCfg = function()
+    -- Always snapshot to an in-memory session store so settings persist
+    -- across panel reopens / scripts that re-require us, even without a
+    -- writefile-capable executor. Resets only when the user clicks
+    -- "Reset to Defaults" or the player rejoins.
+    local snap = snapshotCfg()
+    _G.__SeigeSessionCfg = snap
+
     local wf = rawget(getfenv(), "writefile") or writefile
-    if not wf then notify("Executor has no writefile — cannot save", "warn") return end
+    if not wf then
+        notify("Config saved for this session", "good")
+        return
+    end
     local mf = rawget(getfenv(), "makefolder") or makefolder
     if mf then pcall(mf, "SeigeAdmin") end
-    local ok, raw = pcall(HttpService.JSONEncode, HttpService, snapshotCfg())
+    local ok, raw = pcall(HttpService.JSONEncode, HttpService, snap)
     if not ok then notify("Failed to encode config", "bad") return end
     local okW = pcall(wf, CFG_FILE, raw)
-    if okW then notify("Config saved", "good") else notify("Failed to write config", "bad") end
+    if okW then notify("Config saved", "good") else notify("Config saved for this session", "good") end
 end
 
 loadCfg = function()
+    -- Prefer in-memory session config (set by saveCfg this session) so the
+    -- last-saved settings stick across re-injects in the same session even
+    -- without writefile support.
+    if type(_G.__SeigeSessionCfg) == "table" then
+        applyCfg(_G.__SeigeSessionCfg, { applySkybox = true })
+        return
+    end
     local rf  = rawget(getfenv(), "readfile") or readfile
     local isf = rawget(getfenv(), "isfile")   or isfile
     if not rf or not isf then return end
@@ -8378,6 +8405,7 @@ end
 
 -- auto-load saved config on startup
 pcall(loadCfg)
+
 
 
 
