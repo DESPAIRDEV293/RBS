@@ -87,9 +87,29 @@ function WaterText({ text, accent = false }: { text: string; accent?: boolean })
 }
 
 function Index() {
+  // Anti-lag: detect low-power devices on the client (SSR-safe defaults to full FX).
+  // Also pauses all storm animations when the tab is hidden so we don't waste CPU.
+  const [lowFx, setLowFx] = useState(false);
+  const [paused, setPaused] = useState(false);
+
+  useEffect(() => {
+    const nav = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+    const cores = nav.hardwareConcurrency ?? 8;
+    const mem = nav.deviceMemory ?? 8;
+    const saveData = nav.connection?.saveData === true;
+    const coarse = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+    if (cores <= 4 || mem <= 4 || saveData || coarse) setLowFx(true);
+
+    const onVis = () => setPaused(document.hidden);
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
 
   return (
-    <div className="storm-root relative min-h-screen overflow-hidden text-slate-100">
+    <div
+      className={`storm-root relative min-h-screen overflow-hidden text-slate-100 ${lowFx ? "storm-low-fx" : ""} ${paused ? "storm-paused" : ""}`}
+    >
+
       {/* sky gradient */}
       <div className="storm-sky absolute inset-0" />
       {/* rolling cloud layers */}
