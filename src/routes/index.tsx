@@ -306,8 +306,8 @@ function Index() {
           width: 110px;
           height: 55vh;
           opacity: 0;
-          filter: drop-shadow(0 0 18px rgba(165,180,252,0.9))
-                  drop-shadow(0 0 60px rgba(99,102,241,0.55));
+          /* Single drop-shadow instead of stacked — filters compose expensively in Chrome. */
+          filter: drop-shadow(0 0 22px rgba(165,180,252,0.85));
           animation: storm-bolt-flash 9s linear infinite;
         }
         @keyframes storm-bolt-flash {
@@ -347,15 +347,17 @@ function Index() {
           -webkit-background-clip: text;
           background-clip: text;
           color: transparent;
-          filter: drop-shadow(0 2px 14px rgba(99,102,241,0.5));
+          /* text-shadow is cheaper than filter: drop-shadow for text. */
+          text-shadow: 0 2px 18px rgba(99,102,241,0.5);
         }
 
         .storm-card {
+          /* Solid translucent gradient instead of backdrop-blur.
+             backdrop-filter re-samples the animated rain layer every frame
+             in Chrome, which was the main source of lag. */
           background:
-            linear-gradient(180deg, rgba(20,28,52,0.55), rgba(8,12,24,0.65));
-          border: 1px solid rgba(165,180,252,0.18);
-          backdrop-filter: blur(14px) saturate(140%);
-          -webkit-backdrop-filter: blur(14px) saturate(140%);
+            linear-gradient(180deg, rgba(14,20,38,0.92), rgba(6,10,20,0.95));
+          border: 1px solid rgba(165,180,252,0.22);
           box-shadow:
             0 1px 0 rgba(255,255,255,0.06) inset,
             0 30px 80px -20px rgba(0,0,0,0.7),
