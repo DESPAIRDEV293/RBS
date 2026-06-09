@@ -2541,6 +2541,7 @@ local function refreshBill(p)
         pcall(e.auraStop); e.auraStop = nil; e.auraName = nil
     end
     if e.stroke then e.stroke.Enabled = true end
+    if e.bgGrad then e.bgGrad.Enabled = true end
     if e.bg then e.bg.BackgroundTransparency = 0 end
 
     -- Default everyone to anonymous "user" unless an admin set an override.
