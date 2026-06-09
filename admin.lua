@@ -3247,6 +3247,116 @@ local function refreshBill(p)
 end
 
 
+-- Clean tag renderer v2: one deterministic path for every refresh.
+-- No stale fill fallback, no text-effect side loops, no duplicate image parsing.
+refreshBill = function(p)
+    local e = tagBills[p]; if not e then return end
+    local cfg = TagDB:configFor(p) or {}
+    if e.gui then e.gui.Enabled = true end
+    if e.auraStop then pcall(e.auraStop); e.auraStop = nil; e.auraName = nil end
+
+    local function fmtHandle(h)
+        h = tostring(h or ""):gsub("^@", ""):gsub("^%s+", ""):gsub("%s+$", "")
+        return "@" .. (h ~= "" and h or "user")
+    end
+
+    local nameStr = (cfg.displayName and cfg.displayName ~= "" and cfg.displayName) or (p == LP and p.DisplayName) or "user"
+    local handleStr = (cfg.customHandle and cfg.customHandle ~= "" and fmtHandle(cfg.customHandle)) or (p == LP and ("@" .. p.Name)) or "@user"
+    e.name.Text = nameStr; e.handle.Text = handleStr; e.baseName = nameStr
+
+    local fontChoice = (cfg.font and cfg.font ~= "" and cfg.font ~= "Default" and cfg.font) or (_G.__SeigeTagFont and _G.__SeigeTagFont ~= "Default" and _G.__SeigeTagFont) or nil
+    local font = fontChoice and Enum.Font[fontChoice] or nil
+    pcall(function()
+        e.name.Font = font or Enum.Font.GothamBold
+        e.handle.Font = font or Enum.Font.Gotham
+        if e.stat then e.stat.Font = font or Enum.Font.GothamBold end
+    end)
+
+    if e.av then
+        e.gifToken = (e.gifToken or 0) + 1; e.gifKey = nil
+        e.av.ImageRectOffset = Vector2.new(0, 0); e.av.ImageRectSize = Vector2.new(0, 0)
+        local img
+        if cfg.icon and cfg.icon ~= "" then img = resolveIconUrl(cfg.icon) end
+        if not img then pcall(function() img = Players:GetUserThumbnailAsync(p.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100) end) end
+        if img and img ~= "" then pcall(function() e.av.Image = ""; e.av.Image = img end); e.av.ImageTransparency = 0 end
+    end
+
+    local fill = parseFill(cfg.color or "")
+    local accent = (fill and ((fill.kind == "solid" and fill.c) or (fill.kind == "split" and fill.c1) or (fill.kind == "gradient" and fill.stops and fill.stops[1]))) or parseColor(cfg.outline or "") or (T.silverHi or T.text)
+    if e.bgImg then e.bgImg.Visible = false; e.bgImg.Image = ""; e.bgImg.ImageTransparency = 1 end
+    if e.bgGrad then e.bgGrad.Enabled = false end
+    e.bg.BackgroundTransparency = 0
+
+    if fill and fill.kind == "image" then
+        if e.bgImg then
+            e.bgImg.Size = UDim2.new(1, 0, 1, 0); e.bgImg.Position = UDim2.new(0, 0, 0, 0)
+            e.bgImg.ScaleType = Enum.ScaleType.Crop; e.bgImg.ZIndex = 3
+            pcall(function() e.bgImg.Image = ""; e.bgImg.Image = fill.url end)
+            e.bgImg.ImageTransparency = 0; e.bgImg.BackgroundTransparency = 1; e.bgImg.Visible = true
+        end
+        e.bg.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+    elseif fill and fill.kind == "gradient" and e.bgGrad then
+        local kps = {}
+        for i, c in ipairs(fill.stops) do kps[#kps + 1] = ColorSequenceKeypoint.new((i - 1) / math.max(1, #fill.stops - 1), c) end
+        e.bgGrad.Color = ColorSequence.new(kps); e.bgGrad.Rotation = fill.rotation or 90; e.bgGrad.Enabled = true
+        e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+    elseif fill and fill.kind == "split" and e.bgGrad then
+        e.bgGrad.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, fill.c1), ColorSequenceKeypoint.new(0.499, fill.c1),
+            ColorSequenceKeypoint.new(0.5, fill.c2), ColorSequenceKeypoint.new(1, fill.c2),
+        })
+        e.bgGrad.Rotation = 0; e.bgGrad.Enabled = true; e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+    elseif fill and fill.kind == "solid" then
+        e.bg.BackgroundColor3 = fill.c
+    else
+        if e.bgGrad then
+            e.bgGrad.Color = ColorSequence.new(Color3.fromRGB(32, 32, 42), Color3.fromRGB(14, 14, 18))
+            e.bgGrad.Rotation = 90; e.bgGrad.Enabled = true
+        end
+        e.bg.BackgroundColor3 = Color3.new(1, 1, 1)
+    end
+
+    local outline = tostring(cfg.outline or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+    e.outlineOff = outline == "off" or outline == "none" or outline == "0" or outline == "false"
+    if e.stroke then e.stroke.Enabled = not e.outlineOff; e.stroke.Color = parseColor(cfg.outline or "") or accent end
+
+    local txt = cfg.customText and cfg.customText ~= "" and cfg.customText or Tags:summary(p.UserId)
+    local chipOn = tostring(cfg.showChip or ""):lower() == "on"
+    if e.sh then e.sh.Visible = chipOn and txt ~= "" end
+    if e.stat then e.stat.Text = tostring(txt or ""):gsub(",", " • ") end
+    if e.dot then e.dot.BackgroundColor3 = accent end
+    if e.avRing then
+        e.avRing.Color = accent
+        local ao = tostring(cfg.avatarOutline or ""):lower()
+        e.avRing.Enabled = not (ao == "off" or ao == "none" or ao == "0" or ao == "false")
+    end
+
+    local textColor = parseColor(cfg.textColor or "") or (cfg.color and cfg.color ~= "" and accent) or T.text
+    local handleColor = parseColor(cfg.textColor or "") or (cfg.color and cfg.color ~= "" and accent) or T.sub
+    e.name.TextColor3 = textColor; e.handle.TextColor3 = handleColor; if e.stat then e.stat.TextColor3 = textColor end
+    local to = tostring(cfg.textOutline or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+    local off = to == "off" or to == "none" or to == "0" or to == "false"
+    local toc = parseColor(cfg.textOutline or "")
+    for _, lbl in ipairs({ e.name, e.handle }) do
+        if lbl then
+            if off then lbl.TextStrokeTransparency = 1
+            elseif toc then lbl.TextStrokeColor3 = toc; lbl.TextStrokeTransparency = 0.35 end
+        end
+    end
+
+    local nameW = measureText(nameStr, e.name.Font or Enum.Font.GothamBold, 14)
+    local handleW = measureText(handleStr, e.handle.Font or Enum.Font.Gotham, 10)
+    local textW = math.ceil(math.max(nameW, handleW))
+    e.name.Size = UDim2.new(0, textW + 4, 0, 18); e.handle.Size = UDim2.new(0, textW + 4, 0, 14)
+    e.name.Position = UDim2.new(0, 48, 0, 4); e.handle.Position = UDim2.new(0, 48, 0, 24)
+    e.nameBasePos = e.name.Position; e.handleBasePos = e.handle.Position
+    local chipBlock = 0
+    if e.sh and e.sh.Visible then local statW = measureText(e.stat.Text or "", e.stat.Font or Enum.Font.GothamBold, 10); e.sh.Size = UDim2.new(0, math.ceil(statW + 22), 0, 22); chipBlock = e.sh.Size.X.Offset + 4 end
+    local pillW = math.max(118, 6 + 34 + 8 + textW + chipBlock + 10)
+    e.bg.AnchorPoint = Vector2.new(0.5, 0.5); e.bg.Position = UDim2.new(0.5, 0, 0.5, 0); e.bg.Size = UDim2.new(0, pillW, 0, 46)
+    e.gui.Size = UDim2.new(0, pillW + 24, 0, 58)
+end
+
 local function buildBill(p)
 
     if tagBills[p] or not pchar(p) then return end
