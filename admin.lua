@@ -6007,9 +6007,18 @@ task.delay(2.2, function()
     end
 
     enableBtn.MouseButton1Click:Connect(function()
-        floatOn = true
-        rebuildBills()
-        if notify then pcall(notify, "Player tags enabled", "good") end
+        -- Show tags for OTHER seige.lol users in this server (not every player).
+        -- The cross-game presence heartbeat populates _G.__SeigeScripters with
+        -- userIds whose jobId matches ours, and syncScripterBills() adds a
+        -- bubble for each of them without rebuilding LP's tag (no glitch).
+        scriptersOn = true
+        if _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
+        local n = 0
+        for _ in pairs(_G.__SeigeScripters or {}) do n = n + 1 end
+        if _G.__SeigePresenceRefresh then pcall(_G.__SeigePresenceRefresh) end
+        if notify then
+            pcall(notify, ("Scripter tags on · %d nearby"):format(n), n > 0 and "good" or "warn")
+        end
         slideOut()
     end)
     dismissBtn.MouseButton1Click:Connect(function() slideOut() end)
