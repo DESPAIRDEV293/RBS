@@ -3024,7 +3024,7 @@ local function buildBill(p)
 
 
     local av = inst("ImageLabel", bg, {
-        Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 5, 0.5, -17),
+        Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 6, 0.5, -17),
         BackgroundColor3 = T.bg3, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Crop,
         ZIndex = 10,
     })
