@@ -174,7 +174,7 @@ function Index() {
 
           <div className="relative flex items-center justify-between gap-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-indigo-200/70">
-              Live command
+              Loadstring Here:
             </p>
             <button
               disabled
