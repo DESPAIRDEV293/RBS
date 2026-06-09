@@ -1867,11 +1867,12 @@ local function cleanTagEntry(entry)
 end
 local function parseTagsJson(src)
     src = tostring(src or "")
-    -- If the Gist ever contains old pipe rows plus a v2 JSON document, trust the
-    -- JSON document. This prevents stale legacy rows from overriding newly saved
-    -- colors/fills when Roblox reloads the repo.
-    local embedded = src:match('({%s*"version"%s*:%s*2.-})%s*$')
-                  or src:match('({%s*"format"%s*:%s*"seige%.tags%.v2".-})%s*$')
+    -- Prefer the LAST v2 JSON block if the file was polluted with legacy rows.
+    -- This avoids blue/default fallback from a half-parsed mixed file, while the
+    -- caller can still recover legacy rows if the embedded JSON is empty.
+    local embedded = nil
+    for block in src:gmatch('({%s*"version"%s*:%s*2.-})') do embedded = block end
+    for block in src:gmatch('({%s*"format"%s*:%s*"seige%.tags%.v2".-})') do embedded = block end
     if embedded then src = embedded end
     local ok, decoded = pcall(function() return HttpService:JSONDecode(src) end)
     if not ok or type(decoded) ~= "table" then return nil, 0, false end
@@ -1888,9 +1889,8 @@ local function parseTagsJson(src)
     end
     return entries, count, true
 end
-local function parsePastebin(src)
-    local jsonEntries, jsonCount, isJson = parseTagsJson(src)
-    if isJson then return jsonEntries, jsonCount, true end
+
+local function parseLegacyTagRows(src)
     local entries = {}
     local count = 0
     for raw in tostring(src):gmatch("[^\r\n]+") do
@@ -1929,7 +1929,22 @@ local function parsePastebin(src)
             end
         end
     end
-    return entries, count, false
+    return entries, count
+end
+
+local function parsePastebin(src)
+    local jsonEntries, jsonCount, isJson = parseTagsJson(src)
+    local legacyEntries, legacyCount = parseLegacyTagRows(src)
+    if isJson then
+        -- A known bad state was: old pipe rows + an empty v2 JSON object. That
+        -- made every saved tag lose its cfg and fall back to the default blue
+        -- accent. Recover the legacy rows only when the JSON has no entries.
+        if jsonCount == 0 and legacyCount > 0 then
+            return legacyEntries, legacyCount, false
+        end
+        return jsonEntries, jsonCount, true
+    end
+    return legacyEntries, legacyCount, false
 end
 
 local function stripTagSpecials(entry)
