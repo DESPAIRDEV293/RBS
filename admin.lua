@@ -8908,10 +8908,22 @@ applyCfg = function(cfg, opts)
         _G.__SeigeTagFont = cfg.tagFont
         if _G.__SeigeApplyTagFont then pcall(_G.__SeigeApplyTagFont) end
     end
-    if cfg.bubbleAnim then _G.__SeigeBubbleAnim = cfg.bubbleAnim end
-    if cfg.bubbleAmt  then _G.__SeigeBubbleAmt  = tonumber(cfg.bubbleAmt)  or _G.__SeigeBubbleAmt  end
-    if cfg.pageAnim   then _G.__SeigePageAnim   = cfg.pageAnim end
-    if cfg.pageAnimSpeed then _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed end
+    if cfg.bubbleAnim then
+        _G.__SeigeBubbleAnim = cfg.bubbleAnim
+        if _G.__SeigeBubbleAnimCtl and _G.__SeigeBubbleAnimCtl.set then pcall(_G.__SeigeBubbleAnimCtl.set, cfg.bubbleAnim) end
+    end
+    if cfg.bubbleAmt then
+        _G.__SeigeBubbleAmt = tonumber(cfg.bubbleAmt) or _G.__SeigeBubbleAmt
+        if _G.__SeigeBubbleAmtCtl and _G.__SeigeBubbleAmtCtl.set then pcall(_G.__SeigeBubbleAmtCtl.set, math.floor(_G.__SeigeBubbleAmt * 100)) end
+    end
+    if cfg.pageAnim then
+        _G.__SeigePageAnim = cfg.pageAnim
+        if _G.__SeigePageAnimCtl and _G.__SeigePageAnimCtl.set then pcall(_G.__SeigePageAnimCtl.set, cfg.pageAnim) end
+    end
+    if cfg.pageAnimSpeed then
+        _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed
+        if _G.__SeigePageAnimSpeedCtl and _G.__SeigePageAnimSpeedCtl.set then pcall(_G.__SeigePageAnimSpeedCtl.set, math.floor(_G.__SeigePageAnimSpeed * 1000)) end
+    end
 end
 
 
