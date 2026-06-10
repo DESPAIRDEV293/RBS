@@ -8315,6 +8315,31 @@ transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 
     if saveCfg then pcall(saveCfg) end
 end)
 
+-- Top bar color overrides
+label(pgConfig, "Top bar colors — hex like #1a1a2e (blank = use theme)")
+local function _barColorBox(lbl, key)
+    return textbox(pgConfig, lbl, function(v)
+        local c = hexToColor(v)
+        _G.__SeigeBarColors = _G.__SeigeBarColors or {}
+        _G.__SeigeBarColors[key] = c
+        if _G.__SeigeApplyBarColors then pcall(_G.__SeigeApplyBarColors) end
+        if saveCfg then pcall(saveCfg) end
+        notify(lbl .. (c and " updated" or " cleared"), "good")
+    end)
+end
+_barColorBox("Bar background hex",  "bg")
+_barColorBox("Bar outline hex",     "outline")
+_barColorBox("Bar text hex",        "text")
+_barColorBox("Bar icon hex",        "icon")
+button(pgConfig, "Reset bar colors", function()
+    _G.__SeigeBarColors = { bg = nil, outline = nil, text = nil, icon = nil }
+    -- Re-apply current theme so the overridden values revert to theme defaults.
+    if _G.__SeigeApplyTheme then pcall(_G.__SeigeApplyTheme, T) end
+    if saveCfg then pcall(saveCfg) end
+    notify("Bar colors reset", "good")
+end)
+
+
 
 section(pgConfig, "World Image (Skybox)")
 label(pgConfig, "6 cubed faces — paste a Roblox asset id/URL, or a local image file path from your PC")
