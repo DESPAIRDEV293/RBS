@@ -6400,7 +6400,6 @@ local HELP_CMDS = {
         { "!reset / !r / !respawn", "Kill your character to respawn" },
         { "!jump", "Force a jump" },
         
-        { "!god / !ungod", "Toggle godmode (server-side via reset trick)" },
         { "!sit", "Force sit" },
         { "!size <n>", "Scale your character (e.g. !size 2)" },
         { "!invis", "Hide your character locally (toggle / keybind via popout)" },
@@ -6521,8 +6520,6 @@ button(pgCmds, "!tprj  —  rejoin & restore position",        function() _runCm
 button(pgCmds, "!reset / !respawn",                          function() _runCmd("!reset") end)
 button(pgCmds, "!jump",                                      function() _runCmd("!jump") end)
 
-button(pgCmds, "!god",                                       function() _runCmd("!god") end)
-button(pgCmds, "!ungod",                                     function() _runCmd("!ungod") end)
 button(pgCmds, "!unspectate",                                function() _runCmd("!unspectate") end)
 button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
 button(pgCmds, "!load  —  load saved position",              function() _runCmd("!load") end)
@@ -11068,16 +11065,6 @@ cmdHandlers["jump"] = function()
 end
 
 
-cmdHandlers["god"] = function()
-    if _G.__GodConn then notify("God already on (!ungod)", "warn"); return end
-    _G.__GodConn = RunService.Heartbeat:Connect(function()
-        local h = getHum(); if h and h.Health < h.MaxHealth then h.Health = h.MaxHealth end
-    end)
-    notify("God ON", "good")
-end
-cmdHandlers["ungod"] = function()
-    if _G.__GodConn then _G.__GodConn:Disconnect(); _G.__GodConn = nil; notify("God OFF", "warn") end
-end
 
 cmdHandlers["noclip"] = function()
     if _G.__NoclipConn then notify("Noclip already on", "warn"); return end
@@ -12652,7 +12639,7 @@ local function runBarCmd(raw)
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
-cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !god !goto !to !spectate !fling !save !load !help"
+cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !goto !to !spectate !fling !save !load !help"
 
 -- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command.
 -- We ALSO intercept the message at the outgoing send layer so the avatar never
