@@ -8623,6 +8623,7 @@ _G.__SeigeRefreshDockColorVis = function(mode)
     local show = (mode == "Dock")
     for _, ctl in ipairs({ _dockIconLbl, dockIconCtl, _dockIconHexLbl, dockIconHex, _dockStrokeLbl, dockStrokeCtl, _dockStrokeHexLbl, dockStrokeHex }) do
         local f = ctl and (ctl.frame or ctl) or nil
+        if f and typeof(f) == "Instance" and f:IsA("TextBox") then f = f.Parent end
         if f and f.Visible ~= nil then f.Visible = show end
     end
 end
