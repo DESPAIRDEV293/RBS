@@ -9539,7 +9539,8 @@ local function makePanel(name, entry)
         ScaleType = Enum.ScaleType.Crop,
         Image = "",
         ImageTransparency = 1,
-        ZIndex = 110,
+        -- Keep the uploaded image behind all panel content (text, buttons, icons).
+        ZIndex = 1,
         ClipsDescendants = true,
     })
     -- Round the uploaded image so it fits the panel's rounded corners.
