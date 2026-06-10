@@ -7509,8 +7509,36 @@ function applyIconImages()
         end
     end
 end
+-- Override the text color of every floating panel (useful when a dark
+-- panel background image is uploaded and the default text is hard to read).
+function applyPanelTextColor()
+    local c = panelBgState.textColor
+    local panelsTbl = rawget(_G, "__SeigePanels")
+    if not panelsTbl then return end
+    for _, p in pairs(panelsTbl) do
+        if p.frame then
+            for _, d in ipairs(p.frame:GetDescendants()) do
+                if (d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox"))
+                    and not d:GetAttribute("__SeigeKeepColor") then
+                    if c then
+                        if not d:GetAttribute("__SeigeOrigText") then
+                            d:SetAttribute("__SeigeOrigText", cToHex(d.TextColor3))
+                        end
+                        d.TextColor3 = c
+                    else
+                        local orig = d:GetAttribute("__SeigeOrigText")
+                        if orig then
+                            local oc = hexToColor(orig); if oc then d.TextColor3 = oc end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
 _G.__SeigeApplyPanelBg = applyPanelBg
 _G.__SeigeApplyIconImages = applyIconImages
+_G.__SeigeApplyPanelTextColor = applyPanelTextColor
 _G.__SeigeApplyBg = applyBg
 _G.__SeigeApplyTheme = applyTheme
 _G.__SeigeApplyThemeHex = function(hexMap)
