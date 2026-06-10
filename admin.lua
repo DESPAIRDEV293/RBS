@@ -8582,6 +8582,15 @@ applyCfg = function(cfg, opts)
         _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed
         if _G.__SeigePageAnimSpeedCtl and _G.__SeigePageAnimSpeedCtl.set then pcall(_G.__SeigePageAnimSpeedCtl.set, (_G.__SeigePageAnimSpeed or 0.24) * 1000) end
     end
+    if type(cfg.barColors) == "table" then
+        local C = {}
+        C.bg      = cfg.barColors.bg      and hexToColor(cfg.barColors.bg)      or nil
+        C.outline = cfg.barColors.outline and hexToColor(cfg.barColors.outline) or nil
+        C.text    = cfg.barColors.text    and hexToColor(cfg.barColors.text)    or nil
+        C.icon    = cfg.barColors.icon    and hexToColor(cfg.barColors.icon)    or nil
+        _G.__SeigeBarColors = C
+        if _G.__SeigeApplyBarColors then pcall(_G.__SeigeApplyBarColors) end
+    end
 end
 
 
