@@ -7512,11 +7512,16 @@ end
 -- Override the text color of every floating panel (useful when a dark
 -- panel background image is uploaded and the default text is hard to read).
 function applyPanelTextColor()
-    local c = panelBgState.textColor
+    local gC = panelBgState.textColor
     local panelsTbl = rawget(_G, "__SeigePanels")
     if not panelsTbl then return end
-    for _, p in pairs(panelsTbl) do
+    for name, p in pairs(panelsTbl) do
         if p.frame then
+            -- Per-panel override wins over the global panel text color.
+            local ov = panelBgState.panels and panelBgState.panels[name]
+            local pc = ov and ov.textColor
+            if pc and typeof(pc) ~= "Color3" then pc = hexToColor(tostring(pc)) end
+            local c = pc or gC
             for _, d in ipairs(p.frame:GetDescendants()) do
                 if (d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox"))
                     and not d:GetAttribute("__SeigeKeepColor") then
@@ -10095,8 +10100,19 @@ do
             panelBgState.panels[sel].trans = 1 - v
             applyPanelBg(); saveCfg()
         end)
+        textbox(pgThemes, "Text color for selected panel (hex, blank = use global/default)", function(v)
+            panelBgState.panels[sel] = panelBgState.panels[sel] or {}
+            if v == nil or v == "" then
+                panelBgState.panels[sel].textColor = nil
+            else
+                local c = hexToColor(v)
+                panelBgState.panels[sel].textColor = c and cToHex(c) or nil
+            end
+            applyPanelTextColor(); saveCfg()
+            notify((panelBgState.panels[sel].textColor and "Text color set for " or "Text color cleared for ") .. sel, "good")
+        end)
         button(pgThemes, "Reset selected panel", function()
-            panelBgState.panels[sel] = nil; applyPanelBg(); saveCfg()
+            panelBgState.panels[sel] = nil; applyPanelBg(); applyPanelTextColor(); saveCfg()
             notify("Reset " .. sel, "good")
         end)
 
