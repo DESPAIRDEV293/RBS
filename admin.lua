@@ -2,8 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-ui-rebuild-v1"
-_G.__SeigeReanimKey = "sg_rnm_8f3a91c2d7e64b05"
+local ADMIN_BUILD = "2026-06-09-savecfg-pinned-full"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -85,40 +84,13 @@ local function tween(obj, t, props, style, dir)
 end
 
 ------------------------------------------------------- UI ROOT
-local function getHidden()
-    local ok, h = pcall(function() return (gethui and gethui()) or (get_hidden_gui and get_hidden_gui()) end)
-    if ok then return h end
-    return nil
-end
 local function safeParent(gui)
-    local h = getHidden()
-    if h then local ok = pcall(function() gui.Parent = h end); if ok then return end end
     local ok = pcall(function() gui.Parent = CoreGui end)
     if not ok then gui.Parent = LP:WaitForChild("PlayerGui") end
 end
 
--- Aggressively destroy any prior admin chrome (legacy names included).
-do
-    local names = { "SeigeAdmin", "Admin_v", "Admin_v2", "Admin_v3", "SeigeGui", "seige_admin", "SeigeLolAdmin" }
-    local roots = { CoreGui }
-    local h = getHidden(); if h then table.insert(roots, h) end
-    pcall(function() table.insert(roots, LP:FindFirstChild("PlayerGui")) end)
-    for _, root in ipairs(roots) do
-        if root then
-            for _, n in ipairs(names) do
-                local g = root:FindFirstChild(n)
-                while g do g:Destroy(); g = root:FindFirstChild(n) end
-            end
-            -- catch anything starting with "Seige" or "Admin_"
-            for _, ch in ipairs(root:GetChildren()) do
-                local nm = ch.Name or ""
-                if ch:IsA("ScreenGui") and (nm:sub(1,5) == "Seige" or nm:sub(1,6) == "Admin_") then
-                    pcall(function() ch:Destroy() end)
-                end
-            end
-        end
-    end
-end
+local oldGui = CoreGui:FindFirstChild("SeigeAdmin")
+if oldGui then oldGui:Destroy() end
 
 local Root = inst("ScreenGui", nil, {
     Name = "SeigeAdmin",
@@ -807,14 +779,6 @@ local Win = inst("Frame", Root, {
     BorderSizePixel = 0,
     Active = true,
 })
-Win.Visible = false  -- [iter2] legacy chrome retired; never show even if toggle key fires
--- Block legacy keybind from re-showing the retired Win.
-do
-    local _wv = false
-    Win:GetPropertyChangedSignal("Visible"):Connect(function()
-        if Win.Visible then Win.Visible = false end
-    end)
-end
 corner(Win, 20)
 stroke(Win, T.silver, 1, 0.55)
 -- silver glass gradient (subtle sheen across the whole panel)
@@ -1534,7 +1498,7 @@ local function dropdown(parent, text, options, fn)
         if fn then pcall(fn, options[idx]) end
     end)
     if fn then pcall(fn, options[1]) end
-    return { frame = f, set = function(v)
+    return { set = function(v)
         for i, o in ipairs(options) do if o == v then idx = i; btn.Text = v; if fn then pcall(fn, v) end return end end
     end }
 end
@@ -3150,15 +3114,8 @@ local function refreshBill(p)
         e.avRing.Enabled = not (ao == "off" or ao == "none" or ao == "0" or ao == "false")
     end
     if e.glow then
-        pcall(function()
-            if e.glow:IsA("ImageLabel") then
-                e.glow.ImageColor3 = chipColor
-                e.glow.ImageTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
-            else
-                e.glow.BackgroundColor3 = chipColor
-                e.glow.BackgroundTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
-            end
-        end)
+        e.glow.ImageColor3 = chipColor
+        e.glow.ImageTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
     end
 
     -- Sync tag text (display name + @handle + chip text) to the user's
@@ -7513,7 +7470,6 @@ end
 local function applyBg()
     Backdrop.Image = resolveBgUrl(bgState.image)
     Backdrop.ImageTransparency = bgState.trans
-    if _G.__SeigeRefreshTextColor then pcall(_G.__SeigeRefreshTextColor) end
 end
 
 -- Per-panel background image (applied to every floating panel's __SeigeBgImg)
@@ -7538,7 +7494,6 @@ function applyPanelBg()
             img.ImageTransparency = (url == "") and 1 or trans
         end
     end
-    if _G.__SeigeRefreshTextColor then pcall(_G.__SeigeRefreshTextColor) end
 end
 function applyIconImages()
     local panelsTbl = rawget(_G, "__SeigePanels")
@@ -7640,69 +7595,6 @@ button(pgThemes, "Clear panel backgrounds", function()
     panelBgState.image = ""; applyPanelBg(); saveCfg(); notify("Panel backgrounds cleared", "good")
 end)
 label(pgThemes, "Applies to every floating panel (Profile, Cmds, Shaders, ...).")
-
-section(pgThemes, "Panel text color")
-label(pgThemes, "Force all panel text to a specific color. Auto switches to white whenever a panel/global background image is set, so text stays readable on photos.")
-do
-    -- Snapshot the theme's default text color once so we can restore it on "Default theme".
-    _G.__SeigeOrigTextColor = _G.__SeigeOrigTextColor or T.text
-    local TEXT_MODES = { "Auto (white on image bg)", "Default theme", "White", "Black", "Custom hex" }
-    local _textCustom = _G.__SeigeTextColorCustom or ""
-    local function _hexToColor(h)
-        h = tostring(h or ""):gsub("#","")
-        if #h ~= 6 then return nil end
-        local r = tonumber(h:sub(1,2), 16); local g = tonumber(h:sub(3,4), 16); local b = tonumber(h:sub(5,6), 16)
-        if not (r and g and b) then return nil end
-        return Color3.fromRGB(r, g, b)
-    end
-    local function _hasAnyImageBg()
-        if (bgState and bgState.image or "") ~= "" then return true end
-        if (panelBgState and panelBgState.image or "") ~= "" then return true end
-        if panelBgState and type(panelBgState.panels) == "table" then
-            for _, ov in pairs(panelBgState.panels) do
-                if ov and ov.image and ov.image ~= "" then return true end
-            end
-        end
-        return false
-    end
-    local function applyTextMode(mode, custom)
-        local c
-        if mode == "Auto (white on image bg)" then
-            c = _hasAnyImageBg() and Color3.fromRGB(248, 250, 255) or _G.__SeigeOrigTextColor
-        elseif mode == "Default theme" then
-            c = _G.__SeigeOrigTextColor
-        elseif mode == "White" then
-            c = Color3.fromRGB(248, 250, 255)
-        elseif mode == "Black" then
-            c = Color3.fromRGB(16, 18, 24)
-        elseif mode == "Custom hex" then
-            c = _hexToColor(custom or "") or T.text
-        end
-        if c then applyTheme({ text = c }) end
-        _G.__SeigeTextColorMode = mode
-        _G.__SeigeTextColorCustom = custom or _G.__SeigeTextColorCustom or ""
-    end
-    _G.__SeigeApplyTextMode = applyTextMode
-    _G.__SeigeRefreshTextColor = function()
-        if _G.__SeigeTextColorMode then
-            applyTextMode(_G.__SeigeTextColorMode, _G.__SeigeTextColorCustom)
-        end
-    end
-
-    local textModeCtl = dropdown(pgThemes, "Text color mode", TEXT_MODES, function(v)
-        applyTextMode(v, _textCustom); if saveCfg then saveCfg() end
-    end)
-    textbox(pgThemes, "Custom hex (e.g. #ffffff)", function(v)
-        _textCustom = v
-        _G.__SeigeTextColorCustom = v
-        if (_G.__SeigeTextColorMode or "") == "Custom hex" then
-            applyTextMode("Custom hex", v); if saveCfg then saveCfg() end
-        end
-    end)
-    if textModeCtl and textModeCtl.set then
-        textModeCtl.set(_G.__SeigeTextColorMode or "Auto (white on image bg)")
-    end
-end
 
 section(pgThemes, "Presets")
 local PRESETS = {
@@ -7991,21 +7883,10 @@ toggle(pgShaders, "Maximum visuals", false, function(on)
 end)
 
 section(pgShaders, "Bloom")
--- Re-resolve the effect on every set so anti-cheats/scripts that strip
--- Lighting children don't break the controls. Also re-parent on toggle.
-local function _bloom() fxBloom = getOrMake("BloomEffect", "SeigeBloom"); return fxBloom end
-toggle(pgShaders, "Enable bloom", false, function(v)
-    local e = _bloom()
-    e.Enabled = v
-    if v then
-        -- Force-apply current slider values so the effect is visible immediately.
-        e.Intensity = e.Intensity > 0 and e.Intensity or 1
-        e.Size      = e.Size > 0 and e.Size or 24
-    end
-end)
-slider(pgShaders, "Intensity",  0, 4,   1,    function(v) _bloom().Intensity = v end)
-slider(pgShaders, "Size",       1, 56,  24,   function(v) _bloom().Size = math.max(1, v) end)
-slider(pgShaders, "Threshold",  0, 4,   0.95, function(v) _bloom().Threshold = v end)
+toggle(pgShaders, "Enable bloom", false, function(v) fxBloom.Enabled = v end)
+slider(pgShaders, "Intensity",  0, 4,   1,    function(v) fxBloom.Intensity = v end)
+slider(pgShaders, "Size",       0, 56,  24,   function(v) fxBloom.Size = v end)
+slider(pgShaders, "Threshold",  0, 4,   0.95, function(v) fxBloom.Threshold = v end)
 
 section(pgShaders, "Blur")
 toggle(pgShaders, "Enable blur", false, function(v) fxBlur.Enabled = v end)
@@ -8030,36 +7911,11 @@ button(pgShaders, "Clear tint (reset to white)", function()
 end)
 
 section(pgShaders, "Depth of field")
--- DOF is only fully visible under ShadowMap/Future lighting. Bump the
--- technology when the user enables DOF, and restore prior tech on disable.
-local _dof = function() fxDOF = getOrMake("DepthOfFieldEffect", "SeigeDOF"); return fxDOF end
-local _savedTechForDOF
-toggle(pgShaders, "Enable DOF", false, function(v)
-    local e = _dof()
-    e.Enabled = v
-    pcall(function()
-        if v then
-            if Lighting.Technology == Enum.Technology.Compatibility
-               or Lighting.Technology == Enum.Technology.Legacy then
-                _savedTechForDOF = Lighting.Technology
-                Lighting.Technology = Enum.Technology.ShadowMap
-            end
-            -- Push current values once so the effect is visually obvious.
-            if e.FocusDistance <= 0 then e.FocusDistance = 25 end
-            if e.InFocusRadius <= 0 then e.InFocusRadius = 8 end
-            if e.FarIntensity  <= 0 then e.FarIntensity  = 0.75 end
-        else
-            if _savedTechForDOF then
-                Lighting.Technology = _savedTechForDOF
-                _savedTechForDOF = nil
-            end
-        end
-    end)
-end)
-slider(pgShaders, "Focus distance",  0.1, 500, 25,   function(v) _dof().FocusDistance = math.max(0.1, v) end)
-slider(pgShaders, "In focus radius", 0,   200, 8,    function(v) _dof().InFocusRadius = v end)
-slider(pgShaders, "Near intensity",  0,   1,   0.25, function(v) _dof().NearIntensity = v end)
-slider(pgShaders, "Far intensity",   0,   1,   0.75, function(v) _dof().FarIntensity  = v end)
+toggle(pgShaders, "Enable DOF", false, function(v) fxDOF.Enabled = v end)
+slider(pgShaders, "Focus distance",  0, 200, 25, function(v) fxDOF.FocusDistance = v end)
+slider(pgShaders, "In focus radius", 0, 100, 8,  function(v) fxDOF.InFocusRadius = v end)
+slider(pgShaders, "Near intensity",  0, 1,   0.25, function(v) fxDOF.NearIntensity = v end)
+slider(pgShaders, "Far intensity",   0, 1,   0.75, function(v) fxDOF.FarIntensity = v end)
 
 section(pgShaders, "Sun rays")
 toggle(pgShaders, "Enable sun rays", false, function(v) fxSun.Enabled = v end)
@@ -8093,17 +7949,18 @@ do
         return a
     end
 
-    -- Multi-emitter weather: returns the emitter so callers can stash extras.
-    -- opts: { texture, rate, speed, accel, sizeStart, sizeEnd, lifetime, rot,
-    --         rotSpeed, drag, color, lightEmission, lightInfluence, spread,
-    --         transStart, transEnd, planeSize, height, zOffset }
-    local function attachParticle(opts)
+    local function attachParticle(asset, rate, speed, accel, size, lifetime, rot)
+        -- Particles originate from a flat plate anchored ABOVE the camera so the
+        -- effect falls down across the screen instead of pouring out of the avatar.
         local part = Instance.new("Part")
         part.Name = "__SeigeWeatherPart"
-        part.Size = Vector3.new(opts.planeSize or 180, 1, opts.planeSize or 180)
+        part.Size = Vector3.new(160, 1, 160)
         part.Transparency = 1
-        part.CanCollide = false; part.CanQuery = false; part.CanTouch = false
-        part.Anchored = true; part.Massless = true
+        part.CanCollide = false
+        part.CanQuery = false
+        part.CanTouch = false
+        part.Anchored = true
+        part.Massless = true
         part.TopSurface = Enum.SurfaceType.Smooth
         part.BottomSurface = Enum.SurfaceType.Smooth
         part.Parent = workspace
@@ -8112,58 +7969,29 @@ do
         att.Parent = part
         local pe = Instance.new("ParticleEmitter")
         pe.Name = "__SeigeWeatherFX"
-        pe.Texture = opts.texture
-        pe.Rate = opts.rate
-        pe.Speed = NumberRange.new(opts.speed)
-        pe.Acceleration = opts.accel or Vector3.new(0, -80, 0)
-        pe.Size = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, opts.sizeStart or 0.4),
-            NumberSequenceKeypoint.new(1, opts.sizeEnd or (opts.sizeStart or 0.4)),
-        })
-        pe.Lifetime = NumberRange.new(opts.lifetime or 1.2)
-        pe.Rotation = NumberRange.new(-(opts.rot or 0), opts.rot or 0)
-        pcall(function() pe.RotSpeed = NumberRange.new(opts.rotSpeed or 0) end)
-        pcall(function() pe.Drag = opts.drag or 0 end)
-        pe.LightEmission = opts.lightEmission or 0.2
-        pe.LightInfluence = opts.lightInfluence or 1
-        if opts.color then
-            pe.Color = ColorSequence.new(opts.color)
-        end
+        pe.Texture = asset
+        pe.Rate = rate
+        pe.Speed = NumberRange.new(speed)
+        pe.Acceleration = accel
+        pe.Size = NumberSequence.new(size)
+        pe.Lifetime = NumberRange.new(lifetime)
+        pe.Rotation = NumberRange.new(-rot, rot)
+        pe.LightEmission = 0.2
         pe.Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, opts.transStart or 0.2),
-            NumberSequenceKeypoint.new(1, opts.transEnd or 1),
+            NumberSequenceKeypoint.new(0, 0.2),
+            NumberSequenceKeypoint.new(1, 1),
         })
         pe.EmissionDirection = Enum.NormalId.Bottom
-        pe.SpreadAngle = Vector2.new(opts.spread or 20, opts.spread or 20)
-        pe.ZOffset = opts.zOffset or 0
+        pe.SpreadAngle = Vector2.new(20, 20)
         pe.Parent = att
-        if not W.attach then W.attach = part end
-        if not W.emitter then W.emitter = pe end
-        W.extraParts = W.extraParts or {}
-        table.insert(W.extraParts, part)
-        local height = opts.height or 80
-        if not W.charConn then
-            W.charConn = RunService.RenderStepped:Connect(function()
-                local c = workspace.CurrentCamera
-                if not c then return end
-                local p = c.CFrame.Position
-                for _, ep in ipairs(W.extraParts) do
-                    if ep.Parent then ep.CFrame = CFrame.new(p + Vector3.new(0, ep:GetAttribute("__h") or height, 0)) end
-                end
-            end)
-        end
-        part:SetAttribute("__h", height)
-        return pe
-    end
-
-    -- Extend clear() to nuke extra emitters from multi-particle modes.
-    local _origClear = clear
-    clear = function()
-        _origClear()
-        if W.extraParts then
-            for _, ep in ipairs(W.extraParts) do pcall(function() ep:Destroy() end) end
-            W.extraParts = nil
-        end
+        W.attach = part
+        W.emitter = pe
+        -- Keep the plate centered above the camera each frame.
+        W.charConn = RunService.RenderStepped:Connect(function()
+            local c = workspace.CurrentCamera
+            if not c then return end
+            part.CFrame = CFrame.new(c.CFrame.Position + Vector3.new(0, 80, 0))
+        end)
     end
 
     local function apply()
@@ -8173,71 +8001,36 @@ do
 
         if W.mode == "Cloudy" then
             local a = ensureAtmos()
-            a.Density = 0.32 * i
-            a.Haze = 1.6 * i
+            a.Density = 0.3 * i
+            a.Haze = 1.5 * i
             a.Color = Color3.fromRGB(190, 195, 205)
-            a.Decay = Color3.fromRGB(106, 112, 125)
             local t = workspace:FindFirstChildOfClass("Terrain")
             if t then
                 local c = Instance.new("Clouds")
                 c.Name = "__SeigeClouds"
-                c.Cover = 0.55 + 0.45 * i
-                c.Density = 0.55 + 0.45 * i
-                c.Color = Color3.fromRGB(225, 228, 235)
+                c.Cover = 0.6 + 0.4 * i
+                c.Density = 0.5 + 0.5 * i
+                c.Color = Color3.fromRGB(220, 220, 230)
                 c.Parent = t
             end
         elseif W.mode == "Fog" then
             local a = ensureAtmos()
-            a.Density = 0.55 * i
+            a.Density = 0.6 * i
             a.Haze = 3 * i
-            a.Glare = 0.4 * i
-            a.Color = Color3.fromRGB(205, 208, 214)
-            a.Decay = Color3.fromRGB(150, 155, 165)
+            a.Glare = 0.5 * i
+            a.Color = Color3.fromRGB(200, 200, 200)
         elseif W.mode == "Rain" then
-            -- Falling streaks
-            attachParticle({
-                texture = "rbxassetid://241876428",
-                rate = 260 * i + 80, speed = 95,
-                accel = Vector3.new(2, -180, 0),
-                sizeStart = 0.18, sizeEnd = 0.05,
-                lifetime = 0.9, rot = 8, rotSpeed = 0, drag = 0.1,
-                lightEmission = 0.05, lightInfluence = 0.6,
-                color = Color3.fromRGB(180, 200, 230),
-                transStart = 0.35, transEnd = 1, spread = 12,
-                planeSize = 220, height = 90, zOffset = 0,
-            })
-            -- Splash mist at ground level
-            attachParticle({
-                texture = "rbxassetid://241876428",
-                rate = 80 * i + 20, speed = 6,
-                accel = Vector3.new(0, 4, 0),
-                sizeStart = 0.25, sizeEnd = 0.05,
-                lifetime = 0.45, rot = 90, rotSpeed = 60, drag = 1.6,
-                lightEmission = 0.1, lightInfluence = 0.8,
-                color = Color3.fromRGB(210, 220, 235),
-                transStart = 0.7, transEnd = 1, spread = 60,
-                planeSize = 180, height = -3,
-            })
+            attachParticle("rbxassetid://241876428", 200 * i + 50, 60, Vector3.new(0, -120, 0), 0.5, 1.2, 0)
             local a = ensureAtmos()
-            a.Density = 0.28 * i; a.Haze = 1.1 * i
-            a.Color = Color3.fromRGB(165, 172, 185)
-            a.Decay = Color3.fromRGB(90, 95, 110)
+            a.Density = 0.25 * i
+            a.Haze = 1 * i
+            a.Color = Color3.fromRGB(170, 175, 185)
         elseif W.mode == "Thunder" then
-            attachParticle({
-                texture = "rbxassetid://241876428",
-                rate = 320 * i + 120, speed = 110,
-                accel = Vector3.new(4, -210, 0),
-                sizeStart = 0.2, sizeEnd = 0.04,
-                lifetime = 0.9, rot = 10, drag = 0.05,
-                lightEmission = 0.05, lightInfluence = 0.5,
-                color = Color3.fromRGB(170, 185, 215),
-                transStart = 0.3, transEnd = 1, spread = 14,
-                planeSize = 240, height = 95,
-            })
+            attachParticle("rbxassetid://241876428", 260 * i + 80, 70, Vector3.new(0, -140, 0), 0.55, 1.2, 0)
             local a = ensureAtmos()
-            a.Density = 0.42 * i; a.Haze = 2.2 * i
-            a.Color = Color3.fromRGB(130, 138, 158)
-            a.Decay = Color3.fromRGB(60, 66, 82)
+            a.Density = 0.4 * i
+            a.Haze = 2 * i
+            a.Color = Color3.fromRGB(140, 145, 160)
             local fxFlash = Instance.new("ColorCorrectionEffect")
             fxFlash.Name = "__SeigeFlash"
             fxFlash.Brightness = 0
@@ -8249,9 +8042,9 @@ do
                 nextStrike = tick() + math.random(5, 12)
                 task.spawn(function()
                     pcall(function()
-                        for _, b in ipairs({ 0.9, 0.0, 0.7, 0.0, 0.4, 0.0 }) do
+                        for _, b in ipairs({0.8, 0.0, 0.6, 0.0}) do
                             fxFlash.Brightness = b
-                            task.wait(0.05 + math.random() * 0.05)
+                            task.wait(0.07)
                         end
                         fxFlash.Brightness = 0
                         local s = Instance.new("Sound")
@@ -8264,51 +8057,21 @@ do
                 end)
             end)
         elseif W.mode == "Snow" then
-            attachParticle({
-                texture = "rbxassetid://241876428",
-                rate = 140 * i + 50, speed = 3,
-                accel = Vector3.new(0, -6, 0),
-                sizeStart = 0.32, sizeEnd = 0.18,
-                lifetime = 7, rot = 180, rotSpeed = 30, drag = 0.6,
-                lightEmission = 0.4, lightInfluence = 0.4,
-                color = Color3.fromRGB(245, 248, 255),
-                transStart = 0.15, transEnd = 0.6, spread = 35,
-                planeSize = 200, height = 70,
-            })
+            attachParticle("rbxassetid://241876428", 120 * i + 40, 4, Vector3.new(0, -8, 1), 0.35, 5, 90)
             local a = ensureAtmos()
-            a.Density = 0.22 * i; a.Haze = 1.3 * i
-            a.Color = Color3.fromRGB(225, 230, 240)
-            a.Decay = Color3.fromRGB(180, 188, 200)
-            -- Gentle wind sway: oscillate acceleration X over time.
-            local pe = W.emitter
-            if pe then
-                W.windConn = RunService.Heartbeat:Connect(function()
-                    if not pe.Parent then return end
-                    local t = tick()
-                    pe.Acceleration = Vector3.new(math.sin(t * 0.6) * 3, -6, math.cos(t * 0.4) * 2)
-                end)
-            end
+            a.Density = 0.2 * i
+            a.Haze = 1.2 * i
+            a.Color = Color3.fromRGB(220, 225, 235)
         end
     end
 
-    -- Make sure the wind/connection cleanup runs in clear() too.
-    local _clear2 = clear
-    clear = function()
-        if W.windConn then pcall(function() W.windConn:Disconnect() end); W.windConn = nil end
-        _clear2()
-    end
-
-    local weatherDD = dropdown(pgShaders, "Weather", { "Off", "Cloudy", "Fog", "Rain", "Thunder", "Snow" }, function(o)
+    dropdown(pgShaders, "Weather", { "Off", "Cloudy", "Fog", "Rain", "Thunder", "Snow" }, function(o)
         W.mode = o; apply()
     end)
     slider(pgShaders, "Weather intensity", 0, 1, 0.5, function(v)
         W.intensity = v; if W.mode ~= "Off" then apply() end
     end)
-    button(pgShaders, "Clear weather", function()
-        W.mode = "Off"
-        clear()
-        if weatherDD and weatherDD.set then weatherDD.set("Off") end
-    end)
+    button(pgShaders, "Clear weather", function() W.mode = "Off"; clear() end)
 end
 
 section(pgShaders, "Presets")
@@ -8535,126 +8298,19 @@ local reducedCtl = toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, f
 end)
 
 ------------------------------------------------------- LAYOUT & TRANSLUCENCY
--- [Iter 1 rebuild] Layout switcher (Bar/Hamburger/Dock) retired — single fixed
--- layout. Iter 2 replaces the bar with the new purple top-tabs shell.
-local _layoutMode = "Bar"
-_G.__SeigeLayoutMode = "Bar"
-local layoutCtl = nil
-local dockColorCtl = nil
-_G.__SeigeRefreshDockColorVis = function() end
-
--- Dock icon color
-local dockIconPresets = {
-    { name = "Default",  color = nil },
-    { name = "White",    color = Color3.fromRGB(245, 245, 250) },
-    { name = "Black",    color = Color3.fromRGB( 18,  18,  22) },
-    { name = "Cyan",     color = Color3.fromRGB( 30, 215, 230) },
-    { name = "Magenta",  color = Color3.fromRGB(225,  70, 200) },
-    { name = "Purple",   color = Color3.fromRGB(150,  90, 255) },
-    { name = "Green",    color = Color3.fromRGB( 70, 230, 140) },
-    { name = "Orange",   color = Color3.fromRGB(255, 150,  60) },
-    { name = "Red",      color = Color3.fromRGB(235,  70,  90) },
-    { name = "Yellow",   color = Color3.fromRGB(250, 220,  90) },
-}
-local dockIconNames = {}
-for i, p in ipairs(dockIconPresets) do dockIconNames[i] = p.name end
-local _dockIconLbl = label(pgConfig, "Dock icon color")
-local dockIconCtl = dropdown(pgConfig, "Icon color", dockIconNames, function(v)
-    for _, p in ipairs(dockIconPresets) do
-        if p.name == v then
-            _G.__SeigeDockIconColorName = v
-            if _G.__SeigeApplyDockIconColor then _G.__SeigeApplyDockIconColor(p.color) end
-            break
-        end
-    end
+section(pgConfig, "Layout")
+label(pgConfig, "Top bar style. Hamburger collapses the bar into a ≡ menu — tabs drop down from it.")
+local _layoutMode = _G.__SeigeLayoutMode or "Bar"
+local _layoutDef = _G.__SeigeLayoutMode or "Bar"
+layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger", "Dock" }, function(v)
+    _layoutMode = v
+    if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout(v) end
 end)
-if dockIconCtl and dockIconCtl.set then dockIconCtl.set(_G.__SeigeDockIconColorName or "Default") end
+if layoutCtl and layoutCtl.set then layoutCtl.set(_G.__SeigeLayoutMode or "Bar") end
 
-local _dockIconHexLbl = label(pgConfig, "Custom icon color (hex, e.g. #00E5FF) — leave blank for preset")
-local dockIconHex = textbox(pgConfig, "#RRGGBB", function(v)
-    v = tostring(v or ""):gsub("%s",""):gsub("^#","")
-    _G.__SeigeDockIconHex = v
-    if #v == 6 then
-        local r = tonumber(v:sub(1,2),16); local g = tonumber(v:sub(3,4),16); local b = tonumber(v:sub(5,6),16)
-        if r and g and b and _G.__SeigeApplyDockIconColor then
-            _G.__SeigeApplyDockIconColor(Color3.fromRGB(r,g,b))
-            _G.__SeigeDockIconColorName = "Custom"
-        end
-    end
-end)
-if dockIconHex and _G.__SeigeDockIconHex then pcall(function() dockIconHex.Text = tostring(_G.__SeigeDockIconHex or "") end) end
-
--- Dock outline (stroke) color
-local _dockStrokeLbl = label(pgConfig, "Dock outline color")
-local dockStrokeCtl = dropdown(pgConfig, "Outline color", dockIconNames, function(v)
-    for _, p in ipairs(dockIconPresets) do
-        if p.name == v then
-            _G.__SeigeDockStrokeColorName = v
-            if _G.__SeigeApplyDockStrokeColor then _G.__SeigeApplyDockStrokeColor(p.color) end
-            if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
-            break
-        end
-    end
-end)
-if dockStrokeCtl and dockStrokeCtl.set then dockStrokeCtl.set(_G.__SeigeDockStrokeColorName or "Default") end
-
-local _dockStrokeHexLbl = label(pgConfig, "Custom outline color (hex) — leave blank for preset")
-local dockStrokeHex = textbox(pgConfig, "#RRGGBB", function(v)
-    v = tostring(v or ""):gsub("%s",""):gsub("^#","")
-    _G.__SeigeDockStrokeHex = v
-    if #v == 6 then
-        local r = tonumber(v:sub(1,2),16); local g = tonumber(v:sub(3,4),16); local b = tonumber(v:sub(5,6),16)
-        if r and g and b and _G.__SeigeApplyDockStrokeColor then
-            _G.__SeigeApplyDockStrokeColor(Color3.fromRGB(r,g,b))
-            _G.__SeigeDockStrokeColorName = "Custom"
-            if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
-        end
-    end
-end)
-if dockStrokeHex and _G.__SeigeDockStrokeHex then pcall(function() dockStrokeHex.Text = tostring(_G.__SeigeDockStrokeHex or "") end) end
-
--- Extend visibility refresh to include icon/outline controls
-local _origRefreshDockColorVis = _G.__SeigeRefreshDockColorVis
-_G.__SeigeRefreshDockColorVis = function(mode)
-    if _origRefreshDockColorVis then _origRefreshDockColorVis(mode) end
-    local show = (mode == "Dock")
-    for _, ctl in ipairs({ _dockIconLbl, dockIconCtl, _dockIconHexLbl, dockIconHex, _dockStrokeLbl, dockStrokeCtl, _dockStrokeHexLbl, dockStrokeHex }) do
-        local f = ctl and (ctl.frame or ctl) or nil
-        if f and typeof(f) == "Instance" and f:IsA("TextBox") then f = f.Parent end
-        if f and f.Visible ~= nil then f.Visible = show end
-    end
-end
-_G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
-
-label(pgConfig, "Panel translucency — higher = more see-through. Pick a target panel to tweak just that one.")
-local TRANS_TARGETS = { "All Panels", "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Misc", "Themes" }
-local _transTarget = "All Panels"
-_G.__SeigePanelTrans = _G.__SeigePanelTrans or {}
-local function _applyTransTo(target, v)
-    if target == "All Panels" then
-        if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
-    else
-        _G.__SeigePanelTrans[target] = v
-        local panelsTbl = rawget(_G, "__SeigePanels")
-        local p = panelsTbl and panelsTbl[target]
-        if p and p.frame then
-            pcall(function() p.frame.BackgroundTransparency = v end)
-        end
-    end
-end
-_G.__SeigeApplyPanelTrans = _applyTransTo
-local _transTargetCtl = dropdown(pgConfig, "Translucency target", TRANS_TARGETS, function(v)
-    _transTarget = v
-    local cur
-    if v == "All Panels" then
-        cur = _G.__SeigeUITrans or 0.35
-    else
-        cur = _G.__SeigePanelTrans[v] or _G.__SeigeUITrans or 0.35
-    end
-    if transCtl and transCtl.set then transCtl.set(cur) end
-end)
-transCtl = slider(pgConfig, "Panel translucency", 0, 0.95, _G.__SeigeUITrans or 0.35, function(v)
-    _applyTransTo(_transTarget, v)
+label(pgConfig, "Panel translucency — higher = more see-through")
+transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 0.35, function(v)
+    if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
 end)
 
 
@@ -8783,15 +8439,7 @@ snapshotCfg = function()
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
         reducedMotion = reducedCtl and reducedCtl.get and reducedCtl.get() or false,
         layoutMode    = _G.__SeigeLayoutMode or "Bar",
-        dockColor     = _G.__SeigeDockColorName or "Default",
-        dockIconColor = _G.__SeigeDockIconColorName or "Default",
-        dockIconHex   = _G.__SeigeDockIconHex or "",
-        dockStrokeColor = _G.__SeigeDockStrokeColorName or "Default",
-        dockStrokeHex = _G.__SeigeDockStrokeHex or "",
         uiTrans       = _G.__SeigeUITrans or 0.35,
-        panelTrans    = _G.__SeigePanelTrans or {},
-        textColorMode = _G.__SeigeTextColorMode or "Auto (white on image bg)",
-        textColorHex  = _G.__SeigeTextColorCustom or "",
         skybox        = {
             Up = skyboxFaces.Up, Dn = skyboxFaces.Dn,
             Lf = skyboxFaces.Lf, Rt = skyboxFaces.Rt,
@@ -8809,8 +8457,6 @@ snapshotCfg = function()
         bubbleAmt     = tonumber(_G.__SeigeBubbleAmt) or 0.5,
         pageAnim      = _G.__SeigePageAnim or "Fade",
         pageAnimSpeed = tonumber(_G.__SeigePageAnimSpeed) or 0.24,
-        lastTab       = _G.__SeigeLastTab or nil,
-        pillPos       = (_G.__SeigePillPos and { x = _G.__SeigePillPos.x, y = _G.__SeigePillPos.y }) or nil,
     }
 end
 
@@ -8820,78 +8466,13 @@ applyCfg = function(cfg, opts)
     setToggleKey(cfg.toggleKey or CFG_DEFAULTS.toggleKey)
     if uiScaleCtl and uiScaleCtl.set then uiScaleCtl.set(cfg.uiScale or CFG_DEFAULTS.uiScale) end
     if reducedCtl and reducedCtl.set then reducedCtl.set(cfg.reducedMotion == true) end
-    -- [Iter 1] Layout always forced to "Bar"; old saved Hamburger/Dock ignored.
-    if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout("Bar") end
-    -- [Iter 2] Restore Pill drag position.
-    if cfg.pillPos and type(cfg.pillPos) == "table" then
-        local x, y = tonumber(cfg.pillPos.x), tonumber(cfg.pillPos.y)
-        if x and y then
-            _G.__SeigePillPos = { x = x, y = y }
-            if Pill then
-                pcall(function()
-                    Pill.AnchorPoint = Vector2.new(0, 0)
-                    Pill.Position = UDim2.new(0, x, 0, y)
-                end)
-            end
-        end
-    end
-    -- [Iter 2] Restore last opened tab (defer if panels not built yet).
-    if cfg.lastTab and type(cfg.lastTab) == "string" and cfg.lastTab ~= "" then
-        if _G.__SeigeApplyLastTab then
-            _G.__SeigeApplyLastTab(cfg.lastTab)
-        else
-            _G.__SeigeLastTabPending = cfg.lastTab
-        end
-    end
-    if cfg.dockColor and dockColorCtl and dockColorCtl.set then
-        dockColorCtl.set(cfg.dockColor)
-    end
-    if cfg.dockIconColor and dockIconCtl and dockIconCtl.set then
-        dockIconCtl.set(cfg.dockIconColor)
-    end
-    if cfg.dockIconHex and cfg.dockIconHex ~= "" and dockIconHex and dockIconHex.CaptureFocus then
-        -- trigger via direct apply
-        local v = tostring(cfg.dockIconHex):gsub("^#","")
-        if #v == 6 then
-            local r,g,b = tonumber(v:sub(1,2),16), tonumber(v:sub(3,4),16), tonumber(v:sub(5,6),16)
-            if r and g and b and _G.__SeigeApplyDockIconColor then
-                _G.__SeigeDockIconHex = v
-                _G.__SeigeApplyDockIconColor(Color3.fromRGB(r,g,b))
-            end
-        end
-    end
-    if cfg.dockStrokeColor and dockStrokeCtl and dockStrokeCtl.set then
-        dockStrokeCtl.set(cfg.dockStrokeColor)
-    end
-    if cfg.dockStrokeHex and cfg.dockStrokeHex ~= "" then
-        local v = tostring(cfg.dockStrokeHex):gsub("^#","")
-        if #v == 6 then
-            local r,g,b = tonumber(v:sub(1,2),16), tonumber(v:sub(3,4),16), tonumber(v:sub(5,6),16)
-            if r and g and b and _G.__SeigeApplyDockStrokeColor then
-                _G.__SeigeDockStrokeHex = v
-                _G.__SeigeApplyDockStrokeColor(Color3.fromRGB(r,g,b))
-                if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
-            end
-        end
+    if cfg.layoutMode and _G.__SeigeApplyLayout then
+        _G.__SeigeApplyLayout(cfg.layoutMode)
+        if layoutCtl and layoutCtl.set then layoutCtl.set(cfg.layoutMode) end
     end
     if cfg.uiTrans and _G.__SeigeApplyUITrans then
         _G.__SeigeApplyUITrans(tonumber(cfg.uiTrans) or 0.35)
         if transCtl and transCtl.set then transCtl.set(tonumber(cfg.uiTrans) or 0.35) end
-    end
-    if type(cfg.panelTrans) == "table" then
-        _G.__SeigePanelTrans = {}
-        for name, v in pairs(cfg.panelTrans) do
-            local n = tonumber(v); if n then _G.__SeigePanelTrans[name] = n end
-        end
-        if _G.__SeigeApplyPanelTrans then
-            for name, n in pairs(_G.__SeigePanelTrans) do
-                pcall(_G.__SeigeApplyPanelTrans, name, n)
-            end
-        end
-    end
-    if cfg.textColorMode and _G.__SeigeApplyTextMode then
-        _G.__SeigeTextColorCustom = cfg.textColorHex or ""
-        pcall(_G.__SeigeApplyTextMode, cfg.textColorMode, cfg.textColorHex or "")
     end
     local sb = cfg.skybox or CFG_DEFAULTS.skybox
     for _, k in ipairs({ "Up", "Dn", "Lf", "Rt", "Ft", "Bk" }) do
@@ -9524,333 +9105,325 @@ end))
 end)()
 
 
-------------------------------------------------------- SHELL: TOP PILL + FLOATING PANELS (rebuild v1)
--- Clean rewrite of the legacy redesign block. Same external API:
---   Pill, brandBlock, fpsBox, pingBox, iconsRow, pillToggle, pillToggleImg,
---   clockBox, panels[name] = {frame, page, btn, ibImg, defaultIcon,
---   underline, refreshTab}, makePanel(name, entry), _G.__SeigePanels,
---   _G.__SeigeAnimPanel(frame, show), _G.__SeigePillPos.
--- The downstream code at ~10300+ (icon buttons, hamburger, panel bg,
--- hover/click wiring) attaches to these globals unchanged.
+------------------------------------------------------- REDESIGN: TOP PILL + FLOATING PANELS
+-- Replaces the legacy single-window layout. A slim top-center status pill
+-- shows FPS/PING/brand + an icon button per tab. Clicking an icon toggles a
+-- draggable floating popout for that tab (with an X to close). Multiple
+-- popouts can be open at once. F2 hides everything.
 
-Win.Visible = false  -- retire legacy chrome (kept for page parenting)
+Win.Visible = false   -- retire the legacy chrome (kept around for compat)
 
-_G.__SeigeUITrans    = _G.__SeigeUITrans    or 0.35
-_G.__SeigeLayoutMode = _G.__SeigeLayoutMode or "Bar"
+-- Global UI translucency level used by the new chrome (Pill + floating panels).
+-- 0 = fully opaque, 1 = fully transparent. Adjustable from Config tab.
+_G.__SeigeUITrans = _G.__SeigeUITrans or 0.35
+_G.__SeigeLayoutMode = _G.__SeigeLayoutMode or "Bar"  -- "Bar" or "Hamburger"
 
--- ============================================================ TOP PILL
-do
-    local trans = math.max(0.05, (_G.__SeigeUITrans or 0.35) - 0.1)
+-- ============= TOP PILL ===========================================
 
-    Pill = inst("Frame", Root, {
-        Name = "TopPill",
-        AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.new(0.5, 0, 0, 14),
-        Size = UDim2.new(0, 0, 0, 44),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundColor3 = T.bg,
-        BackgroundTransparency = trans,
-        BorderSizePixel = 0,
-        Active = true,
-        ZIndex = 100,
+;(function()
+Pill = inst("Frame", Root, {
+    Name = "TopPill",
+    AnchorPoint = Vector2.new(0.5, 0),
+    Position = UDim2.new(0.5, 0, 0, 14),
+    Size = UDim2.new(0, 0, 0, 44),
+    AutomaticSize = Enum.AutomaticSize.X,
+    BackgroundColor3 = T.bg,
+    BackgroundTransparency = math.max(0.05, (_G.__SeigeUITrans or 0.35) - 0.1),
+    BorderSizePixel = 0,
+    Active = true,
+    ZIndex = 100,
+})
+corner(Pill, 14); stroke(Pill, T.text, 1, 0.78)
+inst("UIPadding", Pill, {
+    PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+    PaddingTop = UDim.new(0, 5),  PaddingBottom = UDim.new(0, 5),
+})
+inst("UIListLayout", Pill, {
+    FillDirection = Enum.FillDirection.Horizontal,
+    VerticalAlignment = Enum.VerticalAlignment.Center,
+    Padding = UDim.new(0, 6),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+})
+
+-- helper: thin vertical divider between sections of the bar
+local function pillDivider(order)
+    local d = inst("Frame", Pill, {
+        Size = UDim2.new(0, 1, 1, -10), BackgroundColor3 = T.text,
+        BackgroundTransparency = 0.82, BorderSizePixel = 0,
+        LayoutOrder = order, ZIndex = 101,
     })
-    corner(Pill, 14); stroke(Pill, T.text, 1, 0.78)
-    inst("UIPadding", Pill, {
-        PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
-        PaddingTop  = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5),
-    })
-    inst("UIListLayout", Pill, {
-        FillDirection      = Enum.FillDirection.Horizontal,
-        VerticalAlignment  = Enum.VerticalAlignment.Center,
-        Padding            = UDim.new(0, 6),
-        SortOrder          = Enum.SortOrder.LayoutOrder,
-    })
-
-    local function divider(order)
-        inst("Frame", Pill, {
-            Size = UDim2.new(0, 1, 1, -10),
-            BackgroundColor3 = T.text, BackgroundTransparency = 0.82,
-            BorderSizePixel = 0, LayoutOrder = order, ZIndex = 101,
-        })
-    end
-
-    -- Brand block: SEIGE.LOL + @user
-    brandBlock = inst("Frame", Pill, {
-        Size = UDim2.new(0, 92, 1, -4),
-        BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
-    })
-    inst("UIPadding", brandBlock, {
-        PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6),
-    })
-    inst("TextLabel", brandBlock, {
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, 4), Size = UDim2.new(1, 0, 0, 14),
-        Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Text = "SEIGE.LOL", ZIndex = 101,
-    })
-    inst("TextLabel", brandBlock, {
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, 20), Size = UDim2.new(1, 0, 0, 12),
-        Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.good,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Text = "@" .. LP.Name, ZIndex = 101,
-    })
-
-    divider(2)
-
-    -- Stat pill factory (FPS / PING)
-    local function statPill(order, color, labelText, valueW)
-        local f = inst("Frame", Pill, {
-            Size = UDim2.new(0, 80, 0, 26),
-            BackgroundColor3 = color, BackgroundTransparency = 0.86,
-            BorderSizePixel = 0, LayoutOrder = order, ZIndex = 101,
-        })
-        corner(f, 13); stroke(f, color, 1, 0.55)
-        local dot = inst("Frame", f, {
-            AnchorPoint = Vector2.new(0, 0.5),
-            Position = UDim2.new(0, 8, 0.5, 0),
-            Size = UDim2.new(0, 6, 0, 6),
-            BackgroundColor3 = color, BorderSizePixel = 0, ZIndex = 102,
-        })
-        corner(dot, 3)
-        inst("TextLabel", f, {
-            Position = UDim2.new(0, 18, 0, 0),
-            Size = UDim2.new(0, 30, 1, 0),
-            BackgroundTransparency = 1,
-            Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.text,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Text = labelText, ZIndex = 102,
-        })
-        local val = inst("TextLabel", f, {
-            Position = UDim2.new(0, 18 + (valueW or 28), 0, 0),
-            Size = UDim2.new(1, -(24 + (valueW or 28)), 1, 0),
-            BackgroundTransparency = 1,
-            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = color,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Text = "--", ZIndex = 102,
-        })
-        return f, val
-    end
-
-    local fpsLbl, pingLbl
-    fpsBox,  fpsLbl  = statPill(3, T.good, "FPS",  26)
-    pingBox, pingLbl = statPill(4, T.warn, "PING", 30)
-
-    divider(5)
-
-    -- Icon button row (filled by downstream code at ~10340)
-    iconsRow = inst("Frame", Pill, {
-        Size = UDim2.new(0, 0, 1, -4),
-        AutomaticSize = Enum.AutomaticSize.X,
-        BackgroundTransparency = 1, LayoutOrder = 6, ZIndex = 101,
-    })
-    inst("UIListLayout", iconsRow, {
-        FillDirection     = Enum.FillDirection.Horizontal,
-        VerticalAlignment = Enum.VerticalAlignment.Center,
-        Padding           = UDim.new(0, 6),
-        SortOrder         = Enum.SortOrder.LayoutOrder,
-    })
-
-    divider(95)
-
-    -- Hide/show toggle (hamburger)
-    pillToggle = inst("TextButton", Pill, {
-        Size = UDim2.new(0, 32, 0, 32),
-        BackgroundColor3 = T.text, BackgroundTransparency = 0.88,
-        BorderSizePixel = 0, AutoButtonColor = false,
-        Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
-        Text = "", LayoutOrder = 96, ZIndex = 102,
-    })
-    corner(pillToggle, 8); stroke(pillToggle, T.text, 1, 0.65)
-    pillToggleImg = inst("ImageLabel", pillToggle, {
-        BackgroundTransparency = 1,
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 18, 0, 18),
-        Image = "rbxassetid://106620609396373",
-        ImageColor3 = T.text, ZIndex = 103,
-    })
-
-    -- Clock block (time + date)
-    clockBox = inst("Frame", Pill, {
-        Size = UDim2.new(0, 82, 1, -4),
-        BackgroundTransparency = 1, LayoutOrder = 99, ZIndex = 101,
-    })
-    inst("UIPadding", clockBox, {
-        PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6),
-    })
-    local clockTime = inst("TextLabel", clockBox, {
-        Position = UDim2.new(0, 0, 0, 3), Size = UDim2.new(1, 0, 0, 14),
-        BackgroundTransparency = 1,
-        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
-        TextXAlignment = Enum.TextXAlignment.Right,
-        Text = (os.date("%I:%M %p"):gsub("^0", "")), ZIndex = 101,
-    })
-    local clockDate = inst("TextLabel", clockBox, {
-        Position = UDim2.new(0, 0, 0, 19), Size = UDim2.new(1, 0, 0, 12),
-        BackgroundTransparency = 1,
-        Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
-        TextXAlignment = Enum.TextXAlignment.Right,
-        Text = os.date("%a %b %d"), ZIndex = 101,
-    })
-
-    -- Single drag handler for the pill (was duplicated in legacy code)
-    do
-        local dragging, ds, sp
-        Pill.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1
-            or i.UserInputType == Enum.UserInputType.Touch then
-                dragging = true; ds = i.Position; sp = Pill.AbsolutePosition
-            end
-        end)
-        UIS.InputChanged:Connect(function(i)
-            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
-            or i.UserInputType == Enum.UserInputType.Touch) then
-                local d = i.Position - ds
-                local nx, ny = sp.X + d.X, sp.Y + d.Y
-                Pill.AnchorPoint = Vector2.new(0, 0)
-                Pill.Position    = UDim2.new(0, nx, 0, ny)
-                _G.__SeigePillPos = { x = nx, y = ny }
-            end
-        end)
-        UIS.InputEnded:Connect(function(i)
-            if dragging and (i.UserInputType == Enum.UserInputType.MouseButton1
-            or i.UserInputType == Enum.UserInputType.Touch) then
-                dragging = false
-                if saveCfg then pcall(saveCfg) end
-            end
-        end)
-    end
-
-    -- Live FPS / PING / clock updater
-    task.spawn(function()
-        local Stats  = game:GetService("Stats")
-        local frames = 0
-        local windowStart = tick()
-        local rsConn = RunService.RenderStepped:Connect(function()
-            frames = frames + 1
-        end)
-        while Pill and Pill.Parent do
-            RunService.Heartbeat:Wait()
-            local now = tick()
-            local elapsed = now - windowStart
-            if elapsed >= 0.5 then
-                local fps = math.floor(frames / elapsed + 0.5)
-                frames = 0; windowStart = now
-                fpsLbl.Text       = tostring(fps)
-                fpsLbl.TextColor3 = fps > 45 and T.good or (fps > 25 and T.warn or T.bad)
-            end
-            local ok, ping = pcall(function()
-                return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
-            end)
-            if ok and ping then
-                pingLbl.Text       = ping .. " ms"
-                pingLbl.TextColor3 = ping < 120 and T.good or (ping < 280 and T.warn or T.bad)
-            end
-            clockTime.Text = (os.date("%I:%M %p"):gsub("^0", ""))
-            clockDate.Text = os.date("%a %b %d")
-        end
-        pcall(function() rsConn:Disconnect() end)
-    end)
-
-    print("[seige] Pill mounted at", tostring(Pill.AbsolutePosition))
+    return d
 end
 
--- ======================================================= FLOATING PANELS
--- Move the tooltip out of the hidden Win into Root for the new chrome.
+-- Brand pill (name + @user) — FIRST
+brandBlock = inst("Frame", Pill, {
+    Size = UDim2.new(0, 86, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
+})
+inst("UIPadding", brandBlock, { PaddingLeft = UDim.new(0,6), PaddingRight = UDim.new(0,6) })
+inst("TextLabel", brandBlock, {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
+    Size = UDim2.new(1, 0, 0, 14),
+    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
+})
+inst("TextLabel", brandBlock, {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
+    Size = UDim2.new(1, 0, 0, 12),
+    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.good,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "@" .. LP.Name, ZIndex = 101,
+})
+
+pillDivider(2)
+
+-- FPS / PING stat pills
+local function statPill(order, color)
+    local f = inst("Frame", Pill, {
+        Size = UDim2.new(0, 80, 0, 26), BackgroundColor3 = color,
+        BackgroundTransparency = 0.86, BorderSizePixel = 0,
+        LayoutOrder = order, ZIndex = 101,
+    })
+    corner(f, 13); stroke(f, color, 1, 0.55)
+    return f
+end
+fpsBox = statPill(3, T.good)
+local fpsDot = inst("Frame", fpsBox, {
+    AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
+    Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = T.good, BorderSizePixel = 0, ZIndex = 102,
+})
+corner(fpsDot, 3)
+inst("TextLabel", fpsBox, {
+    Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(0, 28, 1, 0),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.text,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "FPS", ZIndex = 102,
+})
+local fpsLbl = inst("TextLabel", fpsBox, {
+    Position = UDim2.new(0, 44, 0, 0), Size = UDim2.new(1, -50, 1, 0),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.good,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "--", ZIndex = 102,
+})
+
+pingBox = statPill(4, T.warn)
+local pingDot = inst("Frame", pingBox, {
+    AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
+    Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = T.warn, BorderSizePixel = 0, ZIndex = 102,
+})
+corner(pingDot, 3)
+inst("TextLabel", pingBox, {
+    Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(0, 30, 1, 0),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.text,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "PING", ZIndex = 102,
+})
+local pingLbl = inst("TextLabel", pingBox, {
+    Position = UDim2.new(0, 46, 0, 0), Size = UDim2.new(1, -52, 1, 0),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.warn,
+    TextXAlignment = Enum.TextXAlignment.Left, Text = "--", ZIndex = 102,
+})
+
+pillDivider(5)
+
+-- Icon button row
+iconsRow = inst("Frame", Pill, {
+    Size = UDim2.new(0, 0, 1, -4),
+    AutomaticSize = Enum.AutomaticSize.X,
+    BackgroundTransparency = 1, LayoutOrder = 6, ZIndex = 101,
+})
+inst("UIListLayout", iconsRow, {
+    FillDirection = Enum.FillDirection.Horizontal,
+    VerticalAlignment = Enum.VerticalAlignment.Center,
+    Padding = UDim.new(0, 6),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+})
+
+pillDivider(95)
+
+-- Hide/show toggle (compacts the bar to a hamburger) — before clock
+pillToggle = inst("TextButton", Pill, {
+    Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = T.text,
+    BackgroundTransparency = 0.88, BorderSizePixel = 0, AutoButtonColor = false,
+    Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
+    Text = "", LayoutOrder = 96, ZIndex = 102,
+})
+corner(pillToggle, 8); stroke(pillToggle, T.text, 1, 0.65)
+pillToggleImg = inst("ImageLabel", pillToggle, {
+    BackgroundTransparency = 1,
+    AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0, 18, 0, 18),
+    Image = "rbxassetid://106620609396373",
+    ImageColor3 = T.text, ZIndex = 103,
+})
+
+-- Clock pill at far right (time + date)
+clockBox = inst("Frame", Pill, {
+    Size = UDim2.new(0, 82, 1, -4), BackgroundTransparency = 1,
+    LayoutOrder = 99, ZIndex = 101,
+})
+inst("UIPadding", clockBox, { PaddingLeft = UDim.new(0,6), PaddingRight = UDim.new(0,6) })
+local pillClock = inst("TextLabel", clockBox, {
+    Position = UDim2.new(0, 0, 0, 3), Size = UDim2.new(1, 0, 0, 14),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+    TextXAlignment = Enum.TextXAlignment.Right,
+    Text = (os.date("%I:%M %p"):gsub("^0", "")), ZIndex = 101,
+})
+local pillDate = inst("TextLabel", clockBox, {
+    Position = UDim2.new(0, 0, 0, 19), Size = UDim2.new(1, 0, 0, 12),
+    BackgroundTransparency = 1,
+    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
+    TextXAlignment = Enum.TextXAlignment.Right,
+    Text = os.date("%a %b %d"), ZIndex = 101,
+})
+
+-- Pill drag
+do
+    local dragging, ds, sp
+    Pill.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; ds = i.Position; sp = Pill.Position
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - ds
+            Pill.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y)
+        end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+end
+
+-- Live status: FPS / PING / clock
+-- FPS is averaged over a rolling ~0.5s window driven by RenderStepped (which
+-- matches the player's actual render rate). A single-frame 1/dt reading is too
+-- jittery and "glitches" the number — averaging produces the value Roblox itself
+-- shows in its dev console.
+task.spawn(function()
+    local Stats = game:GetService("Stats")
+    local frames = 0
+    local windowStart = tick()
+    local lastFps = 0
+    local rsConn = RunService.RenderStepped:Connect(function() frames = frames + 1 end)
+    while Pill and Pill.Parent do
+        RunService.Heartbeat:Wait()
+        local now = tick()
+        local elapsed = now - windowStart
+        if elapsed >= 0.5 then
+            lastFps = math.floor(frames / elapsed + 0.5)
+            frames = 0
+            windowStart = now
+            fpsLbl.Text = tostring(lastFps)
+            fpsLbl.TextColor3 = lastFps > 45 and T.good or (lastFps > 25 and T.warn or T.bad)
+        end
+        local ok, ping = pcall(function()
+            return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+        end)
+        if ok and ping then
+            pingLbl.Text = ping .. " ms"
+            pingLbl.TextColor3 = ping < 120 and T.warn or (ping < 280 and T.warn or T.bad)
+        end
+        pillClock.Text = (os.date("%I:%M %p"):gsub("^0", ""))
+        pillDate.Text  = os.date("%a %b %d")
+    end
+    pcall(function() rsConn:Disconnect() end)
+end)
+end)()
+
+-- ============= FLOATING PANELS ====================================
+-- Move the tooltip out of the hidden Win and into Root for the new pill.
 pcall(function() Tip.Parent = Root; Tip.ZIndex = 220 end)
 
-local panels   = {}
+local panels = {}
 _G.__SeigePanels = panels
 local panelSlot = 0
 
--- Animated show/hide for a panel frame.
--- Respects _G.__SeigePageAnim / _G.__SeigePageAnimSpeed from Themes tab.
+-- Animated visibility transition for any panel frame.
+-- Respects _G.__SeigePageAnim and _G.__SeigePageAnimSpeed set in Themes tab.
 _G.__SeigeAnimPanel = function(frame, show)
     if not frame then return end
     local style = _G.__SeigePageAnim or "Fade"
     local dur   = tonumber(_G.__SeigePageAnimSpeed) or 0.24
-    local rest  = (_G.__SeigeUITrans or 0.35)
-
-    if style == "None" then
-        frame.Visible = show
-        frame.BackgroundTransparency = rest
-        return
-    end
-
-    -- Capture rest geometry once for tween anchoring
+    if style == "None" then frame.Visible = show; return end
+    -- Capture the "rest" geometry once; we tween from/to it on each toggle.
     if not frame:GetAttribute("__restPos") then
         frame:SetAttribute("__restPos",  true)
-        frame:SetAttribute("__restPosX",  frame.Position.X.Offset)
-        frame:SetAttribute("__restPosY",  frame.Position.Y.Offset)
+        frame:SetAttribute("__restPosX", frame.Position.X.Offset)
+        frame:SetAttribute("__restPosY", frame.Position.Y.Offset)
         frame:SetAttribute("__restPosXS", frame.Position.X.Scale)
         frame:SetAttribute("__restPosYS", frame.Position.Y.Scale)
     end
-    local px,  py  = frame:GetAttribute("__restPosX"),  frame:GetAttribute("__restPosY")
+    local px, py = frame:GetAttribute("__restPosX"), frame:GetAttribute("__restPosY")
     local pxs, pys = frame:GetAttribute("__restPosXS"), frame:GetAttribute("__restPosYS")
-    local restPos  = UDim2.new(pxs, px, pys, py)
+    local restPos = UDim2.new(pxs, px, pys, py)
 
-    local scale = frame:FindFirstChildOfClass("UIScale")
-        or inst("UIScale", frame, { Scale = 1 })
+    local scaleObj = frame:FindFirstChildOfClass("UIScale")
+    if not scaleObj then
+        scaleObj = Instance.new("UIScale"); scaleObj.Scale = 1; scaleObj.Parent = frame
+    end
 
-    local function go(props, easing, dir, time)
-        TweenService:Create(frame, TweenInfo.new(
-            time or dur,
-            easing or Enum.EasingStyle.Quad,
-            dir    or Enum.EasingDirection.Out
-        ), props):Play()
+    local function tweenInto(props, easing, dir, time)
+        TweenService:Create(frame, TweenInfo.new(time or dur, easing or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
     end
 
     if show then
         frame.Visible = true
         frame.BackgroundTransparency = 1
         frame.Position = restPos
-        scale.Scale = 1
-        if style == "Scale" then
-            scale.Scale = 0.85
-            TweenService:Create(scale, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        scaleObj.Scale = 1
+        if style == "Fade" then
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
+        elseif style == "Scale" then
+            scaleObj.Scale = 0.85
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         elseif style == "Slide-down" then
             frame.Position = UDim2.new(pxs, px, pys, py - 40)
-            go({ Position = restPos, BackgroundTransparency = rest })
-            return
+            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Slide-up" then
             frame.Position = UDim2.new(pxs, px, pys, py + 40)
-            go({ Position = restPos, BackgroundTransparency = rest })
-            return
+            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Slide-right" then
             frame.Position = UDim2.new(pxs, px - 60, pys, py)
-            go({ Position = restPos, BackgroundTransparency = rest })
-            return
+            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
         elseif style == "Flip" then
-            scale.Scale = 0.01
-            TweenService:Create(scale, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+            scaleObj.Scale = 0.01
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         elseif style == "Bounce" then
-            scale.Scale = 0.6
-            TweenService:Create(scale, TweenInfo.new(dur * 1.3, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+            scaleObj.Scale = 0.6
+            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
+            TweenService:Create(scaleObj, TweenInfo.new(dur * 1.3, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        else
+            frame.BackgroundTransparency = (_G.__SeigeUITrans or 0.35)
         end
-        go({ BackgroundTransparency = rest })
     else
-        if style == "Scale" then
-            TweenService:Create(scale, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.85 }):Play()
+        if style == "Fade" then
+            tweenInto({ BackgroundTransparency = 1 })
+        elseif style == "Scale" then
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.85 }):Play()
+            tweenInto({ BackgroundTransparency = 1 })
         elseif style == "Slide-down" then
-            go({ Position = UDim2.new(pxs, px, pys, py + 40), BackgroundTransparency = 1 })
+            tweenInto({ Position = UDim2.new(pxs, px, pys, py + 40), BackgroundTransparency = 1 })
         elseif style == "Slide-up" then
-            go({ Position = UDim2.new(pxs, px, pys, py - 40), BackgroundTransparency = 1 })
+            tweenInto({ Position = UDim2.new(pxs, px, pys, py - 40), BackgroundTransparency = 1 })
         elseif style == "Slide-right" then
-            go({ Position = UDim2.new(pxs, px + 60, pys, py), BackgroundTransparency = 1 })
+            tweenInto({ Position = UDim2.new(pxs, px + 60, pys, py), BackgroundTransparency = 1 })
         elseif style == "Flip" then
-            TweenService:Create(scale, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Scale = 0.01 }):Play()
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Scale = 0.01 }):Play()
+            tweenInto({ BackgroundTransparency = 1 })
         elseif style == "Bounce" then
-            TweenService:Create(scale, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0.6 }):Play()
+            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0.6 }):Play()
+            tweenInto({ BackgroundTransparency = 1 })
         end
-        go({ BackgroundTransparency = 1 })
         task.delay(dur + 0.02, function()
             if frame and frame.Parent then
                 frame.Visible = false
                 frame.Position = restPos
-                if scale then scale.Scale = 1 end
-                frame.BackgroundTransparency = rest
+                if scaleObj then scaleObj.Scale = 1 end
+                frame.BackgroundTransparency = (_G.__SeigeUITrans or 0.35)
             end
         end)
     end
@@ -9859,125 +9432,102 @@ end
 local function makePanel(name, entry)
     local page = entry.page
     panelSlot = panelSlot + 1
-    local col = (panelSlot - 1) % 3
-    local row = math.floor((panelSlot - 1) / 3)
-
+    local slotX = (panelSlot - 1) % 3
+    local slotY = math.floor((panelSlot - 1) / 3)
     local frame = inst("Frame", Root, {
         Name = "Panel_" .. name,
-        Position = UDim2.new(1, -350 - col * 14, 0, 80 + row * 32),
-        Size     = UDim2.new(0, 320, 0, 380),
-        BackgroundColor3 = T.bg,
-        BackgroundTransparency = (_G.__SeigeUITrans or 0.35),
-        BorderSizePixel = 0,
+        Position = UDim2.new(1, -350 - slotX * 14, 0, 80 + slotY * 32),
+        Size = UDim2.new(0, 320, 0, 380),
+        BackgroundColor3 = T.bg, BackgroundTransparency = (_G.__SeigeUITrans or 0.35), BorderSizePixel = 0,
         Visible = false, Active = true, ZIndex = 110,
     })
     corner(frame, 12); stroke(frame, T.line, 1, 0.4)
     frame.ClipsDescendants = true
-
-    -- Glass gradient backdrop
     inst("UIGradient", frame, {
         Rotation = 120,
         Color = ColorSequence.new(T.bg2, T.bg),
         Transparency = NumberSequence.new(0.05),
     })
-
-    -- User-supplied panel background (Themes tab writes here)
+    -- User-supplied panel background image (set via Themes tab)
     local bgImg = inst("ImageLabel", frame, {
-        Name = "__SeigeBgImg", BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0),
+        Name = "__SeigeBgImg",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0),
         ScaleType = Enum.ScaleType.Crop,
-        Image = "", ImageTransparency = 1, ZIndex = 110,
+        Image = "",
+        ImageTransparency = 1,
+        ZIndex = 110,
     })
-    corner(bgImg, 12)
-
-    -- Soft accent glow behind the panel
+    -- soft glow
     inst("ImageLabel", frame, {
         BackgroundTransparency = 1,
         Image = "rbxasset://textures/ui/Controls/DropShadow.png",
         ImageColor3 = T.acc, ImageTransparency = 0.88,
-        ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(12, 12, 244, 244),
+        ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(12,12,244,244),
         Size = UDim2.new(1, 28, 1, 28), Position = UDim2.new(0, -14, 0, -14),
         ZIndex = 109,
     })
 
-    -- Header (drag handle + title + close)
+    -- Header
     local hdr = inst("Frame", frame, {
-        Size = UDim2.new(1, 0, 0, 28),
-        BackgroundTransparency = 1, Active = true, ZIndex = 112,
+        Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1, Active = true, ZIndex = 112,
     })
     inst("TextLabel", hdr, {
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0, 12, 0, 0), Size = UDim2.new(1, -44, 1, 0),
+        BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 0),
+        Size = UDim2.new(1, -44, 1, 0),
         Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left,
         Text = "SEIGE.LOL · " .. string.upper(entry.title or name),
         ZIndex = 113,
     })
     local xBtn = inst("TextButton", hdr, {
-        AnchorPoint = Vector2.new(1, 0.5),
-        Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.new(0, 20, 0, 20),
-        BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2,
-        BorderSizePixel = 0, AutoButtonColor = false,
-        Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
-        Text = "×", ZIndex = 114,
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.new(0, 20, 0, 20),
+        BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2, BorderSizePixel = 0,
+        AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text, Text = "×",
+        ZIndex = 114,
     })
     corner(xBtn, 6); stroke(xBtn, T.line, 1, 0.4)
-    xBtn.MouseEnter:Connect(function()
-        tween(xBtn, 0.12, { BackgroundColor3 = T.bad, BackgroundTransparency = 0.1 })
-    end)
-    xBtn.MouseLeave:Connect(function()
-        tween(xBtn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2 })
-    end)
-
-    -- Divider under header
+    xBtn.MouseEnter:Connect(function() tween(xBtn, 0.12, { BackgroundColor3 = T.bad, BackgroundTransparency = 0.1 }) end)
+    xBtn.MouseLeave:Connect(function() tween(xBtn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2 }) end)
     inst("Frame", frame, {
         Position = UDim2.new(0, 6, 0, 28), Size = UDim2.new(1, -12, 0, 1),
-        BackgroundColor3 = T.line, BackgroundTransparency = 0.6,
-        BorderSizePixel = 0, ZIndex = 112,
+        BackgroundColor3 = T.line, BackgroundTransparency = 0.6, BorderSizePixel = 0,
+        ZIndex = 112,
     })
 
-    -- Mount the original page inside this panel
-    page.Parent   = frame
+    -- Re-host the existing tab page inside this panel
+    page.Parent = frame
     page.Position = UDim2.new(0, 0, 0, 32)
-    page.Size     = UDim2.new(1, 0, 1, -36)
-    page.Visible  = true
+    page.Size = UDim2.new(1, 0, 1, -36)
+    page.Visible = true
 
     xBtn.MouseButton1Click:Connect(function()
-        if _G.__SeigeAnimPanel then
-            _G.__SeigeAnimPanel(frame, false)
-        else
-            frame.Visible = false
-        end
+        if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(frame, false) else frame.Visible = false end
         local btn = panels[name] and panels[name].btn
         if btn then
             tween(btn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25 })
         end
     end)
 
-    -- Per-panel drag from header
+    -- Per-panel drag
     do
         local dragging, ds, sp
         hdr.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1
-            or i.UserInputType == Enum.UserInputType.Touch then
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
                 dragging = true; ds = i.Position; sp = frame.Position
             end
         end)
         UIS.InputChanged:Connect(function(i)
-            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
-            or i.UserInputType == Enum.UserInputType.Touch) then
+            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
                 local d = i.Position - ds
-                frame.Position = UDim2.new(
-                    sp.X.Scale, sp.X.Offset + d.X,
-                    sp.Y.Scale, sp.Y.Offset + d.Y
-                )
+                frame.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y)
             end
         end)
         UIS.InputEnded:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1
-            or i.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
-            end
+            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
         end)
     end
 
@@ -9985,7 +9535,6 @@ local function makePanel(name, entry)
     if _G.__SeigeApplyPanelBg then pcall(_G.__SeigeApplyPanelBg) end
     return frame
 end
-
 
 -------------------------------------------------- DETECTOR (other scripts)
 ;(function()
@@ -10307,17 +9856,14 @@ end)()
 local tabOrder = {
     "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Misc",
 }
--- [Iter 2] Per-tab image icons (rbxassetid). Misc + Tags reuse existing icons.
+-- Per-tab image icons (rbxassetid). Images should be white on transparent bg.
 local tabImages = {
     Profile = "rbxassetid://72672681350713",   -- player
     Players = "rbxassetid://133507370080897",  -- users
     Cmds    = "rbxassetid://118287619529782",  -- command
     Shaders = "rbxassetid://89184279571938",   -- shaders
     Spotify = "rbxassetid://103992944497423",  -- music
-    Config  = "rbxassetid://125262243617493",  -- settings (Themes lives here)
-    Misc    = "rbxassetid://125262243617493",  -- reuse Config glyph
-    Tags    = "rbxassetid://133507370080897",  -- reuse Users glyph
-    Themes  = "rbxassetid://75470621365440",   -- palette (in case a separate Themes tab is added)
+    Config  = "rbxassetid://125262243617493",  -- settings
 }
 -- include any tabs that weren't listed (forward-compat)
 for n, _ in pairs(tabs) do
@@ -10326,9 +9872,6 @@ for n, _ in pairs(tabs) do
     if not found then tabOrder[#tabOrder + 1] = n end
 end
 
--- [Iter 2] Purple top-tabs shell: active tab gets purple glow + underline indicator.
-local PURPLE = Color3.fromRGB(168, 85, 247)   -- accent
-local PURPLE_HOVER = Color3.fromRGB(192, 132, 252)
 idx = 0
 for _, name in ipairs(tabOrder) do
     local entry = tabs[name]
@@ -10338,67 +9881,45 @@ for _, name in ipairs(tabOrder) do
         local imgId = tabImages[name]
         local WHITE = T.text
         local ib = inst("TextButton", iconsRow, {
-            Size = UDim2.new(0, 36, 0, 32),
-            BackgroundColor3 = PURPLE, BackgroundTransparency = 1, BorderSizePixel = 0,
+            Size = UDim2.new(0, 32, 0, 32),
+            BackgroundColor3 = WHITE, BackgroundTransparency = 1, BorderSizePixel = 0,
             AutoButtonColor = false,
             Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = WHITE,
             Text = imgId and "" or ((entry.ico and entry.ico.Text) or "•"),
             LayoutOrder = idx, ZIndex = 102,
         })
-        corner(ib, 10)
+        corner(ib, 16)
         local ibImg
         if imgId then
             ibImg = inst("ImageLabel", ib, {
                 BackgroundTransparency = 1,
                 AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(0.5, 0, 0.5, -2),
+                Position = UDim2.new(0.5, 0, 0.5, 0),
                 Size = UDim2.new(0, 18, 0, 18),
                 Image = imgId,
                 ImageColor3 = WHITE,
                 ZIndex = 103,
             })
         end
-        -- Active underline indicator (hidden by default).
-        local underline = inst("Frame", ib, {
-            Name = "Underline",
-            AnchorPoint = Vector2.new(0.5, 1),
-            Position = UDim2.new(0.5, 0, 1, -2),
-            Size = UDim2.new(0, 0, 0, 2),
-            BackgroundColor3 = PURPLE, BorderSizePixel = 0,
-            BackgroundTransparency = 0, Visible = false, ZIndex = 104,
-        })
-        corner(underline, 1)
         panels[name].btn = ib
         panels[name].ibImg = ibImg
         panels[name].defaultIcon = imgId
-        panels[name].underline = underline
 
-        local function refresh()
-            local p = panels[name]
-            local active = p and p.frame and p.frame.Visible
-            if active then
-                tween(ib, 0.14, { BackgroundColor3 = PURPLE, BackgroundTransparency = 0.18 })
-                ib.TextColor3 = WHITE
-                if ibImg then ibImg.ImageColor3 = WHITE end
-                underline.Visible = true
-                tween(underline, 0.18, { Size = UDim2.new(1, -10, 0, 2) })
-            else
-                tween(ib, 0.14, { BackgroundColor3 = PURPLE, BackgroundTransparency = 1 })
-                ib.TextColor3 = WHITE
-                if ibImg then ibImg.ImageColor3 = WHITE end
-                underline.Visible = false
-                underline.Size = UDim2.new(0, 0, 0, 2)
-            end
-        end
-        panels[name].refreshTab = refresh
         local function setHover(on)
             local p = panels[name]
-            local active = p and p.frame and p.frame.Visible
-            if active then return end
-            if on then
-                tween(ib, 0.12, { BackgroundColor3 = PURPLE_HOVER, BackgroundTransparency = 0.55 })
+            local active = p and p.frame.Visible
+            if active then
+                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0 })
+                ib.TextColor3 = T.bg
+                if ibImg then ibImg.ImageColor3 = T.bg end
+            elseif on then
+                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0.82 })
+                ib.TextColor3 = WHITE
+                if ibImg then ibImg.ImageColor3 = WHITE end
             else
-                tween(ib, 0.12, { BackgroundColor3 = PURPLE, BackgroundTransparency = 1 })
+                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 1 })
+                ib.TextColor3 = WHITE
+                if ibImg then ibImg.ImageColor3 = WHITE end
             end
         end
         ib.MouseEnter:Connect(function()
@@ -10414,33 +9935,9 @@ for _, name in ipairs(tabOrder) do
             local p = panels[name]
             local newVis = not p.frame.Visible
             if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, newVis) else p.frame.Visible = newVis end
-            if newVis then _G.__SeigeLastTab = name; if saveCfg then pcall(saveCfg) end end
-            -- Refresh ALL tab indicators so underlines stay in sync.
-            task.defer(function()
-                for _, pp in pairs(panels) do if pp.refreshTab then pp.refreshTab() end end
-            end)
+            setHover(false)
         end)
-        -- Initial paint.
-        task.defer(refresh)
     end
-end
-
--- [Iter 2] Restore last-used tab from config.
-_G.__SeigeApplyLastTab = function(name)
-    if not name then return end
-    local p = panels[name]
-    if not (p and p.frame and p.btn) then return end
-    if not p.frame.Visible then
-        if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, true) else p.frame.Visible = true end
-    end
-    _G.__SeigeLastTab = name
-    task.defer(function()
-        for _, pp in pairs(panels) do if pp.refreshTab then pp.refreshTab() end end
-    end)
-end
-if _G.__SeigeLastTabPending then
-    task.defer(_G.__SeigeApplyLastTab, _G.__SeigeLastTabPending)
-    _G.__SeigeLastTabPending = nil
 end
 
 -- Per-panel image + per-icon image controls (in Themes/Settings page)
@@ -10601,65 +10098,16 @@ do
     })
     _G.__SeigeDock = Dock
 
-    -- Dock color (applied to background + stroke). Configurable from Config tab.
-    local dockStroke = Dock:FindFirstChildOfClass("UIStroke")
-    _G.__SeigeApplyDockColor = function(c)
-        if typeof(c) ~= "Color3" then return end
-        _G.__SeigeDockColor = c
-        Dock.BackgroundColor3 = c
-        if dockStroke and not _G.__SeigeDockStrokeColor then dockStroke.Color = c end
-    end
-    if _G.__SeigeDockColor then _G.__SeigeApplyDockColor(_G.__SeigeDockColor) end
-
-    -- Dock stroke (outline) color override.
-    _G.__SeigeApplyDockStrokeColor = function(c)
-        _G.__SeigeDockStrokeColor = (typeof(c) == "Color3") and c or nil
-        if dockStroke then
-            dockStroke.Color = _G.__SeigeDockStrokeColor or _G.__SeigeDockColor or T.acc
-        end
-    end
-    if _G.__SeigeDockStrokeColor then _G.__SeigeApplyDockStrokeColor(_G.__SeigeDockStrokeColor) end
-
-    -- Dock icon/text color override.
-    _G.__SeigeApplyDockIconColor = function(c)
-        _G.__SeigeDockIconColor = (typeof(c) == "Color3") and c or nil
-        if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
-    end
-
-    -- Gentle floating animation (sine bob) while Dock is visible.
-    local floatTween
-    local baseY = -18
-    local function stopFloat()
-        if floatTween then pcall(function() floatTween:Cancel() end); floatTween = nil end
-        Dock.Position = UDim2.new(0.5, 0, 1, baseY)
-    end
-    local function startFloat()
-        stopFloat()
-        if _G.__SeigeReducedMotion then return end
-        Dock.Position = UDim2.new(0.5, 0, 1, baseY)
-        local info = TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
-        floatTween = TweenService:Create(Dock, info, { Position = UDim2.new(0.5, 0, 1, baseY - 8) })
-        floatTween:Play()
-    end
-    Dock:GetPropertyChangedSignal("Visible"):Connect(function()
-        if Dock.Visible then startFloat() else stopFloat() end
-    end)
-    _G.__SeigeStartDockFloat = startFloat
-    _G.__SeigeStopDockFloat  = stopFloat
-
     local dockBtns = {}
     local function refreshDockState()
-        local icoC = _G.__SeigeDockIconColor or T.text
-        local strokeC = _G.__SeigeDockStrokeColor or _G.__SeigeDockColor or T.acc
         for name, rec in pairs(dockBtns) do
             local p = panels[name]
             local active = p and p.frame and p.frame.Visible
             tween(rec.btn, 0.12, {
                 BackgroundTransparency = active and 0.15 or 0.85,
             })
-            if rec.img then rec.img.ImageColor3 = active and T.bg or icoC end
-            rec.btn.TextColor3 = active and T.bg or icoC
-            if rec.stroke then rec.stroke.Color = strokeC end
+            if rec.img then rec.img.ImageColor3 = active and T.bg or T.text end
+            rec.btn.TextColor3 = active and T.bg or T.text
         end
     end
 
@@ -10683,7 +10131,6 @@ do
                 LayoutOrder = dOrd, ZIndex = 101,
             })
             corner(btn, 12); stroke(btn, T.acc, 1, 0.55)
-            local btnStroke = btn:FindFirstChildOfClass("UIStroke")
             local img
             if p.defaultIcon then
                 img = inst("ImageLabel", btn, {
@@ -10693,7 +10140,7 @@ do
                     Image = p.defaultIcon, ImageColor3 = T.text, ZIndex = 102,
                 })
             end
-            dockBtns[name] = { btn = btn, img = img, stroke = btnStroke }
+            dockBtns[name] = { btn = btn, img = img }
             btn.MouseEnter:Connect(function()
                 if not (p.frame and p.frame.Visible) then
                     tween(btn, 0.1, { BackgroundTransparency = 0.65 })
@@ -10751,11 +10198,8 @@ do
         if _G.__SeigeDock then _G.__SeigeDock.BackgroundTransparency = math.max(0.05, t - 0.1) end
         if menu then menu.BackgroundTransparency = t end
         if _G.__SeigePanels then
-            for name, p in pairs(_G.__SeigePanels) do
-                if p.frame and p.frame.Visible then
-                    local ov = _G.__SeigePanelTrans and _G.__SeigePanelTrans[name]
-                    p.frame.BackgroundTransparency = ov or t
-                end
+            for _, p in pairs(_G.__SeigePanels) do
+                if p.frame and p.frame.Visible then p.frame.BackgroundTransparency = t end
             end
         end
         -- Sync floating command popups (Bang, Reanim, Circle, Help, etc.)
@@ -13025,7 +12469,7 @@ cmdHandlers["reanim"] = function()
     notify("Loading Reanim…", "good")
     task.spawn(function()
         local ok, src = pcall(function()
-            return game:HttpGet("https://seigescript.online/api/public/reanim.lua?key=" .. (_G.__SeigeReanimKey or ""))
+            return game:HttpGet("https://seigescript.online/api/public/reanim.lua")
         end)
         if not ok or type(src) ~= "string" or src == "" then
             notify("Reanim fetch failed", "bad"); return
