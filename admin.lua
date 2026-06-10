@@ -12579,6 +12579,7 @@ end)()
     cmdHandlers["vcjoin"]  = function() V.join();  notify("Voice rejoined", "good") end
 end)()
 
+;(function() -- IIFE scope: cmdHandlers block — keeps main-function 200-local budget alive.
 
 cmdHandlers["save"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
