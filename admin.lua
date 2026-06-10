@@ -8712,6 +8712,7 @@ applyCfg = function(cfg, opts)
     cfg = cfg or {}
     opts = opts or {}
     _G.__SeigeCmdPrefix = tostring(cfg.prefix or CFG_DEFAULTS.prefix):sub(1, 1)
+    if cfg.tagSyncKey ~= nil then _G.__SeigeTagSyncKey = tostring(cfg.tagSyncKey or "") end
     if _G.__SeigeCmdPrefix == "" then _G.__SeigeCmdPrefix = CFG_DEFAULTS.prefix end
     if type(cfg.roles) == "table" then
         _G.__SeigeRoleMap = cfg.roles
