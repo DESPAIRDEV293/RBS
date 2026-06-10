@@ -7879,15 +7879,42 @@ button(pgShaders, "Clear tint (reset to white)", function()
     notify("Tint cleared", "good")
 end)
 
+-- Helpers so the post-FX actually render: DOF needs ShadowMap/Future tech,
+-- SunRays needs a Sky in Lighting (otherwise the effect has nothing to scatter).
+local function ensureModernLighting()
+    pcall(function()
+        if Lighting.Technology == Enum.Technology.Legacy or Lighting.Technology == Enum.Technology.Compatibility then
+            Lighting.Technology = Enum.Technology.ShadowMap
+        end
+    end)
+end
+local function ensureSky()
+    pcall(function()
+        local sky = Lighting:FindFirstChildOfClass("Sky")
+        if not sky then
+            sky = Instance.new("Sky")
+            sky.Name = "SeigeSky"
+            sky.Parent = Lighting
+        end
+    end)
+end
+
 section(pgShaders, "Depth of field")
-toggle(pgShaders, "Enable DOF", false, function(v) fxDOF.Enabled = v end)
+toggle(pgShaders, "Enable DOF", false, function(v)
+    if v then ensureModernLighting() end
+    fxDOF.Enabled = v
+end)
 slider(pgShaders, "Focus distance",  0, 200, 25, function(v) fxDOF.FocusDistance = v end)
 slider(pgShaders, "In focus radius", 0, 100, 8,  function(v) fxDOF.InFocusRadius = v end)
 slider(pgShaders, "Near intensity",  0, 1,   0.25, function(v) fxDOF.NearIntensity = v end)
 slider(pgShaders, "Far intensity",   0, 1,   0.75, function(v) fxDOF.FarIntensity = v end)
 
 section(pgShaders, "Sun rays")
-toggle(pgShaders, "Enable sun rays", false, function(v) fxSun.Enabled = v end)
+toggle(pgShaders, "Enable sun rays", false, function(v)
+    if v then ensureSky() end
+    fxSun.Enabled = v
+    if v and fxSun.Intensity <= 0 then fxSun.Intensity = 0.25 end
+end)
 slider(pgShaders, "Ray intensity", 0, 1, 0.25, function(v) fxSun.Intensity = v end)
 slider(pgShaders, "Ray spread",    0, 1, 1,    function(v) fxSun.Spread = v end)
 
@@ -8034,13 +8061,16 @@ do
         end
     end
 
-    dropdown(pgShaders, "Weather", { "Off", "Cloudy", "Fog", "Rain", "Thunder", "Snow" }, function(o)
+    local weatherCtl = dropdown(pgShaders, "Weather", { "Off", "Cloudy", "Fog", "Rain", "Thunder", "Snow" }, function(o)
         W.mode = o; apply()
     end)
-    slider(pgShaders, "Weather intensity", 0, 1, 0.5, function(v)
+    local weatherIntCtl = slider(pgShaders, "Weather intensity", 0, 1, 0.5, function(v)
         W.intensity = v; if W.mode ~= "Off" then apply() end
     end)
-    button(pgShaders, "Clear weather", function() W.mode = "Off"; clear() end)
+    button(pgShaders, "Clear weather", function()
+        W.mode = "Off"; clear()
+        if weatherCtl and weatherCtl.set then pcall(weatherCtl.set, "Off") end
+    end)
 end
 
 section(pgShaders, "Presets")
@@ -8285,6 +8315,31 @@ transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 
     if saveCfg then pcall(saveCfg) end
 end)
 
+-- Top bar color overrides
+label(pgConfig, "Top bar colors — hex like #1a1a2e (blank = use theme)")
+local function _barColorBox(lbl, key)
+    return textbox(pgConfig, lbl, function(v)
+        local c = hexToColor(v)
+        _G.__SeigeBarColors = _G.__SeigeBarColors or {}
+        _G.__SeigeBarColors[key] = c
+        if _G.__SeigeApplyBarColors then pcall(_G.__SeigeApplyBarColors) end
+        if saveCfg then pcall(saveCfg) end
+        notify(lbl .. (c and " updated" or " cleared"), "good")
+    end)
+end
+_barColorBox("Bar background hex",  "bg")
+_barColorBox("Bar outline hex",     "outline")
+_barColorBox("Bar text hex",        "text")
+_barColorBox("Bar icon hex",        "icon")
+button(pgConfig, "Reset bar colors", function()
+    _G.__SeigeBarColors = { bg = nil, outline = nil, text = nil, icon = nil }
+    -- Re-apply current theme so the overridden values revert to theme defaults.
+    if _G.__SeigeApplyTheme then pcall(_G.__SeigeApplyTheme, T) end
+    if saveCfg then pcall(saveCfg) end
+    notify("Bar colors reset", "good")
+end)
+
+
 
 section(pgConfig, "World Image (Skybox)")
 label(pgConfig, "6 cubed faces — paste a Roblox asset id/URL, or a local image file path from your PC")
@@ -8429,6 +8484,15 @@ snapshotCfg = function()
         bubbleAmt     = tonumber(_G.__SeigeBubbleAmt) or 0.5,
         pageAnim      = _G.__SeigePageAnim or "Fade",
         pageAnimSpeed = tonumber(_G.__SeigePageAnimSpeed) or 0.24,
+        barColors     = (function()
+            local C = _G.__SeigeBarColors or {}
+            return {
+                bg      = C.bg      and cToHex(C.bg)      or nil,
+                outline = C.outline and cToHex(C.outline) or nil,
+                text    = C.text    and cToHex(C.text)    or nil,
+                icon    = C.icon    and cToHex(C.icon)    or nil,
+            }
+        end)(),
     }
 end
 
@@ -8517,6 +8581,15 @@ applyCfg = function(cfg, opts)
     if cfg.pageAnimSpeed then
         _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed
         if _G.__SeigePageAnimSpeedCtl and _G.__SeigePageAnimSpeedCtl.set then pcall(_G.__SeigePageAnimSpeedCtl.set, (_G.__SeigePageAnimSpeed or 0.24) * 1000) end
+    end
+    if type(cfg.barColors) == "table" then
+        local C = {}
+        C.bg      = cfg.barColors.bg      and hexToColor(cfg.barColors.bg)      or nil
+        C.outline = cfg.barColors.outline and hexToColor(cfg.barColors.outline) or nil
+        C.text    = cfg.barColors.text    and hexToColor(cfg.barColors.text)    or nil
+        C.icon    = cfg.barColors.icon    and hexToColor(cfg.barColors.icon)    or nil
+        _G.__SeigeBarColors = C
+        if _G.__SeigeApplyBarColors then pcall(_G.__SeigeApplyBarColors) end
     end
 end
 
@@ -9311,6 +9384,29 @@ task.spawn(function()
     end
     pcall(function() rsConn:Disconnect() end)
 end)
+
+-- ===== Top-bar color overrides (Config tab) =====
+-- Persistent overrides for the layout bar: background, outline, text, icons.
+_G.__SeigeBarColors = _G.__SeigeBarColors or { bg = nil, outline = nil, text = nil, icon = nil }
+_G.__SeigeApplyBarColors = function()
+    local C = _G.__SeigeBarColors or {}
+    local chrome = (_G.__SeigeLayoutMode == "Dock") and _G.__SeigeDock or Pill
+    if not chrome then return end
+    if C.bg then chrome.BackgroundColor3 = C.bg end
+    -- Walk descendants
+    for _, d in ipairs(chrome:GetDescendants()) do
+        if d:IsA("UIStroke") and C.outline then
+            d.Color = C.outline
+        elseif (d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox")) and C.text then
+            d.TextColor3 = C.text
+        elseif (d:IsA("ImageLabel") or d:IsA("ImageButton")) and C.icon then
+            -- Skip the panel background image holder and any image marked __SeigeKeepColor
+            if d.Name ~= "__SeigeBgImg" and not d:GetAttribute("__SeigeKeepColor") then
+                d.ImageColor3 = C.icon
+            end
+        end
+    end
+end
 end)()
 
 -- ============= FLOATING PANELS ====================================
