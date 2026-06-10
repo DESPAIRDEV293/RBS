@@ -1701,6 +1701,9 @@ end
 -- { version = 2, format = "seige.tags.v2", tags = { username = { ... } } }
 local TAGS_PASTEBIN_URL = "https://seigelollua.lovable.app/api/public/pastebin?raw=1"
 local TAGS_DB_URL       = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
+-- New primary HTTP-backed tag DB (Lovable Cloud). Reads are public; writes
+-- require the shared secret set via _G.__SeigeTagSyncKey + admin role.
+local TAGS_HTTP_URL     = "https://seigelollua.lovable.app/api/public/tags"
 
 local TagDB = { entries = {}, localEntries = {}, appliedTags = {}, appliedIcons = {} }
 local function parseColor(c)
