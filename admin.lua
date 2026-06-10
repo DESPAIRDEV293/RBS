@@ -8334,7 +8334,11 @@ end)
 local _resetBtn = button(pgConfig, "↺  Reset to Defaults", function()
     _G.__SeigeSessionCfg = nil
     local wf = rawget(getfenv(), "delfile") or delfile
-    if wf then pcall(wf, CFG_FILE) end
+    if wf then
+        pcall(wf, CFG_FILE)
+        pcall(wf, "seige_config.json")
+        pcall(wf, "seige_admin_theme.json")
+    end
     if applyCfg then
         applyCfg(CFG_DEFAULTS, { applySkybox = true })
         notify("Config reset to defaults", "good")
@@ -8374,10 +8378,12 @@ end))
 local uiScaleCtl = slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
     local s = Win:FindFirstChildOfClass("UIScale") or inst("UIScale", Win, { Scale = 1 })
     s.Scale = v
+    if saveCfg then pcall(saveCfg) end
 end)
 
 local reducedCtl = toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, function(v)
     _G.__SeigeReducedMotion = v
+    if saveCfg then pcall(saveCfg) end
 end)
 
 ------------------------------------------------------- LAYOUT & TRANSLUCENCY
