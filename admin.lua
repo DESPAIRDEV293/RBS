@@ -10735,6 +10735,7 @@ local function _startBang(arg, mode)
     local target = findPlr(arg)
     if not target then notify("Player not found", "bad"); return end
     _G.__SeigeBang.mode = mode
+    if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
     _bangStart(target)
 end
 cmdHandlers["bang"]     = function(arg) _startBang(arg, "front") end
