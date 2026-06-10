@@ -8766,6 +8766,8 @@ snapshotCfg = function()
         bubbleAmt     = tonumber(_G.__SeigeBubbleAmt) or 0.5,
         pageAnim      = _G.__SeigePageAnim or "Fade",
         pageAnimSpeed = tonumber(_G.__SeigePageAnimSpeed) or 0.24,
+        lastTab       = _G.__SeigeLastTab or nil,
+        pillPos       = (_G.__SeigePillPos and { x = _G.__SeigePillPos.x, y = _G.__SeigePillPos.y }) or nil,
     }
 end
 
