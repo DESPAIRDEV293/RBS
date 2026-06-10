@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-rebuild-iter1"
+local ADMIN_BUILD = "2026-06-10-rebuild-iter2"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -10212,14 +10212,17 @@ end)()
 local tabOrder = {
     "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Misc",
 }
--- Per-tab image icons (rbxassetid). Images should be white on transparent bg.
+-- [Iter 2] Per-tab image icons (rbxassetid). Misc + Tags reuse existing icons.
 local tabImages = {
     Profile = "rbxassetid://72672681350713",   -- player
     Players = "rbxassetid://133507370080897",  -- users
     Cmds    = "rbxassetid://118287619529782",  -- command
     Shaders = "rbxassetid://89184279571938",   -- shaders
     Spotify = "rbxassetid://103992944497423",  -- music
-    Config  = "rbxassetid://125262243617493",  -- settings
+    Config  = "rbxassetid://125262243617493",  -- settings (Themes lives here)
+    Misc    = "rbxassetid://125262243617493",  -- reuse Config glyph
+    Tags    = "rbxassetid://133507370080897",  -- reuse Users glyph
+    Themes  = "rbxassetid://75470621365440",   -- palette (in case a separate Themes tab is added)
 }
 -- include any tabs that weren't listed (forward-compat)
 for n, _ in pairs(tabs) do
@@ -10228,6 +10231,9 @@ for n, _ in pairs(tabs) do
     if not found then tabOrder[#tabOrder + 1] = n end
 end
 
+-- [Iter 2] Purple top-tabs shell: active tab gets purple glow + underline indicator.
+local PURPLE = Color3.fromRGB(168, 85, 247)   -- accent
+local PURPLE_HOVER = Color3.fromRGB(192, 132, 252)
 idx = 0
 for _, name in ipairs(tabOrder) do
     local entry = tabs[name]
@@ -10237,45 +10243,67 @@ for _, name in ipairs(tabOrder) do
         local imgId = tabImages[name]
         local WHITE = T.text
         local ib = inst("TextButton", iconsRow, {
-            Size = UDim2.new(0, 32, 0, 32),
-            BackgroundColor3 = WHITE, BackgroundTransparency = 1, BorderSizePixel = 0,
+            Size = UDim2.new(0, 36, 0, 32),
+            BackgroundColor3 = PURPLE, BackgroundTransparency = 1, BorderSizePixel = 0,
             AutoButtonColor = false,
             Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = WHITE,
             Text = imgId and "" or ((entry.ico and entry.ico.Text) or "•"),
             LayoutOrder = idx, ZIndex = 102,
         })
-        corner(ib, 16)
+        corner(ib, 10)
         local ibImg
         if imgId then
             ibImg = inst("ImageLabel", ib, {
                 BackgroundTransparency = 1,
                 AnchorPoint = Vector2.new(0.5, 0.5),
-                Position = UDim2.new(0.5, 0, 0.5, 0),
+                Position = UDim2.new(0.5, 0, 0.5, -2),
                 Size = UDim2.new(0, 18, 0, 18),
                 Image = imgId,
                 ImageColor3 = WHITE,
                 ZIndex = 103,
             })
         end
+        -- Active underline indicator (hidden by default).
+        local underline = inst("Frame", ib, {
+            Name = "Underline",
+            AnchorPoint = Vector2.new(0.5, 1),
+            Position = UDim2.new(0.5, 0, 1, -2),
+            Size = UDim2.new(0, 0, 0, 2),
+            BackgroundColor3 = PURPLE, BorderSizePixel = 0,
+            BackgroundTransparency = 0, Visible = false, ZIndex = 104,
+        })
+        corner(underline, 1)
         panels[name].btn = ib
         panels[name].ibImg = ibImg
         panels[name].defaultIcon = imgId
+        panels[name].underline = underline
 
+        local function refresh()
+            local p = panels[name]
+            local active = p and p.frame and p.frame.Visible
+            if active then
+                tween(ib, 0.14, { BackgroundColor3 = PURPLE, BackgroundTransparency = 0.18 })
+                ib.TextColor3 = WHITE
+                if ibImg then ibImg.ImageColor3 = WHITE end
+                underline.Visible = true
+                tween(underline, 0.18, { Size = UDim2.new(1, -10, 0, 2) })
+            else
+                tween(ib, 0.14, { BackgroundColor3 = PURPLE, BackgroundTransparency = 1 })
+                ib.TextColor3 = WHITE
+                if ibImg then ibImg.ImageColor3 = WHITE end
+                underline.Visible = false
+                underline.Size = UDim2.new(0, 0, 0, 2)
+            end
+        end
+        panels[name].refreshTab = refresh
         local function setHover(on)
             local p = panels[name]
-            local active = p and p.frame.Visible
-            if active then
-                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0 })
-                ib.TextColor3 = T.bg
-                if ibImg then ibImg.ImageColor3 = T.bg end
-            elseif on then
-                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 0.82 })
-                ib.TextColor3 = WHITE
-                if ibImg then ibImg.ImageColor3 = WHITE end
+            local active = p and p.frame and p.frame.Visible
+            if active then return end
+            if on then
+                tween(ib, 0.12, { BackgroundColor3 = PURPLE_HOVER, BackgroundTransparency = 0.55 })
             else
-                tween(ib, 0.12, { BackgroundColor3 = WHITE, BackgroundTransparency = 1 })
-                ib.TextColor3 = WHITE
-                if ibImg then ibImg.ImageColor3 = WHITE end
+                tween(ib, 0.12, { BackgroundColor3 = PURPLE, BackgroundTransparency = 1 })
             end
         end
         ib.MouseEnter:Connect(function()
@@ -10291,9 +10319,33 @@ for _, name in ipairs(tabOrder) do
             local p = panels[name]
             local newVis = not p.frame.Visible
             if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, newVis) else p.frame.Visible = newVis end
-            setHover(false)
+            if newVis then _G.__SeigeLastTab = name; if saveCfg then pcall(saveCfg) end end
+            -- Refresh ALL tab indicators so underlines stay in sync.
+            task.defer(function()
+                for _, pp in pairs(panels) do if pp.refreshTab then pp.refreshTab() end end
+            end)
         end)
+        -- Initial paint.
+        task.defer(refresh)
     end
+end
+
+-- [Iter 2] Restore last-used tab from config.
+_G.__SeigeApplyLastTab = function(name)
+    if not name then return end
+    local p = panels[name]
+    if not (p and p.frame and p.btn) then return end
+    if not p.frame.Visible then
+        if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, true) else p.frame.Visible = true end
+    end
+    _G.__SeigeLastTab = name
+    task.defer(function()
+        for _, pp in pairs(panels) do if pp.refreshTab then pp.refreshTab() end end
+    end)
+end
+if _G.__SeigeLastTabPending then
+    task.defer(_G.__SeigeApplyLastTab, _G.__SeigeLastTabPending)
+    _G.__SeigeLastTabPending = nil
 end
 
 -- Per-panel image + per-icon image controls (in Themes/Settings page)
