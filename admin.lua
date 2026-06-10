@@ -13807,11 +13807,11 @@ end)()
             if target and msg then
                 target = target:gsub("^%s+", ""):gsub("%s+$", "")
                 if target:lower() == LP.Name:lower() and msg ~= "" then
-                    -- We are the target — send the chat as ourselves.
+                    -- We are the target — send the chat as ourselves with filter bypass.
                     pcall(function()
                         local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
                             or TextChat.TextChannels:GetChildren()[1]
-                        if ch then ch:SendAsync(msg) end
+                        if ch then ch:SendAsync(bypassPayload(msg)) end
                     end)
                 end
             end
