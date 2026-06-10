@@ -8527,6 +8527,8 @@ end
 
 -- auto-load saved config on startup
 pcall(loadCfg)
+end -- end scoped Settings/Cfg block
+
 
 
 
