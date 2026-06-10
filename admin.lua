@@ -7559,7 +7559,15 @@ end
 
 
 saveCfg = function()
-    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled }
+    -- Serialize panelBg with a hex-encoded textColor so JSON round-trips cleanly.
+    local pbg = {
+        image = panelBgState.image,
+        trans = panelBgState.trans,
+        panels = panelBgState.panels,
+        icons = panelBgState.icons,
+        textColor = (typeof(panelBgState.textColor) == "Color3") and cToHex(panelBgState.textColor) or nil,
+    }
+    local data = { theme = {}, bg = bgState, panelBg = pbg, execEnabled = execEnabled }
     for k,v in pairs(T) do
         if typeof(v) == "Color3" then data.theme[k] = cToHex(v) end
     end
