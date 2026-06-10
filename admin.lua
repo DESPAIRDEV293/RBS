@@ -8687,11 +8687,13 @@ applyCfg = function(cfg, opts)
         if _G.__SeigeApplyBarColors then pcall(_G.__SeigeApplyBarColors) end
     end
     -- Behavior toggles (safe to restore on inject)
-    if cfg.floatOn ~= nil then _G.__SeigeFloatOn = cfg.floatOn == true end
+    if cfg.floatOn ~= nil then
+        if _G.__SeigeSetFloatOn then pcall(_G.__SeigeSetFloatOn, cfg.floatOn == true)
+        else _G.__SeigeFloatOn = cfg.floatOn == true end
+    end
     if cfg.scriptersOn == true then
-        _G.__SeigeScriptersOn = true
-        if _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
-        if _G.__SeigePresenceRefresh    then pcall(_G.__SeigePresenceRefresh)    end
+        if _G.__SeigeSetScriptersOn then pcall(_G.__SeigeSetScriptersOn, true)
+        else _G.__SeigeScriptersOn = true end
     end
     if type(cfg.antiVC) == "table" then
         _G.__SeigeAntiVC = _G.__SeigeAntiVC or { on = false, interval = 25 }
