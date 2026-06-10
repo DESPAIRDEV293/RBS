@@ -2545,8 +2545,10 @@ dropdown(pgWorld, "Time preset", { "Noon", "Sunset", "Night", "Dawn" }, function
 end)
 
 ------------------------------------------------------- FLOATING TAGS (driven by tags.lua DB)
-local floatOn = false
-local scriptersOn = false        -- show tags for nearby seige.lol users
+local floatOn = _G.__SeigeFloatOn == true
+local scriptersOn = _G.__SeigeScriptersOn == true        -- show tags for nearby seige.lol users
+_G.__SeigeFloatOn     = floatOn
+_G.__SeigeScriptersOn = scriptersOn
 _G.__SeigeScripters = _G.__SeigeScripters or {} -- [userId] = true
 local function isScripter(p)
     if not p then return false end
