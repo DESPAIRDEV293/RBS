@@ -6394,6 +6394,7 @@ local HELP_CMDS = {
         { "!tprj", "Rejoin THIS server and restore your position via queue_on_teleport" },
         { "!randomserver / !jrs / !hop", "Join a random public server" },
         { "!bypass <msg>", "Send chat that bypasses the censor (no ### replacement)" },
+        { "!chatbypasser", "Open the Chat Bypasser panel — send messages that skip Roblox censor" },
         
     }},
     { "Character", {
@@ -7029,6 +7030,8 @@ button(pgCmds, "Circle  —  orbit a player (!cir)", function()
         button(body, "Stop (!uncir)", function() _seigeCircleStop(); notify("Circle stopped", "good") end)
     end)
 end)
+
+button(pgCmds, "Chat Bypasser  —  send uncensored chat (!chatbypasser)", function() _runCmd("!chatbypasser") end)
 
 section(pgCmds, "Extras")
 button(pgCmds, "!esp  —  highlight all players",         function() _runCmd("!esp") end)
@@ -11857,6 +11860,33 @@ cmdHandlers["bypass"] = function(arg)
 end
 cmdHandlers["bp"]       = cmdHandlers["bypass"]
 cmdHandlers["nocensor"] = cmdHandlers["bypass"]
+
+-- !chatbypasser — opens a panel with a textbox + send button that uses the
+-- same zero-width-joiner trick as !bypass so the Roblox filter cannot tokenize
+-- the message. Humans read it normally; the filter never replaces with ###.
+cmdHandlers["chatbypasser"] = function()
+    _openPanel("chatbypasser", "Chat Bypasser  ·  uncensored chat", 200, function(body)
+        local tbox = inst("TextBox", body, {
+            Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
+            TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+            PlaceholderText = "  Message to send (uncensored)…", Text = "",
+            ClearTextOnFocus = false,
+        })
+        button(body, "Send (bypass censor)", function()
+            local msg = tbox.Text
+            if not msg or msg == "" then notify("Type a message", "warn"); return end
+            cmdHandlers["bypass"](msg)
+            tbox.Text = ""
+        end)
+        inst("TextLabel", body, {
+            Size = UDim2.new(1, -8, 0, 30), BackgroundTransparency = 1,
+            TextColor3 = T.muted, Font = Enum.Font.Gotham, TextSize = 11,
+            TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "Inserts a zero-width joiner between characters so the filter can't tokenize words. Reads normally to other players.",
+        })
+    end)
+end
+cmdHandlers["chatbypass"] = cmdHandlers["chatbypasser"]
 
 -- 10) Chat say — send a message in chat from the command bar
 cmdHandlers["say"] = function(arg)
