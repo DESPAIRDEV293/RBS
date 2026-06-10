@@ -8501,14 +8501,23 @@ applyCfg = function(cfg, opts)
         _G.__SeigeFontScale    = tonumber(cfg.fontScale) or _G.__SeigeFontScale or 1.0
         if _G.__SeigeApplyTypography then pcall(_G.__SeigeApplyTypography) end
     end
-    if cfg.tagFont then
-        _G.__SeigeTagFont = cfg.tagFont
-        if _G.__SeigeApplyTagFont then pcall(_G.__SeigeApplyTagFont) end
+    -- (Global tag font setting removed.)
+    if cfg.bubbleAnim then
+        _G.__SeigeBubbleAnim = cfg.bubbleAnim
+        if _G.__SeigeBubbleAnimCtl and _G.__SeigeBubbleAnimCtl.set then pcall(_G.__SeigeBubbleAnimCtl.set, cfg.bubbleAnim) end
     end
-    if cfg.bubbleAnim then _G.__SeigeBubbleAnim = cfg.bubbleAnim end
-    if cfg.bubbleAmt  then _G.__SeigeBubbleAmt  = tonumber(cfg.bubbleAmt)  or _G.__SeigeBubbleAmt  end
-    if cfg.pageAnim   then _G.__SeigePageAnim   = cfg.pageAnim end
-    if cfg.pageAnimSpeed then _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed end
+    if cfg.bubbleAmt then
+        _G.__SeigeBubbleAmt = tonumber(cfg.bubbleAmt) or _G.__SeigeBubbleAmt
+        if _G.__SeigeBubbleAmtCtl and _G.__SeigeBubbleAmtCtl.set then pcall(_G.__SeigeBubbleAmtCtl.set, (_G.__SeigeBubbleAmt or 0.5) * 100) end
+    end
+    if cfg.pageAnim then
+        _G.__SeigePageAnim = cfg.pageAnim
+        if _G.__SeigePageAnimCtl and _G.__SeigePageAnimCtl.set then pcall(_G.__SeigePageAnimCtl.set, cfg.pageAnim) end
+    end
+    if cfg.pageAnimSpeed then
+        _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed
+        if _G.__SeigePageAnimSpeedCtl and _G.__SeigePageAnimSpeedCtl.set then pcall(_G.__SeigePageAnimSpeedCtl.set, (_G.__SeigePageAnimSpeed or 0.24) * 1000) end
+    end
 end
 
 
