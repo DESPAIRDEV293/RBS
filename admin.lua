@@ -7495,8 +7495,8 @@ function applyPanelBg()
             img.ImageTransparency = (url == "") and 1 or trans
         end
     end
+    if _G.__SeigeRefreshTextColor then pcall(_G.__SeigeRefreshTextColor) end
 end
-function applyIconImages()
     local panelsTbl = rawget(_G, "__SeigePanels")
     if not panelsTbl then return end
     for name, p in pairs(panelsTbl) do
