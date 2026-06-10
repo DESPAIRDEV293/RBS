@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as PastebinKeyRouteImport } from './routes/pastebin-key'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicTagsRouteImport } from './routes/api/public/tags'
 import { Route as ApiPublicReanimDotluaRouteImport } from './routes/api/public/reanim[.]lua'
 import { Route as ApiPublicPastebinRouteImport } from './routes/api/public/pastebin'
 import { Route as ApiPublicAdminDotluaRouteImport } from './routes/api/public/admin[.]lua'
@@ -23,6 +24,11 @@ const PastebinKeyRoute = PastebinKeyRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicTagsRoute = ApiPublicTagsRouteImport.update({
+  id: '/api/public/tags',
+  path: '/api/public/tags',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicReanimDotluaRoute = ApiPublicReanimDotluaRouteImport.update({
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
+  '/api/public/tags': typeof ApiPublicTagsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
+  '/api/public/tags': typeof ApiPublicTagsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,6 +70,7 @@ export interface FileRoutesById {
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
+  '/api/public/tags': typeof ApiPublicTagsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -71,6 +80,7 @@ export interface FileRouteTypes {
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
+    | '/api/public/tags'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -78,6 +88,7 @@ export interface FileRouteTypes {
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
+    | '/api/public/tags'
   id:
     | '__root__'
     | '/'
@@ -85,6 +96,7 @@ export interface FileRouteTypes {
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
+    | '/api/public/tags'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -93,6 +105,7 @@ export interface RootRouteChildren {
   ApiPublicAdminDotluaRoute: typeof ApiPublicAdminDotluaRoute
   ApiPublicPastebinRoute: typeof ApiPublicPastebinRoute
   ApiPublicReanimDotluaRoute: typeof ApiPublicReanimDotluaRoute
+  ApiPublicTagsRoute: typeof ApiPublicTagsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -109,6 +122,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/tags': {
+      id: '/api/public/tags'
+      path: '/api/public/tags'
+      fullPath: '/api/public/tags'
+      preLoaderRoute: typeof ApiPublicTagsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/reanim.lua': {
@@ -141,7 +161,18 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAdminDotluaRoute: ApiPublicAdminDotluaRoute,
   ApiPublicPastebinRoute: ApiPublicPastebinRoute,
   ApiPublicReanimDotluaRoute: ApiPublicReanimDotluaRoute,
+  ApiPublicTagsRoute: ApiPublicTagsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
