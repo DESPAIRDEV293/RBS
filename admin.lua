@@ -2117,7 +2117,7 @@ function TagDB:load()
             local entries, count, isJson = parsePastebin(src)
             if isJson or count > 0 then
                 self.entries = entries
-                _tagDbCacheWrite(entries)
+                self:_cacheWrite(entries)
                 print(("[Tags] GitHub tag DB loaded — %d entries"):format(count))
                 return
             end
@@ -2147,7 +2147,7 @@ function TagDB:load()
         if key ~= "" and clean then entries[key] = clean end
     end
     self.entries = entries
-    _tagDbCacheWrite(entries)
+    self:_cacheWrite(entries)
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
 end
 
