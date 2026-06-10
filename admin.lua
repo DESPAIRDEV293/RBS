@@ -9563,8 +9563,6 @@ _G.__SeigeLayoutMode = _G.__SeigeLayoutMode or "Bar"  -- "Bar" or "Hamburger"
 
 ;(function()
 Pill = inst("Frame", Root, {
-Name = "TopPill_Anchor"}) Pill:Destroy()
-Pill = inst("Frame", Root, {
     Name = "TopPill",
     AnchorPoint = Vector2.new(0.5, 0),
     Position = UDim2.new(0.5, 0, 0, 14),
