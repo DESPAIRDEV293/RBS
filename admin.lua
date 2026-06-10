@@ -8428,7 +8428,7 @@ end
 for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant","4K Ultra","8K Photoreal","Anime","Retro CRT","Underwater","Horror","Pink","Molten","Matrix","Cyberpunk","Golden Hour","Vaporwave","Winter"}) do
     button(pgShaders, name, function() applyShader(name) end)
 end
-end -- end shaders scope
+end)() -- end shaders IIFE scope
 
 ------------------------------------------------------- CONFIG TAB
 
