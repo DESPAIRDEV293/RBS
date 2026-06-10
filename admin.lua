@@ -9341,6 +9341,29 @@ task.spawn(function()
     end
     pcall(function() rsConn:Disconnect() end)
 end)
+
+-- ===== Top-bar color overrides (Config tab) =====
+-- Persistent overrides for the layout bar: background, outline, text, icons.
+_G.__SeigeBarColors = _G.__SeigeBarColors or { bg = nil, outline = nil, text = nil, icon = nil }
+_G.__SeigeApplyBarColors = function()
+    local C = _G.__SeigeBarColors or {}
+    local chrome = (_G.__SeigeLayoutMode == "Dock") and _G.__SeigeDock or Pill
+    if not chrome then return end
+    if C.bg then chrome.BackgroundColor3 = C.bg end
+    -- Walk descendants
+    for _, d in ipairs(chrome:GetDescendants()) do
+        if d:IsA("UIStroke") and C.outline then
+            d.Color = C.outline
+        elseif (d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox")) and C.text then
+            d.TextColor3 = C.text
+        elseif (d:IsA("ImageLabel") or d:IsA("ImageButton")) and C.icon then
+            -- Skip the panel background image holder and any image marked __SeigeKeepColor
+            if d.Name ~= "__SeigeBgImg" and not d:GetAttribute("__SeigeKeepColor") then
+                d.ImageColor3 = C.icon
+            end
+        end
+    end
+end
 end)()
 
 -- ============= FLOATING PANELS ====================================
