@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-rebuild-iter2b"
+local ADMIN_BUILD = "2026-06-10-rebuild-iter2c"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -89,8 +89,27 @@ local function safeParent(gui)
     if not ok then gui.Parent = LP:WaitForChild("PlayerGui") end
 end
 
-local oldGui = CoreGui:FindFirstChild("SeigeAdmin")
-if oldGui then oldGui:Destroy() end
+-- Aggressively destroy any prior admin chrome (legacy names included).
+do
+    local names = { "SeigeAdmin", "Admin_v", "Admin_v2", "Admin_v3", "SeigeGui", "seige_admin", "SeigeLolAdmin" }
+    local roots = { CoreGui }
+    pcall(function() table.insert(roots, LP:FindFirstChild("PlayerGui")) end)
+    for _, root in ipairs(roots) do
+        if root then
+            for _, n in ipairs(names) do
+                local g = root:FindFirstChild(n)
+                while g do g:Destroy(); g = root:FindFirstChild(n) end
+            end
+            -- catch anything starting with "Seige" or "Admin_"
+            for _, ch in ipairs(root:GetChildren()) do
+                local nm = ch.Name or ""
+                if ch:IsA("ScreenGui") and (nm:sub(1,5) == "Seige" or nm:sub(1,6) == "Admin_") then
+                    pcall(function() ch:Destroy() end)
+                end
+            end
+        end
+    end
+end
 
 local Root = inst("ScreenGui", nil, {
     Name = "SeigeAdmin",
