@@ -2545,8 +2545,23 @@ dropdown(pgWorld, "Time preset", { "Noon", "Sunset", "Night", "Dawn" }, function
 end)
 
 ------------------------------------------------------- FLOATING TAGS (driven by tags.lua DB)
-local floatOn = false
-local scriptersOn = false        -- show tags for nearby seige.lol users
+local floatOn = _G.__SeigeFloatOn == true
+local scriptersOn = _G.__SeigeScriptersOn == true        -- show tags for nearby seige.lol users
+_G.__SeigeFloatOn     = floatOn
+_G.__SeigeScriptersOn = scriptersOn
+-- Setters so the Config loader can push restored values into these locals
+-- after the script has finished bootstrapping.
+_G.__SeigeSetFloatOn = function(v)
+    floatOn = v == true
+    _G.__SeigeFloatOn = floatOn
+    if _G.__SeigePresenceRefresh then pcall(_G.__SeigePresenceRefresh) end
+end
+_G.__SeigeSetScriptersOn = function(v)
+    scriptersOn = v == true
+    _G.__SeigeScriptersOn = scriptersOn
+    if scriptersOn and _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
+    if _G.__SeigePresenceRefresh then pcall(_G.__SeigePresenceRefresh) end
+end
 _G.__SeigeScripters = _G.__SeigeScripters or {} -- [userId] = true
 local function isScripter(p)
     if not p then return false end
@@ -6081,6 +6096,8 @@ task.delay(2.2, function()
         -- userIds whose jobId matches ours, and syncScripterBills() adds a
         -- bubble for each of them without rebuilding LP's tag (no glitch).
         scriptersOn = true
+        _G.__SeigeScriptersOn = true
+        if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
         if _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
         local n = 0
         for _ in pairs(_G.__SeigeScripters or {}) do n = n + 1 end
@@ -7075,6 +7092,7 @@ button(pgCmds, "Voice  —  anti-ban + mute", function()
         end)
         slider(body, "Cycle interval (sec)", 8, 90, _G.__SeigeAntiVC.interval or 25, function(v)
             _G.__SeigeAntiVC.interval = v
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
         end)
         button(body, "Cycle voice now (leave + rejoin)", function()
             V.cycle(); refresh()
@@ -8558,6 +8576,18 @@ snapshotCfg = function()
                 icon    = C.icon    and cToHex(C.icon)    or nil,
             }
         end)(),
+        -- Behavior toggles
+        floatOn       = _G.__SeigeFloatOn == true,
+        scriptersOn   = _G.__SeigeScriptersOn == true,
+        antiVC        = {
+            on       = (_G.__SeigeAntiVC and _G.__SeigeAntiVC.on) == true,
+            interval = tonumber(_G.__SeigeAntiVC and _G.__SeigeAntiVC.interval) or 25,
+        },
+        micMuted      = _G.__SeigeMicMuted == true,
+        bang          = {
+            mode  = (_G.__SeigeBang and _G.__SeigeBang.mode)  or nil,
+            speed = (_G.__SeigeBang and tonumber(_G.__SeigeBang.speed)) or nil,
+        },
     }
 end
 
@@ -8656,6 +8686,29 @@ applyCfg = function(cfg, opts)
         _G.__SeigeBarColors = C
         if _G.__SeigeApplyBarColors then pcall(_G.__SeigeApplyBarColors) end
     end
+    -- Behavior toggles (safe to restore on inject)
+    if cfg.floatOn ~= nil then
+        if _G.__SeigeSetFloatOn then pcall(_G.__SeigeSetFloatOn, cfg.floatOn == true)
+        else _G.__SeigeFloatOn = cfg.floatOn == true end
+    end
+    if cfg.scriptersOn == true then
+        if _G.__SeigeSetScriptersOn then pcall(_G.__SeigeSetScriptersOn, true)
+        else _G.__SeigeScriptersOn = true end
+    end
+    if type(cfg.antiVC) == "table" then
+        _G.__SeigeAntiVC = _G.__SeigeAntiVC or { on = false, interval = 25 }
+        if cfg.antiVC.interval then
+            _G.__SeigeAntiVC.interval = tonumber(cfg.antiVC.interval) or _G.__SeigeAntiVC.interval
+        end
+        -- Don't auto-restart the cycle loop on inject; only restore the user's
+        -- preferred interval. The on/off flag is remembered but the user must
+        -- click the panel button to start cycling again.
+    end
+    if type(cfg.bang) == "table" then
+        _G.__SeigeBang = _G.__SeigeBang or {}
+        if cfg.bang.mode  then _G.__SeigeBang.mode  = cfg.bang.mode end
+        if cfg.bang.speed then _G.__SeigeBang.speed = tonumber(cfg.bang.speed) or _G.__SeigeBang.speed end
+    end
 end
 
 
@@ -8688,6 +8741,8 @@ saveCfg = function(opts)
         if okW then notify("Config saved", "good") else notify("Config saved for this session", "good") end
     end
 end
+-- Global hook so any code in the script can trigger a config autosave.
+_G.__SeigeSaveCfg = function() pcall(saveCfg) end
 
 
 loadCfg = function()
@@ -10695,6 +10750,7 @@ local function _startBang(arg, mode)
     local target = findPlr(arg)
     if not target then notify("Player not found", "bad"); return end
     _G.__SeigeBang.mode = mode
+    if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
     _bangStart(target)
 end
 cmdHandlers["bang"]     = function(arg) _startBang(arg, "front") end
