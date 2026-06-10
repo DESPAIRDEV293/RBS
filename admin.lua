@@ -9585,6 +9585,8 @@ inst("UIListLayout", Pill, {
     Padding = UDim.new(0, 6),
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
+_G.__SeigePill = Pill
+
 
 -- helper: thin vertical divider between sections of the bar
 local function pillDivider(order)
