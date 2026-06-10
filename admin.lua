@@ -2070,24 +2070,25 @@ end
 -- tag INSTANTLY instead of staring at "no tag" until the Pastebin/GitHub
 -- HTTP fetch resolves. We still refresh from the network in the background
 -- and replace `self.entries` once it lands.
-local TAGS_DB_CACHE_FILE = "seige_tags_db_cache.json"
-
-local function _tagDbCacheWrite(entries)
-    local wf = rawget(getfenv(), "writefile")
-    if not wf or type(entries) ~= "table" then return end
-    local ok, raw = pcall(function() return HttpService:JSONEncode(entries) end)
-    if ok and raw then pcall(wf, TAGS_DB_CACHE_FILE, raw) end
-end
-
-local function _tagDbCacheRead()
-    local rf  = rawget(getfenv(), "readfile")
-    local isf = rawget(getfenv(), "isfile")
-    if not (rf and isf) then return nil end
-    local okE, exists = pcall(isf, TAGS_DB_CACHE_FILE); if not (okE and exists) then return nil end
-    local okR, raw = pcall(rf, TAGS_DB_CACHE_FILE); if not (okR and type(raw) == "string" and raw ~= "") then return nil end
-    local okD, data = pcall(function() return HttpService:JSONDecode(raw) end)
-    if okD and type(data) == "table" then return data end
-    return nil
+local _tagDbCacheWrite, _tagDbCacheRead
+do
+    local TAGS_DB_CACHE_FILE = "seige_tags_db_cache.json"
+    _tagDbCacheWrite = function(entries)
+        local wf = rawget(getfenv(), "writefile")
+        if not wf or type(entries) ~= "table" then return end
+        local ok, raw = pcall(function() return HttpService:JSONEncode(entries) end)
+        if ok and raw then pcall(wf, TAGS_DB_CACHE_FILE, raw) end
+    end
+    _tagDbCacheRead = function()
+        local rf  = rawget(getfenv(), "readfile")
+        local isf = rawget(getfenv(), "isfile")
+        if not (rf and isf) then return nil end
+        local okE, exists = pcall(isf, TAGS_DB_CACHE_FILE); if not (okE and exists) then return nil end
+        local okR, raw = pcall(rf, TAGS_DB_CACHE_FILE); if not (okR and type(raw) == "string" and raw ~= "") then return nil end
+        local okD, data = pcall(function() return HttpService:JSONDecode(raw) end)
+        if okD and type(data) == "table" then return data end
+        return nil
+    end
 end
 
 function TagDB:hydrateFromCache()
