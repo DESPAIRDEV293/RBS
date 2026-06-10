@@ -8494,7 +8494,9 @@ bind(UIS.InputBegan:Connect(function(i, gp)
 end))
 
 local uiScaleCtl = slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
-    local s = Win:FindFirstChildOfClass("UIScale") or inst("UIScale", Win, { Scale = 1 })
+    -- Scale the live chrome (Pill/Dock) instead of the retired Win.
+    local host = _G.__SeigePill or _G.__SeigeDock or Root
+    local s = host:FindFirstChildOfClass("UIScale") or inst("UIScale", host, { Scale = 1 })
     s.Scale = v
 end)
 
