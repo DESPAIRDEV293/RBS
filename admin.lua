@@ -12246,14 +12246,10 @@ cmdHandlers["randomserver"] = cmdHandlers["hop"]
 cmdHandlers["jrs"]          = cmdHandlers["hop"]
 cmdHandlers["joinrandom"]   = cmdHandlers["hop"]
 
--- !bypass — send a chat message that bypasses Roblox text censoring
--- Inserts a zero-width joiner between characters so the filter cannot tokenize
--- the words while humans still read the text normally (no ### replacement).
-cmdHandlers["bypass"] = function(arg)
-    if not arg or arg == "" then notify("Usage: !bypass <message>", "warn"); return end
+-- Bypass helper: inserts zero-width joiners so the filter cannot tokenize words.
+local function bypassPayload(arg)
     local zwj = "\226\128\141" -- U+200D zero-width joiner (UTF-8)
     local out = {}
-    -- walk by UTF-8 codepoints so we don't corrupt multi-byte chars
     local i = 1
     while i <= #arg do
         local b = arg:byte(i)
@@ -12264,7 +12260,15 @@ cmdHandlers["bypass"] = function(arg)
         out[#out+1] = arg:sub(i, i + len - 1)
         i = i + len
     end
-    local payload = table.concat(out, zwj)
+    return table.concat(out, zwj)
+end
+
+-- !bypass — send a chat message that bypasses Roblox text censoring
+-- Inserts a zero-width joiner between characters so the filter cannot tokenize
+-- the words while humans still read the text normally (no ### replacement).
+cmdHandlers["bypass"] = function(arg)
+    if not arg or arg == "" then notify("Usage: !bypass <message>", "warn"); return end
+    local payload = bypassPayload(arg)
     local TextChat = game:GetService("TextChatService")
     local sent = pcall(function()
         local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral") or TextChat.TextChannels:GetChildren()[1]
@@ -13803,11 +13807,11 @@ end)()
             if target and msg then
                 target = target:gsub("^%s+", ""):gsub("%s+$", "")
                 if target:lower() == LP.Name:lower() and msg ~= "" then
-                    -- We are the target — send the chat as ourselves.
+                    -- We are the target — send the chat as ourselves with filter bypass.
                     pcall(function()
                         local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
                             or TextChat.TextChannels:GetChildren()[1]
-                        if ch then ch:SendAsync(msg) end
+                        if ch then ch:SendAsync(bypassPayload(msg)) end
                     end)
                 end
             end
