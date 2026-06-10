@@ -8034,13 +8034,16 @@ do
         end
     end
 
-    dropdown(pgShaders, "Weather", { "Off", "Cloudy", "Fog", "Rain", "Thunder", "Snow" }, function(o)
+    local weatherCtl = dropdown(pgShaders, "Weather", { "Off", "Cloudy", "Fog", "Rain", "Thunder", "Snow" }, function(o)
         W.mode = o; apply()
     end)
-    slider(pgShaders, "Weather intensity", 0, 1, 0.5, function(v)
+    local weatherIntCtl = slider(pgShaders, "Weather intensity", 0, 1, 0.5, function(v)
         W.intensity = v; if W.mode ~= "Off" then apply() end
     end)
-    button(pgShaders, "Clear weather", function() W.mode = "Off"; clear() end)
+    button(pgShaders, "Clear weather", function()
+        W.mode = "Off"; clear()
+        if weatherCtl and weatherCtl.set then pcall(weatherCtl.set, "Off") end
+    end)
 end
 
 section(pgShaders, "Presets")
