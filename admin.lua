@@ -10803,7 +10803,9 @@ bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
     if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.F2 then
         local mode = _G.__SeigeLayoutMode or "Bar"
-        local chrome = (mode == "Dock") and _G.__SeigeDock or Pill
+        local chrome = (mode == "Dock") and _G.__SeigeDock
+            or (mode == "Spine") and _G.__SeigeSpine
+            or Pill
         local v = not chrome.Visible
         chrome.Visible = v
         if not v then
@@ -10813,7 +10815,8 @@ bind(UIS.InputBegan:Connect(function(i, gp)
                     tween(p.btn, 0.12, { BackgroundColor3 = T.text, BackgroundTransparency = 1 })
                 end
             end
-            if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
+            if _G.__SeigeRefreshDock  then _G.__SeigeRefreshDock()  end
+            if _G.__SeigeRefreshSpine then _G.__SeigeRefreshSpine() end
         end
     end
 end))
