@@ -6399,7 +6399,7 @@ local HELP_CMDS = {
     { "Character", {
         { "!reset / !r / !respawn", "Kill your character to respawn" },
         { "!jump", "Force a jump" },
-        { "!heal", "Heal to max health" },
+        
         { "!god / !ungod", "Toggle godmode (server-side via reset trick)" },
         { "!sit", "Force sit" },
         { "!size <n>", "Scale your character (e.g. !size 2)" },
@@ -6520,7 +6520,7 @@ button(pgCmds, "!rj  —  rejoin same server",                function() _runCmd
 button(pgCmds, "!tprj  —  rejoin & restore position",        function() _runCmd("!tprj") end)
 button(pgCmds, "!reset / !respawn",                          function() _runCmd("!reset") end)
 button(pgCmds, "!jump",                                      function() _runCmd("!jump") end)
-button(pgCmds, "!heal",                                      function() _runCmd("!heal") end)
+
 button(pgCmds, "!god",                                       function() _runCmd("!god") end)
 button(pgCmds, "!ungod",                                     function() _runCmd("!ungod") end)
 button(pgCmds, "!unspectate",                                function() _runCmd("!unspectate") end)
@@ -11067,9 +11067,6 @@ cmdHandlers["jump"] = function()
     local h = getHum(); if h then h.Jump = true; notify("Jump", "good") end
 end
 
-cmdHandlers["heal"] = function()
-    local h = getHum(); if h then h.Health = h.MaxHealth; notify("Healed", "good") end
-end
 
 cmdHandlers["god"] = function()
     if _G.__GodConn then notify("God already on (!ungod)", "warn"); return end
@@ -12655,7 +12652,7 @@ local function runBarCmd(raw)
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
-cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !god !goto !to !spectate !fling !heal !save !load !help"
+cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !god !goto !to !spectate !fling !save !load !help"
 
 -- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command.
 -- We ALSO intercept the message at the outgoing send layer so the avatar never
