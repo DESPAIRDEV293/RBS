@@ -866,7 +866,7 @@ local SubBrand = inst("TextLabel", Top, {
 -- Titlebar clock
 local TopClock = inst("TextLabel", Top, {
     AnchorPoint = Vector2.new(1, 0.5),
-    Position = UDim2.new(1, -76, 0.5, 0),
+    Position = UDim2.new(1, -218, 0.5, 0),
     Size = UDim2.new(0, 86, 0, 24),
     BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35, BorderSizePixel = 0,
     Font = Enum.Font.GothamSemibold, TextSize = 12,
@@ -909,15 +909,31 @@ local Body = inst("Frame", Win, {
     BackgroundTransparency = 1,
 })
 
+-- Top-right window controls (matches: minimize — , maximize □ , close ✕)
 local closeBtn = topBtn("✕", -38, function()
     if _G.__AdminCleanup then _G.__AdminCleanup() end
 end)
-local minBtn = topBtn("—", -72, function()
+local maximized = false
+local _preMaxSize = UDim2.new(0,660,0,460)
+local maxBtn = topBtn("□", -72, function()
+    if minimized then return end
+    if not maximized then
+        _preMaxSize = Win.Size
+        maximized = true
+        local cam = workspace.CurrentCamera
+        local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+        tween(Win, 0.18, { Size = UDim2.new(0, math.max(660, vp.X - 80), 0, math.max(460, vp.Y - 100)) })
+    else
+        maximized = false
+        tween(Win, 0.18, { Size = _preMaxSize })
+    end
+end)
+local minBtn = topBtn("—", -106, function()
     minimized = not minimized
-    tween(Win, 0.18, { Size = minimized and UDim2.new(0,660,0,44) or UDim2.new(0,660,0,460) })
+    tween(Win, 0.18, { Size = minimized and UDim2.new(0,660,0,44) or (maximized and Win.Size or UDim2.new(0,660,0,460)) })
     Body.Visible = not minimized
 end)
-local helpBtn = topBtn("?", -106, showRoleHelp)
+local helpBtn = topBtn("?", -140, showRoleHelp)
 -- Only role-holders (owner/admin/staff/nt) get the ? help popup; for everyone
 -- else the button has nothing to show, so hide it entirely.
 local function _hasRole()
@@ -7567,14 +7583,6 @@ local PRESETS = {
         line=Color3.fromRGB(160,164,176), text=Color3.fromRGB(20,22,28),
         sub=Color3.fromRGB(90,96,110), dim=Color3.fromRGB(140,144,156),
         acc=Color3.fromRGB(60,90,200), acc2=Color3.fromRGB(40,70,180),
-    },
-    ["ROT Neon"] = {
-        -- Inspired by the ROT reanim layout: pitch-black panels with a
-        -- vivid neon-purple accent and soft violet glow on borders.
-        bg=Color3.fromRGB(8,6,14), bg2=Color3.fromRGB(16,10,26), bg3=Color3.fromRGB(28,18,46),
-        line=Color3.fromRGB(120,60,220), text=Color3.fromRGB(238,228,255),
-        sub=Color3.fromRGB(178,150,220), dim=Color3.fromRGB(110,80,160),
-        acc=Color3.fromRGB(170,90,255), acc2=Color3.fromRGB(120,50,220),
     },
 }
 local function applyPreset(name)
