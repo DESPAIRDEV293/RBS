@@ -6102,6 +6102,42 @@ end)
 ------------------------------------------------------- COMMANDS LIST (Cmds tab)
 section(pgCmds, "Commands  ·  also work in Roblox chat & F6 bar")
 
+-- Search box for filtering commands
+local cmdSearchFrame = inst("Frame", pgCmds, {
+    Size = UDim2.new(1, -8, 0, 32),
+    BackgroundColor3 = T.bg2,
+    BackgroundTransparency = 0.3,
+    BorderSizePixel = 0,
+})
+corner(cmdSearchFrame, 8); stroke(cmdSearchFrame, T.line, 1, 0.5)
+local cmdSearchBox = inst("TextBox", cmdSearchFrame, {
+    BackgroundTransparency = 1,
+    Position = UDim2.new(0, 10, 0, 0),
+    Size = UDim2.new(1, -20, 1, 0),
+    PlaceholderText = "Search commands…",
+    PlaceholderColor3 = T.dim,
+    Font = Enum.Font.Gotham,
+    TextSize = 12,
+    TextColor3 = T.text,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    Text = "",
+    ClearTextOnFocus = false,
+})
+
+local function _updateCmdSearch()
+    local query = cmdSearchBox.Text:lower()
+    for _, child in ipairs(pgCmds:GetChildren()) do
+        if child:IsA("TextButton") then
+            if query == "" then
+                child.Visible = true
+            else
+                child.Visible = child.Text:lower():find(query, 1, true) ~= nil
+            end
+        end
+    end
+end
+cmdSearchBox:GetPropertyChangedSignal("Text"):Connect(_updateCmdSearch)
+
 local function _runCmd(s)
     if _G.__AdminRunCmd then _G.__AdminRunCmd(s)
     else notify("Command system not ready", "warn") end
