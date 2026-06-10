@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-savecfg-pinned-full"
+local ADMIN_BUILD = "2026-06-10-dock-float-color"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -1498,7 +1498,7 @@ local function dropdown(parent, text, options, fn)
         if fn then pcall(fn, options[idx]) end
     end)
     if fn then pcall(fn, options[1]) end
-    return { set = function(v)
+    return { frame = f, set = function(v)
         for i, o in ipairs(options) do if o == v then idx = i; btn.Text = v; if fn then pcall(fn, v) end return end end
     end }
 end
@@ -8305,8 +8305,52 @@ local _layoutDef = _G.__SeigeLayoutMode or "Bar"
 layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger", "Dock" }, function(v)
     _layoutMode = v
     if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout(v) end
+    if _G.__SeigeRefreshDockColorVis then _G.__SeigeRefreshDockColorVis(v) end
 end)
 if layoutCtl and layoutCtl.set then layoutCtl.set(_G.__SeigeLayoutMode or "Bar") end
+
+-- Dock color (only meaningful when Dock layout is active; visible only then).
+local dockColorPresets = {
+    { name = "Cyan",    color = Color3.fromRGB( 30, 215, 230) },
+    { name = "Magenta", color = Color3.fromRGB(225,  70, 200) },
+    { name = "Purple",  color = Color3.fromRGB(150,  90, 255) },
+    { name = "Green",   color = Color3.fromRGB( 70, 230, 140) },
+    { name = "Orange",  color = Color3.fromRGB(255, 150,  60) },
+    { name = "Red",     color = Color3.fromRGB(235,  70,  90) },
+    { name = "White",   color = Color3.fromRGB(235, 235, 240) },
+    { name = "Default", color = nil },
+}
+local dockColorNames = {}
+for i, p in ipairs(dockColorPresets) do dockColorNames[i] = p.name end
+local _dockColorLbl = label(pgConfig, "Dock accent color")
+local dockColorCtl = dropdown(pgConfig, "Dock color", dockColorNames, function(v)
+    for _, p in ipairs(dockColorPresets) do
+        if p.name == v then
+            _G.__SeigeDockColorName = v
+            if p.color then
+                if _G.__SeigeApplyDockColor then _G.__SeigeApplyDockColor(p.color) end
+            else
+                _G.__SeigeDockColor = nil
+                if _G.__SeigeDock then
+                    _G.__SeigeDock.BackgroundColor3 = T.bg
+                    local s = _G.__SeigeDock:FindFirstChildOfClass("UIStroke")
+                    if s then s.Color = T.acc end
+                end
+            end
+            break
+        end
+    end
+end)
+if dockColorCtl and dockColorCtl.set then dockColorCtl.set(_G.__SeigeDockColorName or "Default") end
+
+_G.__SeigeRefreshDockColorVis = function(mode)
+    local show = (mode == "Dock")
+    local lblFrame = (_dockColorLbl and (_dockColorLbl.frame or _dockColorLbl)) or nil
+    if lblFrame and lblFrame.Visible ~= nil then lblFrame.Visible = show end
+    local ddFrame = (dockColorCtl and (dockColorCtl.frame or dockColorCtl)) or nil
+    if ddFrame and ddFrame.Visible ~= nil then ddFrame.Visible = show end
+end
+_G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
 
 label(pgConfig, "Panel translucency — higher = more see-through")
 transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 0.35, function(v)
@@ -8439,6 +8483,7 @@ snapshotCfg = function()
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
         reducedMotion = reducedCtl and reducedCtl.get and reducedCtl.get() or false,
         layoutMode    = _G.__SeigeLayoutMode or "Bar",
+        dockColor     = _G.__SeigeDockColorName or "Default",
         uiTrans       = _G.__SeigeUITrans or 0.35,
         skybox        = {
             Up = skyboxFaces.Up, Dn = skyboxFaces.Dn,
@@ -8469,6 +8514,10 @@ applyCfg = function(cfg, opts)
     if cfg.layoutMode and _G.__SeigeApplyLayout then
         _G.__SeigeApplyLayout(cfg.layoutMode)
         if layoutCtl and layoutCtl.set then layoutCtl.set(cfg.layoutMode) end
+        if _G.__SeigeRefreshDockColorVis then _G.__SeigeRefreshDockColorVis(cfg.layoutMode) end
+    end
+    if cfg.dockColor and dockColorCtl and dockColorCtl.set then
+        dockColorCtl.set(cfg.dockColor)
     end
     if cfg.uiTrans and _G.__SeigeApplyUITrans then
         _G.__SeigeApplyUITrans(tonumber(cfg.uiTrans) or 0.35)
@@ -10097,6 +10146,37 @@ do
         Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder,
     })
     _G.__SeigeDock = Dock
+
+    -- Dock color (applied to background + stroke). Configurable from Config tab.
+    local dockStroke = Dock:FindFirstChildOfClass("UIStroke")
+    _G.__SeigeApplyDockColor = function(c)
+        if typeof(c) ~= "Color3" then return end
+        _G.__SeigeDockColor = c
+        Dock.BackgroundColor3 = c
+        if dockStroke then dockStroke.Color = c end
+    end
+    if _G.__SeigeDockColor then _G.__SeigeApplyDockColor(_G.__SeigeDockColor) end
+
+    -- Gentle floating animation (sine bob) while Dock is visible.
+    local floatTween
+    local baseY = -18
+    local function stopFloat()
+        if floatTween then pcall(function() floatTween:Cancel() end); floatTween = nil end
+        Dock.Position = UDim2.new(0.5, 0, 1, baseY)
+    end
+    local function startFloat()
+        stopFloat()
+        if _G.__SeigeReducedMotion then return end
+        Dock.Position = UDim2.new(0.5, 0, 1, baseY)
+        local info = TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+        floatTween = TweenService:Create(Dock, info, { Position = UDim2.new(0.5, 0, 1, baseY - 8) })
+        floatTween:Play()
+    end
+    Dock:GetPropertyChangedSignal("Visible"):Connect(function()
+        if Dock.Visible then startFloat() else stopFloat() end
+    end)
+    _G.__SeigeStartDockFloat = startFloat
+    _G.__SeigeStopDockFloat  = stopFloat
 
     local dockBtns = {}
     local function refreshDockState()
