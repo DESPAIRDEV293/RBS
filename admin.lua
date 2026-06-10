@@ -8322,7 +8322,6 @@ local CFG_DEFAULTS = {
     fx          = { Profile = true, Players = false, Cmds = false, Shaders = false, Spotify = false, Misc = false },
 }
 local CFG_FILE = "SeigeAdmin/config.json"
-local CFG_FALLBACK_FILES = { "seige_config.json", "seige_admin_theme.json" }
 
 -- forward declarations so the Save/Reset buttons can live at the very top
 local snapshotCfg, applyCfg, saveCfg, loadCfg
@@ -8763,7 +8762,7 @@ saveCfg = function(opts)
     local ok, raw = pcall(HttpService.JSONEncode, HttpService, snap)
     if not ok then if doNotify then notify("Failed to encode config", "bad") end return end
     local okW = pcall(wf, CFG_FILE, raw)
-    for _, path in ipairs(CFG_FALLBACK_FILES) do
+    for _, path in ipairs({ "seige_config.json", "seige_admin_theme.json" }) do
         local okAlt = pcall(wf, path, raw)
         okW = okW or okAlt
     end
@@ -8787,7 +8786,7 @@ loadCfg = function()
     local isf = rawget(getfenv(), "isfile")   or isfile
     if not rf or not isf then return end
     local paths = { CFG_FILE }
-    for _, path in ipairs(CFG_FALLBACK_FILES) do paths[#paths + 1] = path end
+    for _, path in ipairs({ "seige_config.json", "seige_admin_theme.json" }) do paths[#paths + 1] = path end
     for _, path in ipairs(paths) do
         local ok, exists = pcall(isf, path)
         if ok and exists then
