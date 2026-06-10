@@ -13017,6 +13017,10 @@ cmdHandlers["reanim"] = function()
     end)
 end
 
+end)() -- end cmdHandlers IIFE scope
+
+
+
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
