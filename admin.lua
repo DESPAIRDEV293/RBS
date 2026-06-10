@@ -6084,7 +6084,7 @@ task.delay(2.2, function()
         -- bubble for each of them without rebuilding LP's tag (no glitch).
         scriptersOn = true
         _G.__SeigeScriptersOn = true
-        if _G.__AdminSaveCfg then pcall(_G.__AdminSaveCfg) end
+        if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
         if _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
         local n = 0
         for _ in pairs(_G.__SeigeScripters or {}) do n = n + 1 end
