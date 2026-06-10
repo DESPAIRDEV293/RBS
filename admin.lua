@@ -8829,6 +8829,34 @@ applyCfg = function(cfg, opts)
     if cfg.dockColor and dockColorCtl and dockColorCtl.set then
         dockColorCtl.set(cfg.dockColor)
     end
+    if cfg.dockIconColor and dockIconCtl and dockIconCtl.set then
+        dockIconCtl.set(cfg.dockIconColor)
+    end
+    if cfg.dockIconHex and cfg.dockIconHex ~= "" and dockIconHex and dockIconHex.CaptureFocus then
+        -- trigger via direct apply
+        local v = tostring(cfg.dockIconHex):gsub("^#","")
+        if #v == 6 then
+            local r,g,b = tonumber(v:sub(1,2),16), tonumber(v:sub(3,4),16), tonumber(v:sub(5,6),16)
+            if r and g and b and _G.__SeigeApplyDockIconColor then
+                _G.__SeigeDockIconHex = v
+                _G.__SeigeApplyDockIconColor(Color3.fromRGB(r,g,b))
+            end
+        end
+    end
+    if cfg.dockStrokeColor and dockStrokeCtl and dockStrokeCtl.set then
+        dockStrokeCtl.set(cfg.dockStrokeColor)
+    end
+    if cfg.dockStrokeHex and cfg.dockStrokeHex ~= "" then
+        local v = tostring(cfg.dockStrokeHex):gsub("^#","")
+        if #v == 6 then
+            local r,g,b = tonumber(v:sub(1,2),16), tonumber(v:sub(3,4),16), tonumber(v:sub(5,6),16)
+            if r and g and b and _G.__SeigeApplyDockStrokeColor then
+                _G.__SeigeDockStrokeHex = v
+                _G.__SeigeApplyDockStrokeColor(Color3.fromRGB(r,g,b))
+                if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
+            end
+        end
+    end
     if cfg.uiTrans and _G.__SeigeApplyUITrans then
         _G.__SeigeApplyUITrans(tonumber(cfg.uiTrans) or 0.35)
         if transCtl and transCtl.set then transCtl.set(tonumber(cfg.uiTrans) or 0.35) end
