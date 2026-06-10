@@ -866,7 +866,7 @@ local SubBrand = inst("TextLabel", Top, {
 -- Titlebar clock
 local TopClock = inst("TextLabel", Top, {
     AnchorPoint = Vector2.new(1, 0.5),
-    Position = UDim2.new(1, -76, 0.5, 0),
+    Position = UDim2.new(1, -218, 0.5, 0),
     Size = UDim2.new(0, 86, 0, 24),
     BackgroundColor3 = T.bg3, BackgroundTransparency = 0.35, BorderSizePixel = 0,
     Font = Enum.Font.GothamSemibold, TextSize = 12,
