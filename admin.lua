@@ -9539,7 +9539,18 @@ end)()
 -- draggable floating popout for that tab (with an X to close). Multiple
 -- popouts can be open at once. F2 hides everything.
 
-Win.Visible = false   -- retire the legacy chrome (kept around for compat)
+-- Permanently retire the legacy chrome. Reparent the tooltip out of Win so
+-- the new bar/dock layouts can still use it, then hard-pin Win invisible — a
+-- watcher slams it back to false if anything tries to flip it on (rogue key
+-- bind, leftover handler, config restore, third-party script, etc.).
+do
+    if Tip and Tip.Parent == Win then Tip.Parent = Root end
+    Win.Visible = false
+    Win:GetPropertyChangedSignal("Visible"):Connect(function()
+        if Win.Visible then Win.Visible = false end
+    end)
+end
+
 
 -- Global UI translucency level used by the new chrome (Pill + floating panels).
 -- 0 = fully opaque, 1 = fully transparent. Adjustable from Config tab.
