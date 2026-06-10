@@ -13027,7 +13027,7 @@ cmdHandlers["reanim"] = function()
     notify("Loading Reanim…", "good")
     task.spawn(function()
         local ok, src = pcall(function()
-            return game:HttpGet("https://seigescript.online/api/public/reanim.lua")
+            return game:HttpGet("https://seigescript.online/api/public/reanim.lua?key=" .. (_G.__SeigeReanimKey or ""))
         end)
         if not ok or type(src) ~= "string" or src == "" then
             notify("Reanim fetch failed", "bad"); return
