@@ -10075,10 +10075,108 @@ do
         end
     end)
 
+    -- ============= DOCK LAYOUT (bottom-anchored, mirrors panel icons) =====
+    local Dock = inst("Frame", Root, {
+        Name = "BottomDock",
+        AnchorPoint = Vector2.new(0.5, 1),
+        Position = UDim2.new(0.5, 0, 1, -18),
+        Size = UDim2.new(0, 0, 0, 56),
+        AutomaticSize = Enum.AutomaticSize.X,
+        BackgroundColor3 = T.bg,
+        BackgroundTransparency = math.max(0.05, (_G.__SeigeUITrans or 0.35) - 0.1),
+        BorderSizePixel = 0, Visible = false, Active = true, ZIndex = 100,
+    })
+    corner(Dock, 18); stroke(Dock, T.acc, 1, 0.55)
+    inst("UIPadding", Dock, {
+        PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10),
+        PaddingTop = UDim.new(0, 7),   PaddingBottom = UDim.new(0, 7),
+    })
+    inst("UIListLayout", Dock, {
+        FillDirection = Enum.FillDirection.Horizontal,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder,
+    })
+    _G.__SeigeDock = Dock
+
+    local dockBtns = {}
+    local function refreshDockState()
+        for name, rec in pairs(dockBtns) do
+            local p = panels[name]
+            local active = p and p.frame and p.frame.Visible
+            tween(rec.btn, 0.12, {
+                BackgroundTransparency = active and 0.15 or 0.85,
+            })
+            if rec.img then rec.img.ImageColor3 = active and T.bg or T.text end
+            rec.btn.TextColor3 = active and T.bg or T.text
+        end
+    end
+
+    local dockOrder = { "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Misc" }
+    local seen = {}
+    for _, n in ipairs(dockOrder) do seen[n] = true end
+    for n, _ in pairs(panels) do if not seen[n] then dockOrder[#dockOrder + 1] = n end end
+
+    local dOrd = 0
+    for _, name in ipairs(dockOrder) do
+        local p = panels[name]
+        if p then
+            dOrd = dOrd + 1
+            local icoTxt = (tabs[name] and tabs[name].ico and tabs[name].ico.Text) or "•"
+            local btn = inst("TextButton", Dock, {
+                Size = UDim2.new(0, 44, 0, 42),
+                BackgroundColor3 = T.text, BackgroundTransparency = 0.85,
+                BorderSizePixel = 0, AutoButtonColor = false,
+                Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = T.text,
+                Text = p.defaultIcon and "" or icoTxt,
+                LayoutOrder = dOrd, ZIndex = 101,
+            })
+            corner(btn, 12); stroke(btn, T.acc, 1, 0.55)
+            local img
+            if p.defaultIcon then
+                img = inst("ImageLabel", btn, {
+                    BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5),
+                    Position = UDim2.new(0.5, 0, 0.5, 0),
+                    Size = UDim2.new(0, 22, 0, 22),
+                    Image = p.defaultIcon, ImageColor3 = T.text, ZIndex = 102,
+                })
+            end
+            dockBtns[name] = { btn = btn, img = img }
+            btn.MouseEnter:Connect(function()
+                if not (p.frame and p.frame.Visible) then
+                    tween(btn, 0.1, { BackgroundTransparency = 0.65 })
+                end
+                Tip.Text = name
+                Tip.Size = UDim2.new(0, math.max(60, #name * 7 + 14), 0, 22)
+                local abs = btn.AbsolutePosition; local sz = btn.AbsoluteSize
+                Tip.Position = UDim2.new(0, abs.X + sz.X/2 - 40, 0, abs.Y - 28)
+                Tip.Visible = true
+            end)
+            btn.MouseLeave:Connect(function()
+                refreshDockState(); Tip.Visible = false
+            end)
+            btn.MouseButton1Click:Connect(function()
+                local newVis = not p.frame.Visible
+                if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, newVis) else p.frame.Visible = newVis end
+                task.delay(0.02, refreshDockState)
+            end)
+        end
+    end
+    _G.__SeigeRefreshDock = refreshDockState
+
     -- Public: apply a layout mode.
     _G.__SeigeApplyLayout = function(mode)
         _G.__SeigeLayoutMode = mode
-        if mode == "Hamburger" then
+        if mode == "Dock" then
+            Pill.Visible = false
+            Dock.Visible = true
+            menu.Visible = false
+            for _, p in pairs(panels) do
+                if p.frame then p.frame.Visible = false end
+            end
+            refreshDockState()
+        elseif mode == "Hamburger" then
+            Pill.Visible = true
+            Dock.Visible = false
             -- Hide bar contents, leave only ≡; close any open panels.
             setBarCollapsed(true)
             for _, p in pairs(panels) do
@@ -10086,6 +10184,8 @@ do
             end
             menu.Visible = false
         else
+            Pill.Visible = true
+            Dock.Visible = false
             setBarCollapsed(false)
             menu.Visible = false
         end
