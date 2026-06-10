@@ -8469,7 +8469,7 @@ section(pgConfig, "Layout")
 label(pgConfig, "Top bar style. Hamburger collapses the bar into a ≡ menu — tabs drop down from it.")
 local _layoutMode = _G.__SeigeLayoutMode or "Bar"
 local _layoutDef = _G.__SeigeLayoutMode or "Bar"
-layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger", "Dock" }, function(v)
+layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger", "Dock", "Spine" }, function(v)
     _layoutMode = v
     if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout(v) end
     if _G.__SeigeRefreshDockColorVis then _G.__SeigeRefreshDockColorVis(v) end
