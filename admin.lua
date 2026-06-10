@@ -10394,9 +10394,24 @@ do
         if typeof(c) ~= "Color3" then return end
         _G.__SeigeDockColor = c
         Dock.BackgroundColor3 = c
-        if dockStroke then dockStroke.Color = c end
+        if dockStroke and not _G.__SeigeDockStrokeColor then dockStroke.Color = c end
     end
     if _G.__SeigeDockColor then _G.__SeigeApplyDockColor(_G.__SeigeDockColor) end
+
+    -- Dock stroke (outline) color override.
+    _G.__SeigeApplyDockStrokeColor = function(c)
+        _G.__SeigeDockStrokeColor = (typeof(c) == "Color3") and c or nil
+        if dockStroke then
+            dockStroke.Color = _G.__SeigeDockStrokeColor or _G.__SeigeDockColor or T.acc
+        end
+    end
+    if _G.__SeigeDockStrokeColor then _G.__SeigeApplyDockStrokeColor(_G.__SeigeDockStrokeColor) end
+
+    -- Dock icon/text color override.
+    _G.__SeigeApplyDockIconColor = function(c)
+        _G.__SeigeDockIconColor = (typeof(c) == "Color3") and c or nil
+        if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
+    end
 
     -- Gentle floating animation (sine bob) while Dock is visible.
     local floatTween
