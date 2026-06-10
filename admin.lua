@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-rebuild-iter2d"
+local ADMIN_BUILD = "2026-06-10-rebuild-iter2e"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -9778,6 +9778,9 @@ task.spawn(function()
     end
     pcall(function() rsConn:Disconnect() end)
 end)
+end)  -- close pcall
+if not ok then warn("[seige] PILL IIFE ERROR: "..tostring(err)) end
+print("[seige] Pill mounted parent=", Pill and Pill.Parent and Pill.Parent.Name or "FAILED", "pos=", Pill and tostring(Pill.AbsolutePosition) or "?", "size=", Pill and tostring(Pill.AbsoluteSize) or "?")
 end)()
 
 -- ============= FLOATING PANELS ====================================
