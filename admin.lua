@@ -1701,6 +1701,9 @@ end
 -- { version = 2, format = "seige.tags.v2", tags = { username = { ... } } }
 local TAGS_PASTEBIN_URL = "https://seigelollua.lovable.app/api/public/pastebin?raw=1"
 local TAGS_DB_URL       = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
+-- New primary HTTP-backed tag DB (Lovable Cloud). Reads are public; writes
+-- require the shared secret set via _G.__SeigeTagSyncKey + admin role.
+local TAGS_HTTP_URL     = "https://seigelollua.lovable.app/api/public/tags"
 
 local TagDB = { entries = {}, localEntries = {}, appliedTags = {}, appliedIcons = {} }
 local function parseColor(c)
@@ -2108,10 +2111,83 @@ function TagDB:hydrateFromCache()
     return false
 end
 
+-- HTTP request shim for POSTs (executor-specific). Returns (ok, status, body).
+local function _seigeHttpPost(url, jsonBody, extraHeaders)
+    local req = (syn and syn.request)
+              or (http and http.request)
+              or http_request
+              or (fluxus and fluxus.request)
+              or request
+    local headers = { ["Content-Type"] = "application/json" }
+    if type(extraHeaders) == "table" then
+        for k, v in pairs(extraHeaders) do headers[k] = v end
+    end
+    if not req then return false, 0, "no http request shim" end
+    local ok, res = pcall(req, { Url = url, Method = "POST", Headers = headers, Body = jsonBody })
+    if not ok then return false, 0, tostring(res) end
+    local status = tonumber(res.StatusCode or res.status_code) or 0
+    return status >= 200 and status < 300, status, tostring(res.Body or "")
+end
+
+function TagDB:pushRemoteEntry(key, entry)
+    key = tostring(key or ""):lower()
+    if key == "" then return false, "empty key" end
+    local secret = tostring(_G.__SeigeTagSyncKey or "")
+    if secret == "" then return false, "no tag sync key configured" end
+    local payload
+    if entry == nil then
+        payload = { key = key, ["delete"] = true }
+    else
+        payload = { key = key, data = entry }
+    end
+    local okEnc, body = pcall(function() return HttpService:JSONEncode(payload) end)
+    if not okEnc then return false, tostring(body) end
+    task.spawn(function()
+        local ok, status, resp = _seigeHttpPost(TAGS_HTTP_URL, body, { ["x-tag-secret"] = secret })
+        if not ok then
+            warn(("[Tags] remote push failed (%s): %s"):format(tostring(status), tostring(resp)))
+        else
+            print(("[Tags] remote push ok for %s"):format(key))
+        end
+    end)
+    return true
+end
+
 function TagDB:load()
     -- Hydrate from local cache first so the saved tag appears immediately
     -- even before the network fetch resolves.
     self:hydrateFromCache()
+
+    -- Primary source: Lovable Cloud HTTP-backed tag DB.
+    if TAGS_HTTP_URL ~= "" then
+        local src
+        pcall(function()
+            src = game:HttpGet(TAGS_HTTP_URL .. "?v=" .. tostring(os.time()))
+        end)
+        if src and src ~= "" then
+            local okDec, decoded = pcall(function() return HttpService:JSONDecode(src) end)
+            if okDec and type(decoded) == "table" and type(decoded.entries) == "table" then
+                local entries, count = {}, 0
+                for k, v in pairs(decoded.entries) do
+                    local key = normTagKey(k)
+                    local clean = cleanTagEntry(v)
+                    if key ~= "" and clean then
+                        entries[key] = clean
+                        count = count + 1
+                    end
+                end
+                if count > 0 then
+                    self.entries = entries
+                    self:_cacheWrite(entries)
+                    print(("[Tags] HTTP tag DB loaded — %d entries"):format(count))
+                    return
+                end
+            end
+            warn("[Tags] HTTP source returned no entries, falling back to Pastebin")
+        else
+            warn("[Tags] HTTP source unreachable, falling back to Pastebin")
+        end
+    end
 
     -- Try Pastebin source first (easy-edit text format)
     if TAGS_PASTEBIN_URL ~= "" then
@@ -4086,6 +4162,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 local sok, serr = TagDB:saveLocal()
                 if sok then notify("Removed tag entry: " .. k .. " (persisted)", "warn")
                 else notify("Removed entry, but local save failed: " .. tostring(serr), "bad") end
+                pcall(function() TagDB:pushRemoteEntry(k, nil) end)
                 if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
             end)
         end
@@ -4279,6 +4356,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         else
             notify("Saved tag for " .. u .. " — local save failed: " .. tostring(serr), "warn")
         end
+        pcall(function() TagDB:pushRemoteEntry(key, entry) end)
         if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
 
     end)
@@ -4734,6 +4812,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         local sok, serr = TagDB:saveLocal()
         if sok then notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
         else notify("Saved (local-only) for " .. u .. ": " .. tostring(serr), "warn") end
+        pcall(function() TagDB:pushRemoteEntry(key, entry) end)
         if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
     end)
 
@@ -8400,6 +8479,19 @@ textbox(pgConfig, "Command prefix (default !)", function(v)
     notify("Command prefix saved: " .. v, "good")
 end)
 
+label(pgConfig, "Tag sync key — paste the shared write secret to push tag edits to the cloud DB. Leave blank to stay read-only.")
+textbox(pgConfig, "Tag sync key (write secret)", function(v)
+    v = tostring(v or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    _G.__SeigeTagSyncKey = v
+    if saveCfg then pcall(saveCfg) end
+    if v == "" then
+        notify("Tag sync key cleared (read-only mode)", "warn")
+    else
+        notify("Tag sync key saved — tag edits will sync to cloud", "good")
+    end
+end)
+
+
 ------------------------------------------------------- LAYOUT & TRANSLUCENCY
 section(pgConfig, "Layout")
 label(pgConfig, "Top bar style. Hamburger collapses the bar into a ≡ menu — tabs drop down from it.")
@@ -8568,6 +8660,7 @@ snapshotCfg = function()
     end)
     return {
         prefix        = _G.__SeigeCmdPrefix or CFG_DEFAULTS.prefix,
+        tagSyncKey    = _G.__SeigeTagSyncKey or "",
         roles         = _G.__SeigeRoleMap or {},
         toggleKey     = toggleKey.Name,
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
@@ -8619,6 +8712,7 @@ applyCfg = function(cfg, opts)
     cfg = cfg or {}
     opts = opts or {}
     _G.__SeigeCmdPrefix = tostring(cfg.prefix or CFG_DEFAULTS.prefix):sub(1, 1)
+    if cfg.tagSyncKey ~= nil then _G.__SeigeTagSyncKey = tostring(cfg.tagSyncKey or "") end
     if _G.__SeigeCmdPrefix == "" then _G.__SeigeCmdPrefix = CFG_DEFAULTS.prefix end
     if type(cfg.roles) == "table" then
         _G.__SeigeRoleMap = cfg.roles
