@@ -7883,10 +7883,21 @@ toggle(pgShaders, "Maximum visuals", false, function(on)
 end)
 
 section(pgShaders, "Bloom")
-toggle(pgShaders, "Enable bloom", false, function(v) fxBloom.Enabled = v end)
-slider(pgShaders, "Intensity",  0, 4,   1,    function(v) fxBloom.Intensity = v end)
-slider(pgShaders, "Size",       0, 56,  24,   function(v) fxBloom.Size = v end)
-slider(pgShaders, "Threshold",  0, 4,   0.95, function(v) fxBloom.Threshold = v end)
+-- Re-resolve the effect on every set so anti-cheats/scripts that strip
+-- Lighting children don't break the controls. Also re-parent on toggle.
+local function _bloom() fxBloom = getOrMake("BloomEffect", "SeigeBloom"); return fxBloom end
+toggle(pgShaders, "Enable bloom", false, function(v)
+    local e = _bloom()
+    e.Enabled = v
+    if v then
+        -- Force-apply current slider values so the effect is visible immediately.
+        e.Intensity = e.Intensity > 0 and e.Intensity or 1
+        e.Size      = e.Size > 0 and e.Size or 24
+    end
+end)
+slider(pgShaders, "Intensity",  0, 4,   1,    function(v) _bloom().Intensity = v end)
+slider(pgShaders, "Size",       1, 56,  24,   function(v) _bloom().Size = math.max(1, v) end)
+slider(pgShaders, "Threshold",  0, 4,   0.95, function(v) _bloom().Threshold = v end)
 
 section(pgShaders, "Blur")
 toggle(pgShaders, "Enable blur", false, function(v) fxBlur.Enabled = v end)
