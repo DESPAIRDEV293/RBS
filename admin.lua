@@ -1498,7 +1498,7 @@ local function dropdown(parent, text, options, fn)
         if fn then pcall(fn, options[idx]) end
     end)
     if fn then pcall(fn, options[1]) end
-    return { set = function(v)
+    return { frame = f, set = function(v)
         for i, o in ipairs(options) do if o == v then idx = i; btn.Text = v; if fn then pcall(fn, v) end return end end
     end }
 end
