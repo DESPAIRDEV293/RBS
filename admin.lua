@@ -4338,6 +4338,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             TagDB.entries[oldKey] = nil
             TagDB.localEntries[oldKey] = nil
             applyToMatchingPlayer(oldKey)
+            pcall(function() TagDB:pushRemoteEntry(oldKey, nil) end)
         end
         TagDB.entries[key] = entry
         TagDB.localEntries[key] = entry
