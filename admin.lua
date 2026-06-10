@@ -8660,6 +8660,7 @@ snapshotCfg = function()
     end)
     return {
         prefix        = _G.__SeigeCmdPrefix or CFG_DEFAULTS.prefix,
+        tagSyncKey    = _G.__SeigeTagSyncKey or "",
         roles         = _G.__SeigeRoleMap or {},
         toggleKey     = toggleKey.Name,
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
