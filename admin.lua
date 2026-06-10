@@ -3621,14 +3621,22 @@ bind(Players.PlayerAdded:Connect(function(p)
 end))
 for _, p in ipairs(Players:GetPlayers()) do hookCharBill(p) end
 
--- Load the script-managed tag database, then apply to all players
+-- Hydrate from local cache synchronously so the saved tag pill shows up
+-- on the very first frame after inject — no waiting for the Pastebin fetch.
+pcall(function() TagDB:hydrateFromCache() end)
+for _, p in ipairs(Players:GetPlayers()) do
+    TagDB:applyTo(p)
+    if pchar(p) and not tagBills[p] and (floatOn or p == LP or (scriptersOn and isScripter(p)) or TagDB:configFor(p)) then
+        pcall(buildBill, p)
+    end
+end
+
+-- Then refresh from network in the background and re-apply to everyone
+-- once fresh entries land.
 task.spawn(function()
     TagDB:load()
-    -- No default chip: the pill shows only DisplayName + @handle until a tag
-    -- is explicitly equipped in the Tags panel. (Removed the auto "User" chip.)
     for _, p in ipairs(Players:GetPlayers()) do
         TagDB:applyTo(p)
-        -- ensure persisted entries get a bubble on script reload too
         if pchar(p) and not tagBills[p] and (floatOn or p == LP or (scriptersOn and isScripter(p)) or TagDB:configFor(p)) then
             pcall(buildBill, p)
         end
