@@ -909,15 +909,31 @@ local Body = inst("Frame", Win, {
     BackgroundTransparency = 1,
 })
 
+-- Top-right window controls (matches: minimize — , maximize □ , close ✕)
 local closeBtn = topBtn("✕", -38, function()
     if _G.__AdminCleanup then _G.__AdminCleanup() end
 end)
-local minBtn = topBtn("—", -72, function()
+local maximized = false
+local _preMaxSize = UDim2.new(0,660,0,460)
+local maxBtn = topBtn("□", -72, function()
+    if minimized then return end
+    if not maximized then
+        _preMaxSize = Win.Size
+        maximized = true
+        local cam = workspace.CurrentCamera
+        local vp = cam and cam.ViewportSize or Vector2.new(1280, 720)
+        tween(Win, 0.18, { Size = UDim2.new(0, math.max(660, vp.X - 80), 0, math.max(460, vp.Y - 100)) })
+    else
+        maximized = false
+        tween(Win, 0.18, { Size = _preMaxSize })
+    end
+end)
+local minBtn = topBtn("—", -106, function()
     minimized = not minimized
-    tween(Win, 0.18, { Size = minimized and UDim2.new(0,660,0,44) or UDim2.new(0,660,0,460) })
+    tween(Win, 0.18, { Size = minimized and UDim2.new(0,660,0,44) or (maximized and Win.Size or UDim2.new(0,660,0,460)) })
     Body.Visible = not minimized
 end)
-local helpBtn = topBtn("?", -106, showRoleHelp)
+local helpBtn = topBtn("?", -140, showRoleHelp)
 -- Only role-holders (owner/admin/staff/nt) get the ? help popup; for everyone
 -- else the button has nothing to show, so hide it entirely.
 local function _hasRole()
