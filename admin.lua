@@ -8758,6 +8758,10 @@ saveCfg = function(opts)
     local ok, raw = pcall(HttpService.JSONEncode, HttpService, snap)
     if not ok then if doNotify then notify("Failed to encode config", "bad") end return end
     local okW = pcall(wf, CFG_FILE, raw)
+    for _, path in ipairs(CFG_FALLBACK_FILES) do
+        local okAlt = pcall(wf, path, raw)
+        okW = okW or okAlt
+    end
     if doNotify then
         if okW then notify("Config saved", "good") else notify("Config saved for this session", "good") end
     end
@@ -8777,10 +8781,22 @@ loadCfg = function()
     local rf  = rawget(getfenv(), "readfile") or readfile
     local isf = rawget(getfenv(), "isfile")   or isfile
     if not rf or not isf then return end
-    local ok, exists = pcall(isf, CFG_FILE); if not (ok and exists) then return end
-    local okR, raw = pcall(rf, CFG_FILE); if not (okR and raw) then return end
-    local okD, data = pcall(HttpService.JSONDecode, HttpService, raw)
-    if okD and type(data) == "table" then applyCfg(data, { applySkybox = true }) end
+    local paths = { CFG_FILE }
+    for _, path in ipairs(CFG_FALLBACK_FILES) do paths[#paths + 1] = path end
+    for _, path in ipairs(paths) do
+        local ok, exists = pcall(isf, path)
+        if ok and exists then
+            local okR, raw = pcall(rf, path)
+            if okR and raw then
+                local okD, data = pcall(HttpService.JSONDecode, HttpService, raw)
+                if okD and type(data) == "table" then
+                    applyCfg(data, { applySkybox = true })
+                    _G.__SeigeSessionCfg = data
+                    return
+                end
+            end
+        end
+    end
 end
 
 -- auto-load saved config on startup
