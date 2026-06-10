@@ -9541,26 +9541,16 @@ end)()
 -- draggable floating popout for that tab (with an X to close). Multiple
 -- popouts can be open at once. F2 hides everything.
 
--- Permanently retire the legacy chrome. Reparent the tooltip out of Win so
--- the new bar/dock layouts can still use it, then hard-kill Win: hide it,
--- shrink it to 0x0, move it offscreen, and watch its Visible property so a
--- rogue handler / config restore / third-party script cannot flip it back on.
+-- NUKE the legacy chrome entirely. Reparent the tooltip out first so the
+-- new bar/dock layouts keep working, then Destroy() the whole Win frame so
+-- nothing — no rogue handler, no config restore, no third-party script —
+-- can ever bring it back this session.
 do
     if Tip and Tip.Parent == Win then Tip.Parent = Root end
-    Win.Visible = false
-    Win.Active = false
-    Win.Size = UDim2.new(0, 0, 0, 0)
-    Win.Position = UDim2.new(-5, 0, -5, 0)
-    Win.ClipsDescendants = true
-    Win:GetPropertyChangedSignal("Visible"):Connect(function()
-        if Win.Visible then Win.Visible = false end
-    end)
-    Win:GetPropertyChangedSignal("Size"):Connect(function()
-        if Win.Size ~= UDim2.new(0, 0, 0, 0) then
-            Win.Size = UDim2.new(0, 0, 0, 0)
-        end
-    end)
+    pcall(function() Win:Destroy() end)
+    Win = nil
 end
+
 
 
 
