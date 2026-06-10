@@ -7079,6 +7079,7 @@ button(pgCmds, "Voice  —  anti-ban + mute", function()
         end)
         slider(body, "Cycle interval (sec)", 8, 90, _G.__SeigeAntiVC.interval or 25, function(v)
             _G.__SeigeAntiVC.interval = v
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
         end)
         button(body, "Cycle voice now (leave + rejoin)", function()
             V.cycle(); refresh()
