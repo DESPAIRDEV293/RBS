@@ -10237,8 +10237,10 @@ setTab = function() end
 bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
     if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.F2 then
-        local v = not Pill.Visible
-        Pill.Visible = v
+        local mode = _G.__SeigeLayoutMode or "Bar"
+        local chrome = (mode == "Dock") and _G.__SeigeDock or Pill
+        local v = not chrome.Visible
+        chrome.Visible = v
         if not v then
             for _, p in pairs(panels) do
                 if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, false) else p.frame.Visible = false end
@@ -10246,6 +10248,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
                     tween(p.btn, 0.12, { BackgroundColor3 = T.text, BackgroundTransparency = 1 })
                 end
             end
+            if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
         end
     end
 end))
