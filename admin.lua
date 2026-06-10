@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-bloom-dof-weather"
+local ADMIN_BUILD = "2026-06-10-textcolor-pertrans"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -7470,6 +7470,7 @@ end
 local function applyBg()
     Backdrop.Image = resolveBgUrl(bgState.image)
     Backdrop.ImageTransparency = bgState.trans
+    if _G.__SeigeRefreshTextColor then pcall(_G.__SeigeRefreshTextColor) end
 end
 
 -- Per-panel background image (applied to every floating panel's __SeigeBgImg)
@@ -7494,6 +7495,7 @@ function applyPanelBg()
             img.ImageTransparency = (url == "") and 1 or trans
         end
     end
+    if _G.__SeigeRefreshTextColor then pcall(_G.__SeigeRefreshTextColor) end
 end
 function applyIconImages()
     local panelsTbl = rawget(_G, "__SeigePanels")
@@ -7595,6 +7597,69 @@ button(pgThemes, "Clear panel backgrounds", function()
     panelBgState.image = ""; applyPanelBg(); saveCfg(); notify("Panel backgrounds cleared", "good")
 end)
 label(pgThemes, "Applies to every floating panel (Profile, Cmds, Shaders, ...).")
+
+section(pgThemes, "Panel text color")
+label(pgThemes, "Force all panel text to a specific color. Auto switches to white whenever a panel/global background image is set, so text stays readable on photos.")
+do
+    -- Snapshot the theme's default text color once so we can restore it on "Default theme".
+    _G.__SeigeOrigTextColor = _G.__SeigeOrigTextColor or T.text
+    local TEXT_MODES = { "Auto (white on image bg)", "Default theme", "White", "Black", "Custom hex" }
+    local _textCustom = _G.__SeigeTextColorCustom or ""
+    local function _hexToColor(h)
+        h = tostring(h or ""):gsub("#","")
+        if #h ~= 6 then return nil end
+        local r = tonumber(h:sub(1,2), 16); local g = tonumber(h:sub(3,4), 16); local b = tonumber(h:sub(5,6), 16)
+        if not (r and g and b) then return nil end
+        return Color3.fromRGB(r, g, b)
+    end
+    local function _hasAnyImageBg()
+        if (bgState and bgState.image or "") ~= "" then return true end
+        if (panelBgState and panelBgState.image or "") ~= "" then return true end
+        if panelBgState and type(panelBgState.panels) == "table" then
+            for _, ov in pairs(panelBgState.panels) do
+                if ov and ov.image and ov.image ~= "" then return true end
+            end
+        end
+        return false
+    end
+    local function applyTextMode(mode, custom)
+        local c
+        if mode == "Auto (white on image bg)" then
+            c = _hasAnyImageBg() and Color3.fromRGB(248, 250, 255) or _G.__SeigeOrigTextColor
+        elseif mode == "Default theme" then
+            c = _G.__SeigeOrigTextColor
+        elseif mode == "White" then
+            c = Color3.fromRGB(248, 250, 255)
+        elseif mode == "Black" then
+            c = Color3.fromRGB(16, 18, 24)
+        elseif mode == "Custom hex" then
+            c = _hexToColor(custom or "") or T.text
+        end
+        if c then applyTheme({ text = c }) end
+        _G.__SeigeTextColorMode = mode
+        _G.__SeigeTextColorCustom = custom or _G.__SeigeTextColorCustom or ""
+    end
+    _G.__SeigeApplyTextMode = applyTextMode
+    _G.__SeigeRefreshTextColor = function()
+        if _G.__SeigeTextColorMode then
+            applyTextMode(_G.__SeigeTextColorMode, _G.__SeigeTextColorCustom)
+        end
+    end
+
+    local textModeCtl = dropdown(pgThemes, "Text color mode", TEXT_MODES, function(v)
+        applyTextMode(v, _textCustom); if saveCfg then saveCfg() end
+    end)
+    textbox(pgThemes, "Custom hex (e.g. #ffffff)", function(v)
+        _textCustom = v
+        _G.__SeigeTextColorCustom = v
+        if (_G.__SeigeTextColorMode or "") == "Custom hex" then
+            applyTextMode("Custom hex", v); if saveCfg then saveCfg() end
+        end
+    end)
+    if textModeCtl and textModeCtl.set then
+        textModeCtl.set(_G.__SeigeTextColorMode or "Auto (white on image bg)")
+    end
+end
 
 section(pgThemes, "Presets")
 local PRESETS = {
@@ -8481,9 +8546,35 @@ _G.__SeigeRefreshDockColorVis = function(mode)
 end
 _G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
 
-label(pgConfig, "Panel translucency — higher = more see-through")
-transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 0.35, function(v)
-    if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
+label(pgConfig, "Panel translucency — higher = more see-through. Pick a target panel to tweak just that one.")
+local TRANS_TARGETS = { "All Panels", "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Misc", "Themes" }
+local _transTarget = "All Panels"
+_G.__SeigePanelTrans = _G.__SeigePanelTrans or {}
+local function _applyTransTo(target, v)
+    if target == "All Panels" then
+        if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
+    else
+        _G.__SeigePanelTrans[target] = v
+        local panelsTbl = rawget(_G, "__SeigePanels")
+        local p = panelsTbl and panelsTbl[target]
+        if p and p.frame then
+            pcall(function() p.frame.BackgroundTransparency = v end)
+        end
+    end
+end
+_G.__SeigeApplyPanelTrans = _applyTransTo
+local _transTargetCtl = dropdown(pgConfig, "Translucency target", TRANS_TARGETS, function(v)
+    _transTarget = v
+    local cur
+    if v == "All Panels" then
+        cur = _G.__SeigeUITrans or 0.35
+    else
+        cur = _G.__SeigePanelTrans[v] or _G.__SeigeUITrans or 0.35
+    end
+    if transCtl and transCtl.set then transCtl.set(cur) end
+end)
+transCtl = slider(pgConfig, "Panel translucency", 0, 0.95, _G.__SeigeUITrans or 0.35, function(v)
+    _applyTransTo(_transTarget, v)
 end)
 
 
@@ -8614,6 +8705,9 @@ snapshotCfg = function()
         layoutMode    = _G.__SeigeLayoutMode or "Bar",
         dockColor     = _G.__SeigeDockColorName or "Default",
         uiTrans       = _G.__SeigeUITrans or 0.35,
+        panelTrans    = _G.__SeigePanelTrans or {},
+        textColorMode = _G.__SeigeTextColorMode or "Auto (white on image bg)",
+        textColorHex  = _G.__SeigeTextColorCustom or "",
         skybox        = {
             Up = skyboxFaces.Up, Dn = skyboxFaces.Dn,
             Lf = skyboxFaces.Lf, Rt = skyboxFaces.Rt,
@@ -8651,6 +8745,21 @@ applyCfg = function(cfg, opts)
     if cfg.uiTrans and _G.__SeigeApplyUITrans then
         _G.__SeigeApplyUITrans(tonumber(cfg.uiTrans) or 0.35)
         if transCtl and transCtl.set then transCtl.set(tonumber(cfg.uiTrans) or 0.35) end
+    end
+    if type(cfg.panelTrans) == "table" then
+        _G.__SeigePanelTrans = {}
+        for name, v in pairs(cfg.panelTrans) do
+            local n = tonumber(v); if n then _G.__SeigePanelTrans[name] = n end
+        end
+        if _G.__SeigeApplyPanelTrans then
+            for name, n in pairs(_G.__SeigePanelTrans) do
+                pcall(_G.__SeigeApplyPanelTrans, name, n)
+            end
+        end
+    end
+    if cfg.textColorMode and _G.__SeigeApplyTextMode then
+        _G.__SeigeTextColorCustom = cfg.textColorHex or ""
+        pcall(_G.__SeigeApplyTextMode, cfg.textColorMode, cfg.textColorHex or "")
     end
     local sb = cfg.skybox or CFG_DEFAULTS.skybox
     for _, k in ipairs({ "Up", "Dn", "Lf", "Rt", "Ft", "Bk" }) do
@@ -9637,6 +9746,9 @@ local function makePanel(name, entry)
         ImageTransparency = 1,
         ZIndex = 110,
     })
+    -- Match the panel's rounded shape so uploaded images don't square off
+    -- the corners (ClipsDescendants alone occasionally misses subpixel edges).
+    corner(bgImg, 12)
     -- soft glow
     inst("ImageLabel", frame, {
         BackgroundTransparency = 1,
@@ -10407,8 +10519,11 @@ do
         if _G.__SeigeDock then _G.__SeigeDock.BackgroundTransparency = math.max(0.05, t - 0.1) end
         if menu then menu.BackgroundTransparency = t end
         if _G.__SeigePanels then
-            for _, p in pairs(_G.__SeigePanels) do
-                if p.frame and p.frame.Visible then p.frame.BackgroundTransparency = t end
+            for name, p in pairs(_G.__SeigePanels) do
+                if p.frame and p.frame.Visible then
+                    local ov = _G.__SeigePanelTrans and _G.__SeigePanelTrans[name]
+                    p.frame.BackgroundTransparency = ov or t
+                end
             end
         end
         -- Sync floating command popups (Bang, Reanim, Circle, Help, etc.)
