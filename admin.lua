@@ -8562,6 +8562,18 @@ snapshotCfg = function()
                 icon    = C.icon    and cToHex(C.icon)    or nil,
             }
         end)(),
+        -- Behavior toggles
+        floatOn       = _G.__SeigeFloatOn == true,
+        scriptersOn   = _G.__SeigeScriptersOn == true,
+        antiVC        = {
+            on       = (_G.__SeigeAntiVC and _G.__SeigeAntiVC.on) == true,
+            interval = tonumber(_G.__SeigeAntiVC and _G.__SeigeAntiVC.interval) or 25,
+        },
+        micMuted      = _G.__SeigeMicMuted == true,
+        bang          = {
+            mode  = (_G.__SeigeBang and _G.__SeigeBang.mode)  or nil,
+            speed = (_G.__SeigeBang and tonumber(_G.__SeigeBang.speed)) or nil,
+        },
     }
 end
 
