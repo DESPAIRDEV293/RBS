@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-rebuild-iter2e"
+local ADMIN_BUILD = "2026-06-10-pill-dedupe"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -9538,7 +9538,6 @@ _G.__SeigeLayoutMode = _G.__SeigeLayoutMode or "Bar"  -- "Bar" or "Hamburger"
 
 -- ============= TOP PILL ===========================================
 
-;(function()
 ;(function()
 local ok, err = pcall(function()
 Pill = inst("Frame", Root, {
