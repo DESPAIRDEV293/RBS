@@ -2,7 +2,8 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-pill-dedupe"
+local ADMIN_BUILD = "2026-06-10-reanim-gated"
+_G.__SeigeReanimKey = "sg_rnm_8f3a91c2d7e64b05"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -13027,7 +13028,7 @@ cmdHandlers["reanim"] = function()
     notify("Loading Reanim…", "good")
     task.spawn(function()
         local ok, src = pcall(function()
-            return game:HttpGet("https://seigescript.online/api/public/reanim.lua")
+            return game:HttpGet("https://seigescript.online/api/public/reanim.lua?key=" .. (_G.__SeigeReanimKey or ""))
         end)
         if not ok or type(src) ~= "string" or src == "" then
             notify("Reanim fetch failed", "bad"); return
