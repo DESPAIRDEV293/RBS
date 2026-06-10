@@ -6566,6 +6566,7 @@ button(pgCmds, "!info",                                      function() _runCmd(
 button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end end)
 button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
 button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
+button(pgCmds, "Bypass  —  uncensored chat panel", function() if _G.__SeigeOpenBypass then _G.__SeigeOpenBypass() end end)
 
 -- ===== Performance & Optimize — unified panel =====
 -- One place for FPS booster, Ping booster, and Optimize.
