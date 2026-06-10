@@ -7470,6 +7470,7 @@ end
 local function applyBg()
     Backdrop.Image = resolveBgUrl(bgState.image)
     Backdrop.ImageTransparency = bgState.trans
+    if _G.__SeigeRefreshTextColor then pcall(_G.__SeigeRefreshTextColor) end
 end
 
 -- Per-panel background image (applied to every floating panel's __SeigeBgImg)
