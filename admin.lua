@@ -7763,58 +7763,27 @@ end)()
         _G.__SeigeFontScale = v / 100; applyTypography()
     end)
 
-    -- ===== Tag-specific font (3 dafont-style options) =====
-    -- Picked from dafont.com lookalikes shipped with Roblox:
-    --   • PermanentMarker  — handwritten marker (dafont: "Permanent Marker")
-    --   • LuckiestGuy      — chunky comic caps   (dafont: "Luckiest Guy")
-    --   • Creepster        — horror display      (dafont: "Creepster")
-    local TAG_FONTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
-    _G.__SeigeTagFont = _G.__SeigeTagFont or "Default"
-    local function applyTagFont()
-        local choice = _G.__SeigeTagFont
-        local font = (choice ~= "Default") and Enum.Font[choice] or nil
-        local bills = _G.__SeigeTagBills or {}
-        for _, e in pairs(bills) do
-            if e and e.name and e.handle then
-                pcall(function()
-                    e.name.Font   = font or Enum.Font.GothamBold
-                    e.handle.Font = font or Enum.Font.Gotham
-                    if e.stat then e.stat.Font = font or Enum.Font.GothamBold end
-                end)
-            end
-        end
-        -- Re-measure pill width with the new font. Without this, pills stay
-        -- sized for the previously-measured font and either clip wide fonts
-        -- (LuckiestGuy, Creepster) or leave extra whitespace.
-        local refresh = _G.__SeigeRefreshBill
-        if refresh then
-            for _, p in ipairs(Players:GetPlayers()) do pcall(refresh, p) end
-        end
-    end
-    _G.__SeigeApplyTagFont = applyTagFont
-    dropdown(pgThemes, "Tag font (dafont styles)", TAG_FONTS, function(v)
-        _G.__SeigeTagFont = v; applyTagFont(); saveCfg()
-    end)
+    -- (Global "Tag font (dafont styles)" setting removed — per-user font lives in the Tags panel.)
 
     section(pgThemes, "Bubble animations  (player tags)")
 
     local BUBBLE = { "None", "Bounce", "Pulse", "Float", "Wobble", "Shake", "Heartbeat" }
     _G.__SeigeBubbleAnim = _G.__SeigeBubbleAnim or "None"
-    dropdown(pgThemes, "Tag bubble animation", BUBBLE, function(v)
+    _G.__SeigeBubbleAnimCtl = dropdown(pgThemes, "Tag bubble animation", BUBBLE, function(v)
         _G.__SeigeBubbleAnim = v; saveCfg()
     end)
-    slider(pgThemes, "Bubble anim intensity", 0, 100, 50, function(v)
-        _G.__SeigeBubbleAmt = v / 100
+    _G.__SeigeBubbleAmtCtl = slider(pgThemes, "Bubble anim intensity", 0, 100, 50, function(v)
+        _G.__SeigeBubbleAmt = v / 100; saveCfg()
     end)
 
     section(pgThemes, "Page / panel animations")
     local PAGE = { "None", "Fade", "Scale", "Slide-down", "Slide-up", "Slide-right", "Flip", "Bounce" }
     _G.__SeigePageAnim = _G.__SeigePageAnim or "Fade"
-    dropdown(pgThemes, "Panel open animation", PAGE, function(v)
+    _G.__SeigePageAnimCtl = dropdown(pgThemes, "Panel open animation", PAGE, function(v)
         _G.__SeigePageAnim = v; saveCfg()
     end)
-    slider(pgThemes, "Animation speed (ms)", 80, 700, 240, function(v)
-        _G.__SeigePageAnimSpeed = v / 1000
+    _G.__SeigePageAnimSpeedCtl = slider(pgThemes, "Animation speed (ms)", 80, 700, 240, function(v)
+        _G.__SeigePageAnimSpeed = v / 1000; saveCfg()
     end)
 end)()
 
@@ -8244,7 +8213,7 @@ local layoutCtl, transCtl
 -- added to the same page earlier in the file via pgThemes = pgConfig).
 do -- scoped to keep these out of the main chunk's 200-local budget
 local _saveSec = section(pgConfig, "Save & Reset")
-local _saveLbl = label(pgConfig, "Save persists translucency, layout, typography, tag font, animations, theme colors, background & panel images. Reset clears them.")
+local _saveLbl = label(pgConfig, "Save persists translucency, layout, typography, animations, theme colors, background & panel images. Reset clears them.")
 local _saveBtn = button(pgConfig, "💾  Save Config", function()
     if saveCfg then saveCfg() else notify("Config not ready yet", "warn") end
 end)
@@ -8304,13 +8273,16 @@ local _layoutMode = _G.__SeigeLayoutMode or "Bar"
 local _layoutDef = _G.__SeigeLayoutMode or "Bar"
 layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger", "Dock" }, function(v)
     _layoutMode = v
+    _G.__SeigeLayoutMode = v
     if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout(v) end
+    if saveCfg then pcall(saveCfg) end
 end)
 if layoutCtl and layoutCtl.set then layoutCtl.set(_G.__SeigeLayoutMode or "Bar") end
 
 label(pgConfig, "Panel translucency — higher = more see-through")
 transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 0.35, function(v)
     if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
+    if saveCfg then pcall(saveCfg) end
 end)
 
 
@@ -8452,7 +8424,7 @@ snapshotCfg = function()
         panelBg       = pbgSnap,
         fontOverride  = _G.__SeigeFontOverride or "Default (mixed)",
         fontScale     = tonumber(_G.__SeigeFontScale) or 1.0,
-        tagFont       = _G.__SeigeTagFont or "Default",
+        tagFont       = nil,
         bubbleAnim    = _G.__SeigeBubbleAnim or "None",
         bubbleAmt     = tonumber(_G.__SeigeBubbleAmt) or 0.5,
         pageAnim      = _G.__SeigePageAnim or "Fade",
@@ -8529,14 +8501,23 @@ applyCfg = function(cfg, opts)
         _G.__SeigeFontScale    = tonumber(cfg.fontScale) or _G.__SeigeFontScale or 1.0
         if _G.__SeigeApplyTypography then pcall(_G.__SeigeApplyTypography) end
     end
-    if cfg.tagFont then
-        _G.__SeigeTagFont = cfg.tagFont
-        if _G.__SeigeApplyTagFont then pcall(_G.__SeigeApplyTagFont) end
+    -- (Global tag font setting removed.)
+    if cfg.bubbleAnim then
+        _G.__SeigeBubbleAnim = cfg.bubbleAnim
+        if _G.__SeigeBubbleAnimCtl and _G.__SeigeBubbleAnimCtl.set then pcall(_G.__SeigeBubbleAnimCtl.set, cfg.bubbleAnim) end
     end
-    if cfg.bubbleAnim then _G.__SeigeBubbleAnim = cfg.bubbleAnim end
-    if cfg.bubbleAmt  then _G.__SeigeBubbleAmt  = tonumber(cfg.bubbleAmt)  or _G.__SeigeBubbleAmt  end
-    if cfg.pageAnim   then _G.__SeigePageAnim   = cfg.pageAnim end
-    if cfg.pageAnimSpeed then _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed end
+    if cfg.bubbleAmt then
+        _G.__SeigeBubbleAmt = tonumber(cfg.bubbleAmt) or _G.__SeigeBubbleAmt
+        if _G.__SeigeBubbleAmtCtl and _G.__SeigeBubbleAmtCtl.set then pcall(_G.__SeigeBubbleAmtCtl.set, (_G.__SeigeBubbleAmt or 0.5) * 100) end
+    end
+    if cfg.pageAnim then
+        _G.__SeigePageAnim = cfg.pageAnim
+        if _G.__SeigePageAnimCtl and _G.__SeigePageAnimCtl.set then pcall(_G.__SeigePageAnimCtl.set, cfg.pageAnim) end
+    end
+    if cfg.pageAnimSpeed then
+        _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed
+        if _G.__SeigePageAnimSpeedCtl and _G.__SeigePageAnimSpeedCtl.set then pcall(_G.__SeigePageAnimSpeedCtl.set, (_G.__SeigePageAnimSpeed or 0.24) * 1000) end
+    end
 end
 
 
