@@ -2066,7 +2066,47 @@ end
 
 
 
+-- On-disk cache of the parsed tag DB so a fresh inject can show the saved
+-- tag INSTANTLY instead of staring at "no tag" until the Pastebin/GitHub
+-- HTTP fetch resolves. We still refresh from the network in the background
+-- and replace `self.entries` once it lands.
+do
+    local TAGS_DB_CACHE_FILE = "seige_tags_db_cache.json"
+    function TagDB:_cacheWrite(entries)
+        local wf = rawget(getfenv(), "writefile")
+        if not wf or type(entries) ~= "table" then return end
+        local ok, raw = pcall(function() return HttpService:JSONEncode(entries) end)
+        if ok and raw then pcall(wf, TAGS_DB_CACHE_FILE, raw) end
+    end
+    function TagDB:_cacheRead()
+        local rf  = rawget(getfenv(), "readfile")
+        local isf = rawget(getfenv(), "isfile")
+        if not (rf and isf) then return nil end
+        local okE, exists = pcall(isf, TAGS_DB_CACHE_FILE); if not (okE and exists) then return nil end
+        local okR, raw = pcall(rf, TAGS_DB_CACHE_FILE); if not (okR and type(raw) == "string" and raw ~= "") then return nil end
+        local okD, data = pcall(function() return HttpService:JSONDecode(raw) end)
+        if okD and type(data) == "table" then return data end
+        return nil
+    end
+end
+
+function TagDB:hydrateFromCache()
+    if self.entries and next(self.entries) then return false end
+    local cached = self:_cacheRead()
+    if cached and next(cached) then
+        self.entries = cached
+        local n = 0; for _ in pairs(cached) do n = n + 1 end
+        print(("[Tags] hydrated %d entries from local cache (instant)"):format(n))
+        return true
+    end
+    return false
+end
+
 function TagDB:load()
+    -- Hydrate from local cache first so the saved tag appears immediately
+    -- even before the network fetch resolves.
+    self:hydrateFromCache()
+
     -- Try Pastebin source first (easy-edit text format)
     if TAGS_PASTEBIN_URL ~= "" then
         local src
@@ -2077,6 +2117,7 @@ function TagDB:load()
             local entries, count, isJson = parsePastebin(src)
             if isJson or count > 0 then
                 self.entries = entries
+                self:_cacheWrite(entries)
                 print(("[Tags] GitHub tag DB loaded — %d entries"):format(count))
                 return
             end
@@ -2090,14 +2131,14 @@ function TagDB:load()
     end)
     if not src then
         warn("[Tags] DB fetch failed — using empty tag DB")
-        self.entries = {}
+        if not (self.entries and next(self.entries)) then self.entries = {} end
         return
     end
     local fn, err = loadstring(src)
-    if not fn then warn("[Tags] compile: " .. tostring(err)); self.entries = {}; return end
+    if not fn then warn("[Tags] compile: " .. tostring(err)); if not (self.entries and next(self.entries)) then self.entries = {} end; return end
     local ok, data = pcall(fn)
     if not ok or type(data) ~= "table" then
-        warn("[Tags] eval failed: " .. tostring(data)); self.entries = {}; return
+        warn("[Tags] eval failed: " .. tostring(data)); if not (self.entries and next(self.entries)) then self.entries = {} end; return
     end
     local entries = {}
     for k, v in pairs(data) do
@@ -2106,6 +2147,7 @@ function TagDB:load()
         if key ~= "" and clean then entries[key] = clean end
     end
     self.entries = entries
+    self:_cacheWrite(entries)
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
 end
 
@@ -3579,14 +3621,22 @@ bind(Players.PlayerAdded:Connect(function(p)
 end))
 for _, p in ipairs(Players:GetPlayers()) do hookCharBill(p) end
 
--- Load the script-managed tag database, then apply to all players
+-- Hydrate from local cache synchronously so the saved tag pill shows up
+-- on the very first frame after inject — no waiting for the Pastebin fetch.
+pcall(function() TagDB:hydrateFromCache() end)
+for _, p in ipairs(Players:GetPlayers()) do
+    TagDB:applyTo(p)
+    if pchar(p) and not tagBills[p] and (floatOn or p == LP or (scriptersOn and isScripter(p)) or TagDB:configFor(p)) then
+        pcall(buildBill, p)
+    end
+end
+
+-- Then refresh from network in the background and re-apply to everyone
+-- once fresh entries land.
 task.spawn(function()
     TagDB:load()
-    -- No default chip: the pill shows only DisplayName + @handle until a tag
-    -- is explicitly equipped in the Tags panel. (Removed the auto "User" chip.)
     for _, p in ipairs(Players:GetPlayers()) do
         TagDB:applyTo(p)
-        -- ensure persisted entries get a bubble on script reload too
         if pchar(p) and not tagBills[p] and (floatOn or p == LP or (scriptersOn and isScripter(p)) or TagDB:configFor(p)) then
             pcall(buildBill, p)
         end
