@@ -8304,13 +8304,16 @@ local _layoutMode = _G.__SeigeLayoutMode or "Bar"
 local _layoutDef = _G.__SeigeLayoutMode or "Bar"
 layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger", "Dock" }, function(v)
     _layoutMode = v
+    _G.__SeigeLayoutMode = v
     if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout(v) end
+    if saveCfg then pcall(saveCfg) end
 end)
 if layoutCtl and layoutCtl.set then layoutCtl.set(_G.__SeigeLayoutMode or "Bar") end
 
 label(pgConfig, "Panel translucency — higher = more see-through")
 transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 0.35, function(v)
     if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
+    if saveCfg then pcall(saveCfg) end
 end)
 
 
