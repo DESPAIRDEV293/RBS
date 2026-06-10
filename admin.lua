@@ -4356,6 +4356,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         else
             notify("Saved tag for " .. u .. " — local save failed: " .. tostring(serr), "warn")
         end
+        pcall(function() TagDB:pushRemoteEntry(key, entry) end)
         if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
 
     end)
