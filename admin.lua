@@ -8546,6 +8546,89 @@ _G.__SeigeRefreshDockColorVis = function(mode)
 end
 _G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
 
+-- Dock icon color
+local dockIconPresets = {
+    { name = "Default",  color = nil },
+    { name = "White",    color = Color3.fromRGB(245, 245, 250) },
+    { name = "Black",    color = Color3.fromRGB( 18,  18,  22) },
+    { name = "Cyan",     color = Color3.fromRGB( 30, 215, 230) },
+    { name = "Magenta",  color = Color3.fromRGB(225,  70, 200) },
+    { name = "Purple",   color = Color3.fromRGB(150,  90, 255) },
+    { name = "Green",    color = Color3.fromRGB( 70, 230, 140) },
+    { name = "Orange",   color = Color3.fromRGB(255, 150,  60) },
+    { name = "Red",      color = Color3.fromRGB(235,  70,  90) },
+    { name = "Yellow",   color = Color3.fromRGB(250, 220,  90) },
+}
+local dockIconNames = {}
+for i, p in ipairs(dockIconPresets) do dockIconNames[i] = p.name end
+local _dockIconLbl = label(pgConfig, "Dock icon color")
+local dockIconCtl = dropdown(pgConfig, "Icon color", dockIconNames, function(v)
+    for _, p in ipairs(dockIconPresets) do
+        if p.name == v then
+            _G.__SeigeDockIconColorName = v
+            if _G.__SeigeApplyDockIconColor then _G.__SeigeApplyDockIconColor(p.color) end
+            break
+        end
+    end
+end)
+if dockIconCtl and dockIconCtl.set then dockIconCtl.set(_G.__SeigeDockIconColorName or "Default") end
+
+local _dockIconHexLbl = label(pgConfig, "Custom icon color (hex, e.g. #00E5FF) — leave blank for preset")
+local dockIconHex = textbox(pgConfig, "#RRGGBB", function(v)
+    v = tostring(v or ""):gsub("%s",""):gsub("^#","")
+    _G.__SeigeDockIconHex = v
+    if #v == 6 then
+        local r = tonumber(v:sub(1,2),16); local g = tonumber(v:sub(3,4),16); local b = tonumber(v:sub(5,6),16)
+        if r and g and b and _G.__SeigeApplyDockIconColor then
+            _G.__SeigeApplyDockIconColor(Color3.fromRGB(r,g,b))
+            _G.__SeigeDockIconColorName = "Custom"
+        end
+    end
+end)
+if dockIconHex and dockIconHex.set and _G.__SeigeDockIconHex then dockIconHex.set(_G.__SeigeDockIconHex) end
+
+-- Dock outline (stroke) color
+local _dockStrokeLbl = label(pgConfig, "Dock outline color")
+local dockStrokeCtl = dropdown(pgConfig, "Outline color", dockIconNames, function(v)
+    for _, p in ipairs(dockIconPresets) do
+        if p.name == v then
+            _G.__SeigeDockStrokeColorName = v
+            if _G.__SeigeApplyDockStrokeColor then _G.__SeigeApplyDockStrokeColor(p.color) end
+            if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
+            break
+        end
+    end
+end)
+if dockStrokeCtl and dockStrokeCtl.set then dockStrokeCtl.set(_G.__SeigeDockStrokeColorName or "Default") end
+
+local _dockStrokeHexLbl = label(pgConfig, "Custom outline color (hex) — leave blank for preset")
+local dockStrokeHex = textbox(pgConfig, "#RRGGBB", function(v)
+    v = tostring(v or ""):gsub("%s",""):gsub("^#","")
+    _G.__SeigeDockStrokeHex = v
+    if #v == 6 then
+        local r = tonumber(v:sub(1,2),16); local g = tonumber(v:sub(3,4),16); local b = tonumber(v:sub(5,6),16)
+        if r and g and b and _G.__SeigeApplyDockStrokeColor then
+            _G.__SeigeApplyDockStrokeColor(Color3.fromRGB(r,g,b))
+            _G.__SeigeDockStrokeColorName = "Custom"
+            if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
+        end
+    end
+end)
+if dockStrokeHex and dockStrokeHex.set and _G.__SeigeDockStrokeHex then dockStrokeHex.set(_G.__SeigeDockStrokeHex) end
+
+-- Extend visibility refresh to include icon/outline controls
+local _origRefreshDockColorVis = _G.__SeigeRefreshDockColorVis
+_G.__SeigeRefreshDockColorVis = function(mode)
+    if _origRefreshDockColorVis then _origRefreshDockColorVis(mode) end
+    local show = (mode == "Dock")
+    for _, ctl in ipairs({ _dockIconLbl, dockIconCtl, _dockIconHexLbl, dockIconHex, _dockStrokeLbl, dockStrokeCtl, _dockStrokeHexLbl, dockStrokeHex }) do
+        local f = ctl and (ctl.frame or ctl) or nil
+        if f and typeof(f) == "Instance" and f:IsA("TextBox") then f = f.Parent end
+        if f and f.Visible ~= nil then f.Visible = show end
+    end
+end
+_G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
+
 label(pgConfig, "Panel translucency — higher = more see-through. Pick a target panel to tweak just that one.")
 local TRANS_TARGETS = { "All Panels", "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Misc", "Themes" }
 local _transTarget = "All Panels"
@@ -8704,6 +8787,10 @@ snapshotCfg = function()
         reducedMotion = reducedCtl and reducedCtl.get and reducedCtl.get() or false,
         layoutMode    = _G.__SeigeLayoutMode or "Bar",
         dockColor     = _G.__SeigeDockColorName or "Default",
+        dockIconColor = _G.__SeigeDockIconColorName or "Default",
+        dockIconHex   = _G.__SeigeDockIconHex or "",
+        dockStrokeColor = _G.__SeigeDockStrokeColorName or "Default",
+        dockStrokeHex = _G.__SeigeDockStrokeHex or "",
         uiTrans       = _G.__SeigeUITrans or 0.35,
         panelTrans    = _G.__SeigePanelTrans or {},
         textColorMode = _G.__SeigeTextColorMode or "Auto (white on image bg)",
@@ -8741,6 +8828,34 @@ applyCfg = function(cfg, opts)
     end
     if cfg.dockColor and dockColorCtl and dockColorCtl.set then
         dockColorCtl.set(cfg.dockColor)
+    end
+    if cfg.dockIconColor and dockIconCtl and dockIconCtl.set then
+        dockIconCtl.set(cfg.dockIconColor)
+    end
+    if cfg.dockIconHex and cfg.dockIconHex ~= "" and dockIconHex and dockIconHex.CaptureFocus then
+        -- trigger via direct apply
+        local v = tostring(cfg.dockIconHex):gsub("^#","")
+        if #v == 6 then
+            local r,g,b = tonumber(v:sub(1,2),16), tonumber(v:sub(3,4),16), tonumber(v:sub(5,6),16)
+            if r and g and b and _G.__SeigeApplyDockIconColor then
+                _G.__SeigeDockIconHex = v
+                _G.__SeigeApplyDockIconColor(Color3.fromRGB(r,g,b))
+            end
+        end
+    end
+    if cfg.dockStrokeColor and dockStrokeCtl and dockStrokeCtl.set then
+        dockStrokeCtl.set(cfg.dockStrokeColor)
+    end
+    if cfg.dockStrokeHex and cfg.dockStrokeHex ~= "" then
+        local v = tostring(cfg.dockStrokeHex):gsub("^#","")
+        if #v == 6 then
+            local r,g,b = tonumber(v:sub(1,2),16), tonumber(v:sub(3,4),16), tonumber(v:sub(5,6),16)
+            if r and g and b and _G.__SeigeApplyDockStrokeColor then
+                _G.__SeigeDockStrokeHex = v
+                _G.__SeigeApplyDockStrokeColor(Color3.fromRGB(r,g,b))
+                if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
+            end
+        end
     end
     if cfg.uiTrans and _G.__SeigeApplyUITrans then
         _G.__SeigeApplyUITrans(tonumber(cfg.uiTrans) or 0.35)
@@ -10394,9 +10509,24 @@ do
         if typeof(c) ~= "Color3" then return end
         _G.__SeigeDockColor = c
         Dock.BackgroundColor3 = c
-        if dockStroke then dockStroke.Color = c end
+        if dockStroke and not _G.__SeigeDockStrokeColor then dockStroke.Color = c end
     end
     if _G.__SeigeDockColor then _G.__SeigeApplyDockColor(_G.__SeigeDockColor) end
+
+    -- Dock stroke (outline) color override.
+    _G.__SeigeApplyDockStrokeColor = function(c)
+        _G.__SeigeDockStrokeColor = (typeof(c) == "Color3") and c or nil
+        if dockStroke then
+            dockStroke.Color = _G.__SeigeDockStrokeColor or _G.__SeigeDockColor or T.acc
+        end
+    end
+    if _G.__SeigeDockStrokeColor then _G.__SeigeApplyDockStrokeColor(_G.__SeigeDockStrokeColor) end
+
+    -- Dock icon/text color override.
+    _G.__SeigeApplyDockIconColor = function(c)
+        _G.__SeigeDockIconColor = (typeof(c) == "Color3") and c or nil
+        if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
+    end
 
     -- Gentle floating animation (sine bob) while Dock is visible.
     local floatTween
@@ -10421,14 +10551,17 @@ do
 
     local dockBtns = {}
     local function refreshDockState()
+        local icoC = _G.__SeigeDockIconColor or T.text
+        local strokeC = _G.__SeigeDockStrokeColor or _G.__SeigeDockColor or T.acc
         for name, rec in pairs(dockBtns) do
             local p = panels[name]
             local active = p and p.frame and p.frame.Visible
             tween(rec.btn, 0.12, {
                 BackgroundTransparency = active and 0.15 or 0.85,
             })
-            if rec.img then rec.img.ImageColor3 = active and T.bg or T.text end
-            rec.btn.TextColor3 = active and T.bg or T.text
+            if rec.img then rec.img.ImageColor3 = active and T.bg or icoC end
+            rec.btn.TextColor3 = active and T.bg or icoC
+            if rec.stroke then rec.stroke.Color = strokeC end
         end
     end
 
@@ -10452,6 +10585,7 @@ do
                 LayoutOrder = dOrd, ZIndex = 101,
             })
             corner(btn, 12); stroke(btn, T.acc, 1, 0.55)
+            local btnStroke = btn:FindFirstChildOfClass("UIStroke")
             local img
             if p.defaultIcon then
                 img = inst("ImageLabel", btn, {
@@ -10461,7 +10595,7 @@ do
                     Image = p.defaultIcon, ImageColor3 = T.text, ZIndex = 102,
                 })
             end
-            dockBtns[name] = { btn = btn, img = img }
+            dockBtns[name] = { btn = btn, img = img, stroke = btnStroke }
             btn.MouseEnter:Connect(function()
                 if not (p.frame and p.frame.Visible) then
                     tween(btn, 0.1, { BackgroundTransparency = 0.65 })
