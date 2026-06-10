@@ -10436,14 +10436,17 @@ do
 
     local dockBtns = {}
     local function refreshDockState()
+        local icoC = _G.__SeigeDockIconColor or T.text
+        local strokeC = _G.__SeigeDockStrokeColor or _G.__SeigeDockColor or T.acc
         for name, rec in pairs(dockBtns) do
             local p = panels[name]
             local active = p and p.frame and p.frame.Visible
             tween(rec.btn, 0.12, {
                 BackgroundTransparency = active and 0.15 or 0.85,
             })
-            if rec.img then rec.img.ImageColor3 = active and T.bg or T.text end
-            rec.btn.TextColor3 = active and T.bg or T.text
+            if rec.img then rec.img.ImageColor3 = active and T.bg or icoC end
+            rec.btn.TextColor3 = active and T.bg or icoC
+            if rec.stroke then rec.stroke.Color = strokeC end
         end
     end
 
