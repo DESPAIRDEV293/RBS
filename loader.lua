@@ -11,7 +11,7 @@ local REPO   = "roblox-script-buddy"
 local BRANCH = "main"
 local FILE   = "admin.lua"
 local LIVE_URL = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/admin.lua"
-local PUBLISHED_URL = "https://seigelollua.lovable.app/api/public/admin.lua"
+local PUBLISHED_URL = "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/admin.lua"
 
 -- 1) Tear down any previous instance.
 if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
