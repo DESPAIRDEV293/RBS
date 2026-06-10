@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-reanim-gated"
+local ADMIN_BUILD = "2026-06-10-ui-rebuild-v1"
 _G.__SeigeReanimKey = "sg_rnm_8f3a91c2d7e64b05"
 
 if _G.__AdminLoaded then
@@ -9524,357 +9524,333 @@ end))
 end)()
 
 
-------------------------------------------------------- REDESIGN: TOP PILL + FLOATING PANELS
--- Replaces the legacy single-window layout. A slim top-center status pill
--- shows FPS/PING/brand + an icon button per tab. Clicking an icon toggles a
--- draggable floating popout for that tab (with an X to close). Multiple
--- popouts can be open at once. F2 hides everything.
+------------------------------------------------------- SHELL: TOP PILL + FLOATING PANELS (rebuild v1)
+-- Clean rewrite of the legacy redesign block. Same external API:
+--   Pill, brandBlock, fpsBox, pingBox, iconsRow, pillToggle, pillToggleImg,
+--   clockBox, panels[name] = {frame, page, btn, ibImg, defaultIcon,
+--   underline, refreshTab}, makePanel(name, entry), _G.__SeigePanels,
+--   _G.__SeigeAnimPanel(frame, show), _G.__SeigePillPos.
+-- The downstream code at ~10300+ (icon buttons, hamburger, panel bg,
+-- hover/click wiring) attaches to these globals unchanged.
 
-Win.Visible = false   -- retire the legacy chrome (kept around for compat)
+Win.Visible = false  -- retire legacy chrome (kept for page parenting)
 
--- Global UI translucency level used by the new chrome (Pill + floating panels).
--- 0 = fully opaque, 1 = fully transparent. Adjustable from Config tab.
-_G.__SeigeUITrans = _G.__SeigeUITrans or 0.35
-_G.__SeigeLayoutMode = _G.__SeigeLayoutMode or "Bar"  -- "Bar" or "Hamburger"
+_G.__SeigeUITrans    = _G.__SeigeUITrans    or 0.35
+_G.__SeigeLayoutMode = _G.__SeigeLayoutMode or "Bar"
 
--- ============= TOP PILL ===========================================
-
-;(function()
-local ok, err = pcall(function()
-Pill = inst("Frame", Root, {
-    Name = "TopPill",
-    AnchorPoint = Vector2.new(0.5, 0),
-    Position = UDim2.new(0.5, 0, 0, 14),
-    Size = UDim2.new(0, 0, 0, 44),
-    AutomaticSize = Enum.AutomaticSize.X,
-    BackgroundColor3 = T.bg,
-    BackgroundTransparency = math.max(0.05, (_G.__SeigeUITrans or 0.35) - 0.1),
-    BorderSizePixel = 0,
-    Active = true,
-    ZIndex = 100,
-})
-corner(Pill, 14); stroke(Pill, T.text, 1, 0.78)
-inst("UIPadding", Pill, {
-    PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
-    PaddingTop = UDim.new(0, 5),  PaddingBottom = UDim.new(0, 5),
-})
-inst("UIListLayout", Pill, {
-    FillDirection = Enum.FillDirection.Horizontal,
-    VerticalAlignment = Enum.VerticalAlignment.Center,
-    Padding = UDim.new(0, 6),
-    SortOrder = Enum.SortOrder.LayoutOrder,
-})
-
--- helper: thin vertical divider between sections of the bar
-local function pillDivider(order)
-    local d = inst("Frame", Pill, {
-        Size = UDim2.new(0, 1, 1, -10), BackgroundColor3 = T.text,
-        BackgroundTransparency = 0.82, BorderSizePixel = 0,
-        LayoutOrder = order, ZIndex = 101,
-    })
-    return d
-end
-
--- Brand pill (name + @user) — FIRST
-brandBlock = inst("Frame", Pill, {
-    Size = UDim2.new(0, 86, 1, -4), BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
-})
-inst("UIPadding", brandBlock, { PaddingLeft = UDim.new(0,6), PaddingRight = UDim.new(0,6) })
-inst("TextLabel", brandBlock, {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 4),
-    Size = UDim2.new(1, 0, 0, 14),
-    Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "SEIGE.LOL", ZIndex = 101,
-})
-inst("TextLabel", brandBlock, {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 0, 0, 20),
-    Size = UDim2.new(1, 0, 0, 12),
-    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.good,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "@" .. LP.Name, ZIndex = 101,
-})
-
-pillDivider(2)
-
--- FPS / PING stat pills
-local function statPill(order, color)
-    local f = inst("Frame", Pill, {
-        Size = UDim2.new(0, 80, 0, 26), BackgroundColor3 = color,
-        BackgroundTransparency = 0.86, BorderSizePixel = 0,
-        LayoutOrder = order, ZIndex = 101,
-    })
-    corner(f, 13); stroke(f, color, 1, 0.55)
-    return f
-end
-fpsBox = statPill(3, T.good)
-local fpsDot = inst("Frame", fpsBox, {
-    AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
-    Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = T.good, BorderSizePixel = 0, ZIndex = 102,
-})
-corner(fpsDot, 3)
-inst("TextLabel", fpsBox, {
-    Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(0, 28, 1, 0),
-    BackgroundTransparency = 1,
-    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.text,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "FPS", ZIndex = 102,
-})
-local fpsLbl = inst("TextLabel", fpsBox, {
-    Position = UDim2.new(0, 44, 0, 0), Size = UDim2.new(1, -50, 1, 0),
-    BackgroundTransparency = 1,
-    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.good,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "--", ZIndex = 102,
-})
-
-pingBox = statPill(4, T.warn)
-local pingDot = inst("Frame", pingBox, {
-    AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
-    Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = T.warn, BorderSizePixel = 0, ZIndex = 102,
-})
-corner(pingDot, 3)
-inst("TextLabel", pingBox, {
-    Position = UDim2.new(0, 18, 0, 0), Size = UDim2.new(0, 30, 1, 0),
-    BackgroundTransparency = 1,
-    Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.text,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "PING", ZIndex = 102,
-})
-local pingLbl = inst("TextLabel", pingBox, {
-    Position = UDim2.new(0, 46, 0, 0), Size = UDim2.new(1, -52, 1, 0),
-    BackgroundTransparency = 1,
-    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.warn,
-    TextXAlignment = Enum.TextXAlignment.Left, Text = "--", ZIndex = 102,
-})
-
-pillDivider(5)
-
--- Icon button row
-iconsRow = inst("Frame", Pill, {
-    Size = UDim2.new(0, 0, 1, -4),
-    AutomaticSize = Enum.AutomaticSize.X,
-    BackgroundTransparency = 1, LayoutOrder = 6, ZIndex = 101,
-})
-inst("UIListLayout", iconsRow, {
-    FillDirection = Enum.FillDirection.Horizontal,
-    VerticalAlignment = Enum.VerticalAlignment.Center,
-    Padding = UDim.new(0, 6),
-    SortOrder = Enum.SortOrder.LayoutOrder,
-})
-
--- [Iter 2] Make the Pill itself draggable; persist its position.
+-- ============================================================ TOP PILL
 do
-    local dragging, ds, sp
-    Pill.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1
-           or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; ds = i.Position; sp = Pill.AbsolutePosition
-        end
-    end)
-    UIS.InputChanged:Connect(function(i)
-        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
-           or i.UserInputType == Enum.UserInputType.Touch) then
-            local d = i.Position - ds
-            local nx, ny = sp.X + d.X, sp.Y + d.Y
-            Pill.AnchorPoint = Vector2.new(0, 0)
-            Pill.Position = UDim2.new(0, nx, 0, ny)
-            _G.__SeigePillPos = { x = nx, y = ny }
-        end
-    end)
-    UIS.InputEnded:Connect(function(i)
-        if dragging and (i.UserInputType == Enum.UserInputType.MouseButton1
-           or i.UserInputType == Enum.UserInputType.Touch) then
-            dragging = false
-            if saveCfg then pcall(saveCfg) end
-        end
-    end)
-end
+    local trans = math.max(0.05, (_G.__SeigeUITrans or 0.35) - 0.1)
 
-pillDivider(95)
+    Pill = inst("Frame", Root, {
+        Name = "TopPill",
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 14),
+        Size = UDim2.new(0, 0, 0, 44),
+        AutomaticSize = Enum.AutomaticSize.X,
+        BackgroundColor3 = T.bg,
+        BackgroundTransparency = trans,
+        BorderSizePixel = 0,
+        Active = true,
+        ZIndex = 100,
+    })
+    corner(Pill, 14); stroke(Pill, T.text, 1, 0.78)
+    inst("UIPadding", Pill, {
+        PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+        PaddingTop  = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5),
+    })
+    inst("UIListLayout", Pill, {
+        FillDirection      = Enum.FillDirection.Horizontal,
+        VerticalAlignment  = Enum.VerticalAlignment.Center,
+        Padding            = UDim.new(0, 6),
+        SortOrder          = Enum.SortOrder.LayoutOrder,
+    })
 
--- Hide/show toggle (compacts the bar to a hamburger) — before clock
-pillToggle = inst("TextButton", Pill, {
-    Size = UDim2.new(0, 32, 0, 32), BackgroundColor3 = T.text,
-    BackgroundTransparency = 0.88, BorderSizePixel = 0, AutoButtonColor = false,
-    Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
-    Text = "", LayoutOrder = 96, ZIndex = 102,
-})
-corner(pillToggle, 8); stroke(pillToggle, T.text, 1, 0.65)
-pillToggleImg = inst("ImageLabel", pillToggle, {
-    BackgroundTransparency = 1,
-    AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, 0),
-    Size = UDim2.new(0, 18, 0, 18),
-    Image = "rbxassetid://106620609396373",
-    ImageColor3 = T.text, ZIndex = 103,
-})
-
--- Clock pill at far right (time + date)
-clockBox = inst("Frame", Pill, {
-    Size = UDim2.new(0, 82, 1, -4), BackgroundTransparency = 1,
-    LayoutOrder = 99, ZIndex = 101,
-})
-inst("UIPadding", clockBox, { PaddingLeft = UDim.new(0,6), PaddingRight = UDim.new(0,6) })
-local pillClock = inst("TextLabel", clockBox, {
-    Position = UDim2.new(0, 0, 0, 3), Size = UDim2.new(1, 0, 0, 14),
-    BackgroundTransparency = 1,
-    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
-    TextXAlignment = Enum.TextXAlignment.Right,
-    Text = (os.date("%I:%M %p"):gsub("^0", "")), ZIndex = 101,
-})
-local pillDate = inst("TextLabel", clockBox, {
-    Position = UDim2.new(0, 0, 0, 19), Size = UDim2.new(1, 0, 0, 12),
-    BackgroundTransparency = 1,
-    Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
-    TextXAlignment = Enum.TextXAlignment.Right,
-    Text = os.date("%a %b %d"), ZIndex = 101,
-})
-
--- Pill drag
-do
-    local dragging, ds, sp
-    Pill.InputBegan:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-            dragging = true; ds = i.Position; sp = Pill.Position
-        end
-    end)
-    UIS.InputChanged:Connect(function(i)
-        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-            local d = i.Position - ds
-            Pill.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y)
-        end
-    end)
-    UIS.InputEnded:Connect(function(i)
-        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
-    end)
-end
-
--- Live status: FPS / PING / clock
--- FPS is averaged over a rolling ~0.5s window driven by RenderStepped (which
--- matches the player's actual render rate). A single-frame 1/dt reading is too
--- jittery and "glitches" the number — averaging produces the value Roblox itself
--- shows in its dev console.
-task.spawn(function()
-    local Stats = game:GetService("Stats")
-    local frames = 0
-    local windowStart = tick()
-    local lastFps = 0
-    local rsConn = RunService.RenderStepped:Connect(function() frames = frames + 1 end)
-    while Pill and Pill.Parent do
-        RunService.Heartbeat:Wait()
-        local now = tick()
-        local elapsed = now - windowStart
-        if elapsed >= 0.5 then
-            lastFps = math.floor(frames / elapsed + 0.5)
-            frames = 0
-            windowStart = now
-            fpsLbl.Text = tostring(lastFps)
-            fpsLbl.TextColor3 = lastFps > 45 and T.good or (lastFps > 25 and T.warn or T.bad)
-        end
-        local ok, ping = pcall(function()
-            return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
-        end)
-        if ok and ping then
-            pingLbl.Text = ping .. " ms"
-            pingLbl.TextColor3 = ping < 120 and T.warn or (ping < 280 and T.warn or T.bad)
-        end
-        pillClock.Text = (os.date("%I:%M %p"):gsub("^0", ""))
-        pillDate.Text  = os.date("%a %b %d")
+    local function divider(order)
+        inst("Frame", Pill, {
+            Size = UDim2.new(0, 1, 1, -10),
+            BackgroundColor3 = T.text, BackgroundTransparency = 0.82,
+            BorderSizePixel = 0, LayoutOrder = order, ZIndex = 101,
+        })
     end
-    pcall(function() rsConn:Disconnect() end)
-end)
-end)  -- close pcall
-if not ok then warn("[seige] PILL IIFE ERROR: "..tostring(err)) end
-print("[seige] Pill mounted parent=", Pill and Pill.Parent and Pill.Parent.Name or "FAILED", "pos=", Pill and tostring(Pill.AbsolutePosition) or "?", "size=", Pill and tostring(Pill.AbsoluteSize) or "?")
-end)()
 
--- ============= FLOATING PANELS ====================================
--- Move the tooltip out of the hidden Win and into Root for the new pill.
+    -- Brand block: SEIGE.LOL + @user
+    brandBlock = inst("Frame", Pill, {
+        Size = UDim2.new(0, 92, 1, -4),
+        BackgroundTransparency = 1, LayoutOrder = 1, ZIndex = 101,
+    })
+    inst("UIPadding", brandBlock, {
+        PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6),
+    })
+    inst("TextLabel", brandBlock, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 4), Size = UDim2.new(1, 0, 0, 14),
+        Font = Enum.Font.GothamBlack, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "SEIGE.LOL", ZIndex = 101,
+    })
+    inst("TextLabel", brandBlock, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 20), Size = UDim2.new(1, 0, 0, 12),
+        Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.good,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "@" .. LP.Name, ZIndex = 101,
+    })
+
+    divider(2)
+
+    -- Stat pill factory (FPS / PING)
+    local function statPill(order, color, labelText, valueW)
+        local f = inst("Frame", Pill, {
+            Size = UDim2.new(0, 80, 0, 26),
+            BackgroundColor3 = color, BackgroundTransparency = 0.86,
+            BorderSizePixel = 0, LayoutOrder = order, ZIndex = 101,
+        })
+        corner(f, 13); stroke(f, color, 1, 0.55)
+        local dot = inst("Frame", f, {
+            AnchorPoint = Vector2.new(0, 0.5),
+            Position = UDim2.new(0, 8, 0.5, 0),
+            Size = UDim2.new(0, 6, 0, 6),
+            BackgroundColor3 = color, BorderSizePixel = 0, ZIndex = 102,
+        })
+        corner(dot, 3)
+        inst("TextLabel", f, {
+            Position = UDim2.new(0, 18, 0, 0),
+            Size = UDim2.new(0, 30, 1, 0),
+            BackgroundTransparency = 1,
+            Font = Enum.Font.GothamSemibold, TextSize = 11, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = labelText, ZIndex = 102,
+        })
+        local val = inst("TextLabel", f, {
+            Position = UDim2.new(0, 18 + (valueW or 28), 0, 0),
+            Size = UDim2.new(1, -(24 + (valueW or 28)), 1, 0),
+            BackgroundTransparency = 1,
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = color,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "--", ZIndex = 102,
+        })
+        return f, val
+    end
+
+    local fpsLbl, pingLbl
+    fpsBox,  fpsLbl  = statPill(3, T.good, "FPS",  26)
+    pingBox, pingLbl = statPill(4, T.warn, "PING", 30)
+
+    divider(5)
+
+    -- Icon button row (filled by downstream code at ~10340)
+    iconsRow = inst("Frame", Pill, {
+        Size = UDim2.new(0, 0, 1, -4),
+        AutomaticSize = Enum.AutomaticSize.X,
+        BackgroundTransparency = 1, LayoutOrder = 6, ZIndex = 101,
+    })
+    inst("UIListLayout", iconsRow, {
+        FillDirection     = Enum.FillDirection.Horizontal,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+        Padding           = UDim.new(0, 6),
+        SortOrder         = Enum.SortOrder.LayoutOrder,
+    })
+
+    divider(95)
+
+    -- Hide/show toggle (hamburger)
+    pillToggle = inst("TextButton", Pill, {
+        Size = UDim2.new(0, 32, 0, 32),
+        BackgroundColor3 = T.text, BackgroundTransparency = 0.88,
+        BorderSizePixel = 0, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
+        Text = "", LayoutOrder = 96, ZIndex = 102,
+    })
+    corner(pillToggle, 8); stroke(pillToggle, T.text, 1, 0.65)
+    pillToggleImg = inst("ImageLabel", pillToggle, {
+        BackgroundTransparency = 1,
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 18, 0, 18),
+        Image = "rbxassetid://106620609396373",
+        ImageColor3 = T.text, ZIndex = 103,
+    })
+
+    -- Clock block (time + date)
+    clockBox = inst("Frame", Pill, {
+        Size = UDim2.new(0, 82, 1, -4),
+        BackgroundTransparency = 1, LayoutOrder = 99, ZIndex = 101,
+    })
+    inst("UIPadding", clockBox, {
+        PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6),
+    })
+    local clockTime = inst("TextLabel", clockBox, {
+        Position = UDim2.new(0, 0, 0, 3), Size = UDim2.new(1, 0, 0, 14),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Text = (os.date("%I:%M %p"):gsub("^0", "")), ZIndex = 101,
+    })
+    local clockDate = inst("TextLabel", clockBox, {
+        Position = UDim2.new(0, 0, 0, 19), Size = UDim2.new(1, 0, 0, 12),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.sub,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        Text = os.date("%a %b %d"), ZIndex = 101,
+    })
+
+    -- Single drag handler for the pill (was duplicated in legacy code)
+    do
+        local dragging, ds, sp
+        Pill.InputBegan:Connect(function(i)
+            if i.UserInputType == Enum.UserInputType.MouseButton1
+            or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; ds = i.Position; sp = Pill.AbsolutePosition
+            end
+        end)
+        UIS.InputChanged:Connect(function(i)
+            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
+            or i.UserInputType == Enum.UserInputType.Touch) then
+                local d = i.Position - ds
+                local nx, ny = sp.X + d.X, sp.Y + d.Y
+                Pill.AnchorPoint = Vector2.new(0, 0)
+                Pill.Position    = UDim2.new(0, nx, 0, ny)
+                _G.__SeigePillPos = { x = nx, y = ny }
+            end
+        end)
+        UIS.InputEnded:Connect(function(i)
+            if dragging and (i.UserInputType == Enum.UserInputType.MouseButton1
+            or i.UserInputType == Enum.UserInputType.Touch) then
+                dragging = false
+                if saveCfg then pcall(saveCfg) end
+            end
+        end)
+    end
+
+    -- Live FPS / PING / clock updater
+    task.spawn(function()
+        local Stats  = game:GetService("Stats")
+        local frames = 0
+        local windowStart = tick()
+        local rsConn = RunService.RenderStepped:Connect(function()
+            frames = frames + 1
+        end)
+        while Pill and Pill.Parent do
+            RunService.Heartbeat:Wait()
+            local now = tick()
+            local elapsed = now - windowStart
+            if elapsed >= 0.5 then
+                local fps = math.floor(frames / elapsed + 0.5)
+                frames = 0; windowStart = now
+                fpsLbl.Text       = tostring(fps)
+                fpsLbl.TextColor3 = fps > 45 and T.good or (fps > 25 and T.warn or T.bad)
+            end
+            local ok, ping = pcall(function()
+                return math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+            end)
+            if ok and ping then
+                pingLbl.Text       = ping .. " ms"
+                pingLbl.TextColor3 = ping < 120 and T.good or (ping < 280 and T.warn or T.bad)
+            end
+            clockTime.Text = (os.date("%I:%M %p"):gsub("^0", ""))
+            clockDate.Text = os.date("%a %b %d")
+        end
+        pcall(function() rsConn:Disconnect() end)
+    end)
+
+    print("[seige] Pill mounted at", tostring(Pill.AbsolutePosition))
+end
+
+-- ======================================================= FLOATING PANELS
+-- Move the tooltip out of the hidden Win into Root for the new chrome.
 pcall(function() Tip.Parent = Root; Tip.ZIndex = 220 end)
 
-local panels = {}
+local panels   = {}
 _G.__SeigePanels = panels
 local panelSlot = 0
 
--- Animated visibility transition for any panel frame.
--- Respects _G.__SeigePageAnim and _G.__SeigePageAnimSpeed set in Themes tab.
+-- Animated show/hide for a panel frame.
+-- Respects _G.__SeigePageAnim / _G.__SeigePageAnimSpeed from Themes tab.
 _G.__SeigeAnimPanel = function(frame, show)
     if not frame then return end
     local style = _G.__SeigePageAnim or "Fade"
     local dur   = tonumber(_G.__SeigePageAnimSpeed) or 0.24
-    if style == "None" then frame.Visible = show; return end
-    -- Capture the "rest" geometry once; we tween from/to it on each toggle.
+    local rest  = (_G.__SeigeUITrans or 0.35)
+
+    if style == "None" then
+        frame.Visible = show
+        frame.BackgroundTransparency = rest
+        return
+    end
+
+    -- Capture rest geometry once for tween anchoring
     if not frame:GetAttribute("__restPos") then
         frame:SetAttribute("__restPos",  true)
-        frame:SetAttribute("__restPosX", frame.Position.X.Offset)
-        frame:SetAttribute("__restPosY", frame.Position.Y.Offset)
+        frame:SetAttribute("__restPosX",  frame.Position.X.Offset)
+        frame:SetAttribute("__restPosY",  frame.Position.Y.Offset)
         frame:SetAttribute("__restPosXS", frame.Position.X.Scale)
         frame:SetAttribute("__restPosYS", frame.Position.Y.Scale)
     end
-    local px, py = frame:GetAttribute("__restPosX"), frame:GetAttribute("__restPosY")
+    local px,  py  = frame:GetAttribute("__restPosX"),  frame:GetAttribute("__restPosY")
     local pxs, pys = frame:GetAttribute("__restPosXS"), frame:GetAttribute("__restPosYS")
-    local restPos = UDim2.new(pxs, px, pys, py)
+    local restPos  = UDim2.new(pxs, px, pys, py)
 
-    local scaleObj = frame:FindFirstChildOfClass("UIScale")
-    if not scaleObj then
-        scaleObj = Instance.new("UIScale"); scaleObj.Scale = 1; scaleObj.Parent = frame
-    end
+    local scale = frame:FindFirstChildOfClass("UIScale")
+        or inst("UIScale", frame, { Scale = 1 })
 
-    local function tweenInto(props, easing, dir, time)
-        TweenService:Create(frame, TweenInfo.new(time or dur, easing or Enum.EasingStyle.Quad, dir or Enum.EasingDirection.Out), props):Play()
+    local function go(props, easing, dir, time)
+        TweenService:Create(frame, TweenInfo.new(
+            time or dur,
+            easing or Enum.EasingStyle.Quad,
+            dir    or Enum.EasingDirection.Out
+        ), props):Play()
     end
 
     if show then
         frame.Visible = true
         frame.BackgroundTransparency = 1
         frame.Position = restPos
-        scaleObj.Scale = 1
-        if style == "Fade" then
-            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
-        elseif style == "Scale" then
-            scaleObj.Scale = 0.85
-            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
-            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+        scale.Scale = 1
+        if style == "Scale" then
+            scale.Scale = 0.85
+            TweenService:Create(scale, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         elseif style == "Slide-down" then
             frame.Position = UDim2.new(pxs, px, pys, py - 40)
-            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
+            go({ Position = restPos, BackgroundTransparency = rest })
+            return
         elseif style == "Slide-up" then
             frame.Position = UDim2.new(pxs, px, pys, py + 40)
-            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
+            go({ Position = restPos, BackgroundTransparency = rest })
+            return
         elseif style == "Slide-right" then
             frame.Position = UDim2.new(pxs, px - 60, pys, py)
-            tweenInto({ Position = restPos, BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
+            go({ Position = restPos, BackgroundTransparency = rest })
+            return
         elseif style == "Flip" then
-            scaleObj.Scale = 0.01
-            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
-            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+            scale.Scale = 0.01
+            TweenService:Create(scale, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         elseif style == "Bounce" then
-            scaleObj.Scale = 0.6
-            tweenInto({ BackgroundTransparency = (_G.__SeigeUITrans or 0.35) })
-            TweenService:Create(scaleObj, TweenInfo.new(dur * 1.3, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1 }):Play()
-        else
-            frame.BackgroundTransparency = (_G.__SeigeUITrans or 0.35)
+            scale.Scale = 0.6
+            TweenService:Create(scale, TweenInfo.new(dur * 1.3, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), { Scale = 1 }):Play()
         end
+        go({ BackgroundTransparency = rest })
     else
-        if style == "Fade" then
-            tweenInto({ BackgroundTransparency = 1 })
-        elseif style == "Scale" then
-            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.85 }):Play()
-            tweenInto({ BackgroundTransparency = 1 })
+        if style == "Scale" then
+            TweenService:Create(scale, TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.85 }):Play()
         elseif style == "Slide-down" then
-            tweenInto({ Position = UDim2.new(pxs, px, pys, py + 40), BackgroundTransparency = 1 })
+            go({ Position = UDim2.new(pxs, px, pys, py + 40), BackgroundTransparency = 1 })
         elseif style == "Slide-up" then
-            tweenInto({ Position = UDim2.new(pxs, px, pys, py - 40), BackgroundTransparency = 1 })
+            go({ Position = UDim2.new(pxs, px, pys, py - 40), BackgroundTransparency = 1 })
         elseif style == "Slide-right" then
-            tweenInto({ Position = UDim2.new(pxs, px + 60, pys, py), BackgroundTransparency = 1 })
+            go({ Position = UDim2.new(pxs, px + 60, pys, py), BackgroundTransparency = 1 })
         elseif style == "Flip" then
-            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Scale = 0.01 }):Play()
-            tweenInto({ BackgroundTransparency = 1 })
+            TweenService:Create(scale, TweenInfo.new(dur, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Scale = 0.01 }):Play()
         elseif style == "Bounce" then
-            TweenService:Create(scaleObj, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0.6 }):Play()
-            tweenInto({ BackgroundTransparency = 1 })
+            TweenService:Create(scale, TweenInfo.new(dur, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0.6 }):Play()
         end
+        go({ BackgroundTransparency = 1 })
         task.delay(dur + 0.02, function()
             if frame and frame.Parent then
                 frame.Visible = false
                 frame.Position = restPos
-                if scaleObj then scaleObj.Scale = 1 end
-                frame.BackgroundTransparency = (_G.__SeigeUITrans or 0.35)
+                if scale then scale.Scale = 1 end
+                frame.BackgroundTransparency = rest
             end
         end)
     end
@@ -9883,105 +9859,125 @@ end
 local function makePanel(name, entry)
     local page = entry.page
     panelSlot = panelSlot + 1
-    local slotX = (panelSlot - 1) % 3
-    local slotY = math.floor((panelSlot - 1) / 3)
+    local col = (panelSlot - 1) % 3
+    local row = math.floor((panelSlot - 1) / 3)
+
     local frame = inst("Frame", Root, {
         Name = "Panel_" .. name,
-        Position = UDim2.new(1, -350 - slotX * 14, 0, 80 + slotY * 32),
-        Size = UDim2.new(0, 320, 0, 380),
-        BackgroundColor3 = T.bg, BackgroundTransparency = (_G.__SeigeUITrans or 0.35), BorderSizePixel = 0,
+        Position = UDim2.new(1, -350 - col * 14, 0, 80 + row * 32),
+        Size     = UDim2.new(0, 320, 0, 380),
+        BackgroundColor3 = T.bg,
+        BackgroundTransparency = (_G.__SeigeUITrans or 0.35),
+        BorderSizePixel = 0,
         Visible = false, Active = true, ZIndex = 110,
     })
     corner(frame, 12); stroke(frame, T.line, 1, 0.4)
     frame.ClipsDescendants = true
+
+    -- Glass gradient backdrop
     inst("UIGradient", frame, {
         Rotation = 120,
         Color = ColorSequence.new(T.bg2, T.bg),
         Transparency = NumberSequence.new(0.05),
     })
-    -- User-supplied panel background image (set via Themes tab)
+
+    -- User-supplied panel background (Themes tab writes here)
     local bgImg = inst("ImageLabel", frame, {
-        Name = "__SeigeBgImg",
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 1, 0),
-        Position = UDim2.new(0, 0, 0, 0),
+        Name = "__SeigeBgImg", BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0),
         ScaleType = Enum.ScaleType.Crop,
-        Image = "",
-        ImageTransparency = 1,
-        ZIndex = 110,
+        Image = "", ImageTransparency = 1, ZIndex = 110,
     })
-    -- Match the panel's rounded shape so uploaded images don't square off
-    -- the corners (ClipsDescendants alone occasionally misses subpixel edges).
     corner(bgImg, 12)
-    -- soft glow
+
+    -- Soft accent glow behind the panel
     inst("ImageLabel", frame, {
         BackgroundTransparency = 1,
         Image = "rbxasset://textures/ui/Controls/DropShadow.png",
         ImageColor3 = T.acc, ImageTransparency = 0.88,
-        ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(12,12,244,244),
+        ScaleType = Enum.ScaleType.Slice, SliceCenter = Rect.new(12, 12, 244, 244),
         Size = UDim2.new(1, 28, 1, 28), Position = UDim2.new(0, -14, 0, -14),
         ZIndex = 109,
     })
 
-    -- Header
+    -- Header (drag handle + title + close)
     local hdr = inst("Frame", frame, {
-        Size = UDim2.new(1, 0, 0, 28), BackgroundTransparency = 1, Active = true, ZIndex = 112,
+        Size = UDim2.new(1, 0, 0, 28),
+        BackgroundTransparency = 1, Active = true, ZIndex = 112,
     })
     inst("TextLabel", hdr, {
-        BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 0),
-        Size = UDim2.new(1, -44, 1, 0),
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 12, 0, 0), Size = UDim2.new(1, -44, 1, 0),
         Font = Enum.Font.GothamBold, TextSize = 11, TextColor3 = T.text,
         TextXAlignment = Enum.TextXAlignment.Left,
         Text = "SEIGE.LOL · " .. string.upper(entry.title or name),
         ZIndex = 113,
     })
     local xBtn = inst("TextButton", hdr, {
-        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0),
-        Size = UDim2.new(0, 20, 0, 20),
-        BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2, BorderSizePixel = 0,
-        AutoButtonColor = false,
-        Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text, Text = "×",
-        ZIndex = 114,
+        AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -8, 0.5, 0), Size = UDim2.new(0, 20, 0, 20),
+        BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2,
+        BorderSizePixel = 0, AutoButtonColor = false,
+        Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+        Text = "×", ZIndex = 114,
     })
     corner(xBtn, 6); stroke(xBtn, T.line, 1, 0.4)
-    xBtn.MouseEnter:Connect(function() tween(xBtn, 0.12, { BackgroundColor3 = T.bad, BackgroundTransparency = 0.1 }) end)
-    xBtn.MouseLeave:Connect(function() tween(xBtn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2 }) end)
+    xBtn.MouseEnter:Connect(function()
+        tween(xBtn, 0.12, { BackgroundColor3 = T.bad, BackgroundTransparency = 0.1 })
+    end)
+    xBtn.MouseLeave:Connect(function()
+        tween(xBtn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2 })
+    end)
+
+    -- Divider under header
     inst("Frame", frame, {
         Position = UDim2.new(0, 6, 0, 28), Size = UDim2.new(1, -12, 0, 1),
-        BackgroundColor3 = T.line, BackgroundTransparency = 0.6, BorderSizePixel = 0,
-        ZIndex = 112,
+        BackgroundColor3 = T.line, BackgroundTransparency = 0.6,
+        BorderSizePixel = 0, ZIndex = 112,
     })
 
-    -- Re-host the existing tab page inside this panel
-    page.Parent = frame
+    -- Mount the original page inside this panel
+    page.Parent   = frame
     page.Position = UDim2.new(0, 0, 0, 32)
-    page.Size = UDim2.new(1, 0, 1, -36)
-    page.Visible = true
+    page.Size     = UDim2.new(1, 0, 1, -36)
+    page.Visible  = true
 
     xBtn.MouseButton1Click:Connect(function()
-        if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(frame, false) else frame.Visible = false end
+        if _G.__SeigeAnimPanel then
+            _G.__SeigeAnimPanel(frame, false)
+        else
+            frame.Visible = false
+        end
         local btn = panels[name] and panels[name].btn
         if btn then
             tween(btn, 0.12, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.25 })
         end
     end)
 
-    -- Per-panel drag
+    -- Per-panel drag from header
     do
         local dragging, ds, sp
         hdr.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+            if i.UserInputType == Enum.UserInputType.MouseButton1
+            or i.UserInputType == Enum.UserInputType.Touch then
                 dragging = true; ds = i.Position; sp = frame.Position
             end
         end)
         UIS.InputChanged:Connect(function(i)
-            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+            if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
+            or i.UserInputType == Enum.UserInputType.Touch) then
                 local d = i.Position - ds
-                frame.Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y)
+                frame.Position = UDim2.new(
+                    sp.X.Scale, sp.X.Offset + d.X,
+                    sp.Y.Scale, sp.Y.Offset + d.Y
+                )
             end
         end)
         UIS.InputEnded:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+            if i.UserInputType == Enum.UserInputType.MouseButton1
+            or i.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+            end
         end)
     end
 
@@ -9989,6 +9985,7 @@ local function makePanel(name, entry)
     if _G.__SeigeApplyPanelBg then pcall(_G.__SeigeApplyPanelBg) end
     return frame
 end
+
 
 -------------------------------------------------- DETECTOR (other scripts)
 ;(function()
