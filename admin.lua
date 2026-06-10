@@ -7879,15 +7879,42 @@ button(pgShaders, "Clear tint (reset to white)", function()
     notify("Tint cleared", "good")
 end)
 
+-- Helpers so the post-FX actually render: DOF needs ShadowMap/Future tech,
+-- SunRays needs a Sky in Lighting (otherwise the effect has nothing to scatter).
+local function ensureModernLighting()
+    pcall(function()
+        if Lighting.Technology == Enum.Technology.Legacy or Lighting.Technology == Enum.Technology.Compatibility then
+            Lighting.Technology = Enum.Technology.ShadowMap
+        end
+    end)
+end
+local function ensureSky()
+    pcall(function()
+        local sky = Lighting:FindFirstChildOfClass("Sky")
+        if not sky then
+            sky = Instance.new("Sky")
+            sky.Name = "SeigeSky"
+            sky.Parent = Lighting
+        end
+    end)
+end
+
 section(pgShaders, "Depth of field")
-toggle(pgShaders, "Enable DOF", false, function(v) fxDOF.Enabled = v end)
+toggle(pgShaders, "Enable DOF", false, function(v)
+    if v then ensureModernLighting() end
+    fxDOF.Enabled = v
+end)
 slider(pgShaders, "Focus distance",  0, 200, 25, function(v) fxDOF.FocusDistance = v end)
 slider(pgShaders, "In focus radius", 0, 100, 8,  function(v) fxDOF.InFocusRadius = v end)
 slider(pgShaders, "Near intensity",  0, 1,   0.25, function(v) fxDOF.NearIntensity = v end)
 slider(pgShaders, "Far intensity",   0, 1,   0.75, function(v) fxDOF.FarIntensity = v end)
 
 section(pgShaders, "Sun rays")
-toggle(pgShaders, "Enable sun rays", false, function(v) fxSun.Enabled = v end)
+toggle(pgShaders, "Enable sun rays", false, function(v)
+    if v then ensureSky() end
+    fxSun.Enabled = v
+    if v and fxSun.Intensity <= 0 then fxSun.Intensity = 0.25 end
+end)
 slider(pgShaders, "Ray intensity", 0, 1, 0.25, function(v) fxSun.Intensity = v end)
 slider(pgShaders, "Ray spread",    0, 1, 1,    function(v) fxSun.Spread = v end)
 
