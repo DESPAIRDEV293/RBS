@@ -7568,6 +7568,14 @@ local PRESETS = {
         sub=Color3.fromRGB(90,96,110), dim=Color3.fromRGB(140,144,156),
         acc=Color3.fromRGB(60,90,200), acc2=Color3.fromRGB(40,70,180),
     },
+    ["ROT Neon"] = {
+        -- Inspired by the ROT reanim layout: pitch-black panels with a
+        -- vivid neon-purple accent and soft violet glow on borders.
+        bg=Color3.fromRGB(8,6,14), bg2=Color3.fromRGB(16,10,26), bg3=Color3.fromRGB(28,18,46),
+        line=Color3.fromRGB(120,60,220), text=Color3.fromRGB(238,228,255),
+        sub=Color3.fromRGB(178,150,220), dim=Color3.fromRGB(110,80,160),
+        acc=Color3.fromRGB(170,90,255), acc2=Color3.fromRGB(120,50,220),
+    },
 }
 local function applyPreset(name)
     local p = PRESETS[name]; if not p then return end
