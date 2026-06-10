@@ -2549,6 +2549,19 @@ local floatOn = _G.__SeigeFloatOn == true
 local scriptersOn = _G.__SeigeScriptersOn == true        -- show tags for nearby seige.lol users
 _G.__SeigeFloatOn     = floatOn
 _G.__SeigeScriptersOn = scriptersOn
+-- Setters so the Config loader can push restored values into these locals
+-- after the script has finished bootstrapping.
+_G.__SeigeSetFloatOn = function(v)
+    floatOn = v == true
+    _G.__SeigeFloatOn = floatOn
+    if _G.__SeigePresenceRefresh then pcall(_G.__SeigePresenceRefresh) end
+end
+_G.__SeigeSetScriptersOn = function(v)
+    scriptersOn = v == true
+    _G.__SeigeScriptersOn = scriptersOn
+    if scriptersOn and _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
+    if _G.__SeigePresenceRefresh then pcall(_G.__SeigePresenceRefresh) end
+end
 _G.__SeigeScripters = _G.__SeigeScripters or {} -- [userId] = true
 local function isScripter(p)
     if not p then return false end
