@@ -9637,6 +9637,9 @@ local function makePanel(name, entry)
         ImageTransparency = 1,
         ZIndex = 110,
     })
+    -- Match the panel's rounded shape so uploaded images don't square off
+    -- the corners (ClipsDescendants alone occasionally misses subpixel edges).
+    corner(bgImg, 12)
     -- soft glow
     inst("ImageLabel", frame, {
         BackgroundTransparency = 1,
