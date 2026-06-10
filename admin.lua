@@ -6399,8 +6399,6 @@ local HELP_CMDS = {
     { "Character", {
         { "!reset / !r / !respawn", "Kill your character to respawn" },
         { "!jump", "Force a jump" },
-        
-        { "!sit", "Force sit" },
         { "!size <n>", "Scale your character (e.g. !size 2)" },
         { "!invis", "Hide your character locally (toggle / keybind via popout)" },
         { "!ghost", "Semi-transparent + noclip" },
@@ -6444,7 +6442,7 @@ local HELP_CMDS = {
         { "!bang <player>", "Front bang (face them)" },
         { "!facebang <player>", "Bang their face" },
         { "!backbang <player>", "Bang from behind" },
-        { "!unbang", "Stop" },
+        
         { "!cir <player> / !uncir", "Orbit a player — adjust distance/speed in the panel" },
     }},
     { "Position", {
@@ -6525,8 +6523,6 @@ button(pgCmds, "!save  —  save position",                    function() _runCm
 button(pgCmds, "!load  —  load saved position",              function() _runCmd("!load") end)
 button(pgCmds, "!info",                                      function() _runCmd("!info") end)
 button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end end)
-button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
-button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
 
 -- ===== Performance & Optimize — unified panel =====
 -- One place for FPS booster, Ping booster, and Optimize.
@@ -6934,14 +6930,15 @@ button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
 button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "Stalk  —  pick a player to listen (!stalk)", function() _runCmd("!stalk") end)
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
-button(pgCmds, "Headsit  —  sit on / eject (!headsit)", function()
-    _openPanel("headsit", "Headsit  ·  sit on a player's head", 230, function(body)
+button(pgCmds, "!sit settings  —  sit / headsit / shoulder / carry / piggy", function()
+    _openPanel("sit", "Sit  ·  force sit / headsit / shoulder / carry / piggy", 360, function(body)
         local tbox = inst("TextBox", body, {
             Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
             TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
-            PlaceholderText = "  Player name…", Text = "", ClearTextOnFocus = false,
+            PlaceholderText = "  Player name (for actions below)…", Text = "", ClearTextOnFocus = false,
         })
-        toggle(body, "Sitting on head", _G.__HeadLock ~= nil, function(on)
+        button(body, "Force sit (!sit)", function() _runCmd("!sit") end)
+        toggle(body, "Sitting on head (!headsit)", _G.__HeadLock ~= nil, function(on)
             if on then
                 local name = tbox.Text
                 if not name or name == "" then notify("Type a player name", "warn"); return end
@@ -6951,12 +6948,26 @@ button(pgCmds, "Headsit  —  sit on / eject (!headsit)", function()
             end
         end)
         button(body, "Eject rider / stand up (!unheadsit)", function() _runCmd("!unheadsit") end)
+        button(body, "Shoulder sit (!shouldersit)", function()
+            local name = tbox.Text
+            if not name or name == "" then notify("Type a player name", "warn"); return end
+            _runCmd("!shouldersit " .. name)
+        end)
+        button(body, "Carry (!carry)", function()
+            local name = tbox.Text
+            if not name or name == "" then notify("Type a player name", "warn"); return end
+            _runCmd("!carry " .. name)
+        end)
+        button(body, "Piggyback (!piggyback)", function()
+            local name = tbox.Text
+            if not name or name == "" then notify("Type a player name", "warn"); return end
+            _runCmd("!piggyback " .. name)
+        end)
+        button(body, "Stop carry / piggy / shoulder (!uncarry / !unpiggy / !unshoulder)", function()
+            _runCmd("!uncarry"); _runCmd("!unpiggy"); _runCmd("!unshoulder")
+        end)
     end)
 end)
-button(pgCmds, "!shouldersit <player>",  function() _openCmd("!shouldersit ") end)
-button(pgCmds, "!carry <player>",        function() _openCmd("!carry ") end)
-button(pgCmds, "!piggyback <player>",    function() _openCmd("!piggyback ") end)
-button(pgCmds, "!uncarry / !unpiggy / !unshoulder", function() _runCmd("!uncarry"); _runCmd("!unpiggy"); _runCmd("!unshoulder") end)
 button(pgCmds, "Timestop  —  freeze everyone (admin/owner)", function()
     if not (_G.__SeigeCan and _G.__SeigeCan("freeze")) then notify("Admin/owner only", "bad"); return end
     if _G.__SeigeTimestop and _G.__SeigeTimestop.on then _runCmd("!untimestop") else _runCmd("!timestop") end
