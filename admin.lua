@@ -8546,6 +8546,88 @@ _G.__SeigeRefreshDockColorVis = function(mode)
 end
 _G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
 
+-- Dock icon color
+local dockIconPresets = {
+    { name = "Default",  color = nil },
+    { name = "White",    color = Color3.fromRGB(245, 245, 250) },
+    { name = "Black",    color = Color3.fromRGB( 18,  18,  22) },
+    { name = "Cyan",     color = Color3.fromRGB( 30, 215, 230) },
+    { name = "Magenta",  color = Color3.fromRGB(225,  70, 200) },
+    { name = "Purple",   color = Color3.fromRGB(150,  90, 255) },
+    { name = "Green",    color = Color3.fromRGB( 70, 230, 140) },
+    { name = "Orange",   color = Color3.fromRGB(255, 150,  60) },
+    { name = "Red",      color = Color3.fromRGB(235,  70,  90) },
+    { name = "Yellow",   color = Color3.fromRGB(250, 220,  90) },
+}
+local dockIconNames = {}
+for i, p in ipairs(dockIconPresets) do dockIconNames[i] = p.name end
+local _dockIconLbl = label(pgConfig, "Dock icon color")
+local dockIconCtl = dropdown(pgConfig, "Icon color", dockIconNames, function(v)
+    for _, p in ipairs(dockIconPresets) do
+        if p.name == v then
+            _G.__SeigeDockIconColorName = v
+            if _G.__SeigeApplyDockIconColor then _G.__SeigeApplyDockIconColor(p.color) end
+            break
+        end
+    end
+end)
+if dockIconCtl and dockIconCtl.set then dockIconCtl.set(_G.__SeigeDockIconColorName or "Default") end
+
+local _dockIconHexLbl = label(pgConfig, "Custom icon color (hex, e.g. #00E5FF) — leave blank for preset")
+local dockIconHex = textbox(pgConfig, "#RRGGBB", function(v)
+    v = tostring(v or ""):gsub("%s",""):gsub("^#","")
+    _G.__SeigeDockIconHex = v
+    if #v == 6 then
+        local r = tonumber(v:sub(1,2),16); local g = tonumber(v:sub(3,4),16); local b = tonumber(v:sub(5,6),16)
+        if r and g and b and _G.__SeigeApplyDockIconColor then
+            _G.__SeigeApplyDockIconColor(Color3.fromRGB(r,g,b))
+            _G.__SeigeDockIconColorName = "Custom"
+        end
+    end
+end)
+if dockIconHex and dockIconHex.set and _G.__SeigeDockIconHex then dockIconHex.set(_G.__SeigeDockIconHex) end
+
+-- Dock outline (stroke) color
+local _dockStrokeLbl = label(pgConfig, "Dock outline color")
+local dockStrokeCtl = dropdown(pgConfig, "Outline color", dockIconNames, function(v)
+    for _, p in ipairs(dockIconPresets) do
+        if p.name == v then
+            _G.__SeigeDockStrokeColorName = v
+            if _G.__SeigeApplyDockStrokeColor then _G.__SeigeApplyDockStrokeColor(p.color) end
+            if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
+            break
+        end
+    end
+end)
+if dockStrokeCtl and dockStrokeCtl.set then dockStrokeCtl.set(_G.__SeigeDockStrokeColorName or "Default") end
+
+local _dockStrokeHexLbl = label(pgConfig, "Custom outline color (hex) — leave blank for preset")
+local dockStrokeHex = textbox(pgConfig, "#RRGGBB", function(v)
+    v = tostring(v or ""):gsub("%s",""):gsub("^#","")
+    _G.__SeigeDockStrokeHex = v
+    if #v == 6 then
+        local r = tonumber(v:sub(1,2),16); local g = tonumber(v:sub(3,4),16); local b = tonumber(v:sub(5,6),16)
+        if r and g and b and _G.__SeigeApplyDockStrokeColor then
+            _G.__SeigeApplyDockStrokeColor(Color3.fromRGB(r,g,b))
+            _G.__SeigeDockStrokeColorName = "Custom"
+            if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
+        end
+    end
+end)
+if dockStrokeHex and dockStrokeHex.set and _G.__SeigeDockStrokeHex then dockStrokeHex.set(_G.__SeigeDockStrokeHex) end
+
+-- Extend visibility refresh to include icon/outline controls
+local _origRefreshDockColorVis = _G.__SeigeRefreshDockColorVis
+_G.__SeigeRefreshDockColorVis = function(mode)
+    if _origRefreshDockColorVis then _origRefreshDockColorVis(mode) end
+    local show = (mode == "Dock")
+    for _, ctl in ipairs({ _dockIconLbl, dockIconCtl, _dockIconHexLbl, dockIconHex, _dockStrokeLbl, dockStrokeCtl, _dockStrokeHexLbl, dockStrokeHex }) do
+        local f = ctl and (ctl.frame or ctl) or nil
+        if f and f.Visible ~= nil then f.Visible = show end
+    end
+end
+_G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
+
 label(pgConfig, "Panel translucency — higher = more see-through. Pick a target panel to tweak just that one.")
 local TRANS_TARGETS = { "All Panels", "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Misc", "Themes" }
 local _transTarget = "All Panels"
