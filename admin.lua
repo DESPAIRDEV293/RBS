@@ -7911,7 +7911,9 @@ task.spawn(function()
 end)
 
 ------------------------------------------------------- SHADERS TAB
-do -- scoped to avoid bumping the top-level local limit
+;(function() -- IIFE scope: gives Shaders tab its own 200-local budget.
+              -- A `do ... end` block does NOT help — Lua counts all nested
+              -- block locals against the parent function. A function does.
 -- Real Roblox post-processing effects parented to Lighting
 local Lighting = game:GetService("Lighting")
 local function getOrMake(class, name)
