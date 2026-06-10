@@ -1436,6 +1436,7 @@ local function slider(parent, text, lo, hi, default, fn)
     corner(knob, 6)
 
     local dragging = false
+    local current = default
     local function setFrac(frac)
         frac = math.clamp(frac, 0, 1)
         fill.Size = UDim2.new(frac, 0, 1, 0)
@@ -1460,7 +1461,6 @@ local function slider(parent, text, lo, hi, default, fn)
     UIS.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
     end)
-    local current = default
     return {
         set = function(v) current = v; setFrac((v - lo) / (hi - lo)) end,
         get = function() return current end,
