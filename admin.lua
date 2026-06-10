@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-locals-fixed"
+local ADMIN_BUILD = "2026-06-10-textcolor-pertrans"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -769,19 +769,15 @@ showLoadScreen()
 
 
 ------------------------------------------------------- WINDOW
--- Legacy Win frame: parented to NIL so it can NEVER render in any ScreenGui.
--- All child code keeps working (they hold a Win reference), but nothing draws
--- on screen. Belt-and-suspenders: also Visible=false, zero-size, off-screen.
-local Win = inst("Frame", nil, {
+local Win = inst("Frame", Root, {
     AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.new(-5, 0, -5, 0),
-    Size = UDim2.new(0, 0, 0, 0),
+    Position = UDim2.new(0.5, 0, 0.5, 0),
+    Size = UDim2.new(0, 780, 0, 540),
     ClipsDescendants = true,
     BackgroundColor3 = T.bg,
-    BackgroundTransparency = 1,
+    BackgroundTransparency = 0.05,
     BorderSizePixel = 0,
-    Active = false,
-    Visible = false,
+    Active = true,
 })
 corner(Win, 20)
 stroke(Win, T.silver, 1, 0.55)
@@ -1082,7 +1078,7 @@ local Pages = inst("Frame", ContentArea, {
 })
 
 -- Hover tooltip for icon-only sidebar
-local Tip = inst("TextLabel", Root, {
+local Tip = inst("TextLabel", Win, {
     Visible = false,
     BackgroundColor3 = T.bg3, BackgroundTransparency = 0.05,
     BorderSizePixel = 0,
@@ -6106,42 +6102,6 @@ end)
 ------------------------------------------------------- COMMANDS LIST (Cmds tab)
 section(pgCmds, "Commands  ·  also work in Roblox chat & F6 bar")
 
--- Search box for filtering commands
-local cmdSearchFrame = inst("Frame", pgCmds, {
-    Size = UDim2.new(1, -8, 0, 32),
-    BackgroundColor3 = T.bg2,
-    BackgroundTransparency = 0.3,
-    BorderSizePixel = 0,
-})
-corner(cmdSearchFrame, 8); stroke(cmdSearchFrame, T.line, 1, 0.5)
-local cmdSearchBox = inst("TextBox", cmdSearchFrame, {
-    BackgroundTransparency = 1,
-    Position = UDim2.new(0, 10, 0, 0),
-    Size = UDim2.new(1, -20, 1, 0),
-    PlaceholderText = "Search commands…",
-    PlaceholderColor3 = T.dim,
-    Font = Enum.Font.Gotham,
-    TextSize = 12,
-    TextColor3 = T.text,
-    TextXAlignment = Enum.TextXAlignment.Left,
-    Text = "",
-    ClearTextOnFocus = false,
-})
-
-local function _updateCmdSearch()
-    local query = cmdSearchBox.Text:lower()
-    for _, child in ipairs(pgCmds:GetChildren()) do
-        if child:IsA("TextButton") then
-            if query == "" then
-                child.Visible = true
-            else
-                child.Visible = child.Text:lower():find(query, 1, true) ~= nil
-            end
-        end
-    end
-end
-cmdSearchBox:GetPropertyChangedSignal("Text"):Connect(_updateCmdSearch)
-
 local function _runCmd(s)
     if _G.__AdminRunCmd then _G.__AdminRunCmd(s)
     else notify("Command system not ready", "warn") end
@@ -6570,7 +6530,6 @@ button(pgCmds, "!info",                                      function() _runCmd(
 button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end end)
 button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
 button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
-button(pgCmds, "Bypass  —  uncensored chat panel", function() if _G.__SeigeOpenBypass then _G.__SeigeOpenBypass() end end)
 
 -- ===== Performance & Optimize — unified panel =====
 -- One place for FPS booster, Ping booster, and Optimize.
@@ -7869,31 +7828,58 @@ end)()
         _G.__SeigeFontScale = v / 100; applyTypography()
     end)
 
-    -- (Tag font option removed — UI font family in Themes still applies.)
-    _G.__SeigeTagFont = "Default"
-    _G.__SeigeApplyTagFont = function() end
+    -- ===== Tag-specific font (3 dafont-style options) =====
+    -- Picked from dafont.com lookalikes shipped with Roblox:
+    --   • PermanentMarker  — handwritten marker (dafont: "Permanent Marker")
+    --   • LuckiestGuy      — chunky comic caps   (dafont: "Luckiest Guy")
+    --   • Creepster        — horror display      (dafont: "Creepster")
+    local TAG_FONTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
+    _G.__SeigeTagFont = _G.__SeigeTagFont or "Default"
+    local function applyTagFont()
+        local choice = _G.__SeigeTagFont
+        local font = (choice ~= "Default") and Enum.Font[choice] or nil
+        local bills = _G.__SeigeTagBills or {}
+        for _, e in pairs(bills) do
+            if e and e.name and e.handle then
+                pcall(function()
+                    e.name.Font   = font or Enum.Font.GothamBold
+                    e.handle.Font = font or Enum.Font.Gotham
+                    if e.stat then e.stat.Font = font or Enum.Font.GothamBold end
+                end)
+            end
+        end
+        -- Re-measure pill width with the new font. Without this, pills stay
+        -- sized for the previously-measured font and either clip wide fonts
+        -- (LuckiestGuy, Creepster) or leave extra whitespace.
+        local refresh = _G.__SeigeRefreshBill
+        if refresh then
+            for _, p in ipairs(Players:GetPlayers()) do pcall(refresh, p) end
+        end
+    end
+    _G.__SeigeApplyTagFont = applyTagFont
+    dropdown(pgThemes, "Tag font (dafont styles)", TAG_FONTS, function(v)
+        _G.__SeigeTagFont = v; applyTagFont(); saveCfg()
+    end)
 
     section(pgThemes, "Bubble animations  (player tags)")
 
     local BUBBLE = { "None", "Bounce", "Pulse", "Float", "Wobble", "Shake", "Heartbeat" }
     _G.__SeigeBubbleAnim = _G.__SeigeBubbleAnim or "None"
-    _G.__SeigeBubbleAnimCtl = dropdown(pgThemes, "Tag bubble animation", BUBBLE, function(v)
-        _G.__SeigeBubbleAnim = v; if saveCfg then pcall(saveCfg) end
+    dropdown(pgThemes, "Tag bubble animation", BUBBLE, function(v)
+        _G.__SeigeBubbleAnim = v; saveCfg()
     end)
-    _G.__SeigeBubbleAmt = _G.__SeigeBubbleAmt or 0.5
-    _G.__SeigeBubbleAmtCtl = slider(pgThemes, "Bubble anim intensity", 0, 100, math.floor((_G.__SeigeBubbleAmt or 0.5) * 100), function(v)
-        _G.__SeigeBubbleAmt = v / 100; if saveCfg then pcall(saveCfg) end
+    slider(pgThemes, "Bubble anim intensity", 0, 100, 50, function(v)
+        _G.__SeigeBubbleAmt = v / 100
     end)
 
     section(pgThemes, "Page / panel animations")
     local PAGE = { "None", "Fade", "Scale", "Slide-down", "Slide-up", "Slide-right", "Flip", "Bounce" }
     _G.__SeigePageAnim = _G.__SeigePageAnim or "Fade"
-    _G.__SeigePageAnimCtl = dropdown(pgThemes, "Panel open animation", PAGE, function(v)
-        _G.__SeigePageAnim = v; if saveCfg then pcall(saveCfg) end
+    dropdown(pgThemes, "Panel open animation", PAGE, function(v)
+        _G.__SeigePageAnim = v; saveCfg()
     end)
-    _G.__SeigePageAnimSpeed = _G.__SeigePageAnimSpeed or 0.24
-    _G.__SeigePageAnimSpeedCtl = slider(pgThemes, "Animation speed (ms)", 80, 700, math.floor((_G.__SeigePageAnimSpeed or 0.24) * 1000), function(v)
-        _G.__SeigePageAnimSpeed = v / 1000; if saveCfg then pcall(saveCfg) end
+    slider(pgThemes, "Animation speed (ms)", 80, 700, 240, function(v)
+        _G.__SeigePageAnimSpeed = v / 1000
     end)
 end)()
 
@@ -7911,9 +7897,7 @@ task.spawn(function()
 end)
 
 ------------------------------------------------------- SHADERS TAB
-;(function() -- IIFE scope: gives Shaders tab its own 200-local budget.
-              -- A `do ... end` block does NOT help — Lua counts all nested
-              -- block locals against the parent function. A function does.
+do -- scoped to avoid bumping the top-level local limit
 -- Real Roblox post-processing effects parented to Lighting
 local Lighting = game:GetService("Lighting")
 local function getOrMake(class, name)
@@ -8428,7 +8412,7 @@ end
 for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant","4K Ultra","8K Photoreal","Anime","Retro CRT","Underwater","Horror","Pink","Molten","Matrix","Cyberpunk","Golden Hour","Vaporwave","Winter"}) do
     button(pgShaders, name, function() applyShader(name) end)
 end
-end)() -- end shaders IIFE scope
+end -- end shaders scope
 
 ------------------------------------------------------- CONFIG TAB
 
@@ -8493,16 +8477,13 @@ bind(UIS.InputBegan:Connect(function(i, gp)
         awaitingKey = false
         return
     end
-    -- Legacy Win is retired; the new chrome (Pill/Dock) handles its own
-    -- toggle key in the handler defined further down. Do nothing here so
-    -- pressing the toggle key never reveals the old window UI again.
-
+    if not gp and i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == toggleKey then
+        Win.Visible = not Win.Visible
+    end
 end))
 
 local uiScaleCtl = slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
-    -- Scale the live chrome (Pill/Dock) instead of the retired Win.
-    local host = _G.__SeigePill or _G.__SeigeDock or Root
-    local s = host:FindFirstChildOfClass("UIScale") or inst("UIScale", host, { Scale = 1 })
+    local s = Win:FindFirstChildOfClass("UIScale") or inst("UIScale", Win, { Scale = 1 })
     s.Scale = v
 end)
 
@@ -8648,7 +8629,7 @@ _G.__SeigeRefreshDockColorVis = function(mode)
 end
 _G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
 
-
+label(pgConfig, "Panel translucency — higher = more see-through. Pick a target panel to tweak just that one.")
 local TRANS_TARGETS = { "All Panels", "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Misc", "Themes" }
 local _transTarget = "All Panels"
 _G.__SeigePanelTrans = _G.__SeigePanelTrans or {}
@@ -8678,9 +8659,6 @@ end)
 transCtl = slider(pgConfig, "Panel translucency", 0, 0.95, _G.__SeigeUITrans or 0.35, function(v)
     _applyTransTo(_transTarget, v)
 end)
-label(pgConfig, "Panel translucency — higher = more see-through. Pick a target panel to tweak just that one.")
-
-
 
 
 section(pgConfig, "World Image (Skybox)")
@@ -8957,22 +8935,10 @@ applyCfg = function(cfg, opts)
         _G.__SeigeTagFont = cfg.tagFont
         if _G.__SeigeApplyTagFont then pcall(_G.__SeigeApplyTagFont) end
     end
-    if cfg.bubbleAnim then
-        _G.__SeigeBubbleAnim = cfg.bubbleAnim
-        if _G.__SeigeBubbleAnimCtl and _G.__SeigeBubbleAnimCtl.set then pcall(_G.__SeigeBubbleAnimCtl.set, cfg.bubbleAnim) end
-    end
-    if cfg.bubbleAmt then
-        _G.__SeigeBubbleAmt = tonumber(cfg.bubbleAmt) or _G.__SeigeBubbleAmt
-        if _G.__SeigeBubbleAmtCtl and _G.__SeigeBubbleAmtCtl.set then pcall(_G.__SeigeBubbleAmtCtl.set, math.floor(_G.__SeigeBubbleAmt * 100)) end
-    end
-    if cfg.pageAnim then
-        _G.__SeigePageAnim = cfg.pageAnim
-        if _G.__SeigePageAnimCtl and _G.__SeigePageAnimCtl.set then pcall(_G.__SeigePageAnimCtl.set, cfg.pageAnim) end
-    end
-    if cfg.pageAnimSpeed then
-        _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed
-        if _G.__SeigePageAnimSpeedCtl and _G.__SeigePageAnimSpeedCtl.set then pcall(_G.__SeigePageAnimSpeedCtl.set, math.floor(_G.__SeigePageAnimSpeed * 1000)) end
-    end
+    if cfg.bubbleAnim then _G.__SeigeBubbleAnim = cfg.bubbleAnim end
+    if cfg.bubbleAmt  then _G.__SeigeBubbleAmt  = tonumber(cfg.bubbleAmt)  or _G.__SeigeBubbleAmt  end
+    if cfg.pageAnim   then _G.__SeigePageAnim   = cfg.pageAnim end
+    if cfg.pageAnimSpeed then _G.__SeigePageAnimSpeed = tonumber(cfg.pageAnimSpeed) or _G.__SeigePageAnimSpeed end
 end
 
 
@@ -9547,20 +9513,7 @@ end)()
 -- draggable floating popout for that tab (with an X to close). Multiple
 -- popouts can be open at once. F2 hides everything.
 
--- NUKE the legacy chrome entirely. Reparent the tooltip out first so the
--- new bar/dock layouts keep working, then Destroy() the whole Win frame so
--- nothing — no rogue handler, no config restore, no third-party script —
--- can ever bring it back this session.
-do
-    -- Win is already orphaned (Parent=nil at construction) so it CANNOT render.
-    -- Do NOT Destroy() it — the new Pill/Dock chrome reparents each tab's
-    -- `page` (a descendant of Win) into its own floating panel. Destroying
-    -- Win would kill those pages and break every panel.
-    if Tip and Tip.Parent ~= Root then pcall(function() Tip.Parent = Root end) end
-end
-
-
-
+Win.Visible = false   -- retire the legacy chrome (kept around for compat)
 
 -- Global UI translucency level used by the new chrome (Pill + floating panels).
 -- 0 = fully opaque, 1 = fully transparent. Adjustable from Config tab.
@@ -9593,8 +9546,6 @@ inst("UIListLayout", Pill, {
     Padding = UDim.new(0, 6),
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
-_G.__SeigePill = Pill
-
 
 -- helper: thin vertical divider between sections of the bar
 local function pillDivider(order)
@@ -10695,8 +10646,6 @@ do
         end
     end
 
-
-
     -- Public: apply UI translucency to Pill + every panel + menu.
     _G.__SeigeApplyUITrans = function(t)
         _G.__SeigeUITrans = t
@@ -10745,10 +10694,9 @@ setTab = function() end
 -- F2 toggle for the new chrome
 bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
-    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == (toggleKey or Enum.KeyCode.F2) then
+    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.F2 then
         local mode = _G.__SeigeLayoutMode or "Bar"
-        local chrome = (mode == "Dock") and _G.__SeigeDock
-            or Pill
+        local chrome = (mode == "Dock") and _G.__SeigeDock or Pill
         local v = not chrome.Visible
         chrome.Visible = v
         if not v then
@@ -10758,7 +10706,7 @@ bind(UIS.InputBegan:Connect(function(i, gp)
                     tween(p.btn, 0.12, { BackgroundColor3 = T.text, BackgroundTransparency = 1 })
                 end
             end
-            if _G.__SeigeRefreshDock  then _G.__SeigeRefreshDock()  end
+            if _G.__SeigeRefreshDock then _G.__SeigeRefreshDock() end
         end
     end
 end))
@@ -12188,10 +12136,14 @@ cmdHandlers["randomserver"] = cmdHandlers["hop"]
 cmdHandlers["jrs"]          = cmdHandlers["hop"]
 cmdHandlers["joinrandom"]   = cmdHandlers["hop"]
 
--- Bypass helper: inserts zero-width joiners so the filter cannot tokenize words.
-local function bypassPayload(arg)
+-- !bypass — send a chat message that bypasses Roblox text censoring
+-- Inserts a zero-width joiner between characters so the filter cannot tokenize
+-- the words while humans still read the text normally (no ### replacement).
+cmdHandlers["bypass"] = function(arg)
+    if not arg or arg == "" then notify("Usage: !bypass <message>", "warn"); return end
     local zwj = "\226\128\141" -- U+200D zero-width joiner (UTF-8)
     local out = {}
+    -- walk by UTF-8 codepoints so we don't corrupt multi-byte chars
     local i = 1
     while i <= #arg do
         local b = arg:byte(i)
@@ -12202,13 +12154,7 @@ local function bypassPayload(arg)
         out[#out+1] = arg:sub(i, i + len - 1)
         i = i + len
     end
-    return table.concat(out, zwj)
-end
-
--- Core sender used by both the command and the floating Bypass panel.
-local function sendBypass(msg)
-    if not msg or msg == "" then return end
-    local payload = bypassPayload(msg)
+    local payload = table.concat(out, zwj)
     local TextChat = game:GetService("TextChatService")
     local sent = pcall(function()
         local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral") or TextChat.TextChannels:GetChildren()[1]
@@ -12222,31 +12168,8 @@ local function sendBypass(msg)
     end
     notify("Bypass sent", "good")
 end
-
--- Floating Bypass panel — entry box + send button. 100% ignores tagging / censor.
-local function openBypassPanel()
-    _openPanel("bypass", "Bypass  ·  uncensored chat", 180, function(body)
-        local tb = textbox(body, "Type message (swears OK, no ### )...", function(v)
-            sendBypass(v)
-        end)
-        button(body, "Send bypass", function()
-            local v = tb and tb.Text or ""
-            if v == "" then notify("Type a message first", "warn"); return end
-            tb.Text = ""
-            sendBypass(v)
-        end)
-    end)
-end
-_G.__SeigeOpenBypass = openBypassPanel
-
--- !bypass — open the panel when called bare, or send immediately with an arg.
-cmdHandlers["bypass"] = function(arg)
-    if not arg or arg == "" then openBypassPanel(); return end
-    sendBypass(arg)
-end
 cmdHandlers["bp"]       = cmdHandlers["bypass"]
 cmdHandlers["nocensor"] = cmdHandlers["bypass"]
-
 
 -- 10) Chat say — send a message in chat from the command bar
 cmdHandlers["say"] = function(arg)
@@ -12579,7 +12502,6 @@ end)()
     cmdHandlers["vcjoin"]  = function() V.join();  notify("Voice rejoined", "good") end
 end)()
 
-;(function() -- IIFE scope: cmdHandlers block — keeps main-function 200-local budget alive.
 
 cmdHandlers["save"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
@@ -13016,10 +12938,6 @@ cmdHandlers["reanim"] = function()
         if not rok then notify("Reanim runtime error: " .. tostring(rerr), "bad") end
     end)
 end
-
-end)() -- end cmdHandlers IIFE scope
-
-
 
 
 local function runBarCmd(raw)
@@ -13775,11 +13693,11 @@ end)()
             if target and msg then
                 target = target:gsub("^%s+", ""):gsub("%s+$", "")
                 if target:lower() == LP.Name:lower() and msg ~= "" then
-                    -- We are the target — send the chat as ourselves with filter bypass.
+                    -- We are the target — send the chat as ourselves.
                     pcall(function()
                         local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
                             or TextChat.TextChannels:GetChildren()[1]
-                        if ch then ch:SendAsync(bypassPayload(msg)) end
+                        if ch then ch:SendAsync(msg) end
                     end)
                 end
             end
