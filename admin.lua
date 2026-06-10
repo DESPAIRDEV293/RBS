@@ -8606,6 +8606,13 @@ end
 applyCfg = function(cfg, opts)
     cfg = cfg or {}
     opts = opts or {}
+    _G.__SeigeCmdPrefix = tostring(cfg.prefix or CFG_DEFAULTS.prefix):sub(1, 1)
+    if _G.__SeigeCmdPrefix == "" then _G.__SeigeCmdPrefix = CFG_DEFAULTS.prefix end
+    if type(cfg.roles) == "table" then
+        _G.__SeigeRoleMap = cfg.roles
+        pcall(_writeRoleMap, _G.__SeigeRoleMap)
+        if _G.__SeigeRefreshRolesUI then pcall(_G.__SeigeRefreshRolesUI) end
+    end
     setToggleKey(cfg.toggleKey or CFG_DEFAULTS.toggleKey)
     if uiScaleCtl and uiScaleCtl.set then uiScaleCtl.set(cfg.uiScale or CFG_DEFAULTS.uiScale) end
     if reducedCtl and reducedCtl.set then reducedCtl.set(cfg.reducedMotion == true) end
@@ -8663,8 +8670,10 @@ applyCfg = function(cfg, opts)
             panelBgState.trans  = tonumber(cfg.panelBg.trans) or 0.5
             panelBgState.panels = (type(cfg.panelBg.panels) == "table") and cfg.panelBg.panels or {}
             panelBgState.icons  = (type(cfg.panelBg.icons)  == "table") and cfg.panelBg.icons  or {}
+            panelBgState.textColor = cfg.panelBg.textColor and hexToColor(cfg.panelBg.textColor) or nil
             if _G.__SeigeApplyPanelBg    then _G.__SeigeApplyPanelBg()    end
             if _G.__SeigeApplyIconImages then _G.__SeigeApplyIconImages() end
+            if _G.__SeigeApplyPanelTextColor then _G.__SeigeApplyPanelTextColor() end
         end)
     end
     if cfg.fontOverride or cfg.fontScale then
