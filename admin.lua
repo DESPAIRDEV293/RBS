@@ -8481,9 +8481,35 @@ _G.__SeigeRefreshDockColorVis = function(mode)
 end
 _G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
 
-label(pgConfig, "Panel translucency — higher = more see-through")
-transCtl = slider(pgConfig, "Panel translucency", 0, 0.85, _G.__SeigeUITrans or 0.35, function(v)
-    if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
+label(pgConfig, "Panel translucency — higher = more see-through. Pick a target panel to tweak just that one.")
+local TRANS_TARGETS = { "All Panels", "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Misc", "Themes" }
+local _transTarget = "All Panels"
+_G.__SeigePanelTrans = _G.__SeigePanelTrans or {}
+local function _applyTransTo(target, v)
+    if target == "All Panels" then
+        if _G.__SeigeApplyUITrans then _G.__SeigeApplyUITrans(v) end
+    else
+        _G.__SeigePanelTrans[target] = v
+        local panelsTbl = rawget(_G, "__SeigePanels")
+        local p = panelsTbl and panelsTbl[target]
+        if p and p.frame then
+            pcall(function() p.frame.BackgroundTransparency = v end)
+        end
+    end
+end
+_G.__SeigeApplyPanelTrans = _applyTransTo
+local _transTargetCtl = dropdown(pgConfig, "Translucency target", TRANS_TARGETS, function(v)
+    _transTarget = v
+    local cur
+    if v == "All Panels" then
+        cur = _G.__SeigeUITrans or 0.35
+    else
+        cur = _G.__SeigePanelTrans[v] or _G.__SeigeUITrans or 0.35
+    end
+    if transCtl and transCtl.set then transCtl.set(cur) end
+end)
+transCtl = slider(pgConfig, "Panel translucency", 0, 0.95, _G.__SeigeUITrans or 0.35, function(v)
+    _applyTransTo(_transTarget, v)
 end)
 
 
