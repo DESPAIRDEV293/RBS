@@ -10195,6 +10195,7 @@ do
     _G.__SeigeApplyUITrans = function(t)
         _G.__SeigeUITrans = t
         if Pill then Pill.BackgroundTransparency = math.max(0.05, t - 0.1) end
+        if _G.__SeigeDock then _G.__SeigeDock.BackgroundTransparency = math.max(0.05, t - 0.1) end
         if menu then menu.BackgroundTransparency = t end
         if _G.__SeigePanels then
             for _, p in pairs(_G.__SeigePanels) do
