@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-rebuild-iter2c"
+local ADMIN_BUILD = "2026-06-10-rebuild-iter2d"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -84,7 +84,14 @@ local function tween(obj, t, props, style, dir)
 end
 
 ------------------------------------------------------- UI ROOT
+local function getHidden()
+    local ok, h = pcall(function() return (gethui and gethui()) or (get_hidden_gui and get_hidden_gui()) end)
+    if ok then return h end
+    return nil
+end
 local function safeParent(gui)
+    local h = getHidden()
+    if h then local ok = pcall(function() gui.Parent = h end); if ok then return end end
     local ok = pcall(function() gui.Parent = CoreGui end)
     if not ok then gui.Parent = LP:WaitForChild("PlayerGui") end
 end
@@ -93,6 +100,7 @@ end
 do
     local names = { "SeigeAdmin", "Admin_v", "Admin_v2", "Admin_v3", "SeigeGui", "seige_admin", "SeigeLolAdmin" }
     local roots = { CoreGui }
+    local h = getHidden(); if h then table.insert(roots, h) end
     pcall(function() table.insert(roots, LP:FindFirstChild("PlayerGui")) end)
     for _, root in ipairs(roots) do
         if root then
