@@ -7922,11 +7922,36 @@ button(pgShaders, "Clear tint (reset to white)", function()
 end)
 
 section(pgShaders, "Depth of field")
-toggle(pgShaders, "Enable DOF", false, function(v) fxDOF.Enabled = v end)
-slider(pgShaders, "Focus distance",  0, 200, 25, function(v) fxDOF.FocusDistance = v end)
-slider(pgShaders, "In focus radius", 0, 100, 8,  function(v) fxDOF.InFocusRadius = v end)
-slider(pgShaders, "Near intensity",  0, 1,   0.25, function(v) fxDOF.NearIntensity = v end)
-slider(pgShaders, "Far intensity",   0, 1,   0.75, function(v) fxDOF.FarIntensity = v end)
+-- DOF is only fully visible under ShadowMap/Future lighting. Bump the
+-- technology when the user enables DOF, and restore prior tech on disable.
+local _dof = function() fxDOF = getOrMake("DepthOfFieldEffect", "SeigeDOF"); return fxDOF end
+local _savedTechForDOF
+toggle(pgShaders, "Enable DOF", false, function(v)
+    local e = _dof()
+    e.Enabled = v
+    pcall(function()
+        if v then
+            if Lighting.Technology == Enum.Technology.Compatibility
+               or Lighting.Technology == Enum.Technology.Legacy then
+                _savedTechForDOF = Lighting.Technology
+                Lighting.Technology = Enum.Technology.ShadowMap
+            end
+            -- Push current values once so the effect is visually obvious.
+            if e.FocusDistance <= 0 then e.FocusDistance = 25 end
+            if e.InFocusRadius <= 0 then e.InFocusRadius = 8 end
+            if e.FarIntensity  <= 0 then e.FarIntensity  = 0.75 end
+        else
+            if _savedTechForDOF then
+                Lighting.Technology = _savedTechForDOF
+                _savedTechForDOF = nil
+            end
+        end
+    end)
+end)
+slider(pgShaders, "Focus distance",  0.1, 500, 25,   function(v) _dof().FocusDistance = math.max(0.1, v) end)
+slider(pgShaders, "In focus radius", 0,   200, 8,    function(v) _dof().InFocusRadius = v end)
+slider(pgShaders, "Near intensity",  0,   1,   0.25, function(v) _dof().NearIntensity = v end)
+slider(pgShaders, "Far intensity",   0,   1,   0.75, function(v) _dof().FarIntensity  = v end)
 
 section(pgShaders, "Sun rays")
 toggle(pgShaders, "Enable sun rays", false, function(v) fxSun.Enabled = v end)
