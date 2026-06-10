@@ -8594,7 +8594,10 @@ applyCfg = function(cfg, opts)
 end
 
 
-saveCfg = function()
+saveCfg = function(opts)
+    -- opts.notify == true only when the user clicks the Save button.
+    -- Every autosave (slider/dropdown/textbox change) is silent.
+    local doNotify = type(opts) == "table" and opts.notify == true
     -- Always snapshot to an in-memory session store so settings persist
     -- across panel reopens / scripts that re-require us, even without a
     -- writefile-capable executor. Resets only when the user clicks
@@ -8608,15 +8611,17 @@ saveCfg = function()
 
     local wf = rawget(getfenv(), "writefile") or writefile
     if not wf then
-        notify("Config saved for this session", "good")
+        if doNotify then notify("Config saved for this session", "good") end
         return
     end
     local mf = rawget(getfenv(), "makefolder") or makefolder
     if mf then pcall(mf, "SeigeAdmin") end
     local ok, raw = pcall(HttpService.JSONEncode, HttpService, snap)
-    if not ok then notify("Failed to encode config", "bad") return end
+    if not ok then if doNotify then notify("Failed to encode config", "bad") end return end
     local okW = pcall(wf, CFG_FILE, raw)
-    if okW then notify("Config saved", "good") else notify("Config saved for this session", "good") end
+    if doNotify then
+        if okW then notify("Config saved", "good") else notify("Config saved for this session", "good") end
+    end
 end
 
 
