@@ -4162,6 +4162,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
                 local sok, serr = TagDB:saveLocal()
                 if sok then notify("Removed tag entry: " .. k .. " (persisted)", "warn")
                 else notify("Removed entry, but local save failed: " .. tostring(serr), "bad") end
+                pcall(function() TagDB:pushRemoteEntry(k, nil) end)
                 if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
             end)
         end
