@@ -8672,6 +8672,27 @@ applyCfg = function(cfg, opts)
         _G.__SeigeBarColors = C
         if _G.__SeigeApplyBarColors then pcall(_G.__SeigeApplyBarColors) end
     end
+    -- Behavior toggles (safe to restore on inject)
+    if cfg.floatOn ~= nil then _G.__SeigeFloatOn = cfg.floatOn == true end
+    if cfg.scriptersOn == true then
+        _G.__SeigeScriptersOn = true
+        if _G.__SeigeSyncScripterBills then pcall(_G.__SeigeSyncScripterBills) end
+        if _G.__SeigePresenceRefresh    then pcall(_G.__SeigePresenceRefresh)    end
+    end
+    if type(cfg.antiVC) == "table" then
+        _G.__SeigeAntiVC = _G.__SeigeAntiVC or { on = false, interval = 25 }
+        if cfg.antiVC.interval then
+            _G.__SeigeAntiVC.interval = tonumber(cfg.antiVC.interval) or _G.__SeigeAntiVC.interval
+        end
+        -- Don't auto-restart the cycle loop on inject; only restore the user's
+        -- preferred interval. The on/off flag is remembered but the user must
+        -- click the panel button to start cycling again.
+    end
+    if type(cfg.bang) == "table" then
+        _G.__SeigeBang = _G.__SeigeBang or {}
+        if cfg.bang.mode  then _G.__SeigeBang.mode  = cfg.bang.mode end
+        if cfg.bang.speed then _G.__SeigeBang.speed = tonumber(cfg.bang.speed) or _G.__SeigeBang.speed end
+    end
 end
 
 
