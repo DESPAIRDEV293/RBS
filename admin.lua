@@ -9550,9 +9550,11 @@ end)()
 -- nothing — no rogue handler, no config restore, no third-party script —
 -- can ever bring it back this session.
 do
-    if Tip and Tip.Parent == Win then Tip.Parent = Root end
-    pcall(function() Win:Destroy() end)
-    Win = nil
+    -- Win is already orphaned (Parent=nil at construction) so it CANNOT render.
+    -- Do NOT Destroy() it — the new Pill/Dock chrome reparents each tab's
+    -- `page` (a descendant of Win) into its own floating panel. Destroying
+    -- Win would kill those pages and break every panel.
+    if Tip and Tip.Parent ~= Root then pcall(function() Tip.Parent = Root end) end
 end
 
 
