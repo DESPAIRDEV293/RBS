@@ -8245,7 +8245,7 @@ do -- scoped to keep these out of the main chunk's 200-local budget
 local _saveSec = section(pgConfig, "Save & Reset")
 local _saveLbl = label(pgConfig, "Save persists translucency, layout, typography, animations, theme colors, background & panel images. Reset clears them.")
 local _saveBtn = button(pgConfig, "💾  Save Config", function()
-    if saveCfg then saveCfg() else notify("Config not ready yet", "warn") end
+    if saveCfg then saveCfg({ notify = true }) else notify("Config not ready yet", "warn") end
 end)
 local _resetBtn = button(pgConfig, "↺  Reset to Defaults", function()
     _G.__SeigeSessionCfg = nil
