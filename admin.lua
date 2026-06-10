@@ -8779,6 +8779,27 @@ applyCfg = function(cfg, opts)
     if reducedCtl and reducedCtl.set then reducedCtl.set(cfg.reducedMotion == true) end
     -- [Iter 1] Layout always forced to "Bar"; old saved Hamburger/Dock ignored.
     if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout("Bar") end
+    -- [Iter 2] Restore Pill drag position.
+    if cfg.pillPos and type(cfg.pillPos) == "table" then
+        local x, y = tonumber(cfg.pillPos.x), tonumber(cfg.pillPos.y)
+        if x and y then
+            _G.__SeigePillPos = { x = x, y = y }
+            if Pill then
+                pcall(function()
+                    Pill.AnchorPoint = Vector2.new(0, 0)
+                    Pill.Position = UDim2.new(0, x, 0, y)
+                end)
+            end
+        end
+    end
+    -- [Iter 2] Restore last opened tab (defer if panels not built yet).
+    if cfg.lastTab and type(cfg.lastTab) == "string" and cfg.lastTab ~= "" then
+        if _G.__SeigeApplyLastTab then
+            _G.__SeigeApplyLastTab(cfg.lastTab)
+        else
+            _G.__SeigeLastTabPending = cfg.lastTab
+        end
+    end
     if cfg.dockColor and dockColorCtl and dockColorCtl.set then
         dockColorCtl.set(cfg.dockColor)
     end
@@ -9592,6 +9613,34 @@ inst("UIListLayout", iconsRow, {
     Padding = UDim.new(0, 6),
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
+
+-- [Iter 2] Make the Pill itself draggable; persist its position.
+do
+    local dragging, ds, sp
+    Pill.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1
+           or i.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; ds = i.Position; sp = Pill.AbsolutePosition
+        end
+    end)
+    UIS.InputChanged:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement
+           or i.UserInputType == Enum.UserInputType.Touch) then
+            local d = i.Position - ds
+            local nx, ny = sp.X + d.X, sp.Y + d.Y
+            Pill.AnchorPoint = Vector2.new(0, 0)
+            Pill.Position = UDim2.new(0, nx, 0, ny)
+            _G.__SeigePillPos = { x = nx, y = ny }
+        end
+    end)
+    UIS.InputEnded:Connect(function(i)
+        if dragging and (i.UserInputType == Enum.UserInputType.MouseButton1
+           or i.UserInputType == Enum.UserInputType.Touch) then
+            dragging = false
+            if saveCfg then pcall(saveCfg) end
+        end
+    end)
+end
 
 pillDivider(95)
 
