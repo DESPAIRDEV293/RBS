@@ -10098,6 +10098,37 @@ do
     })
     _G.__SeigeDock = Dock
 
+    -- Dock color (applied to background + stroke). Configurable from Config tab.
+    local dockStroke = Dock:FindFirstChildOfClass("UIStroke")
+    _G.__SeigeApplyDockColor = function(c)
+        if typeof(c) ~= "Color3" then return end
+        _G.__SeigeDockColor = c
+        Dock.BackgroundColor3 = c
+        if dockStroke then dockStroke.Color = c end
+    end
+    if _G.__SeigeDockColor then _G.__SeigeApplyDockColor(_G.__SeigeDockColor) end
+
+    -- Gentle floating animation (sine bob) while Dock is visible.
+    local floatTween
+    local baseY = -18
+    local function stopFloat()
+        if floatTween then pcall(function() floatTween:Cancel() end); floatTween = nil end
+        Dock.Position = UDim2.new(0.5, 0, 1, baseY)
+    end
+    local function startFloat()
+        stopFloat()
+        if _G.__SeigeReducedMotion then return end
+        Dock.Position = UDim2.new(0.5, 0, 1, baseY)
+        local info = TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+        floatTween = TweenService:Create(Dock, info, { Position = UDim2.new(0.5, 0, 1, baseY - 8) })
+        floatTween:Play()
+    end
+    Dock:GetPropertyChangedSignal("Visible"):Connect(function()
+        if Dock.Visible then startFloat() else stopFloat() end
+    end)
+    _G.__SeigeStartDockFloat = startFloat
+    _G.__SeigeStopDockFloat  = stopFloat
+
     local dockBtns = {}
     local function refreshDockState()
         for name, rec in pairs(dockBtns) do
