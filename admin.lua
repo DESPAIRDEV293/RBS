@@ -8487,9 +8487,10 @@ bind(UIS.InputBegan:Connect(function(i, gp)
         awaitingKey = false
         return
     end
-    if not gp and i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == toggleKey then
-        Win.Visible = not Win.Visible
-    end
+    -- Legacy Win is retired; the new chrome (Pill/Dock) handles its own
+    -- toggle key in the handler defined further down. Do nothing here so
+    -- pressing the toggle key never reveals the old window UI again.
+
 end))
 
 local uiScaleCtl = slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
@@ -10721,7 +10722,7 @@ setTab = function() end
 -- F2 toggle for the new chrome
 bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
-    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.F2 then
+    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == (toggleKey or Enum.KeyCode.F2) then
         local mode = _G.__SeigeLayoutMode or "Bar"
         local chrome = (mode == "Dock") and _G.__SeigeDock
             or Pill
