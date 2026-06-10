@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-pages-preserved"
+local ADMIN_BUILD = "2026-06-10-locals-fixed"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -7911,7 +7911,9 @@ task.spawn(function()
 end)
 
 ------------------------------------------------------- SHADERS TAB
-do -- scoped to avoid bumping the top-level local limit
+;(function() -- IIFE scope: gives Shaders tab its own 200-local budget.
+              -- A `do ... end` block does NOT help — Lua counts all nested
+              -- block locals against the parent function. A function does.
 -- Real Roblox post-processing effects parented to Lighting
 local Lighting = game:GetService("Lighting")
 local function getOrMake(class, name)
@@ -8426,7 +8428,7 @@ end
 for _, name in ipairs({"Off","Cinematic","Dreamy","Noir","Vibrant","4K Ultra","8K Photoreal","Anime","Retro CRT","Underwater","Horror","Pink","Molten","Matrix","Cyberpunk","Golden Hour","Vaporwave","Winter"}) do
     button(pgShaders, name, function() applyShader(name) end)
 end
-end -- end shaders scope
+end)() -- end shaders IIFE scope
 
 ------------------------------------------------------- CONFIG TAB
 
@@ -12577,6 +12579,7 @@ end)()
     cmdHandlers["vcjoin"]  = function() V.join();  notify("Voice rejoined", "good") end
 end)()
 
+;(function() -- IIFE scope: cmdHandlers block — keeps main-function 200-local budget alive.
 
 cmdHandlers["save"] = function()
     local h = hrp(); if not h then notify("No character", "bad"); return end
@@ -13013,6 +13016,10 @@ cmdHandlers["reanim"] = function()
         if not rok then notify("Reanim runtime error: " .. tostring(rerr), "bad") end
     end)
 end
+
+end)() -- end cmdHandlers IIFE scope
+
+
 
 
 local function runBarCmd(raw)
