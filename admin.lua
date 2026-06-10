@@ -1459,7 +1459,11 @@ local function slider(parent, text, lo, hi, default, fn)
     UIS.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
     end)
-    return { set = function(v) setFrac((v - lo) / (hi - lo)) end }
+    local current = default
+    return {
+        set = function(v) current = v; setFrac((v - lo) / (hi - lo)) end,
+        get = function() return current end,
+    }
 end
 
 local function dropdown(parent, text, options, fn)
