@@ -8705,6 +8705,9 @@ snapshotCfg = function()
         layoutMode    = _G.__SeigeLayoutMode or "Bar",
         dockColor     = _G.__SeigeDockColorName or "Default",
         uiTrans       = _G.__SeigeUITrans or 0.35,
+        panelTrans    = _G.__SeigePanelTrans or {},
+        textColorMode = _G.__SeigeTextColorMode or "Auto (white on image bg)",
+        textColorHex  = _G.__SeigeTextColorCustom or "",
         skybox        = {
             Up = skyboxFaces.Up, Dn = skyboxFaces.Dn,
             Lf = skyboxFaces.Lf, Rt = skyboxFaces.Rt,
