@@ -8483,6 +8483,7 @@ snapshotCfg = function()
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
         reducedMotion = reducedCtl and reducedCtl.get and reducedCtl.get() or false,
         layoutMode    = _G.__SeigeLayoutMode or "Bar",
+        dockColor     = _G.__SeigeDockColorName or "Default",
         uiTrans       = _G.__SeigeUITrans or 0.35,
         skybox        = {
             Up = skyboxFaces.Up, Dn = skyboxFaces.Dn,
