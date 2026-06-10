@@ -7763,58 +7763,27 @@ end)()
         _G.__SeigeFontScale = v / 100; applyTypography()
     end)
 
-    -- ===== Tag-specific font (3 dafont-style options) =====
-    -- Picked from dafont.com lookalikes shipped with Roblox:
-    --   • PermanentMarker  — handwritten marker (dafont: "Permanent Marker")
-    --   • LuckiestGuy      — chunky comic caps   (dafont: "Luckiest Guy")
-    --   • Creepster        — horror display      (dafont: "Creepster")
-    local TAG_FONTS = { "Default", "PermanentMarker", "LuckiestGuy", "Creepster" }
-    _G.__SeigeTagFont = _G.__SeigeTagFont or "Default"
-    local function applyTagFont()
-        local choice = _G.__SeigeTagFont
-        local font = (choice ~= "Default") and Enum.Font[choice] or nil
-        local bills = _G.__SeigeTagBills or {}
-        for _, e in pairs(bills) do
-            if e and e.name and e.handle then
-                pcall(function()
-                    e.name.Font   = font or Enum.Font.GothamBold
-                    e.handle.Font = font or Enum.Font.Gotham
-                    if e.stat then e.stat.Font = font or Enum.Font.GothamBold end
-                end)
-            end
-        end
-        -- Re-measure pill width with the new font. Without this, pills stay
-        -- sized for the previously-measured font and either clip wide fonts
-        -- (LuckiestGuy, Creepster) or leave extra whitespace.
-        local refresh = _G.__SeigeRefreshBill
-        if refresh then
-            for _, p in ipairs(Players:GetPlayers()) do pcall(refresh, p) end
-        end
-    end
-    _G.__SeigeApplyTagFont = applyTagFont
-    dropdown(pgThemes, "Tag font (dafont styles)", TAG_FONTS, function(v)
-        _G.__SeigeTagFont = v; applyTagFont(); saveCfg()
-    end)
+    -- (Global "Tag font (dafont styles)" setting removed — per-user font lives in the Tags panel.)
 
     section(pgThemes, "Bubble animations  (player tags)")
 
     local BUBBLE = { "None", "Bounce", "Pulse", "Float", "Wobble", "Shake", "Heartbeat" }
     _G.__SeigeBubbleAnim = _G.__SeigeBubbleAnim or "None"
-    dropdown(pgThemes, "Tag bubble animation", BUBBLE, function(v)
+    _G.__SeigeBubbleAnimCtl = dropdown(pgThemes, "Tag bubble animation", BUBBLE, function(v)
         _G.__SeigeBubbleAnim = v; saveCfg()
     end)
-    slider(pgThemes, "Bubble anim intensity", 0, 100, 50, function(v)
-        _G.__SeigeBubbleAmt = v / 100
+    _G.__SeigeBubbleAmtCtl = slider(pgThemes, "Bubble anim intensity", 0, 100, 50, function(v)
+        _G.__SeigeBubbleAmt = v / 100; saveCfg()
     end)
 
     section(pgThemes, "Page / panel animations")
     local PAGE = { "None", "Fade", "Scale", "Slide-down", "Slide-up", "Slide-right", "Flip", "Bounce" }
     _G.__SeigePageAnim = _G.__SeigePageAnim or "Fade"
-    dropdown(pgThemes, "Panel open animation", PAGE, function(v)
+    _G.__SeigePageAnimCtl = dropdown(pgThemes, "Panel open animation", PAGE, function(v)
         _G.__SeigePageAnim = v; saveCfg()
     end)
-    slider(pgThemes, "Animation speed (ms)", 80, 700, 240, function(v)
-        _G.__SeigePageAnimSpeed = v / 1000
+    _G.__SeigePageAnimSpeedCtl = slider(pgThemes, "Animation speed (ms)", 80, 700, 240, function(v)
+        _G.__SeigePageAnimSpeed = v / 1000; saveCfg()
     end)
 end)()
 
