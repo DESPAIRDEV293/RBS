@@ -8479,6 +8479,19 @@ textbox(pgConfig, "Command prefix (default !)", function(v)
     notify("Command prefix saved: " .. v, "good")
 end)
 
+label(pgConfig, "Tag sync key — paste the shared write secret to push tag edits to the cloud DB. Leave blank to stay read-only.")
+textbox(pgConfig, "Tag sync key (write secret)", function(v)
+    v = tostring(v or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    _G.__SeigeTagSyncKey = v
+    if saveCfg then pcall(saveCfg) end
+    if v == "" then
+        notify("Tag sync key cleared (read-only mode)", "warn")
+    else
+        notify("Tag sync key saved — tag edits will sync to cloud", "good")
+    end
+end)
+
+
 ------------------------------------------------------- LAYOUT & TRANSLUCENCY
 section(pgConfig, "Layout")
 label(pgConfig, "Top bar style. Hamburger collapses the bar into a ≡ menu — tabs drop down from it.")
