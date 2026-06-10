@@ -8484,6 +8484,15 @@ snapshotCfg = function()
         bubbleAmt     = tonumber(_G.__SeigeBubbleAmt) or 0.5,
         pageAnim      = _G.__SeigePageAnim or "Fade",
         pageAnimSpeed = tonumber(_G.__SeigePageAnimSpeed) or 0.24,
+        barColors     = (function()
+            local C = _G.__SeigeBarColors or {}
+            return {
+                bg      = C.bg      and cToHex(C.bg)      or nil,
+                outline = C.outline and cToHex(C.outline) or nil,
+                text    = C.text    and cToHex(C.text)    or nil,
+                icon    = C.icon    and cToHex(C.icon)    or nil,
+            }
+        end)(),
     }
 end
 
