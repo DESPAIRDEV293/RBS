@@ -1442,6 +1442,7 @@ local function slider(parent, text, lo, hi, default, fn)
         knob.Position = UDim2.new(frac, -6, 0.5, -6)
         local val = lo + (hi - lo) * frac
         val = math.floor(val * 100 + 0.5) / 100
+        current = val
         valTxt.Text = tostring(val)
         if fn then pcall(fn, val) end
     end
