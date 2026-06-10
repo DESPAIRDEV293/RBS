@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-win-nuked"
+local ADMIN_BUILD = "2026-06-10-win-destroyed"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -8494,7 +8494,9 @@ bind(UIS.InputBegan:Connect(function(i, gp)
 end))
 
 local uiScaleCtl = slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
-    local s = Win:FindFirstChildOfClass("UIScale") or inst("UIScale", Win, { Scale = 1 })
+    -- Scale the live chrome (Pill/Dock) instead of the retired Win.
+    local host = _G.__SeigePill or _G.__SeigeDock or Root
+    local s = host:FindFirstChildOfClass("UIScale") or inst("UIScale", host, { Scale = 1 })
     s.Scale = v
 end)
 
@@ -9539,26 +9541,16 @@ end)()
 -- draggable floating popout for that tab (with an X to close). Multiple
 -- popouts can be open at once. F2 hides everything.
 
--- Permanently retire the legacy chrome. Reparent the tooltip out of Win so
--- the new bar/dock layouts can still use it, then hard-kill Win: hide it,
--- shrink it to 0x0, move it offscreen, and watch its Visible property so a
--- rogue handler / config restore / third-party script cannot flip it back on.
+-- NUKE the legacy chrome entirely. Reparent the tooltip out first so the
+-- new bar/dock layouts keep working, then Destroy() the whole Win frame so
+-- nothing — no rogue handler, no config restore, no third-party script —
+-- can ever bring it back this session.
 do
     if Tip and Tip.Parent == Win then Tip.Parent = Root end
-    Win.Visible = false
-    Win.Active = false
-    Win.Size = UDim2.new(0, 0, 0, 0)
-    Win.Position = UDim2.new(-5, 0, -5, 0)
-    Win.ClipsDescendants = true
-    Win:GetPropertyChangedSignal("Visible"):Connect(function()
-        if Win.Visible then Win.Visible = false end
-    end)
-    Win:GetPropertyChangedSignal("Size"):Connect(function()
-        if Win.Size ~= UDim2.new(0, 0, 0, 0) then
-            Win.Size = UDim2.new(0, 0, 0, 0)
-        end
-    end)
+    pcall(function() Win:Destroy() end)
+    Win = nil
 end
+
 
 
 
@@ -9593,6 +9585,8 @@ inst("UIListLayout", Pill, {
     Padding = UDim.new(0, 6),
     SortOrder = Enum.SortOrder.LayoutOrder,
 })
+_G.__SeigePill = Pill
+
 
 -- helper: thin vertical divider between sections of the bar
 local function pillDivider(order)
