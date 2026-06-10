@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-dock-float-color"
+local ADMIN_BUILD = "2026-06-10-bloom-dof-weather"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -7883,10 +7883,21 @@ toggle(pgShaders, "Maximum visuals", false, function(on)
 end)
 
 section(pgShaders, "Bloom")
-toggle(pgShaders, "Enable bloom", false, function(v) fxBloom.Enabled = v end)
-slider(pgShaders, "Intensity",  0, 4,   1,    function(v) fxBloom.Intensity = v end)
-slider(pgShaders, "Size",       0, 56,  24,   function(v) fxBloom.Size = v end)
-slider(pgShaders, "Threshold",  0, 4,   0.95, function(v) fxBloom.Threshold = v end)
+-- Re-resolve the effect on every set so anti-cheats/scripts that strip
+-- Lighting children don't break the controls. Also re-parent on toggle.
+local function _bloom() fxBloom = getOrMake("BloomEffect", "SeigeBloom"); return fxBloom end
+toggle(pgShaders, "Enable bloom", false, function(v)
+    local e = _bloom()
+    e.Enabled = v
+    if v then
+        -- Force-apply current slider values so the effect is visible immediately.
+        e.Intensity = e.Intensity > 0 and e.Intensity or 1
+        e.Size      = e.Size > 0 and e.Size or 24
+    end
+end)
+slider(pgShaders, "Intensity",  0, 4,   1,    function(v) _bloom().Intensity = v end)
+slider(pgShaders, "Size",       1, 56,  24,   function(v) _bloom().Size = math.max(1, v) end)
+slider(pgShaders, "Threshold",  0, 4,   0.95, function(v) _bloom().Threshold = v end)
 
 section(pgShaders, "Blur")
 toggle(pgShaders, "Enable blur", false, function(v) fxBlur.Enabled = v end)
@@ -7911,11 +7922,36 @@ button(pgShaders, "Clear tint (reset to white)", function()
 end)
 
 section(pgShaders, "Depth of field")
-toggle(pgShaders, "Enable DOF", false, function(v) fxDOF.Enabled = v end)
-slider(pgShaders, "Focus distance",  0, 200, 25, function(v) fxDOF.FocusDistance = v end)
-slider(pgShaders, "In focus radius", 0, 100, 8,  function(v) fxDOF.InFocusRadius = v end)
-slider(pgShaders, "Near intensity",  0, 1,   0.25, function(v) fxDOF.NearIntensity = v end)
-slider(pgShaders, "Far intensity",   0, 1,   0.75, function(v) fxDOF.FarIntensity = v end)
+-- DOF is only fully visible under ShadowMap/Future lighting. Bump the
+-- technology when the user enables DOF, and restore prior tech on disable.
+local _dof = function() fxDOF = getOrMake("DepthOfFieldEffect", "SeigeDOF"); return fxDOF end
+local _savedTechForDOF
+toggle(pgShaders, "Enable DOF", false, function(v)
+    local e = _dof()
+    e.Enabled = v
+    pcall(function()
+        if v then
+            if Lighting.Technology == Enum.Technology.Compatibility
+               or Lighting.Technology == Enum.Technology.Legacy then
+                _savedTechForDOF = Lighting.Technology
+                Lighting.Technology = Enum.Technology.ShadowMap
+            end
+            -- Push current values once so the effect is visually obvious.
+            if e.FocusDistance <= 0 then e.FocusDistance = 25 end
+            if e.InFocusRadius <= 0 then e.InFocusRadius = 8 end
+            if e.FarIntensity  <= 0 then e.FarIntensity  = 0.75 end
+        else
+            if _savedTechForDOF then
+                Lighting.Technology = _savedTechForDOF
+                _savedTechForDOF = nil
+            end
+        end
+    end)
+end)
+slider(pgShaders, "Focus distance",  0.1, 500, 25,   function(v) _dof().FocusDistance = math.max(0.1, v) end)
+slider(pgShaders, "In focus radius", 0,   200, 8,    function(v) _dof().InFocusRadius = v end)
+slider(pgShaders, "Near intensity",  0,   1,   0.25, function(v) _dof().NearIntensity = v end)
+slider(pgShaders, "Far intensity",   0,   1,   0.75, function(v) _dof().FarIntensity  = v end)
 
 section(pgShaders, "Sun rays")
 toggle(pgShaders, "Enable sun rays", false, function(v) fxSun.Enabled = v end)
@@ -7949,18 +7985,17 @@ do
         return a
     end
 
-    local function attachParticle(asset, rate, speed, accel, size, lifetime, rot)
-        -- Particles originate from a flat plate anchored ABOVE the camera so the
-        -- effect falls down across the screen instead of pouring out of the avatar.
+    -- Multi-emitter weather: returns the emitter so callers can stash extras.
+    -- opts: { texture, rate, speed, accel, sizeStart, sizeEnd, lifetime, rot,
+    --         rotSpeed, drag, color, lightEmission, lightInfluence, spread,
+    --         transStart, transEnd, planeSize, height, zOffset }
+    local function attachParticle(opts)
         local part = Instance.new("Part")
         part.Name = "__SeigeWeatherPart"
-        part.Size = Vector3.new(160, 1, 160)
+        part.Size = Vector3.new(opts.planeSize or 180, 1, opts.planeSize or 180)
         part.Transparency = 1
-        part.CanCollide = false
-        part.CanQuery = false
-        part.CanTouch = false
-        part.Anchored = true
-        part.Massless = true
+        part.CanCollide = false; part.CanQuery = false; part.CanTouch = false
+        part.Anchored = true; part.Massless = true
         part.TopSurface = Enum.SurfaceType.Smooth
         part.BottomSurface = Enum.SurfaceType.Smooth
         part.Parent = workspace
@@ -7969,29 +8004,58 @@ do
         att.Parent = part
         local pe = Instance.new("ParticleEmitter")
         pe.Name = "__SeigeWeatherFX"
-        pe.Texture = asset
-        pe.Rate = rate
-        pe.Speed = NumberRange.new(speed)
-        pe.Acceleration = accel
-        pe.Size = NumberSequence.new(size)
-        pe.Lifetime = NumberRange.new(lifetime)
-        pe.Rotation = NumberRange.new(-rot, rot)
-        pe.LightEmission = 0.2
+        pe.Texture = opts.texture
+        pe.Rate = opts.rate
+        pe.Speed = NumberRange.new(opts.speed)
+        pe.Acceleration = opts.accel or Vector3.new(0, -80, 0)
+        pe.Size = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, opts.sizeStart or 0.4),
+            NumberSequenceKeypoint.new(1, opts.sizeEnd or (opts.sizeStart or 0.4)),
+        })
+        pe.Lifetime = NumberRange.new(opts.lifetime or 1.2)
+        pe.Rotation = NumberRange.new(-(opts.rot or 0), opts.rot or 0)
+        pcall(function() pe.RotSpeed = NumberRange.new(opts.rotSpeed or 0) end)
+        pcall(function() pe.Drag = opts.drag or 0 end)
+        pe.LightEmission = opts.lightEmission or 0.2
+        pe.LightInfluence = opts.lightInfluence or 1
+        if opts.color then
+            pe.Color = ColorSequence.new(opts.color)
+        end
         pe.Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0, 0.2),
-            NumberSequenceKeypoint.new(1, 1),
+            NumberSequenceKeypoint.new(0, opts.transStart or 0.2),
+            NumberSequenceKeypoint.new(1, opts.transEnd or 1),
         })
         pe.EmissionDirection = Enum.NormalId.Bottom
-        pe.SpreadAngle = Vector2.new(20, 20)
+        pe.SpreadAngle = Vector2.new(opts.spread or 20, opts.spread or 20)
+        pe.ZOffset = opts.zOffset or 0
         pe.Parent = att
-        W.attach = part
-        W.emitter = pe
-        -- Keep the plate centered above the camera each frame.
-        W.charConn = RunService.RenderStepped:Connect(function()
-            local c = workspace.CurrentCamera
-            if not c then return end
-            part.CFrame = CFrame.new(c.CFrame.Position + Vector3.new(0, 80, 0))
-        end)
+        if not W.attach then W.attach = part end
+        if not W.emitter then W.emitter = pe end
+        W.extraParts = W.extraParts or {}
+        table.insert(W.extraParts, part)
+        local height = opts.height or 80
+        if not W.charConn then
+            W.charConn = RunService.RenderStepped:Connect(function()
+                local c = workspace.CurrentCamera
+                if not c then return end
+                local p = c.CFrame.Position
+                for _, ep in ipairs(W.extraParts) do
+                    if ep.Parent then ep.CFrame = CFrame.new(p + Vector3.new(0, ep:GetAttribute("__h") or height, 0)) end
+                end
+            end)
+        end
+        part:SetAttribute("__h", height)
+        return pe
+    end
+
+    -- Extend clear() to nuke extra emitters from multi-particle modes.
+    local _origClear = clear
+    clear = function()
+        _origClear()
+        if W.extraParts then
+            for _, ep in ipairs(W.extraParts) do pcall(function() ep:Destroy() end) end
+            W.extraParts = nil
+        end
     end
 
     local function apply()
@@ -8001,36 +8065,71 @@ do
 
         if W.mode == "Cloudy" then
             local a = ensureAtmos()
-            a.Density = 0.3 * i
-            a.Haze = 1.5 * i
+            a.Density = 0.32 * i
+            a.Haze = 1.6 * i
             a.Color = Color3.fromRGB(190, 195, 205)
+            a.Decay = Color3.fromRGB(106, 112, 125)
             local t = workspace:FindFirstChildOfClass("Terrain")
             if t then
                 local c = Instance.new("Clouds")
                 c.Name = "__SeigeClouds"
-                c.Cover = 0.6 + 0.4 * i
-                c.Density = 0.5 + 0.5 * i
-                c.Color = Color3.fromRGB(220, 220, 230)
+                c.Cover = 0.55 + 0.45 * i
+                c.Density = 0.55 + 0.45 * i
+                c.Color = Color3.fromRGB(225, 228, 235)
                 c.Parent = t
             end
         elseif W.mode == "Fog" then
             local a = ensureAtmos()
-            a.Density = 0.6 * i
+            a.Density = 0.55 * i
             a.Haze = 3 * i
-            a.Glare = 0.5 * i
-            a.Color = Color3.fromRGB(200, 200, 200)
+            a.Glare = 0.4 * i
+            a.Color = Color3.fromRGB(205, 208, 214)
+            a.Decay = Color3.fromRGB(150, 155, 165)
         elseif W.mode == "Rain" then
-            attachParticle("rbxassetid://241876428", 200 * i + 50, 60, Vector3.new(0, -120, 0), 0.5, 1.2, 0)
+            -- Falling streaks
+            attachParticle({
+                texture = "rbxassetid://241876428",
+                rate = 260 * i + 80, speed = 95,
+                accel = Vector3.new(2, -180, 0),
+                sizeStart = 0.18, sizeEnd = 0.05,
+                lifetime = 0.9, rot = 8, rotSpeed = 0, drag = 0.1,
+                lightEmission = 0.05, lightInfluence = 0.6,
+                color = Color3.fromRGB(180, 200, 230),
+                transStart = 0.35, transEnd = 1, spread = 12,
+                planeSize = 220, height = 90, zOffset = 0,
+            })
+            -- Splash mist at ground level
+            attachParticle({
+                texture = "rbxassetid://241876428",
+                rate = 80 * i + 20, speed = 6,
+                accel = Vector3.new(0, 4, 0),
+                sizeStart = 0.25, sizeEnd = 0.05,
+                lifetime = 0.45, rot = 90, rotSpeed = 60, drag = 1.6,
+                lightEmission = 0.1, lightInfluence = 0.8,
+                color = Color3.fromRGB(210, 220, 235),
+                transStart = 0.7, transEnd = 1, spread = 60,
+                planeSize = 180, height = -3,
+            })
             local a = ensureAtmos()
-            a.Density = 0.25 * i
-            a.Haze = 1 * i
-            a.Color = Color3.fromRGB(170, 175, 185)
+            a.Density = 0.28 * i; a.Haze = 1.1 * i
+            a.Color = Color3.fromRGB(165, 172, 185)
+            a.Decay = Color3.fromRGB(90, 95, 110)
         elseif W.mode == "Thunder" then
-            attachParticle("rbxassetid://241876428", 260 * i + 80, 70, Vector3.new(0, -140, 0), 0.55, 1.2, 0)
+            attachParticle({
+                texture = "rbxassetid://241876428",
+                rate = 320 * i + 120, speed = 110,
+                accel = Vector3.new(4, -210, 0),
+                sizeStart = 0.2, sizeEnd = 0.04,
+                lifetime = 0.9, rot = 10, drag = 0.05,
+                lightEmission = 0.05, lightInfluence = 0.5,
+                color = Color3.fromRGB(170, 185, 215),
+                transStart = 0.3, transEnd = 1, spread = 14,
+                planeSize = 240, height = 95,
+            })
             local a = ensureAtmos()
-            a.Density = 0.4 * i
-            a.Haze = 2 * i
-            a.Color = Color3.fromRGB(140, 145, 160)
+            a.Density = 0.42 * i; a.Haze = 2.2 * i
+            a.Color = Color3.fromRGB(130, 138, 158)
+            a.Decay = Color3.fromRGB(60, 66, 82)
             local fxFlash = Instance.new("ColorCorrectionEffect")
             fxFlash.Name = "__SeigeFlash"
             fxFlash.Brightness = 0
@@ -8042,9 +8141,9 @@ do
                 nextStrike = tick() + math.random(5, 12)
                 task.spawn(function()
                     pcall(function()
-                        for _, b in ipairs({0.8, 0.0, 0.6, 0.0}) do
+                        for _, b in ipairs({ 0.9, 0.0, 0.7, 0.0, 0.4, 0.0 }) do
                             fxFlash.Brightness = b
-                            task.wait(0.07)
+                            task.wait(0.05 + math.random() * 0.05)
                         end
                         fxFlash.Brightness = 0
                         local s = Instance.new("Sound")
@@ -8057,21 +8156,51 @@ do
                 end)
             end)
         elseif W.mode == "Snow" then
-            attachParticle("rbxassetid://241876428", 120 * i + 40, 4, Vector3.new(0, -8, 1), 0.35, 5, 90)
+            attachParticle({
+                texture = "rbxassetid://241876428",
+                rate = 140 * i + 50, speed = 3,
+                accel = Vector3.new(0, -6, 0),
+                sizeStart = 0.32, sizeEnd = 0.18,
+                lifetime = 7, rot = 180, rotSpeed = 30, drag = 0.6,
+                lightEmission = 0.4, lightInfluence = 0.4,
+                color = Color3.fromRGB(245, 248, 255),
+                transStart = 0.15, transEnd = 0.6, spread = 35,
+                planeSize = 200, height = 70,
+            })
             local a = ensureAtmos()
-            a.Density = 0.2 * i
-            a.Haze = 1.2 * i
-            a.Color = Color3.fromRGB(220, 225, 235)
+            a.Density = 0.22 * i; a.Haze = 1.3 * i
+            a.Color = Color3.fromRGB(225, 230, 240)
+            a.Decay = Color3.fromRGB(180, 188, 200)
+            -- Gentle wind sway: oscillate acceleration X over time.
+            local pe = W.emitter
+            if pe then
+                W.windConn = RunService.Heartbeat:Connect(function()
+                    if not pe.Parent then return end
+                    local t = tick()
+                    pe.Acceleration = Vector3.new(math.sin(t * 0.6) * 3, -6, math.cos(t * 0.4) * 2)
+                end)
+            end
         end
     end
 
-    dropdown(pgShaders, "Weather", { "Off", "Cloudy", "Fog", "Rain", "Thunder", "Snow" }, function(o)
+    -- Make sure the wind/connection cleanup runs in clear() too.
+    local _clear2 = clear
+    clear = function()
+        if W.windConn then pcall(function() W.windConn:Disconnect() end); W.windConn = nil end
+        _clear2()
+    end
+
+    local weatherDD = dropdown(pgShaders, "Weather", { "Off", "Cloudy", "Fog", "Rain", "Thunder", "Snow" }, function(o)
         W.mode = o; apply()
     end)
     slider(pgShaders, "Weather intensity", 0, 1, 0.5, function(v)
         W.intensity = v; if W.mode ~= "Off" then apply() end
     end)
-    button(pgShaders, "Clear weather", function() W.mode = "Off"; clear() end)
+    button(pgShaders, "Clear weather", function()
+        W.mode = "Off"
+        clear()
+        if weatherDD and weatherDD.set then weatherDD.set("Off") end
+    end)
 end
 
 section(pgShaders, "Presets")
