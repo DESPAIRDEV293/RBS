@@ -2111,10 +2111,83 @@ function TagDB:hydrateFromCache()
     return false
 end
 
+-- HTTP request shim for POSTs (executor-specific). Returns (ok, status, body).
+local function _seigeHttpPost(url, jsonBody, extraHeaders)
+    local req = (syn and syn.request)
+              or (http and http.request)
+              or http_request
+              or (fluxus and fluxus.request)
+              or request
+    local headers = { ["Content-Type"] = "application/json" }
+    if type(extraHeaders) == "table" then
+        for k, v in pairs(extraHeaders) do headers[k] = v end
+    end
+    if not req then return false, 0, "no http request shim" end
+    local ok, res = pcall(req, { Url = url, Method = "POST", Headers = headers, Body = jsonBody })
+    if not ok then return false, 0, tostring(res) end
+    local status = tonumber(res.StatusCode or res.status_code) or 0
+    return status >= 200 and status < 300, status, tostring(res.Body or "")
+end
+
+function TagDB:pushRemoteEntry(key, entry)
+    key = tostring(key or ""):lower()
+    if key == "" then return false, "empty key" end
+    local secret = tostring(_G.__SeigeTagSyncKey or "")
+    if secret == "" then return false, "no tag sync key configured" end
+    local payload
+    if entry == nil then
+        payload = { key = key, ["delete"] = true }
+    else
+        payload = { key = key, data = entry }
+    end
+    local okEnc, body = pcall(function() return HttpService:JSONEncode(payload) end)
+    if not okEnc then return false, tostring(body) end
+    task.spawn(function()
+        local ok, status, resp = _seigeHttpPost(TAGS_HTTP_URL, body, { ["x-tag-secret"] = secret })
+        if not ok then
+            warn(("[Tags] remote push failed (%s): %s"):format(tostring(status), tostring(resp)))
+        else
+            print(("[Tags] remote push ok for %s"):format(key))
+        end
+    end)
+    return true
+end
+
 function TagDB:load()
     -- Hydrate from local cache first so the saved tag appears immediately
     -- even before the network fetch resolves.
     self:hydrateFromCache()
+
+    -- Primary source: Lovable Cloud HTTP-backed tag DB.
+    if TAGS_HTTP_URL ~= "" then
+        local src
+        pcall(function()
+            src = game:HttpGet(TAGS_HTTP_URL .. "?v=" .. tostring(os.time()))
+        end)
+        if src and src ~= "" then
+            local okDec, decoded = pcall(function() return HttpService:JSONDecode(src) end)
+            if okDec and type(decoded) == "table" and type(decoded.entries) == "table" then
+                local entries, count = {}, 0
+                for k, v in pairs(decoded.entries) do
+                    local key = normTagKey(k)
+                    local clean = cleanTagEntry(v)
+                    if key ~= "" and clean then
+                        entries[key] = clean
+                        count = count + 1
+                    end
+                end
+                if count > 0 then
+                    self.entries = entries
+                    self:_cacheWrite(entries)
+                    print(("[Tags] HTTP tag DB loaded — %d entries"):format(count))
+                    return
+                end
+            end
+            warn("[Tags] HTTP source returned no entries, falling back to Pastebin")
+        else
+            warn("[Tags] HTTP source unreachable, falling back to Pastebin")
+        end
+    end
 
     -- Try Pastebin source first (easy-edit text format)
     if TAGS_PASTEBIN_URL ~= "" then
