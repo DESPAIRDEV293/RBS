@@ -12180,12 +12180,10 @@ local function bypassPayload(arg)
     return table.concat(out, zwj)
 end
 
--- !bypass — send a chat message that bypasses Roblox text censoring
--- Inserts a zero-width joiner between characters so the filter cannot tokenize
--- the words while humans still read the text normally (no ### replacement).
-cmdHandlers["bypass"] = function(arg)
-    if not arg or arg == "" then notify("Usage: !bypass <message>", "warn"); return end
-    local payload = bypassPayload(arg)
+-- Core sender used by both the command and the floating Bypass panel.
+local function sendBypass(msg)
+    if not msg or msg == "" then return end
+    local payload = bypassPayload(msg)
     local TextChat = game:GetService("TextChatService")
     local sent = pcall(function()
         local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral") or TextChat.TextChannels:GetChildren()[1]
@@ -12199,8 +12197,31 @@ cmdHandlers["bypass"] = function(arg)
     end
     notify("Bypass sent", "good")
 end
+
+-- Floating Bypass panel — entry box + send button. 100% ignores tagging / censor.
+local function openBypassPanel()
+    _openPanel("bypass", "Bypass  ·  uncensored chat", 180, function(body)
+        local tb = textbox(body, "Type message (swears OK, no ### )...", function(v)
+            sendBypass(v)
+        end)
+        button(body, "Send bypass", function()
+            local v = tb and tb.Text or ""
+            if v == "" then notify("Type a message first", "warn"); return end
+            tb.Text = ""
+            sendBypass(v)
+        end)
+    end)
+end
+_G.__SeigeOpenBypass = openBypassPanel
+
+-- !bypass — open the panel when called bare, or send immediately with an arg.
+cmdHandlers["bypass"] = function(arg)
+    if not arg or arg == "" then openBypassPanel(); return end
+    sendBypass(arg)
+end
 cmdHandlers["bp"]       = cmdHandlers["bypass"]
 cmdHandlers["nocensor"] = cmdHandlers["bypass"]
+
 
 -- 10) Chat say — send a message in chat from the command bar
 cmdHandlers["say"] = function(arg)
