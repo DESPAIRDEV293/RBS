@@ -1082,7 +1082,7 @@ local Pages = inst("Frame", ContentArea, {
 })
 
 -- Hover tooltip for icon-only sidebar
-local Tip = inst("TextLabel", Win, {
+local Tip = inst("TextLabel", Root, {
     Visible = false,
     BackgroundColor3 = T.bg3, BackgroundTransparency = 0.05,
     BorderSizePixel = 0,
