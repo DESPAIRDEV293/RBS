@@ -10100,8 +10100,19 @@ do
             panelBgState.panels[sel].trans = 1 - v
             applyPanelBg(); saveCfg()
         end)
+        textbox(pgThemes, "Text color for selected panel (hex, blank = use global/default)", function(v)
+            panelBgState.panels[sel] = panelBgState.panels[sel] or {}
+            if v == nil or v == "" then
+                panelBgState.panels[sel].textColor = nil
+            else
+                local c = hexToColor(v)
+                panelBgState.panels[sel].textColor = c and cToHex(c) or nil
+            end
+            applyPanelTextColor(); saveCfg()
+            notify((panelBgState.panels[sel].textColor and "Text color set for " or "Text color cleared for ") .. sel, "good")
+        end)
         button(pgThemes, "Reset selected panel", function()
-            panelBgState.panels[sel] = nil; applyPanelBg(); saveCfg()
+            panelBgState.panels[sel] = nil; applyPanelBg(); applyPanelTextColor(); saveCfg()
             notify("Reset " .. sel, "good")
         end)
 
