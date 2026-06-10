@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-rebuild-iter2"
+local ADMIN_BUILD = "2026-06-10-rebuild-iter2b"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -3114,8 +3114,15 @@ local function refreshBill(p)
         e.avRing.Enabled = not (ao == "off" or ao == "none" or ao == "0" or ao == "false")
     end
     if e.glow then
-        e.glow.ImageColor3 = chipColor
-        e.glow.ImageTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
+        pcall(function()
+            if e.glow:IsA("ImageLabel") then
+                e.glow.ImageColor3 = chipColor
+                e.glow.ImageTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
+            else
+                e.glow.BackgroundColor3 = chipColor
+                e.glow.BackgroundTransparency = (txt ~= "" or p == LP) and 0.45 or 0.6
+            end
+        end)
     end
 
     -- Sync tag text (display name + @handle + chip text) to the user's
@@ -8539,7 +8546,7 @@ local dockIconHex = textbox(pgConfig, "#RRGGBB", function(v)
         end
     end
 end)
-if dockIconHex and dockIconHex.set and _G.__SeigeDockIconHex then dockIconHex.set(_G.__SeigeDockIconHex) end
+if dockIconHex and _G.__SeigeDockIconHex then pcall(function() dockIconHex.Text = tostring(_G.__SeigeDockIconHex or "") end) end
 
 -- Dock outline (stroke) color
 local _dockStrokeLbl = label(pgConfig, "Dock outline color")
@@ -8568,7 +8575,7 @@ local dockStrokeHex = textbox(pgConfig, "#RRGGBB", function(v)
         end
     end
 end)
-if dockStrokeHex and dockStrokeHex.set and _G.__SeigeDockStrokeHex then dockStrokeHex.set(_G.__SeigeDockStrokeHex) end
+if dockStrokeHex and _G.__SeigeDockStrokeHex then pcall(function() dockStrokeHex.Text = tostring(_G.__SeigeDockStrokeHex or "") end) end
 
 -- Extend visibility refresh to include icon/outline controls
 local _origRefreshDockColorVis = _G.__SeigeRefreshDockColorVis
