@@ -6566,6 +6566,7 @@ button(pgCmds, "!info",                                      function() _runCmd(
 button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end end)
 button(pgCmds, "!sit",                                       function() _runCmd("!sit") end)
 button(pgCmds, "!unbang",                                    function() _runCmd("!unbang") end)
+button(pgCmds, "Bypass  —  uncensored chat panel", function() if _G.__SeigeOpenBypass then _G.__SeigeOpenBypass() end end)
 
 -- ===== Performance & Optimize — unified panel =====
 -- One place for FPS booster, Ping booster, and Optimize.
@@ -8505,7 +8506,7 @@ section(pgConfig, "Layout")
 label(pgConfig, "Top bar style. Hamburger collapses the bar into a ≡ menu — tabs drop down from it.")
 local _layoutMode = _G.__SeigeLayoutMode or "Bar"
 local _layoutDef = _G.__SeigeLayoutMode or "Bar"
-layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger", "Dock", "Spine" }, function(v)
+layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger", "Dock" }, function(v)
     _layoutMode = v
     if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout(v) end
     if _G.__SeigeRefreshDockColorVis then _G.__SeigeRefreshDockColorVis(v) end
@@ -10642,137 +10643,20 @@ do
     end
     _G.__SeigeRefreshDock = refreshDockState
 
-    -- ============= SPINE LAYOUT (left-edge vertical glowing rail) ==========
-    local Spine = inst("Frame", Root, {
-        Name = "SideSpine",
-        AnchorPoint = Vector2.new(0, 0.5),
-        Position = UDim2.new(0, 18, 0.5, 0),
-        Size = UDim2.new(0, 56, 0, 0),
-        AutomaticSize = Enum.AutomaticSize.Y,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0, Visible = false, Active = true, ZIndex = 100,
-    })
-    -- Glowing vertical rail behind the nodes
-    local rail = inst("Frame", Spine, {
-        Name = "Rail",
-        AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.new(0.5, 0, 0, 0),
-        Size = UDim2.new(0, 3, 1, 0),
-        BackgroundColor3 = T.acc, BackgroundTransparency = 0.25,
-        BorderSizePixel = 0, ZIndex = 100,
-    })
-    corner(rail, 2)
-    inst("UIGradient", rail, {
-        Rotation = 90,
-        Transparency = NumberSequence.new({
-            NumberSequenceKeypoint.new(0,    1),
-            NumberSequenceKeypoint.new(0.15, 0.2),
-            NumberSequenceKeypoint.new(0.85, 0.2),
-            NumberSequenceKeypoint.new(1,    1),
-        }),
-    })
-    inst("UIListLayout", Spine, {
-        FillDirection = Enum.FillDirection.Vertical,
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder,
-    })
-    inst("UIPadding", Spine, {
-        PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8),
-    })
-    _G.__SeigeSpine = Spine
-
-    local spineBtns = {}
-    local function refreshSpineState()
-        local icoC = _G.__SeigeDockIconColor or T.text
-        local strokeC = _G.__SeigeDockStrokeColor or _G.__SeigeDockColor or T.acc
-        for name, rec in pairs(spineBtns) do
-            local p = panels[name]
-            local active = p and p.frame and p.frame.Visible
-            tween(rec.btn, 0.12, {
-                BackgroundTransparency = active and 0.15 or 0.75,
-            })
-            if rec.img then rec.img.ImageColor3 = active and T.bg or icoC end
-            rec.btn.TextColor3 = active and T.bg or icoC
-            if rec.stroke then
-                rec.stroke.Color = strokeC
-                rec.stroke.Transparency = active and 0 or 0.3
-            end
-        end
-    end
-    _G.__SeigeRefreshSpine = refreshSpineState
-
-    local sOrd = 0
-    for _, name in ipairs(dockOrder) do
-        local p = panels[name]
-        if p then
-            sOrd = sOrd + 1
-            local icoTxt = (tabs[name] and tabs[name].ico and tabs[name].ico.Text) or "•"
-            local btn = inst("TextButton", Spine, {
-                Size = UDim2.new(0, 44, 0, 44),
-                BackgroundColor3 = T.bg2, BackgroundTransparency = 0.25,
-                BorderSizePixel = 0, AutoButtonColor = false,
-                Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
-                Text = p.defaultIcon and "" or icoTxt,
-                LayoutOrder = sOrd, ZIndex = 102,
-            })
-            corner(btn, 22); stroke(btn, T.acc, 2, 0.2)
-            local btnStroke = btn:FindFirstChildOfClass("UIStroke")
-            local img
-            if p.defaultIcon then
-                img = inst("ImageLabel", btn, {
-                    BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5),
-                    Position = UDim2.new(0.5, 0, 0.5, 0),
-                    Size = UDim2.new(0, 22, 0, 22),
-                    Image = p.defaultIcon, ImageColor3 = T.text, ZIndex = 103,
-                })
-            end
-            spineBtns[name] = { btn = btn, img = img, stroke = btnStroke }
-            btn.MouseEnter:Connect(function()
-                if not (p.frame and p.frame.Visible) then
-                    tween(btn, 0.1, { BackgroundTransparency = 0.5 })
-                end
-                Tip.Text = name
-                Tip.Size = UDim2.new(0, math.max(60, #name * 7 + 14), 0, 22)
-                local abs = btn.AbsolutePosition; local sz = btn.AbsoluteSize
-                Tip.Position = UDim2.new(0, abs.X + sz.X + 10, 0, abs.Y + sz.Y/2 - 11)
-                Tip.Visible = true
-            end)
-            btn.MouseLeave:Connect(function()
-                refreshSpineState(); Tip.Visible = false
-            end)
-            btn.MouseButton1Click:Connect(function()
-                local newVis = not p.frame.Visible
-                if _G.__SeigeAnimPanel then _G.__SeigeAnimPanel(p.frame, newVis) else p.frame.Visible = newVis end
-                task.delay(0.02, refreshSpineState)
-            end)
-        end
-    end
-
     -- Public: apply a layout mode.
     _G.__SeigeApplyLayout = function(mode)
         _G.__SeigeLayoutMode = mode
         if mode == "Dock" then
             Pill.Visible = false
             Dock.Visible = true
-            Spine.Visible = false
             menu.Visible = false
             for _, p in pairs(panels) do
                 if p.frame then p.frame.Visible = false end
             end
             refreshDockState()
-        elseif mode == "Spine" then
-            Pill.Visible = false
-            Dock.Visible = false
-            Spine.Visible = true
-            menu.Visible = false
-            for _, p in pairs(panels) do
-                if p.frame then p.frame.Visible = false end
-            end
-            refreshSpineState()
         elseif mode == "Hamburger" then
             Pill.Visible = true
             Dock.Visible = false
-            Spine.Visible = false
             -- Hide bar contents, leave only ≡; close any open panels.
             setBarCollapsed(true)
             for _, p in pairs(panels) do
@@ -10782,11 +10666,11 @@ do
         else
             Pill.Visible = true
             Dock.Visible = false
-            Spine.Visible = false
             setBarCollapsed(false)
             menu.Visible = false
         end
     end
+
 
 
     -- Public: apply UI translucency to Pill + every panel + menu.
@@ -10840,7 +10724,6 @@ bind(UIS.InputBegan:Connect(function(i, gp)
     if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.F2 then
         local mode = _G.__SeigeLayoutMode or "Bar"
         local chrome = (mode == "Dock") and _G.__SeigeDock
-            or (mode == "Spine") and _G.__SeigeSpine
             or Pill
         local v = not chrome.Visible
         chrome.Visible = v
@@ -10852,7 +10735,6 @@ bind(UIS.InputBegan:Connect(function(i, gp)
                 end
             end
             if _G.__SeigeRefreshDock  then _G.__SeigeRefreshDock()  end
-            if _G.__SeigeRefreshSpine then _G.__SeigeRefreshSpine() end
         end
     end
 end))
@@ -12299,12 +12181,10 @@ local function bypassPayload(arg)
     return table.concat(out, zwj)
 end
 
--- !bypass — send a chat message that bypasses Roblox text censoring
--- Inserts a zero-width joiner between characters so the filter cannot tokenize
--- the words while humans still read the text normally (no ### replacement).
-cmdHandlers["bypass"] = function(arg)
-    if not arg or arg == "" then notify("Usage: !bypass <message>", "warn"); return end
-    local payload = bypassPayload(arg)
+-- Core sender used by both the command and the floating Bypass panel.
+local function sendBypass(msg)
+    if not msg or msg == "" then return end
+    local payload = bypassPayload(msg)
     local TextChat = game:GetService("TextChatService")
     local sent = pcall(function()
         local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral") or TextChat.TextChannels:GetChildren()[1]
@@ -12318,8 +12198,31 @@ cmdHandlers["bypass"] = function(arg)
     end
     notify("Bypass sent", "good")
 end
+
+-- Floating Bypass panel — entry box + send button. 100% ignores tagging / censor.
+local function openBypassPanel()
+    _openPanel("bypass", "Bypass  ·  uncensored chat", 180, function(body)
+        local tb = textbox(body, "Type message (swears OK, no ### )...", function(v)
+            sendBypass(v)
+        end)
+        button(body, "Send bypass", function()
+            local v = tb and tb.Text or ""
+            if v == "" then notify("Type a message first", "warn"); return end
+            tb.Text = ""
+            sendBypass(v)
+        end)
+    end)
+end
+_G.__SeigeOpenBypass = openBypassPanel
+
+-- !bypass — open the panel when called bare, or send immediately with an arg.
+cmdHandlers["bypass"] = function(arg)
+    if not arg or arg == "" then openBypassPanel(); return end
+    sendBypass(arg)
+end
 cmdHandlers["bp"]       = cmdHandlers["bypass"]
 cmdHandlers["nocensor"] = cmdHandlers["bypass"]
+
 
 -- 10) Chat say — send a message in chat from the command bar
 cmdHandlers["say"] = function(arg)
