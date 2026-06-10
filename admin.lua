@@ -7629,6 +7629,16 @@ slider(pgThemes, "Panel image opacity", 0, 1, 0.5, function(v)
     panelBgState.trans = 1 - v
     applyPanelBg(); saveCfg()
 end)
+textbox(pgThemes, "Panel text color (hex like #ffffff, blank = default)", function(v)
+    if v == nil or v == "" then
+        panelBgState.textColor = nil
+    else
+        local c = hexToColor(v)
+        panelBgState.textColor = c
+    end
+    applyPanelTextColor(); saveCfg()
+    notify(panelBgState.textColor and "Panel text color updated" or "Panel text color cleared", "good")
+end)
 button(pgThemes, "Clear panel backgrounds", function()
     panelBgState.image = ""; applyPanelBg(); saveCfg(); notify("Panel backgrounds cleared", "good")
 end)
