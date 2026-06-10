@@ -9539,7 +9539,6 @@ _G.__SeigeLayoutMode = _G.__SeigeLayoutMode or "Bar"  -- "Bar" or "Hamburger"
 -- ============= TOP PILL ===========================================
 
 ;(function()
-;(function()
 local ok, err = pcall(function()
 Pill = inst("Frame", Root, {
     Name = "TopPill",
