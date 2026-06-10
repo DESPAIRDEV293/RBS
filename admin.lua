@@ -8775,11 +8775,8 @@ applyCfg = function(cfg, opts)
     setToggleKey(cfg.toggleKey or CFG_DEFAULTS.toggleKey)
     if uiScaleCtl and uiScaleCtl.set then uiScaleCtl.set(cfg.uiScale or CFG_DEFAULTS.uiScale) end
     if reducedCtl and reducedCtl.set then reducedCtl.set(cfg.reducedMotion == true) end
-    if cfg.layoutMode and _G.__SeigeApplyLayout then
-        _G.__SeigeApplyLayout(cfg.layoutMode)
-        if layoutCtl and layoutCtl.set then layoutCtl.set(cfg.layoutMode) end
-        if _G.__SeigeRefreshDockColorVis then _G.__SeigeRefreshDockColorVis(cfg.layoutMode) end
-    end
+    -- [Iter 1] Layout always forced to "Bar"; old saved Hamburger/Dock ignored.
+    if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout("Bar") end
     if cfg.dockColor and dockColorCtl and dockColorCtl.set then
         dockColorCtl.set(cfg.dockColor)
     end
