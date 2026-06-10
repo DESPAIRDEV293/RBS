@@ -7509,8 +7509,36 @@ function applyIconImages()
         end
     end
 end
+-- Override the text color of every floating panel (useful when a dark
+-- panel background image is uploaded and the default text is hard to read).
+function applyPanelTextColor()
+    local c = panelBgState.textColor
+    local panelsTbl = rawget(_G, "__SeigePanels")
+    if not panelsTbl then return end
+    for _, p in pairs(panelsTbl) do
+        if p.frame then
+            for _, d in ipairs(p.frame:GetDescendants()) do
+                if (d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox"))
+                    and not d:GetAttribute("__SeigeKeepColor") then
+                    if c then
+                        if not d:GetAttribute("__SeigeOrigText") then
+                            d:SetAttribute("__SeigeOrigText", cToHex(d.TextColor3))
+                        end
+                        d.TextColor3 = c
+                    else
+                        local orig = d:GetAttribute("__SeigeOrigText")
+                        if orig then
+                            local oc = hexToColor(orig); if oc then d.TextColor3 = oc end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
 _G.__SeigeApplyPanelBg = applyPanelBg
 _G.__SeigeApplyIconImages = applyIconImages
+_G.__SeigeApplyPanelTextColor = applyPanelTextColor
 _G.__SeigeApplyBg = applyBg
 _G.__SeigeApplyTheme = applyTheme
 _G.__SeigeApplyThemeHex = function(hexMap)
@@ -7531,7 +7559,15 @@ end
 
 
 saveCfg = function()
-    local data = { theme = {}, bg = bgState, panelBg = panelBgState, execEnabled = execEnabled }
+    -- Serialize panelBg with a hex-encoded textColor so JSON round-trips cleanly.
+    local pbg = {
+        image = panelBgState.image,
+        trans = panelBgState.trans,
+        panels = panelBgState.panels,
+        icons = panelBgState.icons,
+        textColor = (typeof(panelBgState.textColor) == "Color3") and cToHex(panelBgState.textColor) or nil,
+    }
+    local data = { theme = {}, bg = bgState, panelBg = pbg, execEnabled = execEnabled }
     for k,v in pairs(T) do
         if typeof(v) == "Color3" then data.theme[k] = cToHex(v) end
     end
@@ -7563,8 +7599,10 @@ loadCfg = function()
         panelBgState.trans = tonumber(data.panelBg.trans) or 0.5
         panelBgState.panels = (type(data.panelBg.panels) == "table") and data.panelBg.panels or {}
         panelBgState.icons = (type(data.panelBg.icons) == "table") and data.panelBg.icons or {}
+        panelBgState.textColor = data.panelBg.textColor and hexToColor(data.panelBg.textColor) or nil
         applyPanelBg()
         pcall(applyIconImages)
+        pcall(applyPanelTextColor)
     end
 end
 
@@ -7590,6 +7628,16 @@ end)
 slider(pgThemes, "Panel image opacity", 0, 1, 0.5, function(v)
     panelBgState.trans = 1 - v
     applyPanelBg(); saveCfg()
+end)
+textbox(pgThemes, "Panel text color (hex like #ffffff, blank = default)", function(v)
+    if v == nil or v == "" then
+        panelBgState.textColor = nil
+    else
+        local c = hexToColor(v)
+        panelBgState.textColor = c
+    end
+    applyPanelTextColor(); saveCfg()
+    notify(panelBgState.textColor and "Panel text color updated" or "Panel text color cleared", "good")
 end)
 button(pgThemes, "Clear panel backgrounds", function()
     panelBgState.image = ""; applyPanelBg(); saveCfg(); notify("Panel backgrounds cleared", "good")
@@ -9539,7 +9587,8 @@ local function makePanel(name, entry)
         ScaleType = Enum.ScaleType.Crop,
         Image = "",
         ImageTransparency = 1,
-        ZIndex = 110,
+        -- Keep the uploaded image behind all panel content (text, buttons, icons).
+        ZIndex = 1,
         ClipsDescendants = true,
     })
     -- Round the uploaded image so it fits the panel's rounded corners.
