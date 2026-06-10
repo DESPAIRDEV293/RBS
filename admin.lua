@@ -8746,6 +8746,21 @@ applyCfg = function(cfg, opts)
         _G.__SeigeApplyUITrans(tonumber(cfg.uiTrans) or 0.35)
         if transCtl and transCtl.set then transCtl.set(tonumber(cfg.uiTrans) or 0.35) end
     end
+    if type(cfg.panelTrans) == "table" then
+        _G.__SeigePanelTrans = {}
+        for name, v in pairs(cfg.panelTrans) do
+            local n = tonumber(v); if n then _G.__SeigePanelTrans[name] = n end
+        end
+        if _G.__SeigeApplyPanelTrans then
+            for name, n in pairs(_G.__SeigePanelTrans) do
+                pcall(_G.__SeigeApplyPanelTrans, name, n)
+            end
+        end
+    end
+    if cfg.textColorMode and _G.__SeigeApplyTextMode then
+        _G.__SeigeTextColorCustom = cfg.textColorHex or ""
+        pcall(_G.__SeigeApplyTextMode, cfg.textColorMode, cfg.textColorHex or "")
+    end
     local sb = cfg.skybox or CFG_DEFAULTS.skybox
     for _, k in ipairs({ "Up", "Dn", "Lf", "Rt", "Ft", "Bk" }) do
         skyboxFaces[k] = sb[k] or ""
