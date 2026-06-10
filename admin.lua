@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-09-savecfg-pinned-full"
+local ADMIN_BUILD = "2026-06-10-config-persist-fix"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -219,6 +219,7 @@ _G.__SeigeSetRole = function(name, role)
         _G.__SeigeRoleMap[name] = role
     end
     _writeRoleMap(_G.__SeigeRoleMap)
+    if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
     return true
 end
 _G.__SeigeRoleLabel = function(r) return ROLE_LABELS[r] or "—" end
@@ -1435,12 +1436,14 @@ local function slider(parent, text, lo, hi, default, fn)
     corner(knob, 6)
 
     local dragging = false
+    local current = default
     local function setFrac(frac)
         frac = math.clamp(frac, 0, 1)
         fill.Size = UDim2.new(frac, 0, 1, 0)
         knob.Position = UDim2.new(frac, -6, 0.5, -6)
         local val = lo + (hi - lo) * frac
         val = math.floor(val * 100 + 0.5) / 100
+        current = val
         valTxt.Text = tostring(val)
         if fn then pcall(fn, val) end
     end
@@ -1458,7 +1461,10 @@ local function slider(parent, text, lo, hi, default, fn)
     UIS.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
     end)
-    return { set = function(v) setFrac((v - lo) / (hi - lo)) end }
+    return {
+        set = function(v) current = v; setFrac((v - lo) / (hi - lo)) end,
+        get = function() return current end,
+    }
 end
 
 local function dropdown(parent, text, options, fn)
@@ -8306,6 +8312,7 @@ end -- end shaders scope
 
 -- defaults for everything saveable in this tab
 local CFG_DEFAULTS = {
+    prefix      = "!",
     toggleKey   = "F2",
     uiScale     = 1,
     reducedMotion = false,
@@ -8333,7 +8340,11 @@ end)
 local _resetBtn = button(pgConfig, "↺  Reset to Defaults", function()
     _G.__SeigeSessionCfg = nil
     local wf = rawget(getfenv(), "delfile") or delfile
-    if wf then pcall(wf, CFG_FILE) end
+    if wf then
+        pcall(wf, CFG_FILE)
+        pcall(wf, "seige_config.json")
+        pcall(wf, "seige_admin_theme.json")
+    end
     if applyCfg then
         applyCfg(CFG_DEFAULTS, { applySkybox = true })
         notify("Config reset to defaults", "good")
@@ -8373,10 +8384,20 @@ end))
 local uiScaleCtl = slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
     local s = Win:FindFirstChildOfClass("UIScale") or inst("UIScale", Win, { Scale = 1 })
     s.Scale = v
+    if saveCfg then pcall(saveCfg) end
 end)
 
 local reducedCtl = toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, function(v)
     _G.__SeigeReducedMotion = v
+    if saveCfg then pcall(saveCfg) end
+end)
+
+textbox(pgConfig, "Command prefix (default !)", function(v)
+    v = tostring(v or ""):gsub("^%s+", ""):gsub("%s+$", ""):sub(1, 1)
+    if v == "" then v = "!" end
+    _G.__SeigeCmdPrefix = v
+    if saveCfg then pcall(saveCfg) end
+    notify("Command prefix saved: " .. v, "good")
 end)
 
 ------------------------------------------------------- LAYOUT & TRANSLUCENCY
@@ -8543,8 +8564,11 @@ snapshotCfg = function()
         pbgSnap.trans  = panelBgState.trans  or 0.5
         pbgSnap.panels = panelBgState.panels or {}
         pbgSnap.icons  = panelBgState.icons  or {}
+        pbgSnap.textColor = (typeof(panelBgState.textColor) == "Color3") and cToHex(panelBgState.textColor) or nil
     end)
     return {
+        prefix        = _G.__SeigeCmdPrefix or CFG_DEFAULTS.prefix,
+        roles         = _G.__SeigeRoleMap or {},
         toggleKey     = toggleKey.Name,
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
         reducedMotion = reducedCtl and reducedCtl.get and reducedCtl.get() or false,
@@ -8594,6 +8618,13 @@ end
 applyCfg = function(cfg, opts)
     cfg = cfg or {}
     opts = opts or {}
+    _G.__SeigeCmdPrefix = tostring(cfg.prefix or CFG_DEFAULTS.prefix):sub(1, 1)
+    if _G.__SeigeCmdPrefix == "" then _G.__SeigeCmdPrefix = CFG_DEFAULTS.prefix end
+    if type(cfg.roles) == "table" then
+        _G.__SeigeRoleMap = cfg.roles
+        pcall(_writeRoleMap, _G.__SeigeRoleMap)
+        if _G.__SeigeRefreshRolesUI then pcall(_G.__SeigeRefreshRolesUI) end
+    end
     setToggleKey(cfg.toggleKey or CFG_DEFAULTS.toggleKey)
     if uiScaleCtl and uiScaleCtl.set then uiScaleCtl.set(cfg.uiScale or CFG_DEFAULTS.uiScale) end
     if reducedCtl and reducedCtl.set then reducedCtl.set(cfg.reducedMotion == true) end
@@ -8651,8 +8682,10 @@ applyCfg = function(cfg, opts)
             panelBgState.trans  = tonumber(cfg.panelBg.trans) or 0.5
             panelBgState.panels = (type(cfg.panelBg.panels) == "table") and cfg.panelBg.panels or {}
             panelBgState.icons  = (type(cfg.panelBg.icons)  == "table") and cfg.panelBg.icons  or {}
+            panelBgState.textColor = cfg.panelBg.textColor and hexToColor(cfg.panelBg.textColor) or nil
             if _G.__SeigeApplyPanelBg    then _G.__SeigeApplyPanelBg()    end
             if _G.__SeigeApplyIconImages then _G.__SeigeApplyIconImages() end
+            if _G.__SeigeApplyPanelTextColor then _G.__SeigeApplyPanelTextColor() end
         end)
     end
     if cfg.fontOverride or cfg.fontScale then
@@ -8737,6 +8770,10 @@ saveCfg = function(opts)
     local ok, raw = pcall(HttpService.JSONEncode, HttpService, snap)
     if not ok then if doNotify then notify("Failed to encode config", "bad") end return end
     local okW = pcall(wf, CFG_FILE, raw)
+    for _, path in ipairs({ "seige_config.json", "seige_admin_theme.json" }) do
+        local okAlt = pcall(wf, path, raw)
+        okW = okW or okAlt
+    end
     if doNotify then
         if okW then notify("Config saved", "good") else notify("Config saved for this session", "good") end
     end
@@ -8756,10 +8793,22 @@ loadCfg = function()
     local rf  = rawget(getfenv(), "readfile") or readfile
     local isf = rawget(getfenv(), "isfile")   or isfile
     if not rf or not isf then return end
-    local ok, exists = pcall(isf, CFG_FILE); if not (ok and exists) then return end
-    local okR, raw = pcall(rf, CFG_FILE); if not (okR and raw) then return end
-    local okD, data = pcall(HttpService.JSONDecode, HttpService, raw)
-    if okD and type(data) == "table" then applyCfg(data, { applySkybox = true }) end
+    local paths = { CFG_FILE }
+    for _, path in ipairs({ "seige_config.json", "seige_admin_theme.json" }) do paths[#paths + 1] = path end
+    for _, path in ipairs(paths) do
+        local ok, exists = pcall(isf, path)
+        if ok and exists then
+            local okR, raw = pcall(rf, path)
+            if okR and raw then
+                local okD, data = pcall(HttpService.JSONDecode, HttpService, raw)
+                if okD and type(data) == "table" then
+                    applyCfg(data, { applySkybox = true })
+                    _G.__SeigeSessionCfg = data
+                    return
+                end
+            end
+        end
+    end
 end
 
 -- auto-load saved config on startup
@@ -12717,7 +12766,8 @@ end
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
     local s = raw:gsub("^%s+", ""):gsub("%s+$", "")
-    s = s:gsub("^[!:;]+", "")
+    local pref = tostring(_G.__SeigeCmdPrefix or "!"):sub(1, 1)
+    if pref ~= "" and s:sub(1, 1) == pref then s = s:sub(2) else s = s:gsub("^[!:;]+", "") end
     local cmd, arg = s:match("^(%S+)%s*(.*)$")
     if not cmd then return end
     cmd = cmd:lower()
@@ -12745,7 +12795,8 @@ cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !goto !to !spectate !fl
 pcall(function()
     LP.Chatted:Connect(function(msg)
         if type(msg) ~= "string" then return end
-        if msg:sub(1, 1) ~= "!" then return end
+        local p = tostring(_G.__SeigeCmdPrefix or "!"):sub(1, 1)
+        if msg:sub(1, 1) ~= "!" and (p == "" or msg:sub(1, 1) ~= p) then return end
         runBarCmd(msg)
     end)
 end)
@@ -12762,7 +12813,8 @@ pcall(function()
     local function isAdminCmd(s)
         if type(s) ~= "string" then return false end
         local t = s:gsub("^%s+", "")
-        return t:sub(1, 1) == "!"
+        local p = tostring(_G.__SeigeCmdPrefix or "!"):sub(1, 1)
+        return t:sub(1, 1) == "!" or (p ~= "" and t:sub(1, 1) == p)
     end
 
     -- Preferred: hookmetamethod (Synapse / Fluxus / most modern executors)
