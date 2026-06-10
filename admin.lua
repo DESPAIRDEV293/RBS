@@ -7591,8 +7591,10 @@ loadCfg = function()
         panelBgState.trans = tonumber(data.panelBg.trans) or 0.5
         panelBgState.panels = (type(data.panelBg.panels) == "table") and data.panelBg.panels or {}
         panelBgState.icons = (type(data.panelBg.icons) == "table") and data.panelBg.icons or {}
+        panelBgState.textColor = data.panelBg.textColor and hexToColor(data.panelBg.textColor) or nil
         applyPanelBg()
         pcall(applyIconImages)
+        pcall(applyPanelTextColor)
     end
 end
 
