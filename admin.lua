@@ -8206,7 +8206,7 @@ pcall(function() _resetBtn.LayoutOrder = -997 end)
 end
 
 
-do -- scope Settings/Layout/Skybox/FX/Cfg locals out of main chunk (200-local limit)
+(function() -- function scope: new 200-local budget for Settings/Layout/Skybox/FX/Cfg
 section(pgConfig, "Settings")
 local toggleKey = Enum.KeyCode.F2
 local awaitingKey = false
