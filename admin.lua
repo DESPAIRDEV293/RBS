@@ -10470,6 +10470,7 @@ do
                 LayoutOrder = dOrd, ZIndex = 101,
             })
             corner(btn, 12); stroke(btn, T.acc, 1, 0.55)
+            local btnStroke = btn:FindFirstChildOfClass("UIStroke")
             local img
             if p.defaultIcon then
                 img = inst("ImageLabel", btn, {
@@ -10479,7 +10480,7 @@ do
                     Image = p.defaultIcon, ImageColor3 = T.text, ZIndex = 102,
                 })
             end
-            dockBtns[name] = { btn = btn, img = img }
+            dockBtns[name] = { btn = btn, img = img, stroke = btnStroke }
             btn.MouseEnter:Connect(function()
                 if not (p.frame and p.frame.Visible) then
                     tween(btn, 0.1, { BackgroundTransparency = 0.65 })
