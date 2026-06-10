@@ -8514,6 +8514,10 @@ applyCfg = function(cfg, opts)
     if cfg.layoutMode and _G.__SeigeApplyLayout then
         _G.__SeigeApplyLayout(cfg.layoutMode)
         if layoutCtl and layoutCtl.set then layoutCtl.set(cfg.layoutMode) end
+        if _G.__SeigeRefreshDockColorVis then _G.__SeigeRefreshDockColorVis(cfg.layoutMode) end
+    end
+    if cfg.dockColor and dockColorCtl and dockColorCtl.set then
+        dockColorCtl.set(cfg.dockColor)
     end
     if cfg.uiTrans and _G.__SeigeApplyUITrans then
         _G.__SeigeApplyUITrans(tonumber(cfg.uiTrans) or 0.35)
