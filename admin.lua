@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-rebuild-iter2d"
+local ADMIN_BUILD = "2026-06-10-rebuild-iter2e"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -806,6 +806,14 @@ local Win = inst("Frame", Root, {
     BorderSizePixel = 0,
     Active = true,
 })
+Win.Visible = false  -- [iter2] legacy chrome retired; never show even if toggle key fires
+-- Block legacy keybind from re-showing the retired Win.
+do
+    local _wv = false
+    Win:GetPropertyChangedSignal("Visible"):Connect(function()
+        if Win.Visible then Win.Visible = false end
+    end)
+end
 corner(Win, 20)
 stroke(Win, T.silver, 1, 0.55)
 -- silver glass gradient (subtle sheen across the whole panel)
@@ -9531,6 +9539,8 @@ _G.__SeigeLayoutMode = _G.__SeigeLayoutMode or "Bar"  -- "Bar" or "Hamburger"
 -- ============= TOP PILL ===========================================
 
 ;(function()
+;(function()
+local ok, err = pcall(function()
 Pill = inst("Frame", Root, {
     Name = "TopPill",
     AnchorPoint = Vector2.new(0.5, 0),
@@ -9768,6 +9778,9 @@ task.spawn(function()
     end
     pcall(function() rsConn:Disconnect() end)
 end)
+end)  -- close pcall
+if not ok then warn("[seige] PILL IIFE ERROR: "..tostring(err)) end
+print("[seige] Pill mounted parent=", Pill and Pill.Parent and Pill.Parent.Name or "FAILED", "pos=", Pill and tostring(Pill.AbsolutePosition) or "?", "size=", Pill and tostring(Pill.AbsoluteSize) or "?")
 end)()
 
 -- ============= FLOATING PANELS ====================================
