@@ -8392,6 +8392,14 @@ local reducedCtl = toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, f
     if saveCfg then pcall(saveCfg) end
 end)
 
+textbox(pgConfig, "Command prefix (default !)", function(v)
+    v = tostring(v or ""):gsub("^%s+", ""):gsub("%s+$", ""):sub(1, 1)
+    if v == "" then v = "!" end
+    _G.__SeigeCmdPrefix = v
+    if saveCfg then pcall(saveCfg) end
+    notify("Command prefix saved: " .. v, "good")
+end)
+
 ------------------------------------------------------- LAYOUT & TRANSLUCENCY
 section(pgConfig, "Layout")
 label(pgConfig, "Top bar style. Hamburger collapses the bar into a ≡ menu — tabs drop down from it.")
