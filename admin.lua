@@ -8307,6 +8307,7 @@ end -- end shaders scope
 
 -- defaults for everything saveable in this tab
 local CFG_DEFAULTS = {
+    prefix      = "!",
     toggleKey   = "F2",
     uiScale     = 1,
     reducedMotion = false,
@@ -8316,6 +8317,7 @@ local CFG_DEFAULTS = {
     fx          = { Profile = true, Players = false, Cmds = false, Shaders = false, Spotify = false, Misc = false },
 }
 local CFG_FILE = "SeigeAdmin/config.json"
+local CFG_FALLBACK_FILES = { "seige_config.json", "seige_admin_theme.json" }
 
 -- forward declarations so the Save/Reset buttons can live at the very top
 local snapshotCfg, applyCfg, saveCfg, loadCfg
@@ -8550,8 +8552,11 @@ snapshotCfg = function()
         pbgSnap.trans  = panelBgState.trans  or 0.5
         pbgSnap.panels = panelBgState.panels or {}
         pbgSnap.icons  = panelBgState.icons  or {}
+        pbgSnap.textColor = (typeof(panelBgState.textColor) == "Color3") and cToHex(panelBgState.textColor) or nil
     end)
     return {
+        prefix        = _G.__SeigeCmdPrefix or CFG_DEFAULTS.prefix,
+        roles         = _G.__SeigeRoleMap or {},
         toggleKey     = toggleKey.Name,
         uiScale       = uiScaleCtl and uiScaleCtl.get and uiScaleCtl.get() or 1,
         reducedMotion = reducedCtl and reducedCtl.get and reducedCtl.get() or false,
