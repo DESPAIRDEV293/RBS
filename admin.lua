@@ -769,15 +769,19 @@ showLoadScreen()
 
 
 ------------------------------------------------------- WINDOW
-local Win = inst("Frame", Root, {
+-- Legacy Win frame: parented to NIL so it can NEVER render in any ScreenGui.
+-- All child code keeps working (they hold a Win reference), but nothing draws
+-- on screen. Belt-and-suspenders: also Visible=false, zero-size, off-screen.
+local Win = inst("Frame", nil, {
     AnchorPoint = Vector2.new(0.5, 0.5),
-    Position = UDim2.new(0.5, 0, 0.5, 0),
-    Size = UDim2.new(0, 780, 0, 540),
+    Position = UDim2.new(-5, 0, -5, 0),
+    Size = UDim2.new(0, 0, 0, 0),
     ClipsDescendants = true,
     BackgroundColor3 = T.bg,
-    BackgroundTransparency = 0.05,
+    BackgroundTransparency = 1,
     BorderSizePixel = 0,
-    Active = true,
+    Active = false,
+    Visible = false,
 })
 corner(Win, 20)
 stroke(Win, T.silver, 1, 0.55)
