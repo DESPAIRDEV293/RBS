@@ -7128,63 +7128,6 @@ button(pgCmds, "!freecam  —  WASD/EQ camera",            function() _runCmd("!
 button(pgCmds, "!say <message>",                         function() _openCmd("!say ") end)
 button(pgCmds, "!baseplate  —  extend the map",          function() _runCmd("!baseplate") end)
 
-button(pgCmds, "Voice  —  anti-ban + mute", function()
-    _openPanel("voice", "Voice  ·  anti-ban + mic", 290, function(body)
-        local V = _G.__SeigeVoice
-        if not V then notify("Voice helper not ready", "warn"); return end
-        _G.__SeigeAntiVC = _G.__SeigeAntiVC or { on = false, interval = 25 }
-
-        local statusLbl = inst("TextLabel", body, {
-            BackgroundTransparency = 1, Size = UDim2.new(1, -8, 0, 16),
-            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
-            TextXAlignment = Enum.TextXAlignment.Left, Text = "  " .. V.summary(),
-        })
-        local activateBtn
-        local function refresh()
-            statusLbl.Text = "  " .. V.summary()
-            if activateBtn then
-                if V.isActivated() then
-                    activateBtn.Text = "Voice controls ACTIVE"
-                    activateBtn.BackgroundColor3 = T.good
-                else
-                    activateBtn.Text = "Activate  (unmute mic in Roblox first)"
-                    activateBtn.BackgroundColor3 = T.warn
-                end
-            end
-        end
-        activateBtn = button(body, "Activate  (unmute mic in Roblox first)", function()
-            local ok, why = V.activate()
-            notify(ok and "Voice controls ACTIVE" or (why or "Activation failed"),
-                   ok and "good" or "warn")
-            refresh()
-        end)
-        refresh()
-        task.spawn(function()
-            while body and body.Parent do task.wait(1); refresh() end
-        end)
-
-        toggle(body, "Anti voice-chat ban (auto-cycle)", _G.__SeigeAntiVC.on, function(s)
-            if not V.isActivated() then notify("Activate voice controls first", "warn"); refresh(); return end
-            if s == _G.__SeigeAntiVC.on then return end
-            _runCmd("!antivc"); task.wait(0.1); refresh()
-        end)
-        slider(body, "Cycle interval (sec)", 8, 90, _G.__SeigeAntiVC.interval or 25, function(v)
-            _G.__SeigeAntiVC.interval = v
-        end)
-        button(body, "Cycle voice now (leave + rejoin)", function()
-            V.cycle(); refresh()
-        end)
-        toggle(body, "Force mute mic", V.isMuted(), function(s)
-            V.setMuted(s); refresh()
-        end)
-        button(body, "Disconnect voice (leave channel)", function()
-            V.leave(); refresh()
-        end)
-        button(body, "Reconnect voice (rejoin channel)", function()
-            V.join(); refresh()
-        end)
-    end)
-end)
 
 
 
