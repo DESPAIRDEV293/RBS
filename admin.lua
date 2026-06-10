@@ -12766,7 +12766,8 @@ end
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
     local s = raw:gsub("^%s+", ""):gsub("%s+$", "")
-    s = s:gsub("^[!:;]+", "")
+    local pref = tostring(_G.__SeigeCmdPrefix or "!"):sub(1, 1)
+    if pref ~= "" and s:sub(1, 1) == pref then s = s:sub(2) else s = s:gsub("^[!:;]+", "") end
     local cmd, arg = s:match("^(%S+)%s*(.*)$")
     if not cmd then return end
     cmd = cmd:lower()
@@ -12794,7 +12795,8 @@ cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !goto !to !spectate !fl
 pcall(function()
     LP.Chatted:Connect(function(msg)
         if type(msg) ~= "string" then return end
-        if msg:sub(1, 1) ~= "!" then return end
+        local p = tostring(_G.__SeigeCmdPrefix or "!"):sub(1, 1)
+        if msg:sub(1, 1) ~= "!" and (p == "" or msg:sub(1, 1) ~= p) then return end
         runBarCmd(msg)
     end)
 end)
@@ -12811,7 +12813,8 @@ pcall(function()
     local function isAdminCmd(s)
         if type(s) ~= "string" then return false end
         local t = s:gsub("^%s+", "")
-        return t:sub(1, 1) == "!"
+        local p = tostring(_G.__SeigeCmdPrefix or "!"):sub(1, 1)
+        return t:sub(1, 1) == "!" or (p ~= "" and t:sub(1, 1) == p)
     end
 
     -- Preferred: hookmetamethod (Synapse / Fluxus / most modern executors)
