@@ -7596,6 +7596,69 @@ button(pgThemes, "Clear panel backgrounds", function()
 end)
 label(pgThemes, "Applies to every floating panel (Profile, Cmds, Shaders, ...).")
 
+section(pgThemes, "Panel text color")
+label(pgThemes, "Force all panel text to a specific color. Auto switches to white whenever a panel/global background image is set, so text stays readable on photos.")
+do
+    -- Snapshot the theme's default text color once so we can restore it on "Default theme".
+    _G.__SeigeOrigTextColor = _G.__SeigeOrigTextColor or T.text
+    local TEXT_MODES = { "Auto (white on image bg)", "Default theme", "White", "Black", "Custom hex" }
+    local _textCustom = _G.__SeigeTextColorCustom or ""
+    local function _hexToColor(h)
+        h = tostring(h or ""):gsub("#","")
+        if #h ~= 6 then return nil end
+        local r = tonumber(h:sub(1,2), 16); local g = tonumber(h:sub(3,4), 16); local b = tonumber(h:sub(5,6), 16)
+        if not (r and g and b) then return nil end
+        return Color3.fromRGB(r, g, b)
+    end
+    local function _hasAnyImageBg()
+        if (bgState and bgState.image or "") ~= "" then return true end
+        if (panelBgState and panelBgState.image or "") ~= "" then return true end
+        if panelBgState and type(panelBgState.panels) == "table" then
+            for _, ov in pairs(panelBgState.panels) do
+                if ov and ov.image and ov.image ~= "" then return true end
+            end
+        end
+        return false
+    end
+    local function applyTextMode(mode, custom)
+        local c
+        if mode == "Auto (white on image bg)" then
+            c = _hasAnyImageBg() and Color3.fromRGB(248, 250, 255) or _G.__SeigeOrigTextColor
+        elseif mode == "Default theme" then
+            c = _G.__SeigeOrigTextColor
+        elseif mode == "White" then
+            c = Color3.fromRGB(248, 250, 255)
+        elseif mode == "Black" then
+            c = Color3.fromRGB(16, 18, 24)
+        elseif mode == "Custom hex" then
+            c = _hexToColor(custom or "") or T.text
+        end
+        if c then applyTheme({ text = c }) end
+        _G.__SeigeTextColorMode = mode
+        _G.__SeigeTextColorCustom = custom or _G.__SeigeTextColorCustom or ""
+    end
+    _G.__SeigeApplyTextMode = applyTextMode
+    _G.__SeigeRefreshTextColor = function()
+        if _G.__SeigeTextColorMode then
+            applyTextMode(_G.__SeigeTextColorMode, _G.__SeigeTextColorCustom)
+        end
+    end
+
+    local textModeCtl = dropdown(pgThemes, "Text color mode", TEXT_MODES, function(v)
+        applyTextMode(v, _textCustom); if saveCfg then saveCfg() end
+    end)
+    textbox(pgThemes, "Custom hex (e.g. #ffffff)", function(v)
+        _textCustom = v
+        _G.__SeigeTextColorCustom = v
+        if (_G.__SeigeTextColorMode or "") == "Custom hex" then
+            applyTextMode("Custom hex", v); if saveCfg then saveCfg() end
+        end
+    end)
+    if textModeCtl and textModeCtl.set then
+        textModeCtl.set(_G.__SeigeTextColorMode or "Auto (white on image bg)")
+    end
+end
+
 section(pgThemes, "Presets")
 local PRESETS = {
     ["Midnight (default)"] = {
