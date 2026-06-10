@@ -10722,7 +10722,7 @@ setTab = function() end
 -- F2 toggle for the new chrome
 bind(UIS.InputBegan:Connect(function(i, gp)
     if gp then return end
-    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == Enum.KeyCode.F2 then
+    if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == (toggleKey or Enum.KeyCode.F2) then
         local mode = _G.__SeigeLayoutMode or "Bar"
         local chrome = (mode == "Dock") and _G.__SeigeDock
             or Pill
