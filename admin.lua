@@ -8602,7 +8602,7 @@ _G.__SeigeRefreshDockColorVis = function(mode)
 end
 _G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
 
-label(pgConfig, "Panel translucency — higher = more see-through. Pick a target panel to tweak just that one.")
+
 local TRANS_TARGETS = { "All Panels", "Profile", "Players", "Cmds", "Shaders", "Spotify", "Config", "Misc", "Themes" }
 local _transTarget = "All Panels"
 _G.__SeigePanelTrans = _G.__SeigePanelTrans or {}
@@ -8632,6 +8632,9 @@ end)
 transCtl = slider(pgConfig, "Panel translucency", 0, 0.95, _G.__SeigeUITrans or 0.35, function(v)
     _applyTransTo(_transTarget, v)
 end)
+label(pgConfig, "Panel translucency — higher = more see-through. Pick a target panel to tweak just that one.")
+
+
 
 
 section(pgConfig, "World Image (Skybox)")
