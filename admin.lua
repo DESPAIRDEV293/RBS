@@ -8487,9 +8487,10 @@ bind(UIS.InputBegan:Connect(function(i, gp)
         awaitingKey = false
         return
     end
-    if not gp and i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == toggleKey then
-        Win.Visible = not Win.Visible
-    end
+    -- Legacy Win is retired; the new chrome (Pill/Dock) handles its own
+    -- toggle key in the handler defined further down. Do nothing here so
+    -- pressing the toggle key never reveals the old window UI again.
+
 end))
 
 local uiScaleCtl = slider(pgConfig, "UI scale", 0.7, 1.4, 1, function(v)
