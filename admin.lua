@@ -8725,6 +8725,8 @@ saveCfg = function(opts)
         if okW then notify("Config saved", "good") else notify("Config saved for this session", "good") end
     end
 end
+-- Global hook so any code in the script can trigger a config autosave.
+_G.__SeigeSaveCfg = function() pcall(saveCfg) end
 
 
 loadCfg = function()
