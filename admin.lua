@@ -2070,16 +2070,15 @@ end
 -- tag INSTANTLY instead of staring at "no tag" until the Pastebin/GitHub
 -- HTTP fetch resolves. We still refresh from the network in the background
 -- and replace `self.entries` once it lands.
-local _tagDbCacheWrite, _tagDbCacheRead
 do
     local TAGS_DB_CACHE_FILE = "seige_tags_db_cache.json"
-    _tagDbCacheWrite = function(entries)
+    function TagDB:_cacheWrite(entries)
         local wf = rawget(getfenv(), "writefile")
         if not wf or type(entries) ~= "table" then return end
         local ok, raw = pcall(function() return HttpService:JSONEncode(entries) end)
         if ok and raw then pcall(wf, TAGS_DB_CACHE_FILE, raw) end
     end
-    _tagDbCacheRead = function()
+    function TagDB:_cacheRead()
         local rf  = rawget(getfenv(), "readfile")
         local isf = rawget(getfenv(), "isfile")
         if not (rf and isf) then return nil end
@@ -2093,7 +2092,7 @@ end
 
 function TagDB:hydrateFromCache()
     if self.entries and next(self.entries) then return false end
-    local cached = _tagDbCacheRead()
+    local cached = self:_cacheRead()
     if cached and next(cached) then
         self.entries = cached
         local n = 0; for _ in pairs(cached) do n = n + 1 end
