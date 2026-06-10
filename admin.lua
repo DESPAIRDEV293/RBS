@@ -10436,8 +10436,11 @@ do
         if _G.__SeigeDock then _G.__SeigeDock.BackgroundTransparency = math.max(0.05, t - 0.1) end
         if menu then menu.BackgroundTransparency = t end
         if _G.__SeigePanels then
-            for _, p in pairs(_G.__SeigePanels) do
-                if p.frame and p.frame.Visible then p.frame.BackgroundTransparency = t end
+            for name, p in pairs(_G.__SeigePanels) do
+                if p.frame and p.frame.Visible then
+                    local ov = _G.__SeigePanelTrans and _G.__SeigePanelTrans[name]
+                    p.frame.BackgroundTransparency = ov or t
+                end
             end
         end
         -- Sync floating command popups (Bang, Reanim, Circle, Help, etc.)
