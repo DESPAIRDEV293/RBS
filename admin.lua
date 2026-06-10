@@ -9439,7 +9439,10 @@ local function makePanel(name, entry)
         Image = "",
         ImageTransparency = 1,
         ZIndex = 110,
+        ClipsDescendants = true,
     })
+    -- Round the uploaded image so it fits the panel's rounded corners.
+    inst("UICorner", bgImg, { CornerRadius = UDim.new(0, 12) })
     -- soft glow
     inst("ImageLabel", frame, {
         BackgroundTransparency = 1,
