@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-textcolor-pertrans"
+local ADMIN_BUILD = "2026-06-10-rebuild-iter1"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -8492,59 +8492,13 @@ local reducedCtl = toggle(pgConfig, "Reduced motion", _G.__SeigeReducedMotion, f
 end)
 
 ------------------------------------------------------- LAYOUT & TRANSLUCENCY
-section(pgConfig, "Layout")
-label(pgConfig, "Top bar style. Hamburger collapses the bar into a ≡ menu — tabs drop down from it.")
-local _layoutMode = _G.__SeigeLayoutMode or "Bar"
-local _layoutDef = _G.__SeigeLayoutMode or "Bar"
-layoutCtl = dropdown(pgConfig, "Top bar layout", { "Bar", "Hamburger", "Dock" }, function(v)
-    _layoutMode = v
-    if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout(v) end
-    if _G.__SeigeRefreshDockColorVis then _G.__SeigeRefreshDockColorVis(v) end
-end)
-if layoutCtl and layoutCtl.set then layoutCtl.set(_G.__SeigeLayoutMode or "Bar") end
-
--- Dock color (only meaningful when Dock layout is active; visible only then).
-local dockColorPresets = {
-    { name = "Cyan",    color = Color3.fromRGB( 30, 215, 230) },
-    { name = "Magenta", color = Color3.fromRGB(225,  70, 200) },
-    { name = "Purple",  color = Color3.fromRGB(150,  90, 255) },
-    { name = "Green",   color = Color3.fromRGB( 70, 230, 140) },
-    { name = "Orange",  color = Color3.fromRGB(255, 150,  60) },
-    { name = "Red",     color = Color3.fromRGB(235,  70,  90) },
-    { name = "White",   color = Color3.fromRGB(235, 235, 240) },
-    { name = "Default", color = nil },
-}
-local dockColorNames = {}
-for i, p in ipairs(dockColorPresets) do dockColorNames[i] = p.name end
-local _dockColorLbl = label(pgConfig, "Dock accent color")
-local dockColorCtl = dropdown(pgConfig, "Dock color", dockColorNames, function(v)
-    for _, p in ipairs(dockColorPresets) do
-        if p.name == v then
-            _G.__SeigeDockColorName = v
-            if p.color then
-                if _G.__SeigeApplyDockColor then _G.__SeigeApplyDockColor(p.color) end
-            else
-                _G.__SeigeDockColor = nil
-                if _G.__SeigeDock then
-                    _G.__SeigeDock.BackgroundColor3 = T.bg
-                    local s = _G.__SeigeDock:FindFirstChildOfClass("UIStroke")
-                    if s then s.Color = T.acc end
-                end
-            end
-            break
-        end
-    end
-end)
-if dockColorCtl and dockColorCtl.set then dockColorCtl.set(_G.__SeigeDockColorName or "Default") end
-
-_G.__SeigeRefreshDockColorVis = function(mode)
-    local show = (mode == "Dock")
-    local lblFrame = (_dockColorLbl and (_dockColorLbl.frame or _dockColorLbl)) or nil
-    if lblFrame and lblFrame.Visible ~= nil then lblFrame.Visible = show end
-    local ddFrame = (dockColorCtl and (dockColorCtl.frame or dockColorCtl)) or nil
-    if ddFrame and ddFrame.Visible ~= nil then ddFrame.Visible = show end
-end
-_G.__SeigeRefreshDockColorVis(_G.__SeigeLayoutMode or "Bar")
+-- [Iter 1 rebuild] Layout switcher (Bar/Hamburger/Dock) retired — single fixed
+-- layout. Iter 2 replaces the bar with the new purple top-tabs shell.
+local _layoutMode = "Bar"
+_G.__SeigeLayoutMode = "Bar"
+local layoutCtl = nil
+local dockColorCtl = nil
+_G.__SeigeRefreshDockColorVis = function() end
 
 -- Dock icon color
 local dockIconPresets = {
@@ -8821,11 +8775,8 @@ applyCfg = function(cfg, opts)
     setToggleKey(cfg.toggleKey or CFG_DEFAULTS.toggleKey)
     if uiScaleCtl and uiScaleCtl.set then uiScaleCtl.set(cfg.uiScale or CFG_DEFAULTS.uiScale) end
     if reducedCtl and reducedCtl.set then reducedCtl.set(cfg.reducedMotion == true) end
-    if cfg.layoutMode and _G.__SeigeApplyLayout then
-        _G.__SeigeApplyLayout(cfg.layoutMode)
-        if layoutCtl and layoutCtl.set then layoutCtl.set(cfg.layoutMode) end
-        if _G.__SeigeRefreshDockColorVis then _G.__SeigeRefreshDockColorVis(cfg.layoutMode) end
-    end
+    -- [Iter 1] Layout always forced to "Bar"; old saved Hamburger/Dock ignored.
+    if _G.__SeigeApplyLayout then _G.__SeigeApplyLayout("Bar") end
     if cfg.dockColor and dockColorCtl and dockColorCtl.set then
         dockColorCtl.set(cfg.dockColor)
     end
