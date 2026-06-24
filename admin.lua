@@ -7324,6 +7324,8 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
         button(body, "Down  (lower platform)", function()
             if _G.__SeigeWoA and _G.__SeigeWoA.on then
                 _G.__SeigeWoA.alt = _G.__SeigeWoA.alt - (_G.__SeigeWoA.step or 4)
+                if _G.__SeigeWoA.lift then _G.__SeigeWoA.lift() end
+
             else
                 notify("Enable Walk on air first", "warn")
             end
