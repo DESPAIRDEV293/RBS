@@ -9390,6 +9390,28 @@ snapshotCfg = function()
             mode  = (_G.__SeigeBang and _G.__SeigeBang.mode)  or nil,
             speed = (_G.__SeigeBang and tonumber(_G.__SeigeBang.speed)) or nil,
         },
+        headStatsOn   = _G.__SeigeHeadStatsOn == true,
+        reanim        = (function()
+            local rc = _G.__SeigeReanimCfg
+            if type(rc) ~= "table" then return nil end
+            local colors = {}
+            if type(rc.colors) == "table" then
+                for k, v in pairs(rc.colors) do
+                    if type(v) == "string" and v ~= "" then colors[k] = v end
+                end
+            end
+            return { opacity = tonumber(rc.opacity) or 0, colors = colors }
+        end)(),
+        woa           = (function()
+            local W = _G.__SeigeWoA
+            if type(W) ~= "table" then return nil end
+            return {
+                step    = tonumber(W.step) or 4,
+                visible = W.visible == true,
+                upKey   = (W.upKey and W.upKey.Name) or "E",
+                downKey = (W.downKey and W.downKey.Name) or "Q",
+            }
+        end)(),
     }
 end
 
