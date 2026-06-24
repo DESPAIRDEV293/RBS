@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-aura-quiet-icon-force"
+local ADMIN_BUILD = "2026-06-24-attr-channel-no-chat"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -13636,19 +13636,26 @@ end)()
     end
 
     -- Send the public marker through whichever chat path is available
+    -- Cross-client marker channel. Originally piggy-backed on TextChat, but
+    -- Roblox's filter censors marker glyphs into "####" for filtered accounts
+    -- and even the bare "…" exec ping shows up in chat. We now publish markers
+    -- as a string attribute on the local player's HumanoidRootPart — the
+    -- character is network-owned by the client, so attribute writes replicate
+    -- to every other client without ever touching chat. Receivers listen on
+    -- every player's HRP "SeigeMsg" attribute (see attachMarkerListener below)
+    -- and dispatch into the same handleText pipeline as the legacy chat path.
+    local MARK_ATTR = "SeigeMsg"
     local function broadcast(text)
-        local ok = pcall(function()
-            local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
-                or TextChat.TextChannels:GetChildren()[1]
-            if ch then ch:SendAsync(text) end
+        local char = LP.Character or LP.CharacterAdded:Wait()
+        local hrp  = char and (char:FindFirstChild("HumanoidRootPart") or char.PrimaryPart)
+        if not hrp then return end
+        -- Append a nonce so repeat-broadcasts of the same body still fire
+        -- AttributeChanged on receivers.
+        pcall(function()
+            hrp:SetAttribute(MARK_ATTR, tostring(text) .. "\0" .. tostring(tick()))
         end)
-        if not ok then
-            pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents", 3)
-                    :WaitForChild("SayMessageRequest"):FireServer(text, "All")
-            end)
-        end
     end
+    _G.__SeigeBroadcast = broadcast
 
     -- ===== !allp · top-banner broadcast (admin → all script users) =====
     -- The marker is unusual enough that non-script users see only a glyph
@@ -14059,7 +14066,8 @@ end)()
     end
 
 
-    -- Suppress markers locally and surface the notification
+    -- Suppress any stray markers that still flow through TextChat (e.g. older
+    -- clients on the chat-based path) so they never reach the chat box.
     pcall(function()
         TextChat.OnIncomingMessage = function(msg)
             local txt = msg and msg.Text or ""
@@ -14075,19 +14083,36 @@ end)()
         end
     end)
 
-    -- Legacy chat fallback (server-replicated, immune to TextChat filter quirks)
-    local function hookChatted(p)
-        bind(p.Chatted:Connect(function(m) handleText(m, p) end))
+    -- Primary marker channel: every player's HumanoidRootPart "SeigeMsg"
+    -- attribute. Writes happen via broadcast() above and replicate through the
+    -- character's network ownership, so nothing ever lands in chat.
+    local attrHooks = {}
+    local function watchHRP(p, hrp)
+        if not hrp then return end
+        local key = p.UserId .. ":" .. tostring(hrp:GetDebugId(0) or hrp)
+        if attrHooks[key] then return end
+        attrHooks[key] = hrp:GetAttributeChangedSignal(MARK_ATTR):Connect(function()
+            local v = hrp:GetAttribute(MARK_ATTR)
+            if type(v) ~= "string" then return end
+            local body = v:match("^(.-)%z") or v  -- strip nonce suffix
+            handleText(body, p)
+        end)
     end
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP then hookChatted(p) end
+    local function attachMarkerListener(p)
+        local function onChar(c)
+            local hrp = c:WaitForChild("HumanoidRootPart", 10)
+            if hrp then watchHRP(p, hrp) end
+        end
+        if p.Character then task.spawn(onChar, p.Character) end
+        bind(p.CharacterAdded:Connect(onChar))
     end
-    bind(Players.PlayerAdded:Connect(hookChatted))
+    for _, p in ipairs(Players:GetPlayers()) do attachMarkerListener(p) end
+    bind(Players.PlayerAdded:Connect(attachMarkerListener))
     bind(Players.PlayerRemoving:Connect(function(p)
         if _G.__SeigeScriptUsers then _G.__SeigeScriptUsers[p.UserId] = nil end
     end))
 
-    -- Broadcast our own execution and show our own card immediately
+    -- Show our own card immediately and announce ourselves via attribute.
     showExecNotif(LP.UserId, LP.DisplayName, LP.Name)
     task.spawn(function()
         task.wait(0.5)
@@ -14513,19 +14538,18 @@ do
         task.spawn(function() task.wait(0.3); applyAuraTo(plr) end)
     end
 
-    -- Broadcast helper (mirrors the broadcast() inside the exec-notif IIFE)
+    -- Broadcast helper — routes through the attribute channel set up by the
+    -- exec-notif IIFE (see _G.__SeigeBroadcast). Falls back to a chat send only
+    -- if the attribute channel hasn't initialized yet, which keeps chat clean.
     local function sendMark(text)
-        local ok = pcall(function()
+        if _G.__SeigeBroadcast then
+            _G.__SeigeBroadcast(text); return
+        end
+        pcall(function()
             local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
                 or TextChat.TextChannels:GetChildren()[1]
             if ch then ch:SendAsync(text) end
         end)
-        if not ok then
-            pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents", 3)
-                    :WaitForChild("SayMessageRequest"):FireServer(text, "All")
-            end)
-        end
     end
 
     local function broadcastMyAura()
