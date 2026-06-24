@@ -7334,6 +7334,7 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
         end)
         slider(body, "Step size (studs per press)", 1, 20, (W and W.step) or 4, function(v)
             if _G.__SeigeWoA then _G.__SeigeWoA.step = math.floor(v + 0.5) end
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
         end)
 
         label(body, "Keybinds")
