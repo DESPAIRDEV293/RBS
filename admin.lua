@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-walkonair-vis"
+local ADMIN_BUILD = "2026-06-24-walkonair-lift"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -7315,6 +7315,8 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
         button(body, "Up  (raise platform)", function()
             if _G.__SeigeWoA and _G.__SeigeWoA.on then
                 _G.__SeigeWoA.alt = _G.__SeigeWoA.alt + (_G.__SeigeWoA.step or 4)
+                if _G.__SeigeWoA.lift then _G.__SeigeWoA.lift() end
+
             else
                 notify("Enable Walk on air first", "warn")
             end
@@ -7322,6 +7324,8 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
         button(body, "Down  (lower platform)", function()
             if _G.__SeigeWoA and _G.__SeigeWoA.on then
                 _G.__SeigeWoA.alt = _G.__SeigeWoA.alt - (_G.__SeigeWoA.step or 4)
+                if _G.__SeigeWoA.lift then _G.__SeigeWoA.lift() end
+
             else
                 notify("Enable Walk on air first", "warn")
             end
@@ -12061,16 +12065,29 @@ _G.__SeigeWoAStart = function()
         if not (h and part.Parent) then return end
         part.CFrame = CFrame.new(h.Position.X, W.alt, h.Position.Z)
     end)
+    local function lift()
+        local h = hrp()
+        if h then
+            local p = h.Position
+            h.CFrame = CFrame.new(p.X, W.alt + 3.5, p.Z)
+            pcall(function() h.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end)
+        end
+    end
+    W.lift = lift
     W.inputConn = UIS.InputBegan:Connect(function(i, gp)
         if gp or not W.on then return end
         if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
         if i.KeyCode == W.upKey then
             W.alt = W.alt + (W.step or 4)
+            lift()
         elseif i.KeyCode == W.downKey then
             W.alt = W.alt - (W.step or 4)
+            lift()
         end
     end)
+    lift()
     notify("Walk on air ON  ·  " .. W.upKey.Name .. " up / " .. W.downKey.Name .. " down", "good")
+
 end
 
 cmdHandlers["walkonair"] = function(arg)
