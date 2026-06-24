@@ -1771,6 +1771,112 @@ local function notify(text, kind)
     end)
 end
 
+------------------------------------------------------- STAFF GATE (Reanim etc.)
+-- Allowed roles for Reanim GUI: owner, admin, nt team. Staff is NOT allowed.
+local function _canUseReanim()
+    local r = _G.__SeigeMyRole and _G.__SeigeMyRole() or nil
+    return r == "owner" or r == "admin" or r == "nt"
+end
+
+-- Center-screen dismissable warning modal. Reusable for any staff-only gate.
+local _staffWarnGui = nil
+local function _showStaffWarning(msg)
+    if _staffWarnGui then pcall(function() _staffWarnGui:Destroy() end); _staffWarnGui = nil end
+    local gui = inst("ScreenGui", nil, {
+        Name = "SeigeStaffWarn",
+        ResetOnSpawn = false,
+        IgnoreGuiInset = true,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        DisplayOrder = 9999,
+    })
+    safeParent(gui)
+    _staffWarnGui = gui
+
+    local dim = inst("Frame", gui, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+    })
+    tween(dim, 0.18, { BackgroundTransparency = 0.45 })
+
+    local card = inst("Frame", gui, {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        Size = UDim2.new(0, 340, 0, 180),
+        BackgroundColor3 = T.bg2,
+        BackgroundTransparency = 0.05,
+        BorderSizePixel = 0,
+    })
+    corner(card, 12); stroke(card, T.bad, 1.5, 0.15)
+
+    -- accent stripe
+    local stripe = inst("Frame", card, {
+        Size = UDim2.new(1, 0, 0, 3),
+        BackgroundColor3 = T.bad,
+        BorderSizePixel = 0,
+    })
+    corner(stripe, 2)
+
+    inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 16, 0, 18),
+        Size = UDim2.new(1, -32, 0, 22),
+        Font = Enum.Font.GothamBold,
+        TextSize = 15,
+        TextColor3 = T.bad,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Text = "Access Denied",
+    })
+
+    inst("TextLabel", card, {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(0, 16, 0, 48),
+        Size = UDim2.new(1, -32, 0, 80),
+        Font = Enum.Font.GothamMedium,
+        TextSize = 13,
+        TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true,
+        Text = msg or "You're not staff. This feature is restricted to owner, admin, and NT team.",
+    })
+
+    local btn = inst("TextButton", card, {
+        AnchorPoint = Vector2.new(1, 1),
+        Position = UDim2.new(1, -14, 1, -14),
+        Size = UDim2.new(0, 92, 0, 30),
+        BackgroundColor3 = T.bg3,
+        BackgroundTransparency = 0.15,
+        AutoButtonColor = false,
+        Font = Enum.Font.GothamBold,
+        TextSize = 12,
+        TextColor3 = T.text,
+        Text = "Dismiss",
+    })
+    corner(btn, 8); stroke(btn, T.line, 1, 0.4)
+    btn.MouseEnter:Connect(function() tween(btn, 0.15, { BackgroundColor3 = T.acc, BackgroundTransparency = 0.1 }) end)
+    btn.MouseLeave:Connect(function() tween(btn, 0.15, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.15 }) end)
+
+    local function close()
+        if not gui or not gui.Parent then return end
+        tween(dim, 0.15, { BackgroundTransparency = 1 })
+        tween(card, 0.15, { BackgroundTransparency = 1 })
+        task.delay(0.18, function() pcall(function() gui:Destroy() end); if _staffWarnGui == gui then _staffWarnGui = nil end end)
+    end
+    btn.MouseButton1Click:Connect(close)
+    dim.InputBegan:Connect(function(i)
+        if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then close() end
+    end)
+
+    -- entry animation
+    card.Size = UDim2.new(0, 340, 0, 0)
+    tween(card, 0.22, { Size = UDim2.new(0, 340, 0, 180) })
+end
+_G.__SeigeShowStaffWarning = _showStaffWarning
+_G.__SeigeCanUseReanim = _canUseReanim
+
+
 ------------------------------------------------------- CONNECTION TRACKING
 local conns = {}
 local function bind(c) table.insert(conns, c); return c end
@@ -7234,9 +7340,30 @@ button(pgCmds, "Character  —  reset / refresh / click-TP", function()
     end)
 end)
 
-button(pgCmds, "Reanim  —  launch ROT animation GUI", function()
-    _runCmd("!reanim")
-end)
+do
+    local reanimBtn = button(pgCmds, "Reanim  —  launch ROT animation GUI", function()
+        if not _canUseReanim() then
+            _showStaffWarning("You're not staff. The Reanim GUI is restricted to owner, admin, and NT team only.")
+            return
+        end
+        _runCmd("!reanim")
+    end)
+    -- Visually grey the button out for non-staff so the gate is obvious.
+    if not _canUseReanim() then
+        reanimBtn.AutoButtonColor = false
+        reanimBtn.BackgroundColor3 = T.bg2
+        reanimBtn.BackgroundTransparency = 0.5
+        reanimBtn.TextColor3 = T.dim
+        reanimBtn.Text = "Reanim  —  staff only (locked)"
+        -- Strip the hover tweens so it stays greyed.
+        reanimBtn.MouseEnter:Connect(function()
+            tween(reanimBtn, 0.1, { BackgroundColor3 = T.bg2, BackgroundTransparency = 0.45 })
+        end)
+        reanimBtn.MouseLeave:Connect(function()
+            tween(reanimBtn, 0.1, { BackgroundColor3 = T.bg2, BackgroundTransparency = 0.5 })
+        end)
+    end
+end
 
 
 button(pgCmds, "NameEdit  —  hide username/display name", function()
@@ -13758,6 +13885,11 @@ end
 -- !reanim — launch the Reanim/ROT GUI. Title bar shows the local player's
 -- username (handled inside reanim.lua). Available to every script user.
 cmdHandlers["reanim"] = function()
+    if not _canUseReanim() then
+        _showStaffWarning("You're not staff. The Reanim GUI is restricted to owner, admin, and NT team only.")
+        notify("Reanim is staff-only.", "bad")
+        return
+    end
     notify("Loading Reanim…", "good")
     task.spawn(function()
         local urls = {
