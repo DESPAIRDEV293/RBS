@@ -9543,6 +9543,40 @@ applyCfg = function(cfg, opts)
         if cfg.bang.mode  then _G.__SeigeBang.mode  = cfg.bang.mode end
         if cfg.bang.speed then _G.__SeigeBang.speed = tonumber(cfg.bang.speed) or _G.__SeigeBang.speed end
     end
+    if cfg.headStatsOn ~= nil then
+        _G.__SeigeHeadStatsOn = cfg.headStatsOn == true
+        if _G.__SeigeHeadStatsOn then
+            if _G.__SeigeHeadStatsRebuild then pcall(_G.__SeigeHeadStatsRebuild) end
+        else
+            if _G.__SeigeHeadStatsCleanup then pcall(_G.__SeigeHeadStatsCleanup) end
+        end
+    end
+    if type(cfg.reanim) == "table" then
+        _G.__SeigeReanimCfg = _G.__SeigeReanimCfg or { colors = {} }
+        _G.__SeigeReanimCfg.opacity = tonumber(cfg.reanim.opacity) or _G.__SeigeReanimCfg.opacity or 0
+        if type(cfg.reanim.colors) == "table" then
+            _G.__SeigeReanimCfg.colors = _G.__SeigeReanimCfg.colors or {}
+            for k, v in pairs(cfg.reanim.colors) do
+                if type(v) == "string" and v ~= "" then _G.__SeigeReanimCfg.colors[k] = v end
+            end
+        end
+        if _G.__SeigeReanimApplyCfg then pcall(_G.__SeigeReanimApplyCfg) end
+    end
+    if type(cfg.woa) == "table" then
+        _G.__SeigeWoA = _G.__SeigeWoA or { on = false, alt = 0, step = 4, visible = false,
+            upKey = Enum.KeyCode.E, downKey = Enum.KeyCode.Q }
+        _G.__SeigeWoA.step    = tonumber(cfg.woa.step) or _G.__SeigeWoA.step or 4
+        _G.__SeigeWoA.visible = cfg.woa.visible == true
+        if type(cfg.woa.upKey) == "string" then
+            _G.__SeigeWoA.upKey = Enum.KeyCode[cfg.woa.upKey] or _G.__SeigeWoA.upKey
+        end
+        if type(cfg.woa.downKey) == "string" then
+            _G.__SeigeWoA.downKey = Enum.KeyCode[cfg.woa.downKey] or _G.__SeigeWoA.downKey
+        end
+        if _G.__SeigeWoA.part then
+            pcall(function() _G.__SeigeWoA.part.Transparency = _G.__SeigeWoA.visible and 0.55 or 1 end)
+        end
+    end
 end
 
 
