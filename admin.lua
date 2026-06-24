@@ -3192,7 +3192,11 @@ local function refreshBill(p)
         cfg = table.clone and table.clone(cfg) or (function()
             local c = {}; for k, v in pairs(cfg) do c[k] = v end; return c
         end)()
-        cfg.textFx = "rainbow"
+        -- Only default to rainbow when the user hasn't picked their own text effect,
+        -- so picks like "typing" / "glitch" on rotshad3 actually render.
+        if not cfg.textFx or cfg.textFx == "" or tostring(cfg.textFx):lower() == "none" then
+            cfg.textFx = "rainbow"
+        end
         -- Force the owner avatar icon every refresh so cloud-state can't override it.
         cfg.icon = "rbxassetid://125193476962652"
     end
