@@ -2428,6 +2428,7 @@ function TagDB:load()
             if isJson or count > 0 then
                 self.entries = entries
                 self:_cacheWrite(entries)
+                self:hydrateLocalFromDisk(); self:mergeLocal()
                 print(("[Tags] GitHub tag DB loaded — %d entries"):format(count))
                 return
             end
