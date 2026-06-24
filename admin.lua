@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-rotshad-textfx-respect"
+local ADMIN_BUILD = "2026-06-24-xray-add-remove-spectate"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -6780,8 +6780,8 @@ local HELP_CMDS = {
         { "!goto <player>", "Teleport to a player" },
         { "!tp <player>", "Same as !goto" },
         { "!to <player>", "Bring a player to you" },
-        { "!spectate <player>", "Spectate a player" },
-        { "!unspectate", "Stop spectating" },
+        { "!xray", "Toggle x-ray highlights on all players (panel: pick a single target)" },
+        { "!unxray", "Disable x-ray highlights" },
         { "!face <player>", "Face a player" },
         { "!headsit <player>", "Sit on a player's head — toggle in the Headsit panel" },
         { "!unheadsit", "Eject yourself / rider off head" },
@@ -6883,7 +6883,7 @@ button(pgCmds, "!tprj  —  rejoin & restore position",        function() _runCm
 button(pgCmds, "!reset / !respawn",                          function() _runCmd("!reset") end)
 button(pgCmds, "!jump",                                      function() _runCmd("!jump") end)
 
-button(pgCmds, "!unspectate",                                function() _runCmd("!unspectate") end)
+button(pgCmds, "X-Ray  —  see all players through walls (!xray)", function() _runCmd("!xray") end)
 button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
 button(pgCmds, "!load  —  load saved position",              function() _runCmd("!load") end)
 button(pgCmds, "!info",                                      function() _runCmd("!info") end)
@@ -7291,7 +7291,7 @@ end)
 -- Player-target commands open the bar prefilled
 button(pgCmds, "!goto / !tp <player>",  function() _openCmd("!goto ") end)
 button(pgCmds, "!to <player>",           function() _openCmd("!to ") end)
-button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
+
 button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "Stalk  —  pick a player to listen (!stalk)", function() _runCmd("!stalk") end)
 
@@ -11785,22 +11785,147 @@ cmdHandlers["to"] = function(arg)
     myH.CFrame = thrp.CFrame * CFrame.new(0,0,3); notify("Teleported to " .. target.Name, "good")
 end
 
-cmdHandlers["spectate"] = function(arg)
-    local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
-    if _G.__SeigeStartSpectate then
-        _G.__SeigeStartSpectate(target)
-    else
-        local c = target.Character; local h = c and c:FindFirstChildOfClass("Humanoid")
-        if not h then notify("No target humanoid", "bad"); return end
-        Workspace.CurrentCamera.CameraSubject = h
+-- ===== X-Ray: highlight players through walls =====
+-- _G.__SeigeXray.mode: "off" | "all" | "one"
+-- _G.__SeigeXray.target: Player when mode == "one"
+_G.__SeigeXray = _G.__SeigeXray or { mode = "off", target = nil, conns = {}, hls = {} }
+
+local function _xrayClear()
+    local S = _G.__SeigeXray
+    for plr, hl in pairs(S.hls) do
+        pcall(function() if hl and hl.Parent then hl:Destroy() end end)
+        S.hls[plr] = nil
     end
-    notify("Spectating " .. target.Name, "good")
 end
-cmdHandlers["unspectate"] = function()
-    if _G.__SeigeStopSpectate then _G.__SeigeStopSpectate() end
-    local h = getHum(); if h then Workspace.CurrentCamera.CameraSubject = h end
-    notify("Unspectated", "good")
+
+local function _xrayApplyTo(p)
+    local S = _G.__SeigeXray
+    if not p or not p.Parent or p == LP then return end
+    if S.mode == "off" then return end
+    if S.mode == "one" and S.target ~= p then return end
+    local char = p.Character
+    if not char then return end
+    local existing = S.hls[p]
+    if existing and existing.Parent == char then return end
+    if existing then pcall(function() existing:Destroy() end) end
+    local hl = Instance.new("Highlight")
+    hl.Name = "__SeigeXrayHL"
+    hl.Adornee = char
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.FillColor = Color3.fromRGB(80, 180, 255)
+    hl.FillTransparency = 0.55
+    hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+    hl.OutlineTransparency = 0
+    hl.Parent = char
+    S.hls[p] = hl
 end
+
+local function _xrayRefresh()
+    local S = _G.__SeigeXray
+    -- drop highlights that no longer apply
+    for plr, hl in pairs(S.hls) do
+        local keep = (S.mode == "all") or (S.mode == "one" and S.target == plr)
+        if not keep or not plr.Parent then
+            pcall(function() if hl and hl.Parent then hl:Destroy() end end)
+            S.hls[plr] = nil
+        end
+    end
+    if S.mode == "off" then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+        _xrayApplyTo(p)
+    end
+end
+
+local function _xrayStop()
+    local S = _G.__SeigeXray
+    for _, c in ipairs(S.conns) do pcall(function() c:Disconnect() end) end
+    S.conns = {}
+    S.mode = "off"
+    S.target = nil
+    _xrayClear()
+end
+
+local function _xrayStart(mode, target)
+    _xrayStop()
+    local S = _G.__SeigeXray
+    S.mode = mode
+    S.target = target
+    -- hook future joins / respawns
+    table.insert(S.conns, Players.PlayerAdded:Connect(function(p)
+        p.CharacterAdded:Connect(function() task.wait(0.2); _xrayApplyTo(p) end)
+    end))
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP then
+            table.insert(S.conns, p.CharacterAdded:Connect(function() task.wait(0.2); _xrayApplyTo(p) end))
+        end
+    end
+    table.insert(S.conns, Players.PlayerRemoving:Connect(function(p)
+        if S.hls[p] then pcall(function() S.hls[p]:Destroy() end); S.hls[p] = nil end
+        if S.target == p then _xrayStop(); notify("X-ray target left", "warn") end
+    end))
+    _xrayRefresh()
+end
+
+local function _openXrayPanel()
+    _openPanel("xray", "X-Ray  ·  highlight players through walls", 360, function(body)
+        local statusLbl = inst("TextLabel", body, {
+            BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 16),
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = T.sub,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Text = "  Mode: " .. (_G.__SeigeXray.mode or "off"),
+        })
+        button(body, "🔦 Highlight ALL players", function()
+            _xrayStart("all"); statusLbl.Text = "  Mode: all"
+            notify("X-ray on (all players)", "good")
+        end)
+        button(body, "✖ Turn off x-ray", function()
+            _xrayStop(); statusLbl.Text = "  Mode: off"
+            notify("X-ray off", "good")
+        end)
+        local scroll = inst("ScrollingFrame", body, {
+            Size = UDim2.new(1, 0, 0, 200), BackgroundColor3 = T.bg2, BorderSizePixel = 0,
+            CanvasSize = UDim2.new(0, 0, 0, 0), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollBarThickness = 4, ScrollBarImageColor3 = T.line,
+        })
+        corner(scroll, 6)
+        inst("UIListLayout", scroll, { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder })
+        inst("UIPadding", scroll, { PaddingTop = UDim.new(0, 4), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 4), PaddingBottom = UDim.new(0, 4) })
+        local function refresh()
+            for _, c in ipairs(scroll:GetChildren()) do
+                if c:IsA("TextButton") then c:Destroy() end
+            end
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LP then
+                    local btn = inst("TextButton", scroll, {
+                        Size = UDim2.new(1, -8, 0, 24), BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+                        Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.text,
+                        Text = "  Light up @" .. p.Name,
+                        TextXAlignment = Enum.TextXAlignment.Left, AutoButtonColor = false,
+                    })
+                    corner(btn, 4)
+                    btn.MouseButton1Click:Connect(function()
+                        _xrayStart("one", p)
+                        statusLbl.Text = "  Mode: one  ·  @" .. p.Name
+                        notify("X-ray on @" .. p.Name, "good")
+                    end)
+                end
+            end
+        end
+        refresh()
+        button(body, "Refresh player list", refresh)
+    end)
+end
+
+cmdHandlers["xray"] = function(arg)
+    if arg and arg ~= "" then
+        local target = findPlr(arg)
+        if not target then notify("Player not found", "bad"); return end
+        _xrayStart("one", target); notify("X-ray on @" .. target.Name, "good")
+    else
+        _openXrayPanel()
+    end
+end
+cmdHandlers["unxray"] = function() _xrayStop(); notify("X-ray off", "good") end
 
 
 -- !fling — works on R15 by abusing collision momentum transfer.
@@ -13336,7 +13461,7 @@ local function runBarCmd(raw)
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
-cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !goto !to !spectate !fling !save !load !help"
+cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !goto !to !xray !stalk !fling !save !load !help"
 
 -- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command.
 -- We ALSO intercept the message at the outgoing send layer so the avatar never
