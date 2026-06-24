@@ -13636,19 +13636,26 @@ end)()
     end
 
     -- Send the public marker through whichever chat path is available
+    -- Cross-client marker channel. Originally piggy-backed on TextChat, but
+    -- Roblox's filter censors marker glyphs into "####" for filtered accounts
+    -- and even the bare "…" exec ping shows up in chat. We now publish markers
+    -- as a string attribute on the local player's HumanoidRootPart — the
+    -- character is network-owned by the client, so attribute writes replicate
+    -- to every other client without ever touching chat. Receivers listen on
+    -- every player's HRP "SeigeMsg" attribute (see attachMarkerListener below)
+    -- and dispatch into the same handleText pipeline as the legacy chat path.
+    local MARK_ATTR = "SeigeMsg"
     local function broadcast(text)
-        local ok = pcall(function()
-            local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
-                or TextChat.TextChannels:GetChildren()[1]
-            if ch then ch:SendAsync(text) end
+        local char = LP.Character or LP.CharacterAdded:Wait()
+        local hrp  = char and (char:FindFirstChild("HumanoidRootPart") or char.PrimaryPart)
+        if not hrp then return end
+        -- Append a nonce so repeat-broadcasts of the same body still fire
+        -- AttributeChanged on receivers.
+        pcall(function()
+            hrp:SetAttribute(MARK_ATTR, tostring(text) .. "\0" .. tostring(tick()))
         end)
-        if not ok then
-            pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents", 3)
-                    :WaitForChild("SayMessageRequest"):FireServer(text, "All")
-            end)
-        end
     end
+    _G.__SeigeBroadcast = broadcast
 
     -- ===== !allp · top-banner broadcast (admin → all script users) =====
     -- The marker is unusual enough that non-script users see only a glyph
