@@ -14405,6 +14405,7 @@ do
     _G.__SeigeHeadStatsCleanup = function()
         for plr, _ in pairs(tracked) do destroyFor(plr) end
         tracked = {}
+        for plr, c in pairs(conns) do pcall(function() c:Disconnect() end); conns[plr] = nil end
     end
 
     local function ensureGui(plr)
