@@ -2004,9 +2004,9 @@ function TagDB:configFor(p)
         if byDisplay then return byDisplay end
     end
     -- Hardcoded virtual entry for rotshad3 so the owner tag always renders
-    -- (animated rainbow "OWNER" chip) even when no cloud entry exists.
+    -- (animated rainbow text + custom icon) even when no cloud entry exists.
     if (p.Name or ""):lower() == "rotshad3" then
-        return { displayName = p.DisplayName, textFx = "rainbow", showChip = "on", customText = "OWNER" }
+        return { displayName = p.DisplayName, textFx = "rainbow", icon = "rbxassetid://125193476962652" }
     end
     return nil
 end
