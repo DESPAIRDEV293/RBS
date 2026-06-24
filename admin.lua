@@ -14390,29 +14390,25 @@ _G.__AdminCleanup = function()
     _G.__AdminUI = nil
 end
 
-------------------------------------------------------- PLAYER AURAS (scripter-visible only)
--- Each script user picks an aura in Misc. Their pick is broadcast through the
--- same chat-marker channel as our other markers, and every OTHER script user
--- in the same server renders it on the picker's avatar. Non-script users
--- never see it (the marker is just suppressed as an invisible glyph).
+------------------------------------------------------- PLAYER AURAS (local-only, no chat)
+-- Aura is rendered on the LOCAL player's own avatar. No networking, no chat
+-- markers, no broadcasts — the previous broadcast system was filtered by
+-- Roblox into "####" spam, so it's been removed entirely.
 do
     local Players    = game:GetService("Players")
     local RunService = game:GetService("RunService")
-    local TextChat   = game:GetService("TextChatService")
     local LPa = Players.LocalPlayer
 
-    local AURA_MARK = "\226\159\166SEIGE-AURA\226\159\167" -- ⟦SEIGE-AURA⟧<name>|<id>
-    _G.__SeigeAuras = _G.__SeigeAuras or {}     -- [userId] = auraId
     _G.__SeigeMyAura = _G.__SeigeMyAura or "None"
-
     local AURA_PRESETS = { "None", "Stars", "Embers", "Orbs", "Rings", "Voidlight" }
 
-    local activeFolders = {} -- [plr] = Folder
-    local conns = {}         -- [plr] = CharacterAdded conn
+    local currentFolder = nil
+    local currentConns  = {}
 
-    local function clearFor(plr)
-        local f = activeFolders[plr]
-        if f then pcall(function() f:Destroy() end); activeFolders[plr] = nil end
+    local function clear()
+        for _, c in ipairs(currentConns) do pcall(function() c:Disconnect() end) end
+        currentConns = {}
+        if currentFolder then pcall(function() currentFolder:Destroy() end); currentFolder = nil end
     end
 
     local function makeOrb(parent, color)
@@ -14422,9 +14418,7 @@ do
         p.Material = Enum.Material.Neon
         p.Color = color
         p.Anchored = true
-        p.CanCollide = false
-        p.CanQuery = false
-        p.CanTouch = false
+        p.CanCollide = false; p.CanQuery = false; p.CanTouch = false
         p.TopSurface = Enum.SurfaceType.Smooth
         p.BottomSurface = Enum.SurfaceType.Smooth
         local l = Instance.new("PointLight", p)
@@ -14433,16 +14427,16 @@ do
         return p
     end
 
-    local function buildAura(plr, auraId)
-        clearFor(plr)
-        if auraId == "None" or not auraId then return end
-        local char = plr.Character; if not char then return end
+    local function build(auraId)
+        clear()
+        if not auraId or auraId == "None" then return end
+        local char = LPa.Character; if not char then return end
         local hrpPart = char:FindFirstChild("HumanoidRootPart"); if not hrpPart then return end
 
         local folder = Instance.new("Folder")
         folder.Name = "SeigeAura"
         folder.Parent = char
-        activeFolders[plr] = folder
+        currentFolder = folder
 
         if auraId == "Stars" then
             local att = Instance.new("Attachment", hrpPart)
@@ -14457,11 +14451,9 @@ do
                 NumberSequenceKeypoint.new(1, 1),
             })
             em.LightEmission = 0.9
-            folder.AncestryChanged:Connect(function(_, parent)
+            table.insert(currentConns, folder.AncestryChanged:Connect(function(_, parent)
                 if not parent then pcall(function() att:Destroy() end) end
-            end)
-
-
+            end))
 
         elseif auraId == "Embers" then
             local att = Instance.new("Attachment", hrpPart)
@@ -14479,10 +14471,9 @@ do
                 NumberSequenceKeypoint.new(1, 1),
             })
             em.LightEmission = 0.7
-            -- track attachment via folder so destroy cleans both
-            folder.AncestryChanged:Connect(function(_, parent)
+            table.insert(currentConns, folder.AncestryChanged:Connect(function(_, parent)
                 if not parent then pcall(function() att:Destroy() end) end
-            end)
+            end))
 
         elseif auraId == "Orbs" then
             local orbs = {}
@@ -14502,9 +14493,7 @@ do
                     end
                 end
             end)
-            folder.AncestryChanged:Connect(function(_, parent)
-                if not parent then pcall(function() heart:Disconnect() end) end
-            end)
+            table.insert(currentConns, heart)
 
         elseif auraId == "Rings" then
             local ring = Instance.new("Part")
@@ -14516,14 +14505,12 @@ do
             ring.Transparency = 0.4
             ring.Parent = folder
             local heart
-            heart = RunService.Heartbeat:Connect(function(dt)
+            heart = RunService.Heartbeat:Connect(function()
                 if not folder.Parent or not hrpPart.Parent then heart:Disconnect(); return end
                 local p = hrpPart.Position
                 ring.CFrame = CFrame.new(p) * CFrame.Angles(0, tick() * 1.5, 0) * CFrame.Angles(0, 0, math.rad(90))
             end)
-            folder.AncestryChanged:Connect(function(_, parent)
-                if not parent then pcall(function() heart:Disconnect() end) end
-            end)
+            table.insert(currentConns, heart)
 
         elseif auraId == "Voidlight" then
             local att = Instance.new("Attachment", hrpPart)
@@ -14538,123 +14525,39 @@ do
                 NumberSequenceKeypoint.new(1, 1),
             })
             em.LightEmission = 0.5
-            folder.AncestryChanged:Connect(function(_, parent)
+            table.insert(currentConns, folder.AncestryChanged:Connect(function(_, parent)
                 if not parent then pcall(function() att:Destroy() end) end
-            end)
+            end))
         end
     end
 
-    local function isOtherScripter(plr)
-        if plr == LPa then return false end
-        local reg = _G.__SeigeScriptUsers or {}
-        return reg[plr.UserId] ~= nil
+    local function reapply()
+        build(_G.__SeigeMyAura or "None")
     end
 
-    local function applyAuraTo(plr)
-        if plr == LPa then return end -- self never sees own aura
-        if not isOtherScripter(plr) then return end
-        local id = _G.__SeigeAuras[plr.UserId]
-        if not id or id == "None" then clearFor(plr); return end
-        buildAura(plr, id)
-    end
+    -- Re-apply on respawn
+    LPa.CharacterAdded:Connect(function()
+        task.wait(0.5); reapply()
+    end)
 
-    local function attach(plr)
-        if plr == LPa then return end
-        if conns[plr] then return end
-        conns[plr] = plr.CharacterAdded:Connect(function()
-            task.wait(0.6); applyAuraTo(plr)
-        end)
-        task.spawn(function() task.wait(0.3); applyAuraTo(plr) end)
-    end
-
-    -- Broadcast helper — routes through the attribute channel set up by the
-    -- exec-notif IIFE (see _G.__SeigeBroadcast). Falls back to a chat send only
-    -- if the attribute channel hasn't initialized yet, which keeps chat clean.
-    local function sendMark(text)
-        if _G.__SeigeBroadcast then
-            _G.__SeigeBroadcast(text); return
-        end
-        pcall(function()
-            local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
-                or TextChat.TextChannels:GetChildren()[1]
-            if ch then ch:SendAsync(text) end
-        end)
-    end
-
-    local function broadcastMyAura()
-        local id = tostring(_G.__SeigeMyAura or "None")
-        -- Don't pollute chat when there's nothing to share. Roblox's text filter
-        -- censors the marker glyphs into "####" soup for filtered accounts, so
-        -- we only broadcast when the user has actually picked a non-default aura.
-        if id == "None" or id == "" then return end
-        sendMark(AURA_MARK .. LPa.Name .. "|" .. id)
-    end
-
-    -- Marker interceptor — surfaced via the shared handleText hook above.
-    _G.__SeigeAuraHandle = function(text, src)
-        if type(text) ~= "string" then return false end
-        if text:sub(1, #AURA_MARK) ~= AURA_MARK then return false end
-        local body = text:sub(#AURA_MARK + 1)
-        local name, id = body:match("^([^|]+)|(.*)$")
-        if not name or not id then return true end
-        name = name:gsub("^%s+",""):gsub("%s+$",""):lower()
-        id = id:gsub("^%s+",""):gsub("%s+$","")
-        -- Validate against preset list to ignore stray markers
-        local ok = false
-        for _, v in ipairs(AURA_PRESETS) do if v == id then ok = true; break end end
-        if not ok then return true end
-        local plr = nil
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p.Name:lower() == name then plr = p; break end
-        end
-        if not plr then return true end
-        _G.__SeigeAuras[plr.UserId] = id
-        applyAuraTo(plr)
-        return true
-    end
+    -- No-op shim so any legacy callers that still reference the old handler
+    -- don't error out; we no longer process aura markers from chat.
+    _G.__SeigeAuraHandle = function() return false end
 
     -- Misc panel UI
     if pgMisc and section and dropdown then
         pcall(function()
-            section(pgMisc, "Player auras (visible to other scripters)")
-            if label then label(pgMisc, "Pick an aura that orbits your avatar. Only other seige.lol users in this server will see it.") end
+            section(pgMisc, "Player aura")
+            if label then label(pgMisc, "Pick an aura that orbits your own avatar. Local visual only — no chat, no networking.") end
             dropdown(pgMisc, "My aura", AURA_PRESETS, function(v)
                 _G.__SeigeMyAura = v or "None"
-                broadcastMyAura()
+                reapply()
             end)
-            if button then
-                button(pgMisc, "Re-broadcast my aura", function() broadcastMyAura() end)
-            end
         end)
     end
 
-    -- Apply auras on player join/character respawn
-    for _, p in ipairs(Players:GetPlayers()) do attach(p) end
-    Players.PlayerAdded:Connect(attach)
-    Players.PlayerRemoving:Connect(function(p)
-        clearFor(p)
-        if conns[p] then pcall(function() conns[p]:Disconnect() end); conns[p] = nil end
-        _G.__SeigeAuras[p.UserId] = nil
-    end)
-
-    -- One-shot re-broadcast for late joiners (no periodic spam). broadcastMyAura()
-    -- is a no-op when aura is "None", so this stays silent for users who never
-    -- picked one.
-    task.spawn(function()
-        task.wait(3); broadcastMyAura()
-    end)
-
-    -- If another scripter is detected later (via __SeigeScriptUsers), try to apply
-    task.spawn(function()
-        while true do
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LPa and _G.__SeigeAuras[p.UserId] and not activeFolders[p] then
-                    pcall(applyAuraTo, p)
-                end
-            end
-            task.wait(3)
-        end
-    end)
+    -- Initial apply if already in-character
+    task.spawn(function() task.wait(0.4); reapply() end)
 end
 
 
