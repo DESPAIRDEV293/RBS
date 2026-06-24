@@ -309,6 +309,9 @@ _G.__SeigeSetRole = function(name, role)
         _G.__SeigeRoleMap[name] = role
     end
     _writeRoleMap(_G.__SeigeRoleMap)
+    -- Sync the change to Lovable Cloud so the targeted player picks it up
+    -- in-game (their client polls the same endpoint).
+    pcall(_pushRemoteRole, name, role)
     if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
     return true
 end
