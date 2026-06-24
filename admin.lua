@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-10-config-persist-fix"
+local ADMIN_BUILD = "2026-06-24-cloud-roles"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -181,7 +181,97 @@ local function _writeRoleMap(map)
     if not ok then return false end
     return pcall(wf, ROLES_FILE, raw)
 end
+local ROLES_HTTP_URL = "https://seigelollua.lovable.app/api/public/roles"
+
+-- Fetch role assignments from Lovable Cloud so the player targeted by a
+-- !role command on the owner's machine actually picks up their role.
+local function _fetchRemoteRoles()
+    local src
+    pcall(function()
+        src = game:HttpGet(ROLES_HTTP_URL .. "?v=" .. tostring(os.time()))
+    end)
+    if not src or src == "" then return nil end
+    local okD, decoded = pcall(HttpService.JSONDecode, HttpService, src)
+    if not okD or type(decoded) ~= "table" or type(decoded.roles) ~= "table" then return nil end
+    local map = {}
+    for name, role in pairs(decoded.roles) do
+        if type(name) == "string" and type(role) == "string" and ROLE_PERMS[role] and role ~= "owner" then
+            map[name:lower()] = role
+        end
+    end
+    return map
+end
+
+-- Push one role assignment to Lovable Cloud (owner-only, requires the
+-- shared tag-sync secret in _G.__SeigeTagSyncKey).
+local function _pushRemoteRole(name, role)
+    local secret = tostring(_G.__SeigeTagSyncKey or "")
+    if secret == "" then return false, "no sync key" end
+    local req = (syn and syn.request) or (http and http.request)
+             or http_request or (fluxus and fluxus.request)
+             or (krnl and krnl.request) or request
+    if not req then return false, "no http shim" end
+    local payload = (role == nil or role == "")
+        and { key = name, ["delete"] = true }
+        or  { key = name, role = role }
+    local okEnc, body = pcall(HttpService.JSONEncode, HttpService, payload)
+    if not okEnc then return false, tostring(body) end
+    task.spawn(function()
+        local ok, res = pcall(req, {
+            Url = ROLES_HTTP_URL,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json", ["x-tag-secret"] = secret },
+            Body = body,
+        })
+        if not ok then
+            warn("[Roles] remote push failed: " .. tostring(res))
+            return
+        end
+        local status = tonumber(res.StatusCode or res.status_code) or 0
+        if status < 200 or status >= 300 then
+            warn(("[Roles] remote push HTTP %s: %s"):format(tostring(status), tostring(res.Body or "")))
+        else
+            print(("[Roles] remote push ok: %s -> %s"):format(name, tostring(role)))
+        end
+    end)
+    return true
+end
+
 _G.__SeigeRoleMap = _readRoleMap()
+do
+    local remote = _fetchRemoteRoles()
+    if remote then
+        for k, v in pairs(remote) do _G.__SeigeRoleMap[k] = v end
+        pcall(_writeRoleMap, _G.__SeigeRoleMap)
+        print("[Roles] cloud role map merged")
+    end
+end
+
+-- Periodic refresh so a non-owner player who joins before the owner sets
+-- their role still picks it up within a few seconds without rejoining.
+task.spawn(function()
+    while true do
+        task.wait(15)
+        local remote = _fetchRemoteRoles()
+        if remote then
+            local changed = false
+            for k, v in pairs(remote) do
+                if _G.__SeigeRoleMap[k] ~= v then
+                    _G.__SeigeRoleMap[k] = v
+                    changed = true
+                end
+            end
+            -- Remove entries the cloud no longer has (owner removed them).
+            for k in pairs(_G.__SeigeRoleMap) do
+                if not remote[k] then
+                    _G.__SeigeRoleMap[k] = nil
+                    changed = true
+                end
+            end
+            if changed then pcall(_writeRoleMap, _G.__SeigeRoleMap) end
+        end
+    end
+end)
 
 _G.__SeigeMyRole = function()
     if LP.Name == OWNER_NAME then return "owner" end
@@ -219,6 +309,9 @@ _G.__SeigeSetRole = function(name, role)
         _G.__SeigeRoleMap[name] = role
     end
     _writeRoleMap(_G.__SeigeRoleMap)
+    -- Sync the change to Lovable Cloud so the targeted player picks it up
+    -- in-game (their client polls the same endpoint).
+    pcall(_pushRemoteRole, name, role)
     if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
     return true
 end

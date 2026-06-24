@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      role_entries: {
+        Row: {
+          created_at: string
+          key: string
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          key: string
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          key?: string
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tag_entries: {
         Row: {
           created_at: string
