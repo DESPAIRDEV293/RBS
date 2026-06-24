@@ -9,7 +9,9 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as PastebinKeyRouteImport } from './routes/pastebin-key'
+import { Route as CodeDottxtRouteImport } from './routes/code[.]txt'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicTagsRouteImport } from './routes/api/public/tags'
 import { Route as ApiPublicTag_groupsRouteImport } from './routes/api/public/tag_groups'
@@ -18,9 +20,19 @@ import { Route as ApiPublicReanimDotluaRouteImport } from './routes/api/public/r
 import { Route as ApiPublicPastebinRouteImport } from './routes/api/public/pastebin'
 import { Route as ApiPublicAdminDotluaRouteImport } from './routes/api/public/admin[.]lua'
 
+const UnlockRoute = UnlockRouteImport.update({
+  id: '/unlock',
+  path: '/unlock',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PastebinKeyRoute = PastebinKeyRouteImport.update({
   id: '/pastebin-key',
   path: '/pastebin-key',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CodeDottxtRoute = CodeDottxtRouteImport.update({
+  id: '/code.txt',
+  path: '/code.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -61,7 +73,9 @@ const ApiPublicAdminDotluaRoute = ApiPublicAdminDotluaRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/code.txt': typeof CodeDottxtRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/unlock': typeof UnlockRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
@@ -71,7 +85,9 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/code.txt': typeof CodeDottxtRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/unlock': typeof UnlockRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
@@ -82,7 +98,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/code.txt': typeof CodeDottxtRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/unlock': typeof UnlockRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
@@ -94,7 +112,9 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/code.txt'
     | '/pastebin-key'
+    | '/unlock'
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
@@ -104,7 +124,9 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/code.txt'
     | '/pastebin-key'
+    | '/unlock'
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
@@ -114,7 +136,9 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/code.txt'
     | '/pastebin-key'
+    | '/unlock'
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
@@ -125,7 +149,9 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CodeDottxtRoute: typeof CodeDottxtRoute
   PastebinKeyRoute: typeof PastebinKeyRoute
+  UnlockRoute: typeof UnlockRoute
   ApiPublicAdminDotluaRoute: typeof ApiPublicAdminDotluaRoute
   ApiPublicPastebinRoute: typeof ApiPublicPastebinRoute
   ApiPublicReanimDotluaRoute: typeof ApiPublicReanimDotluaRoute
@@ -136,11 +162,25 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/unlock': {
+      id: '/unlock'
+      path: '/unlock'
+      fullPath: '/unlock'
+      preLoaderRoute: typeof UnlockRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pastebin-key': {
       id: '/pastebin-key'
       path: '/pastebin-key'
       fullPath: '/pastebin-key'
       preLoaderRoute: typeof PastebinKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/code.txt': {
+      id: '/code.txt'
+      path: '/code.txt'
+      fullPath: '/code.txt'
+      preLoaderRoute: typeof CodeDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -197,7 +237,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CodeDottxtRoute: CodeDottxtRoute,
   PastebinKeyRoute: PastebinKeyRoute,
+  UnlockRoute: UnlockRoute,
   ApiPublicAdminDotluaRoute: ApiPublicAdminDotluaRoute,
   ApiPublicPastebinRoute: ApiPublicPastebinRoute,
   ApiPublicReanimDotluaRoute: ApiPublicReanimDotluaRoute,
@@ -208,13 +250,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
