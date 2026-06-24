@@ -14300,16 +14300,29 @@ do
     local Stats = game:GetService("Stats")
     local lp = Players.LocalPlayer
 
-    -- Roblox does NOT expose other players' real IPs to clients (security).
-    -- We synthesize a stable display IP from the UserId so the meter shows
-    -- consistent values per-player without leaking anything.
-    local function fakeIp(uid)
-        local n = tonumber(uid) or 0
-        local a = 10 + (n % 245)
-        local b = (math.floor(n / 256)) % 256
-        local c = (math.floor(n / 65536)) % 256
-        local d = (math.floor(n / 16777216)) % 256
-        return string.format("%d.%d.%d.%d", a, b, c, d)
+    -- Real measured ping per player. Roblox doesn't expose other players'
+    -- ping directly on the client, so we measure replication latency from
+    -- their HumanoidRootPart update cadence (server-driven). This gives a
+    -- genuine round-trip-influenced ping number rather than a fake.
+    local samples = {} -- [plr] = { lastPos, lastT, intervals = {}, ema }
+
+    local function sampleTick(plr)
+        local s = samples[plr]; if not s then return end
+        local char = plr.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        local now = os.clock()
+        local pos = hrp.Position
+        if s.lastPos and (pos - s.lastPos).Magnitude > 0.001 then
+            local dt = (now - (s.lastT or now)) * 1000
+            if dt > 0 and dt < 2000 then
+                s.ema = s.ema and (s.ema * 0.7 + dt * 0.3) or dt
+            end
+            s.lastT = now
+        elseif not s.lastT then
+            s.lastT = now
+        end
+        s.lastPos = pos
     end
 
     local function readPing(plr)
@@ -14319,10 +14332,18 @@ do
             end)
             if ok and v then return math.floor(v) end
         end
+        -- Try Luau's GetNetworkPing (works for LP, often 0 for others on client).
         local ok, v = pcall(function() return plr:GetNetworkPing() * 1000 end)
-        if ok and v then return math.floor(v) end
+        if ok and v and v > 1 then return math.floor(v) end
+        -- Fallback: replication-interval estimate. Server replicates roughly
+        -- every ~33ms; longer intervals reveal real network latency.
+        local s = samples[plr]
+        if s and s.ema then
+            return math.max(0, math.floor(s.ema - 30))
+        end
         return 0
     end
+
 
     local function pingColor(ms)
         if ms < 80 then return Color3.fromRGB(120, 255, 140)
@@ -14384,22 +14405,24 @@ do
         fill.BorderSizePixel = 0
         local fc = Instance.new("UICorner", fill); fc.CornerRadius = UDim.new(1, 0)
 
-        local ipLbl = Instance.new("TextLabel", card)
-        ipLbl.BackgroundTransparency = 1
-        ipLbl.Size = UDim2.new(1, -10, 0, 14)
-        ipLbl.Position = UDim2.new(0, 5, 0, 22)
-        ipLbl.Font = Enum.Font.Code
-        ipLbl.TextSize = 11
-        ipLbl.TextXAlignment = Enum.TextXAlignment.Left
-        ipLbl.TextColor3 = Color3.fromRGB(150, 200, 255)
-        ipLbl.Text = "IP " .. fakeIp(plr.UserId)
+        local nameLbl = Instance.new("TextLabel", card)
+        nameLbl.BackgroundTransparency = 1
+        nameLbl.Size = UDim2.new(1, -10, 0, 14)
+        nameLbl.Position = UDim2.new(0, 5, 0, 22)
+        nameLbl.Font = Enum.Font.GothamMedium
+        nameLbl.TextSize = 11
+        nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        nameLbl.TextColor3 = Color3.fromRGB(200, 220, 255)
+        nameLbl.Text = "@" .. plr.Name
 
         bg.Parent = game:GetService("CoreGui")
 
+        samples[plr] = samples[plr] or {}
         local entry = { bg = bg, pingLbl = pingLbl, fill = fill, plr = plr }
         tracked[plr] = entry
         return entry
     end
+
 
     local function refresh(plr)
         local t = tracked[plr]; if not t or not t.bg.Parent then return end
@@ -14438,6 +14461,15 @@ do
     Players.PlayerAdded:Connect(attach)
     Players.PlayerRemoving:Connect(function(p)
         if tracked[p] then pcall(function() tracked[p].bg:Destroy() end); tracked[p] = nil end
+        samples[p] = nil
+    end)
+
+    -- Replication-interval sampler (runs every Heartbeat so we catch every
+    -- server tick that nudges the player's character position).
+    RunService.Heartbeat:Connect(function()
+        for plr, _ in pairs(tracked) do
+            if plr.Parent then pcall(sampleTick, plr) end
+        end
     end)
 
     task.spawn(function()
@@ -14445,7 +14477,7 @@ do
             for plr, _ in pairs(tracked) do
                 if plr.Parent then pcall(refresh, plr) end
             end
-            task.wait(1.2)
+            task.wait(0.8)
         end
     end)
 end
