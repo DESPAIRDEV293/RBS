@@ -33,27 +33,8 @@ local C = {
 	GLOW   = Color3.fromRGB(165,  75, 255),
 }
 
--- Apply any seige-admin overrides (set by admin.lua Config panel before load).
--- _G.__SeigeReanimCfg = { opacity = 0..1, colors = { PANEL = "#aabbcc", ... } }
-do
-	local cfg = rawget(_G, "__SeigeReanimCfg")
-	if type(cfg) == "table" and type(cfg.colors) == "table" then
-		local function hex(s)
-			if typeof(s) == "Color3" then return s end
-			if type(s) ~= "string" then return nil end
-			local h = s:gsub("^#", "")
-			if #h ~= 6 then return nil end
-			local r = tonumber(h:sub(1,2), 16); local g = tonumber(h:sub(3,4), 16); local b = tonumber(h:sub(5,6), 16)
-			if r and g and b then return Color3.fromRGB(r, g, b) end
-		end
-		for k, v in pairs(cfg.colors) do
-			local c = hex(v); if c and C[k] ~= nil then C[k] = c end
-		end
-	end
-end
 
--- Tracked panels so the admin Config panel can retune translucency live.
-_G.__SeigeReanimPanels = _G.__SeigeReanimPanels or {}
+
 
 local font = Enum.Font.GothamSemibold
 
