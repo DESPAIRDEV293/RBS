@@ -9602,7 +9602,13 @@ saveCfg = function(opts)
 
     -- Also forward to the legacy themes config file so the existing themes
     -- loader picks up colors / background / panel images on next inject.
-    if _G.__AdminSaveCfg then pcall(_G.__AdminSaveCfg) end
+    -- Guard against the new ↔ legacy re-entry loop (legacy saveCfg now
+    -- forwards back into us so per-panel image edits update session cfg).
+    if _G.__AdminSaveCfg and not _G.__SeigeSaveCfgReentry then
+        _G.__SeigeSaveCfgReentry = true
+        pcall(_G.__AdminSaveCfg)
+        _G.__SeigeSaveCfgReentry = false
+    end
 
     local wf = rawget(getfenv(), "writefile") or writefile
     if not wf then
