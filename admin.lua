@@ -3134,6 +3134,17 @@ end
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
+    -- Hardcoded owner-tag overrides for rotshad3: animated "seige.lol" rainbow
+    -- text effect + OWNER chip, always on regardless of saved tag entry.
+    if p and p.Name and p.Name:lower() == "rotshad3" then
+        cfg = cfg or {}
+        cfg = table.clone and table.clone(cfg) or (function()
+            local c = {}; for k, v in pairs(cfg) do c[k] = v end; return c
+        end)()
+        cfg.textFx     = "rainbow"
+        cfg.showChip   = "on"
+        cfg.customText = cfg.customText and cfg.customText ~= "" and cfg.customText or "OWNER"
+    end
     e.gui.Enabled = true
 
     -- Baseline reset every refresh: re-enable stroke and restore opaque bg so
