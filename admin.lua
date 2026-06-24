@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-attr-channel-no-chat"
+local ADMIN_BUILD = "2026-06-24-local-overlay-persist"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -2250,11 +2250,33 @@ function TagDB:loadLocal()
     return out
 end
 function TagDB:mergeLocal()
-    -- GitHub is now the single source of truth. Old executor-local override
-    -- files are intentionally ignored because they were the exact reason a tag
-    -- could look saved, then reload back to stale colors/fills/images.
+    -- Local-disk overrides always overlay cloud entries so per-user changes
+    -- (image, colors, handle, etc.) persist across re-executions even if the
+    -- cloud push hasn't reflected back yet. The delete flow nukes the local
+    -- key explicitly when the user clears a tag, so stale overrides can't
+    -- linger forever.
     self.localEntries = self.localEntries or {}
-    return 0
+    self.entries      = self.entries or {}
+    local merged = 0
+    for k, v in pairs(self.localEntries) do
+        if type(v) == "table" then
+            self.entries[k] = v
+            merged = merged + 1
+        end
+    end
+    return merged
+end
+
+-- Pull the on-disk per-user override file into self.localEntries. Called on
+-- every load so a fresh executor session can re-apply the user's saved tags
+-- (icon, colors, custom handle…) even before the cloud round-trip lands.
+function TagDB:hydrateLocalFromDisk()
+    local loaded = self:loadLocal()
+    if type(loaded) == "table" then
+        self.localEntries = loaded
+        return true
+    end
+    return false
 end
 
 
@@ -2284,15 +2306,19 @@ do
 end
 
 function TagDB:hydrateFromCache()
-    if self.entries and next(self.entries) then return false end
-    local cached = self:_cacheRead()
-    if cached and next(cached) then
-        self.entries = cached
-        local n = 0; for _ in pairs(cached) do n = n + 1 end
-        print(("[Tags] hydrated %d entries from local cache (instant)"):format(n))
-        return true
+    if not (self.entries and next(self.entries)) then
+        local cached = self:_cacheRead()
+        if cached and next(cached) then
+            self.entries = cached
+            local n = 0; for _ in pairs(cached) do n = n + 1 end
+            print(("[Tags] hydrated %d entries from local cache (instant)"):format(n))
+        end
     end
-    return false
+    -- Always overlay per-user disk overrides so re-execution restores them
+    -- before the cloud fetch resolves.
+    self:hydrateLocalFromDisk()
+    self:mergeLocal()
+    return true
 end
 
 -- HTTP request shim for POSTs (executor-specific). Returns (ok, status, body).
@@ -2380,6 +2406,7 @@ function TagDB:load()
                     end
                     self.entries = entries
                     self:_cacheWrite(entries)
+                    self:hydrateLocalFromDisk(); self:mergeLocal()
                     print(("[Tags] HTTP tag DB loaded — %d entries"):format(count))
                     return
                 end
@@ -2401,6 +2428,7 @@ function TagDB:load()
             if isJson or count > 0 then
                 self.entries = entries
                 self:_cacheWrite(entries)
+                self:hydrateLocalFromDisk(); self:mergeLocal()
                 print(("[Tags] GitHub tag DB loaded — %d entries"):format(count))
                 return
             end
@@ -2431,6 +2459,7 @@ function TagDB:load()
     end
     self.entries = entries
     self:_cacheWrite(entries)
+    self:hydrateLocalFromDisk(); self:mergeLocal()
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
 end
 
