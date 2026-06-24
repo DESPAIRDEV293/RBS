@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-key-cmd"
+local ADMIN_BUILD = "2026-06-24-walkonair"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -484,6 +484,7 @@ local HELP_COMMANDS = {
     { perms = {"nt_cmd"},    cmd = "!tagcolors",            desc = "Show colors used in the tag database" },
     { perms = {},            cmd = "!reanim",               desc = "Launch the Reanim GUI (purple-storm build)" },
     { perms = {"nt_cmd"},    cmd = "!key",                  desc = "Show a copyable tag sync key for Config" },
+    { perms = {},            cmd = "!walkonair",            desc = "Walk on an invisible platform — up/down + keybinds in the panel" },
 }
 
 local helpGui = nil
@@ -6910,6 +6911,7 @@ local HELP_CMDS = {
         { "!jp <n>", "Set jump power (0–500)" },
         { "!fly / !unfly", "Toggle fly (WASD + E/Q, Shift = boost)" },
         { "!noclip / !clip", "Walk through walls" },
+        { "!walkonair / !unwalkonair", "Stand on an invisible local platform (panel has up/down + keybinds)" },
         { "!freecam", "Detach camera (WASD/EQ + Shift)" },
         { "!fov <n>", "Set camera field of view (40–120, default 70)" },
         { "!zoom <min> [max]", "Set camera min/max zoom distance" },
