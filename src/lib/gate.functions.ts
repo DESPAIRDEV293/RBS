@@ -34,11 +34,6 @@ function getCookie(name: string): string | undefined {
 }
 
 function appendSetCookie(cookie: string) {
-  const existing = getRequest().headers.get("set-cookie-buffer");
-  // Use the underlying h3 res via setResponseHeader; multiple values handled by passing array.
-  // setResponseHeader replaces; to append, read existing.
-  // h3 supports setting an array for set-cookie.
-  void existing;
   setResponseHeader("set-cookie", cookie);
 }
 
