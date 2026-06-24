@@ -7968,6 +7968,8 @@ loadCfg = function()
     end
 end
 
+end)()
+;(function()
 section(pgThemes, "Background")
 bgImgBox = textbox(pgThemes, "Image / GIF asset id or URL (rbxassetid://, http://...)", function(v)
     bgState.image = v; applyBg(); saveCfg()
