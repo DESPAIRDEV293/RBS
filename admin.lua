@@ -8205,6 +8205,7 @@ end)()
 
 
 
+
 -- Restore saved theme/background/exec preferences after all UI exists.
 task.spawn(function()
     pcall(loadCfg)
