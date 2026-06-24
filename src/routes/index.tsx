@@ -159,29 +159,63 @@ function Index() {
 
       {/* sky gradient */}
       <div className="storm-sky absolute inset-0" />
+      {/* animated aurora mesh */}
+      <div className="storm-aurora absolute inset-0 pointer-events-none" />
       {/* rolling cloud layers */}
       <div className="storm-clouds storm-clouds-1 absolute inset-0" />
       <div className="storm-clouds storm-clouds-2 absolute inset-0" />
+      <div className="storm-clouds storm-clouds-3 absolute inset-0" />
+      {/* subtle vignette for depth */}
+      <div className="storm-vignette absolute inset-0 pointer-events-none" />
       {/* lightning flash overlay */}
       <div className="storm-lightning absolute inset-0 pointer-events-none" />
-      {/* lightning bolt SVG */}
-      <svg
-        className="storm-bolt absolute pointer-events-none"
-        viewBox="0 0 100 300"
-        preserveAspectRatio="none"
-      >
-        <path
-          d="M55 0 L30 130 L55 130 L20 300 L70 140 L42 140 L72 0 Z"
-          fill="url(#boltGrad)"
-        />
-        <defs>
-          <linearGradient id="boltGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#e0e7ff" />
-            <stop offset="60%" stopColor="#a5b4fc" />
-            <stop offset="100%" stopColor="#6366f1" />
-          </linearGradient>
-        </defs>
-      </svg>
+      {/* multiple lightning bolts */}
+      {BOLTS.map((b, i) => (
+        <svg
+          key={i}
+          className="storm-bolt absolute pointer-events-none"
+          viewBox="0 0 100 300"
+          preserveAspectRatio="none"
+          style={{
+            left: b.left,
+            top: b.top,
+            width: `${b.width}px`,
+            height: b.height,
+            animationDelay: b.delay,
+          }}
+        >
+          <path
+            d="M55 0 L30 130 L55 130 L20 300 L70 140 L42 140 L72 0 Z"
+            fill="url(#boltGrad)"
+          />
+          <defs>
+            <linearGradient id="boltGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="40%" stopColor="#e0e7ff" />
+              <stop offset="75%" stopColor="#a5b4fc" />
+              <stop offset="100%" stopColor="#6366f1" />
+            </linearGradient>
+          </defs>
+        </svg>
+      ))}
+
+      {/* twinkling sparkles */}
+      <div className="absolute inset-0 pointer-events-none">
+        {SPARKLES.map((s, i) => (
+          <span
+            key={i}
+            className="storm-sparkle"
+            style={{
+              top: `${s.top}%`,
+              left: `${s.left}%`,
+              width: `${s.size}px`,
+              height: `${s.size}px`,
+              animationDelay: `${s.delay}s`,
+              animationDuration: `${s.duration}s`,
+            }}
+          />
+        ))}
+      </div>
 
       {/* rain */}
       <div className="absolute inset-0 pointer-events-none">
