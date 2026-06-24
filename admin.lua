@@ -13864,6 +13864,11 @@ end
 -- !reanim — launch the Reanim/ROT GUI. Title bar shows the local player's
 -- username (handled inside reanim.lua). Available to every script user.
 cmdHandlers["reanim"] = function()
+    if not _canUseReanim() then
+        _showStaffWarning("You're not staff. The Reanim GUI is restricted to owner, admin, and NT team only.")
+        notify("Reanim is staff-only.", "bad")
+        return
+    end
     notify("Loading Reanim…", "good")
     task.spawn(function()
         local urls = {
