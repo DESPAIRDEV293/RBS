@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-hide-public"
+local ADMIN_BUILD = "2026-06-24-tags-write-proxy"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -2451,29 +2451,52 @@ local function _seigeHttpPost(url, jsonBody, extraHeaders)
     return status >= 200 and status < 300, status, tostring(res.Body or "")
 end
 
+-- Server-side proxy endpoint that authorizes the writer by role (owner /
+-- admin / nt) using the role_entries table, so the actual TAG_WRITE_SECRET
+-- never has to ship inside admin.lua. Falls back to the legacy
+-- /api/public/tags endpoint if a tag-sync key is set in _G.__SeigeTagSyncKey.
+local TAGS_WRITE_PROXY_URL = "https://seigelollua.lovable.app/api/public/tags_write"
+
 function TagDB:pushRemoteEntry(key, entry)
     key = tostring(key or ""):lower()
     if key == "" then return false, "empty key" end
-    local secret = tostring(_G.__SeigeTagSyncKey or "")
-    if secret == "" then return false, "no tag sync key configured" end
-    local payload
-    if entry == nil then
-        payload = { key = key, ["delete"] = true }
-    else
-        payload = { key = key, data = entry }
-    end
     -- Track in-flight pushes so a concurrent TagDB:load() doesn't revert the
     -- just-saved entry back to stale cloud state for ~90s.
     self._pendingPushes = self._pendingPushes or {}
     self._pendingPushes[key] = { entry = entry, until_t = tick() + 90 }
+
+    local actor = (LP and LP.Name or ""):lower()
+    local payload
+    if entry == nil then
+        payload = { actor = actor, key = key, ["delete"] = true }
+    else
+        payload = { actor = actor, key = key, data = entry }
+    end
     local okEnc, body = pcall(function() return HttpService:JSONEncode(payload) end)
     if not okEnc then return false, tostring(body) end
+
     task.spawn(function()
-        local ok, status, resp = _seigeHttpPost(TAGS_HTTP_URL, body, { ["x-tag-secret"] = secret })
-        if not ok then
-            warn(("[Tags] remote push failed (%s): %s"):format(tostring(status), tostring(resp)))
-        else
+        local ok, status, resp = _seigeHttpPost(TAGS_WRITE_PROXY_URL, body)
+        if ok then
             print(("[Tags] remote push ok for %s"):format(key))
+            return
+        end
+        warn(("[Tags] remote push failed (%s): %s"):format(tostring(status), tostring(resp)))
+        -- Legacy fallback: if a shared tag-sync secret is configured locally,
+        -- try the older raw /tags endpoint so power users with the key still
+        -- have a working path.
+        local secret = tostring(_G.__SeigeTagSyncKey or "")
+        if secret == "" then return end
+        local legacy
+        if entry == nil then legacy = { key = key, ["delete"] = true }
+        else legacy = { key = key, data = entry } end
+        local okEnc2, body2 = pcall(function() return HttpService:JSONEncode(legacy) end)
+        if not okEnc2 then return end
+        local ok2, status2, resp2 = _seigeHttpPost(TAGS_HTTP_URL, body2, { ["x-tag-secret"] = secret })
+        if ok2 then
+            print(("[Tags] legacy push ok for %s"):format(key))
+        else
+            warn(("[Tags] legacy push failed (%s): %s"):format(tostring(status2), tostring(resp2)))
         end
     end)
     return true
