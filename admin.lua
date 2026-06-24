@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-cloud-roles"
+local ADMIN_BUILD = "2026-06-24-coowner-rotshad3"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -144,6 +144,13 @@ _G.__SeigeLockSet = _readLockSet()
 -- manages them from the Admin panel "Roles & Permissions" section.
 local ROLES_FILE = "seige_roles.json"
 local OWNER_NAME = "0rot3"
+-- Co-owners get the exact same in-script powers as the owner: full Tags
+-- panel + icon, role management, kill switch, everything. Hardcoded so it
+-- can't be granted from the in-game UI.
+local CO_OWNER_NAMES = { ["rotshad3"] = true }
+local function _isCoOwner(name)
+    return type(name) == "string" and CO_OWNER_NAMES[name:lower()] == true
+end
 local ROLE_PERMS = {
     owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true, freeze = true, nt_cmd = true },
     admin = { view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true, freeze = true, nt_cmd = true },
@@ -274,7 +281,7 @@ task.spawn(function()
 end)
 
 _G.__SeigeMyRole = function()
-    if LP.Name == OWNER_NAME then return "owner" end
+    if LP.Name == OWNER_NAME or _isCoOwner(LP.Name) then return "owner" end
     return _G.__SeigeRoleMap[LP.Name:lower()]
 end
 -- KILL SWITCH · owner-only global pause. When ON, every script user except
@@ -283,7 +290,7 @@ end
 -- a single owner toggle propagates to every script user in the server.
 _G.__SeigeKilled = _G.__SeigeKilled == true
 _G.__SeigeReducedMotion = _G.__SeigeReducedMotion == true
-local function _isOwnerLocal() return LP and LP.Name == OWNER_NAME end
+local function _isOwnerLocal() return LP and (LP.Name == OWNER_NAME or _isCoOwner(LP.Name)) end
 
 _G.__SeigeCan = function(action)
     local r = _G.__SeigeMyRole()
@@ -3840,7 +3847,7 @@ end)
 -- Changes apply LIVE to everyone in the server. Export button copies a
 -- pastebin-formatted text block to your clipboard so you can save permanently.
 if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
-  if LP.Name == OWNER_NAME then
+  if LP.Name == OWNER_NAME or _isCoOwner(LP.Name) then
     local pgTags = makeTab("Tags", "✎", "Custom tags, colors and icons")
 
     -- Make the Tags page breathe: extra vertical spacing between rows and
@@ -5145,7 +5152,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- The owner manages role assignments in the "Roles & Permissions" section.
     ------------------------------------------------------------------
     local _myRole = _G.__SeigeMyRole() or "nt"
-    local _isOwner = LP.Name == OWNER_NAME
+    local _isOwner = LP.Name == OWNER_NAME or _isCoOwner(LP.Name)
     -- NT-only users get a tag-icon tab with just their command window.
     -- Staff/Admin/Owner get the full star "Admin" tab.
     local _ntOnly = (_myRole == "nt") and not _isOwner
