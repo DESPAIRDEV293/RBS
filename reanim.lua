@@ -958,9 +958,11 @@ _initReanimPanel = function()
 		_G._reanimPanel = makeFloatingPanel(340, 380, 0.5, 0.35)
 		_G._reanimPanel.Name = "ROT_Panel"
 
-		local reanimBar = makePanelTitleBar(_G._reanimPanel, "ROT", function()
+		local _titleName = (lp and (lp.DisplayName or lp.Name)) or "ROT"
+		local reanimBar = makePanelTitleBar(_G._reanimPanel, _titleName, function()
 			_G._reanimPanel.Visible = false
 		end)
+		_G._reanimTitleBar = reanimBar
 		_cs.makePanelDraggable(_G._reanimPanel, reanimBar)
 
 		local STATUS_Y = 46
