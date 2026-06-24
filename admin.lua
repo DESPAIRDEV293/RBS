@@ -13574,7 +13574,7 @@ cmdHandlers["hide"] = function(arg)
     notify("Hid @" .. p.Name .. " — !unhide " .. p.Name .. " to restore", "good")
 end
 cmdHandlers["unhide"] = function(arg)
-    if not _staffGate("!unhide") then return end
+    -- Available to every script user.
     local p = _resolveScriptUser(arg)
     if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
     if not _hidden[p.Name:lower()] then notify("@" .. p.Name .. " is not hidden", "warn"); return end
