@@ -14453,7 +14453,7 @@ do
 
     local function attach(plr)
         if plr == lp then return end
-        if _G.__SeigeHeadStatsOn == false then return end
+        if _G.__SeigeHeadStatsOn ~= true then return end
         if conns[plr] then return end -- already attached, prevent duplicate handlers
         conns[plr] = plr.CharacterAdded:Connect(function()
             destroyFor(plr)
