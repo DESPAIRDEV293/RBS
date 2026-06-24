@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-xray-add-remove-spectate"
+local ADMIN_BUILD = "2026-06-24-new-cmds-pack"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -464,6 +464,11 @@ local HELP_COMMANDS = {
     { perms = {"staff_cmd"}, cmd = "!view <user>",          desc = "Spectate the camera of any player" },
     { perms = {"staff_cmd"}, cmd = "!unview",               desc = "Restore your own camera after !view" },
     { perms = {"staff_cmd"}, cmd = "!nearby",               desc = "List script users within 80 studs of you" },
+    { perms = {"staff_cmd"}, cmd = "!logs <user>",          desc = "Show last 20 chat messages captured from a player" },
+    { perms = {"staff_cmd"}, cmd = "!track <user>",         desc = "Show through-wall arrow + distance to a player (!untrack to stop)" },
+    { perms = {"staff_cmd"}, cmd = "!cmute <user>",         desc = "Locally silence a player's chat bubbles & voice (!cunmute to undo)" },
+    { perms = {"staff_cmd"}, cmd = "!age <user>",           desc = "Quick account age, premium and userId for a player" },
+    { perms = {"staff_cmd"}, cmd = "!countdown <s> <msg>",  desc = "Broadcast a live countdown overlay to every script user" },
     { perms = {"bringall"},  cmd = "!bringall",             desc = "Teleport every script user to you" },
     { perms = {"freeze"},    cmd = "!freeze <user>",        desc = "Anchor the target script user" },
     { perms = {"freeze"},    cmd = "!unfreeze <user>",      desc = "Unanchor the target script user" },
@@ -6775,6 +6780,8 @@ local HELP_CMDS = {
         { "!fly / !unfly", "Toggle fly (WASD + E/Q, Shift = boost)" },
         { "!noclip / !clip", "Walk through walls" },
         { "!freecam", "Detach camera (WASD/EQ + Shift)" },
+        { "!fov <n>", "Set camera field of view (40–120, default 70)" },
+        { "!zoom <min> [max]", "Set camera min/max zoom distance" },
     }},
     { "Teleport / target", {
         { "!goto <player>", "Teleport to a player" },
@@ -6796,6 +6803,14 @@ local HELP_CMDS = {
         { "!timestop", "Freeze everyone except you (admin/owner only)" },
         { "!untimestop", "Release the freeze" },
     }},
+    { "Staff oversight", {
+        { "!logs <player>", "Show last 20 chat messages captured from a player" },
+        { "!track <player> / !untrack", "Through-wall arrow + live distance to a player" },
+        { "!cmute <player> / !cunmute <player>", "Locally silence a player's chat bubbles & voice" },
+        { "!age <player>", "Quick account age, premium status, and UserId" },
+        { "!countdown <secs> <msg>", "Broadcast a live countdown overlay to every script user" },
+    }},
+    
     
     { "Animations", {
         { "!reanim", "Free the humanoid for custom animations" },
@@ -12566,6 +12581,37 @@ cmdHandlers["freecam"] = function()
 end
 cmdHandlers["unfreecam"] = cmdHandlers["freecam"]
 
+-- !fov <n> — set camera field of view (40-120). No arg = reset to 70.
+cmdHandlers["fov"] = function(arg)
+    local cam = workspace.CurrentCamera
+    if not cam then notify("No camera", "bad"); return end
+    local s = tostring(arg or ""):gsub("%s+","")
+    local n = tonumber(s)
+    if not n then n = 70 end
+    n = math.clamp(n, 40, 120)
+    pcall(function() cam.FieldOfView = n end)
+    notify("FOV " .. n, "good")
+end
+
+-- !zoom <min> [max] — set camera min/max zoom distance. No args = defaults (0.5 / 128).
+cmdHandlers["zoom"] = function(arg)
+    local s = tostring(arg or ""):gsub("^%s+",""):gsub("%s+$","")
+    local a, b = s:match("^(%S+)%s+(%S+)$")
+    local mn, mx
+    if a and b then mn = tonumber(a); mx = tonumber(b)
+    else mn = tonumber(s); mx = nil end
+    if not mn then mn = 0.5 end
+    if not mx then mx = 128 end
+    if mx < mn then mx = mn end
+    pcall(function()
+        LP.CameraMinZoomDistance = math.max(0.5, mn)
+        LP.CameraMaxZoomDistance = math.min(2048, mx)
+    end)
+    notify(("Zoom %.1f → %.1f"):format(mn, mx), "good")
+end
+
+
+
 -- 9) Server hop — teleport to a RANDOM public server
 cmdHandlers["hop"] = function()
     notify("Searching server...", "good")
@@ -13274,6 +13320,211 @@ cmdHandlers["nearby"] = function()
 end
 
 
+-- =====================================================================
+-- STAFF COMMANDS · 5 NEW (logs, track, cmute, age, countdown)
+-- All gated through _staffGate.
+-- =====================================================================
+
+-- Shared chat-log capture: ring buffer of the last 20 lines per player.
+-- One-time init guarded by _G so a re-execution does not duplicate connections.
+if not _G.__SeigeChatLog then
+    _G.__SeigeChatLog = {}      -- [lowerName] = { {t=os.time(), msg="..."} , ... }
+    _G.__SeigeChatLogConns = {} -- [Player] = RBXScriptConnection
+    local LIMIT = 20
+    local function attach(p)
+        if _G.__SeigeChatLogConns[p] then return end
+        _G.__SeigeChatLogConns[p] = p.Chatted:Connect(function(msg)
+            if type(msg) ~= "string" or msg == "" then return end
+            local key = p.Name:lower()
+            local buf = _G.__SeigeChatLog[key]
+            if not buf then buf = {}; _G.__SeigeChatLog[key] = buf end
+            buf[#buf+1] = { t = os.time(), msg = msg }
+            if #buf > LIMIT then table.remove(buf, 1) end
+        end)
+    end
+    for _, p in ipairs(Players:GetPlayers()) do pcall(attach, p) end
+    Players.PlayerAdded:Connect(function(p) pcall(attach, p) end)
+    Players.PlayerRemoving:Connect(function(p)
+        local c = _G.__SeigeChatLogConns[p]
+        if c then pcall(function() c:Disconnect() end); _G.__SeigeChatLogConns[p] = nil end
+    end)
+end
+
+-- 1) !logs <user> — show last 20 chat messages captured from a player (local)
+cmdHandlers["logs"] = function(arg)
+    if not _staffGate("!logs") then return end
+    local t = tostring(arg or ""):gsub("^%s+",""):gsub("%s+$",""):gsub("^@","")
+    if t == "" then notify("Usage: !logs <user>", "warn"); return end
+    local p = _resolveScriptUser(t)
+    local key = (p and p.Name or t):lower()
+    local buf = _G.__SeigeChatLog and _G.__SeigeChatLog[key] or nil
+    if not buf or #buf == 0 then
+        _openResultPanel("logs", "Chat logs · @" .. (p and p.Name or t), {},
+            { empty = "No chat captured for @" .. (p and p.Name or t) .. " yet.", height = 200 })
+        return
+    end
+    local rows = {}
+    for i = #buf, 1, -1 do
+        local e = buf[i]
+        local ago = math.max(0, os.time() - (e.t or 0))
+        local stamp
+        if ago < 60 then stamp = ago .. "s"
+        elseif ago < 3600 then stamp = math.floor(ago/60) .. "m"
+        else stamp = math.floor(ago/3600) .. "h" end
+        rows[#rows+1] = { text = e.msg, right = stamp }
+    end
+    _openResultPanel("logs", ("Chat logs · @%s · %d line%s"):format(p and p.Name or t, #rows, #rows==1 and "" or "s"),
+        rows, { height = 360 })
+end
+
+-- 2) !track <user> / !untrack — through-wall arrow + live distance to a player
+local _trackConn, _trackBill
+local function _trackStop()
+    if _trackConn then pcall(function() _trackConn:Disconnect() end); _trackConn = nil end
+    if _trackBill then pcall(function() _trackBill:Destroy() end); _trackBill = nil end
+end
+cmdHandlers["track"] = function(arg)
+    if not _staffGate("!track") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    _trackStop()
+    local function getHead()
+        local c = p.Character; if not c then return nil end
+        return c:FindFirstChild("Head") or c:FindFirstChild("HumanoidRootPart")
+    end
+    local head = getHead()
+    if not head then notify("Target has no character yet", "warn"); return end
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "SeigeTrackBill"
+    bb.AlwaysOnTop = true
+    bb.Size = UDim2.new(0, 160, 0, 44)
+    bb.StudsOffset = Vector3.new(0, 3.2, 0)
+    bb.Adornee = head
+    bb.Parent = head
+    local lbl = Instance.new("TextLabel", bb)
+    lbl.BackgroundTransparency = 0.25
+    lbl.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+    lbl.BorderSizePixel = 0
+    lbl.Size = UDim2.fromScale(1, 1)
+    lbl.Font = Enum.Font.GothamBold
+    lbl.TextSize = 13
+    lbl.TextColor3 = Color3.fromRGB(255, 220, 90)
+    lbl.Text = "▼  @" .. p.Name .. "  ▼"
+    local uic = Instance.new("UICorner", lbl); uic.CornerRadius = UDim.new(0, 8)
+    _trackBill = bb
+    _trackConn = game:GetService("RunService").Heartbeat:Connect(function()
+        if not p or not p.Parent then _trackStop(); return end
+        local h = getHead()
+        if not h then return end
+        if bb.Adornee ~= h then bb.Adornee = h; bb.Parent = h end
+        local myChar = LP.Character
+        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if myHRP then
+            local d = (h.Position - myHRP.Position).Magnitude
+            lbl.Text = ("▼  @%s  ·  %dst  ▼"):format(p.Name, math.floor(d))
+        end
+    end)
+    notify("Tracking @" .. p.Name .. " — use !untrack to stop", "good")
+end
+cmdHandlers["untrack"] = function()
+    if not _staffGate("!untrack") then return end
+    _trackStop(); notify("Tracking off", "good")
+end
+
+-- 3) !cmute <user> / !cunmute — locally silence a player's chat bubbles & voice
+local _cmuted = {}        -- [lowerName] = true
+local _cmuteConns = {}    -- [Player] = { connections }
+local function _applyVoiceMute(p, on)
+    pcall(function()
+        local VC = game:GetService("VoiceChatService")
+        if VC and VC.SetGroupId then return end
+    end)
+    pcall(function()
+        local VCS = game:FindService("VoiceChatInternal")
+            or game:FindService("VoiceChatService")
+        if VCS and VCS.SubscribePauseAll then
+            VCS:SubscribePauseAll(p.UserId, on and true or false)
+        end
+    end)
+end
+local function _stripBubbles(p)
+    local c = p.Character; if not c then return end
+    local head = c:FindFirstChild("Head"); if not head then return end
+    for _, g in ipairs(head:GetChildren()) do
+        if g:IsA("BillboardGui") and (g.Name == "ChatBubble" or g.Name:find("Bubble")) then
+            pcall(function() g:Destroy() end)
+        end
+    end
+end
+local function _attachCmute(p)
+    local conns = {}
+    table.insert(conns, p.Chatted:Connect(function() _stripBubbles(p) end))
+    table.insert(conns, p.CharacterAdded:Connect(function()
+        task.delay(0.5, function() _stripBubbles(p) end)
+    end))
+    _cmuteConns[p] = conns
+    _applyVoiceMute(p, true)
+    _stripBubbles(p)
+end
+local function _detachCmute(p)
+    local conns = _cmuteConns[p]
+    if conns then for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end end
+    _cmuteConns[p] = nil
+    _applyVoiceMute(p, false)
+end
+cmdHandlers["cmute"] = function(arg)
+    if not _staffGate("!cmute") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    if _cmuted[p.Name:lower()] then notify("@" .. p.Name .. " already cmuted", "warn"); return end
+    _cmuted[p.Name:lower()] = true
+    _attachCmute(p)
+    notify("Silenced @" .. p.Name .. " locally (chat + voice)", "good")
+end
+cmdHandlers["cunmute"] = function(arg)
+    if not _staffGate("!cunmute") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    if not _cmuted[p.Name:lower()] then notify("@" .. p.Name .. " is not cmuted", "warn"); return end
+    _cmuted[p.Name:lower()] = nil
+    _detachCmute(p)
+    notify("Restored @" .. p.Name, "good")
+end
+
+-- 4) !age <user> — quick account age, premium status, userId, display name
+cmdHandlers["age"] = function(arg)
+    if not _staffGate("!age") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    local age = 0; pcall(function() age = p.AccountAge or 0 end)
+    local years = age / 365.25
+    local prem  = "no"
+    pcall(function() if p.MembershipType == Enum.MembershipType.Premium then prem = "yes" end end)
+    local team = "none"; pcall(function() if p.Team then team = p.Team.Name end end)
+    notify(string.format("@%s (%s) · uid %d · age %d d (%.1f yr) · premium %s · team %s",
+        p.Name, p.DisplayName, p.UserId, age, years, prem, team), "good")
+end
+
+-- 5) !countdown <seconds> <msg> — broadcast a live countdown via shout, once per second
+cmdHandlers["countdown"] = function(arg)
+    if not _staffGate("!countdown") then return end
+    local s = tostring(arg or ""):gsub("^%s+",""):gsub("%s+$","")
+    local n, msg = s:match("^(%d+)%s+(.+)$")
+    n = tonumber(n)
+    if not n or not msg then notify("Usage: !countdown <seconds> <message>", "warn"); return end
+    n = math.clamp(n, 1, 60)
+    if not _G.__SeigeShoutSend then notify("Broadcast not ready", "bad"); return end
+    notify(("Countdown started · %ds"):format(n), "good")
+    task.spawn(function()
+        for i = n, 1, -1 do
+            pcall(function() _G.__SeigeShoutSend(("%s  ·  %ds"):format(msg, i)) end)
+            task.wait(1)
+        end
+        pcall(function() _G.__SeigeShoutSend(tostring(msg) .. "  ·  GO") end)
+    end)
+end
+
+
 
 -- =====================================================================
 -- NT TAG COMMANDS (5) · available to NT Team, Admin, Owner
@@ -13461,7 +13712,7 @@ local function runBarCmd(raw)
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
-cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !goto !to !xray !stalk !fling !save !load !help"
+cmdBox.PlaceholderText = "!rj !fly !noclip !ws !jp !goto !to !xray !fov !zoom !logs !track !cmute !age !help"
 
 -- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command.
 -- We ALSO intercept the message at the outgoing send layer so the avatar never
