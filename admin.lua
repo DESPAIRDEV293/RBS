@@ -4137,6 +4137,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         tbOutline.Text  = (e and e.outline) or ""
         tbTextColor.Text   = (e and e.textColor) or ""
         tbTextOutline.Text = (e and e.textOutline) or ""
+        tbAvOutlineColor.Text = (e and e.avatarOutlineColor) or ""
         fontDD.set((e and e.font) or "Default")
         do
             local fx = tostring((e and e.textFx) or ""):lower()
