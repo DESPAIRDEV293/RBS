@@ -2306,15 +2306,19 @@ do
 end
 
 function TagDB:hydrateFromCache()
-    if self.entries and next(self.entries) then return false end
-    local cached = self:_cacheRead()
-    if cached and next(cached) then
-        self.entries = cached
-        local n = 0; for _ in pairs(cached) do n = n + 1 end
-        print(("[Tags] hydrated %d entries from local cache (instant)"):format(n))
-        return true
+    if not (self.entries and next(self.entries)) then
+        local cached = self:_cacheRead()
+        if cached and next(cached) then
+            self.entries = cached
+            local n = 0; for _ in pairs(cached) do n = n + 1 end
+            print(("[Tags] hydrated %d entries from local cache (instant)"):format(n))
+        end
     end
-    return false
+    -- Always overlay per-user disk overrides so re-execution restores them
+    -- before the cloud fetch resolves.
+    self:hydrateLocalFromDisk()
+    self:mergeLocal()
+    return true
 end
 
 -- HTTP request shim for POSTs (executor-specific). Returns (ok, status, body).
