@@ -7363,6 +7363,7 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
                 downBtn.Text = "Down key: " .. i.KeyCode.Name .. "  (click to set)"
             end
             awaiting = nil
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
         end)
         body.AncestryChanged:Connect(function()
             if not body.Parent then pcall(function() kConn:Disconnect() end) end
