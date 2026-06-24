@@ -2365,6 +2365,19 @@ function TagDB:load()
                     end
                 end
                 if count > 0 then
+                    -- Preserve in-flight local saves so they don't get reverted
+                    -- to stale cloud state during the ~90s sync window.
+                    if self._pendingPushes then
+                        local now = tick()
+                        for k, p in pairs(self._pendingPushes) do
+                            if p.until_t and now < p.until_t then
+                                if p.entry == nil then entries[k] = nil
+                                else entries[k] = p.entry end
+                            else
+                                self._pendingPushes[k] = nil
+                            end
+                        end
+                    end
                     self.entries = entries
                     self:_cacheWrite(entries)
                     print(("[Tags] HTTP tag DB loaded — %d entries"):format(count))
