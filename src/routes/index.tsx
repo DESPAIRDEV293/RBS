@@ -270,8 +270,10 @@ function Index() {
         </header>
 
         {/* glass card */}
-        <section className="storm-card relative overflow-hidden rounded-2xl p-6 sm:p-7">
+        <section className="storm-card storm-card-shimmer relative overflow-hidden rounded-2xl p-6 sm:p-7">
           <div className="storm-card-glow absolute inset-0 pointer-events-none" />
+          <div className="storm-scanline absolute inset-0 pointer-events-none" />
+
 
 
 
