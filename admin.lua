@@ -14405,22 +14405,24 @@ do
         fill.BorderSizePixel = 0
         local fc = Instance.new("UICorner", fill); fc.CornerRadius = UDim.new(1, 0)
 
-        local ipLbl = Instance.new("TextLabel", card)
-        ipLbl.BackgroundTransparency = 1
-        ipLbl.Size = UDim2.new(1, -10, 0, 14)
-        ipLbl.Position = UDim2.new(0, 5, 0, 22)
-        ipLbl.Font = Enum.Font.Code
-        ipLbl.TextSize = 11
-        ipLbl.TextXAlignment = Enum.TextXAlignment.Left
-        ipLbl.TextColor3 = Color3.fromRGB(150, 200, 255)
-        ipLbl.Text = "IP " .. fakeIp(plr.UserId)
+        local nameLbl = Instance.new("TextLabel", card)
+        nameLbl.BackgroundTransparency = 1
+        nameLbl.Size = UDim2.new(1, -10, 0, 14)
+        nameLbl.Position = UDim2.new(0, 5, 0, 22)
+        nameLbl.Font = Enum.Font.GothamMedium
+        nameLbl.TextSize = 11
+        nameLbl.TextXAlignment = Enum.TextXAlignment.Left
+        nameLbl.TextColor3 = Color3.fromRGB(200, 220, 255)
+        nameLbl.Text = "@" .. plr.Name
 
         bg.Parent = game:GetService("CoreGui")
 
+        samples[plr] = samples[plr] or {}
         local entry = { bg = bg, pingLbl = pingLbl, fill = fill, plr = plr }
         tracked[plr] = entry
         return entry
     end
+
 
     local function refresh(plr)
         local t = tracked[plr]; if not t or not t.bg.Parent then return end
