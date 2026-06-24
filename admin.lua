@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-new-cmds-pack"
+local ADMIN_BUILD = "2026-06-24-hide-cmd"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -467,6 +467,7 @@ local HELP_COMMANDS = {
     { perms = {"staff_cmd"}, cmd = "!logs <user>",          desc = "Show last 20 chat messages captured from a player" },
     { perms = {"staff_cmd"}, cmd = "!track <user>",         desc = "Show through-wall arrow + distance to a player (!untrack to stop)" },
     { perms = {"staff_cmd"}, cmd = "!cmute <user>",         desc = "Locally silence a player's chat bubbles & voice (!cunmute to undo)" },
+    { perms = {"staff_cmd"}, cmd = "!hide <user>",          desc = "Locally hide a player's character (!unhide <user> to restore)" },
     { perms = {"staff_cmd"}, cmd = "!age <user>",           desc = "Quick account age, premium and userId for a player" },
     { perms = {"staff_cmd"}, cmd = "!countdown <s> <msg>",  desc = "Broadcast a live countdown overlay to every script user" },
     { perms = {"bringall"},  cmd = "!bringall",             desc = "Teleport every script user to you" },
@@ -6807,6 +6808,7 @@ local HELP_CMDS = {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
         { "!track <player> / !untrack", "Through-wall arrow + live distance to a player" },
         { "!cmute <player> / !cunmute <player>", "Locally silence a player's chat bubbles & voice" },
+        { "!hide <player> / !unhide <player>", "Locally hide a player's character from your view" },
         { "!age <player>", "Quick account age, premium status, and UserId" },
         { "!countdown <secs> <msg>", "Broadcast a live countdown overlay to every script user" },
     }},
@@ -13490,6 +13492,98 @@ cmdHandlers["cunmute"] = function(arg)
     _detachCmute(p)
     notify("Restored @" .. p.Name, "good")
 end
+
+-- !hide <user> / !unhide <user> — locally hide a player's character (invisible
+-- + no nametag + no shadow) so the script user can't see them. Re-applies on
+-- respawn until !unhide is called.
+local _hidden = {}        -- [lowerName] = true
+local _hideConns = {}     -- [Player] = { connections }
+local function _setCharVisible(char, visible)
+    if not char then return end
+    for _, d in ipairs(char:GetDescendants()) do
+        if d:IsA("BasePart") then
+            pcall(function()
+                if not visible then
+                    d:SetAttribute("__SeigeOrigT", d:GetAttribute("__SeigeOrigT") or d.Transparency)
+                    d.Transparency = 1
+                    d.CastShadow = false
+                    d.CanCollide = false
+                else
+                    local orig = d:GetAttribute("__SeigeOrigT")
+                    if orig then d.Transparency = orig; d:SetAttribute("__SeigeOrigT", nil) end
+                    d.CastShadow = true
+                end
+            end)
+        elseif d:IsA("Decal") or d:IsA("Texture") then
+            pcall(function()
+                if not visible then
+                    d:SetAttribute("__SeigeOrigT", d:GetAttribute("__SeigeOrigT") or d.Transparency)
+                    d.Transparency = 1
+                else
+                    local orig = d:GetAttribute("__SeigeOrigT")
+                    if orig then d.Transparency = orig; d:SetAttribute("__SeigeOrigT", nil) end
+                end
+            end)
+        elseif d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Beam") then
+            pcall(function()
+                if not visible then
+                    d:SetAttribute("__SeigeOrigE", d:GetAttribute("__SeigeOrigE")
+                        or (d.Enabled and "1" or "0"))
+                    d.Enabled = false
+                else
+                    local orig = d:GetAttribute("__SeigeOrigE")
+                    if orig then d.Enabled = (orig == "1"); d:SetAttribute("__SeigeOrigE", nil) end
+                end
+            end)
+        elseif d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
+            pcall(function() d.Enabled = visible end)
+        end
+    end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            hum.NameDisplayDistance = visible and 100 or 0
+            hum.HealthDisplayDistance = visible and 100 or 0
+        end)
+    end
+end
+local function _attachHide(p)
+    local conns = {}
+    _setCharVisible(p.Character, false)
+    table.insert(conns, p.CharacterAdded:Connect(function(c)
+        task.delay(0.4, function()
+            if _hidden[p.Name:lower()] then _setCharVisible(c, false) end
+        end)
+    end))
+    _hideConns[p] = conns
+end
+local function _detachHide(p)
+    local conns = _hideConns[p]
+    if conns then for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end end
+    _hideConns[p] = nil
+    _setCharVisible(p.Character, true)
+end
+cmdHandlers["hide"] = function(arg)
+    if not _staffGate("!hide") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    if p == LP then notify("Use !invis on yourself", "warn"); return end
+    if _hidden[p.Name:lower()] then notify("@" .. p.Name .. " already hidden", "warn"); return end
+    _hidden[p.Name:lower()] = true
+    _attachHide(p)
+    notify("Hid @" .. p.Name .. " — !unhide " .. p.Name .. " to restore", "good")
+end
+cmdHandlers["unhide"] = function(arg)
+    if not _staffGate("!unhide") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    if not _hidden[p.Name:lower()] then notify("@" .. p.Name .. " is not hidden", "warn"); return end
+    _hidden[p.Name:lower()] = nil
+    _detachHide(p)
+    notify("Restored @" .. p.Name, "good")
+end
+
+
 
 -- 4) !age <user> — quick account age, premium status, userId, display name
 cmdHandlers["age"] = function(arg)
