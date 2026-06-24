@@ -244,6 +244,85 @@ local function _pushRemoteRole(name, role)
     return true
 end
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TAG GROUPS  (OWNERS / ADMINS / CO_OWNERS / LINE_USERS / BLACKLIST)
+-- Lives in Lovable Cloud as a single JSONB row, served via /api/public/tag_groups.
+-- Powers fast "teleport to anyone tagged in <group>" actions.
+-- ─────────────────────────────────────────────────────────────────────────────
+local TAG_GROUPS_URL = "https://seigelollua.lovable.app/api/public/tag_groups"
+local TAG_GROUPS = { OWNERS = {}, ADMINS = {}, CO_OWNERS = {}, LINE_USERS = {}, BLACKLIST = {} }
+_G.__SeigeTagGroups = TAG_GROUPS
+
+local function _httpRequest()
+    return (syn and syn.request) or (http and http.request)
+        or http_request or (fluxus and fluxus.request)
+        or (krnl and krnl.request) or request
+end
+
+local function safeHttpGet(url)
+    local ok, res = pcall(function() return game:HttpGet(url) end)
+    if not ok then return nil, res end
+    return res
+end
+
+local function safeHttpPost(url, data, contentType)
+    local ok, res = pcall(function()
+        return game:HttpPost(url, data, false, contentType or "application/json")
+    end)
+    if not ok then return nil, res end
+    return res
+end
+
+local function loadTagGroups()
+    local resp, err = safeHttpGet(TAG_GROUPS_URL .. "?v=" .. tostring(os.time()))
+    if not resp then warn("[TagGroups] load failed:", err); return end
+    local okD, groups = pcall(function() return HttpService:JSONDecode(resp) end)
+    if not okD or type(groups) ~= "table" then warn("[TagGroups] bad response"); return end
+    TAG_GROUPS = {
+        OWNERS    = groups.OWNERS    or {},
+        ADMINS    = groups.ADMINS    or {},
+        CO_OWNERS = groups.CO_OWNERS or {},
+        LINE_USERS = groups.LINE_USERS or {},
+        BLACKLIST = groups.BLACKLIST or {},
+    }
+    _G.__SeigeTagGroups = TAG_GROUPS
+    print("[TagGroups] loaded from cloud")
+end
+
+local function saveUserToTagGroup(user, group, remove)
+    local secret = tostring(_G.__SeigeTagSyncKey or "")
+    if secret == "" then notify("Tag sync key required (Config tab)", "warn"); return false end
+    local req = _httpRequest()
+    if not req then notify("No HTTP request shim available", "bad"); return false end
+    local payload = { username = tostring(user or ""), tag_group = tostring(group or "") }
+    if remove then payload.remove = true end
+    local okEnc, body = pcall(HttpService.JSONEncode, HttpService, payload)
+    if not okEnc then return false end
+    task.spawn(function()
+        local ok, res = pcall(req, {
+            Url = TAG_GROUPS_URL, Method = "POST",
+            Headers = { ["Content-Type"] = "application/json", ["x-tag-secret"] = secret },
+            Body = body,
+        })
+        if not ok then warn("[TagGroups] push failed:", res); return end
+        local status = tonumber(res.StatusCode or res.status_code) or 0
+        if status < 200 or status >= 300 then
+            warn(("[TagGroups] push HTTP %s: %s"):format(tostring(status), tostring(res.Body or "")))
+        else
+            loadTagGroups()
+        end
+    end)
+    return true
+end
+_G.__SeigeLoadTagGroups = loadTagGroups
+_G.__SeigeSaveTagGroup  = saveUserToTagGroup
+
+-- prime cache on script load + periodic refresh
+task.spawn(loadTagGroups)
+task.spawn(function()
+    while true do task.wait(45); pcall(loadTagGroups) end
+end)
+
 _G.__SeigeRoleMap = _readRoleMap()
 do
     local remote = _fetchRemoteRoles()
