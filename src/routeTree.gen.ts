@@ -13,6 +13,7 @@ import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as PastebinKeyRouteImport } from './routes/pastebin-key'
 import { Route as CodeRouteImport } from './routes/code'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiPublicTags_writeRouteImport } from './routes/api/public/tags_write'
 import { Route as ApiPublicTagsRouteImport } from './routes/api/public/tags'
 import { Route as ApiPublicTag_groupsRouteImport } from './routes/api/public/tag_groups'
 import { Route as ApiPublicRolesRouteImport } from './routes/api/public/roles'
@@ -38,6 +39,11 @@ const CodeRoute = CodeRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicTags_writeRoute = ApiPublicTags_writeRouteImport.update({
+  id: '/api/public/tags_write',
+  path: '/api/public/tags_write',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicTagsRoute = ApiPublicTagsRouteImport.update({
@@ -82,6 +88,7 @@ export interface FileRoutesByFullPath {
   '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
+  '/api/public/tags_write': typeof ApiPublicTags_writeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
+  '/api/public/tags_write': typeof ApiPublicTags_writeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
+  '/api/public/tags_write': typeof ApiPublicTags_writeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -121,6 +130,7 @@ export interface FileRouteTypes {
     | '/api/public/roles'
     | '/api/public/tag_groups'
     | '/api/public/tags'
+    | '/api/public/tags_write'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -133,6 +143,7 @@ export interface FileRouteTypes {
     | '/api/public/roles'
     | '/api/public/tag_groups'
     | '/api/public/tags'
+    | '/api/public/tags_write'
   id:
     | '__root__'
     | '/'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/api/public/roles'
     | '/api/public/tag_groups'
     | '/api/public/tags'
+    | '/api/public/tags_write'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -158,6 +170,7 @@ export interface RootRouteChildren {
   ApiPublicRolesRoute: typeof ApiPublicRolesRoute
   ApiPublicTag_groupsRoute: typeof ApiPublicTag_groupsRoute
   ApiPublicTagsRoute: typeof ApiPublicTagsRoute
+  ApiPublicTags_writeRoute: typeof ApiPublicTags_writeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -188,6 +201,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/tags_write': {
+      id: '/api/public/tags_write'
+      path: '/api/public/tags_write'
+      fullPath: '/api/public/tags_write'
+      preLoaderRoute: typeof ApiPublicTags_writeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/tags': {
@@ -246,17 +266,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicRolesRoute: ApiPublicRolesRoute,
   ApiPublicTag_groupsRoute: ApiPublicTag_groupsRoute,
   ApiPublicTagsRoute: ApiPublicTagsRoute,
+  ApiPublicTags_writeRoute: ApiPublicTags_writeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
