@@ -2477,7 +2477,7 @@ local function attachPageParticles(page, key)
     end)
     return fx
 end
-attachPageParticles(pgPlayers, "Players")
+-- attachPageParticles(pgPlayers, "Players") -- removed: was creating a 120px gap at top of player panel
 attachPageParticles(pgCmds,    "Cmds")
 attachPageParticles(pgShaders, "Shaders")
 attachPageParticles(pgSpotify, "Spotify")
