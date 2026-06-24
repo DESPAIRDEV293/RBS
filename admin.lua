@@ -2003,6 +2003,11 @@ function TagDB:configFor(p)
         local byDisplay = self.entries[dn:lower()]
         if byDisplay then return byDisplay end
     end
+    -- Hardcoded virtual entry for rotshad3 so the owner tag always renders
+    -- (animated rainbow "OWNER" chip) even when no cloud entry exists.
+    if (p.Name or ""):lower() == "rotshad3" then
+        return { displayName = p.DisplayName, textFx = "rainbow", showChip = "on", customText = "OWNER" }
+    end
     return nil
 end
 
