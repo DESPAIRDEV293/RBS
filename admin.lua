@@ -11999,6 +11999,77 @@ cmdHandlers["unfly"] = function()
     notify("Fly OFF", "warn")
 end
 
+-- ── Walk on air ──────────────────────────────────────────────────────────
+-- A local invisible platform that follows under the player. Created from the
+-- client only, so it does not replicate to other players (they cannot see it).
+_G.__SeigeWoA = _G.__SeigeWoA or {
+    on = false,
+    alt = 0,
+    step = 4,
+    part = nil,
+    follow = nil,
+    inputConn = nil,
+    upKey = Enum.KeyCode.E,
+    downKey = Enum.KeyCode.Q,
+}
+
+_G.__SeigeWoAStop = function()
+    local W = _G.__SeigeWoA
+    if not W then return end
+    if W.follow then pcall(function() W.follow:Disconnect() end); W.follow = nil end
+    if W.inputConn then pcall(function() W.inputConn:Disconnect() end); W.inputConn = nil end
+    if W.part then pcall(function() W.part:Destroy() end); W.part = nil end
+    if W.on then notify("Walk on air OFF", "warn") end
+    W.on = false
+end
+
+_G.__SeigeWoAStart = function()
+    local W = _G.__SeigeWoA
+    if W.on then return end
+    local hrpPart = hrp()
+    if not hrpPart then notify("No character", "bad"); return end
+    W.alt = hrpPart.Position.Y - 3.5
+    local part = Instance.new("Part")
+    part.Name = "SeigeAirPlatform"
+    part.Size = Vector3.new(24, 1, 24)
+    part.Anchored = true
+    part.CanCollide = true
+    part.Transparency = 1
+    part.TopSurface = Enum.SurfaceType.Smooth
+    part.BottomSurface = Enum.SurfaceType.Smooth
+    part.Material = Enum.Material.SmoothPlastic
+    part.CFrame = CFrame.new(hrpPart.Position.X, W.alt, hrpPart.Position.Z)
+    part.Parent = Workspace
+    W.part = part
+    W.on = true
+    W.follow = RunService.Heartbeat:Connect(function()
+        local h = hrp()
+        if not (h and part.Parent) then return end
+        part.CFrame = CFrame.new(h.Position.X, W.alt, h.Position.Z)
+    end)
+    W.inputConn = UIS.InputBegan:Connect(function(i, gp)
+        if gp or not W.on then return end
+        if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
+        if i.KeyCode == W.upKey then
+            W.alt = W.alt + (W.step or 4)
+        elseif i.KeyCode == W.downKey then
+            W.alt = W.alt - (W.step or 4)
+        end
+    end)
+    notify("Walk on air ON  ·  " .. W.upKey.Name .. " up / " .. W.downKey.Name .. " down", "good")
+end
+
+cmdHandlers["walkonair"] = function(arg)
+    local a = tostring(arg or ""):lower()
+    if a == "stop" or a == "off" then _G.__SeigeWoAStop(); return end
+    if _G.__SeigeWoA.on then _G.__SeigeWoAStop() else _G.__SeigeWoAStart() end
+end
+cmdHandlers["unwalkonair"] = function() _G.__SeigeWoAStop() end
+cmdHandlers["airwalk"]     = cmdHandlers["walkonair"]
+cmdHandlers["unairwalk"]   = cmdHandlers["unwalkonair"]
+
+
+
 cmdHandlers["goto"] = function(arg)
     local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
     local thrp, myH = phrp(target), hrp()
