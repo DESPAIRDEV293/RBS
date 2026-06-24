@@ -9607,6 +9607,7 @@ toggle(pgConfig, "Show ping tag above other players", _G.__SeigeHeadStatsOn, fun
     else
         if _G.__SeigeHeadStatsCleanup then _G.__SeigeHeadStatsCleanup() end
     end
+    if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
 end)
 
 
