@@ -13712,7 +13712,7 @@ local function runBarCmd(raw)
     if h then h(arg) else notify("Unknown command: " .. cmd, "bad") end
 end
 
-cmdBox.PlaceholderText = "!rj !tprj !fly !noclip !ws !jp !goto !to !xray !stalk !fling !save !load !help"
+cmdBox.PlaceholderText = "!rj !fly !noclip !ws !jp !goto !to !xray !fov !zoom !logs !track !cmute !age !help"
 
 -- Roblox chat command bridge: any message starting with ! (e.g. !rj, !tprj) runs the command.
 -- We ALSO intercept the message at the outgoing send layer so the avatar never
