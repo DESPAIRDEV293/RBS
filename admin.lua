@@ -14461,6 +14461,15 @@ do
     Players.PlayerAdded:Connect(attach)
     Players.PlayerRemoving:Connect(function(p)
         if tracked[p] then pcall(function() tracked[p].bg:Destroy() end); tracked[p] = nil end
+        samples[p] = nil
+    end)
+
+    -- Replication-interval sampler (runs every Heartbeat so we catch every
+    -- server tick that nudges the player's character position).
+    RunService.Heartbeat:Connect(function()
+        for plr, _ in pairs(tracked) do
+            if plr.Parent then pcall(sampleTick, plr) end
+        end
     end)
 
     task.spawn(function()
@@ -14468,7 +14477,7 @@ do
             for plr, _ in pairs(tracked) do
                 if plr.Parent then pcall(refresh, plr) end
             end
-            task.wait(1.2)
+            task.wait(0.8)
         end
     end)
 end
