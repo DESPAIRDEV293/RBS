@@ -2250,11 +2250,33 @@ function TagDB:loadLocal()
     return out
 end
 function TagDB:mergeLocal()
-    -- GitHub is now the single source of truth. Old executor-local override
-    -- files are intentionally ignored because they were the exact reason a tag
-    -- could look saved, then reload back to stale colors/fills/images.
+    -- Local-disk overrides always overlay cloud entries so per-user changes
+    -- (image, colors, handle, etc.) persist across re-executions even if the
+    -- cloud push hasn't reflected back yet. The delete flow nukes the local
+    -- key explicitly when the user clears a tag, so stale overrides can't
+    -- linger forever.
     self.localEntries = self.localEntries or {}
-    return 0
+    self.entries      = self.entries or {}
+    local merged = 0
+    for k, v in pairs(self.localEntries) do
+        if type(v) == "table" then
+            self.entries[k] = v
+            merged = merged + 1
+        end
+    end
+    return merged
+end
+
+-- Pull the on-disk per-user override file into self.localEntries. Called on
+-- every load so a fresh executor session can re-apply the user's saved tags
+-- (icon, colors, custom handle…) even before the cloud round-trip lands.
+function TagDB:hydrateLocalFromDisk()
+    local loaded = self:loadLocal()
+    if type(loaded) == "table" then
+        self.localEntries = loaded
+        return true
+    end
+    return false
 end
 
 
