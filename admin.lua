@@ -13936,6 +13936,120 @@ cmdHandlers["reanim"] = function()
     end)
 end
 
+-- !key — fetch the tag sync key (TAG_WRITE_SECRET) from the server and show
+-- it in a copyable popup. Server-side role check decides who gets it
+-- (owner / admin / nt / staff). The secret is never baked into admin.lua.
+local TAG_SYNC_KEY_URL = "https://seigelollua.lovable.app/api/public/tag_sync_key"
+
+local function _showCopyablePopup(title, message, secret)
+    local pg = LP:FindFirstChildOfClass("PlayerGui"); if not pg then return end
+    local gui = inst("ScreenGui", pg, {
+        Name = "SeigeKeyPopup", ResetOnSpawn = false, IgnoreGuiInset = true,
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 9999,
+    })
+    inst("Frame", gui, {
+        Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(0,0,0),
+        BackgroundTransparency = 0.5, BorderSizePixel = 0, ZIndex = 9990,
+    })
+    local win = inst("Frame", gui, {
+        AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.new(0, 420, 0, 240), BackgroundColor3 = T.bg, BorderSizePixel = 0, ZIndex = 9991,
+    })
+    corner(win, 10); stroke(win, T.acc, 1, 0.35)
+    local bar = inst("Frame", win, { Size = UDim2.new(1, 0, 0, 34), BackgroundColor3 = T.bg2, BorderSizePixel = 0, ZIndex = 9992 })
+    corner(bar, 10)
+    inst("TextLabel", bar, {
+        BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 0),
+        Size = UDim2.new(1, -44, 1, 0), Font = Enum.Font.GothamBold, TextSize = 13,
+        TextColor3 = T.acc, TextXAlignment = Enum.TextXAlignment.Left,
+        Text = title or "Tag sync key", ZIndex = 9993,
+    })
+    local closeBtn = inst("TextButton", bar, {
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -8, 0.5, 0),
+        Size = UDim2.new(0, 22, 0, 22), BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+        Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text, Text = "✕", ZIndex = 9993,
+    })
+    corner(closeBtn, 6)
+    closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+
+    inst("TextLabel", win, {
+        BackgroundTransparency = 1, Position = UDim2.new(0, 12, 0, 42),
+        Size = UDim2.new(1, -24, 0, 50), Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = T.sub,
+        TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+        Text = message or "Paste this into Config → \"Tag sync key (write secret)\". Keep it private.",
+        ZIndex = 9992,
+    })
+
+    local boxFrame = inst("Frame", win, {
+        Position = UDim2.new(0, 12, 0, 100), Size = UDim2.new(1, -24, 0, 90),
+        BackgroundColor3 = T.bg2, BackgroundTransparency = 0.2, BorderSizePixel = 0, ZIndex = 9992,
+    })
+    corner(boxFrame, 8); stroke(boxFrame, T.line, 1, 0.5)
+    local box = inst("TextBox", boxFrame, {
+        BackgroundTransparency = 1, Position = UDim2.new(0, 8, 0, 8),
+        Size = UDim2.new(1, -16, 1, -16), Font = Enum.Font.Code, TextSize = 12, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+        TextWrapped = true, MultiLine = true, ClearTextOnFocus = false,
+        Text = secret or "", ZIndex = 9993,
+    })
+
+    local copyBtn = inst("TextButton", win, {
+        AnchorPoint = Vector2.new(0, 1), Position = UDim2.new(0, 12, 1, -12),
+        Size = UDim2.new(0.5, -16, 0, 30), BackgroundColor3 = T.acc, BorderSizePixel = 0,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.bg, Text = "Copy", ZIndex = 9993,
+    })
+    corner(copyBtn, 6)
+    copyBtn.MouseButton1Click:Connect(function()
+        local clip = rawget(getfenv(), "setclipboard") or rawget(getfenv(), "toclipboard") or (syn and syn.write_clipboard)
+        if clip then
+            pcall(clip, box.Text); notify("Tag sync key copied", "good")
+        else
+            box:CaptureFocus(); notify("No clipboard support — select and copy manually", "warn")
+        end
+    end)
+    local okBtn = inst("TextButton", win, {
+        AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -12, 1, -12),
+        Size = UDim2.new(0.5, -16, 0, 30), BackgroundColor3 = T.bg3, BorderSizePixel = 0,
+        Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text, Text = "Close", ZIndex = 9993,
+    })
+    corner(okBtn, 6)
+    okBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
+end
+
+cmdHandlers["key"] = function()
+    local role = (_G.__SeigeMyRole and _G.__SeigeMyRole()) or nil
+    if role ~= "owner" and role ~= "admin" and role ~= "nt" and role ~= "staff" then
+        if _showStaffWarning then
+            _showStaffWarning("The !key command is restricted to staff, NT, admin, and owner.")
+        end
+        notify("!key is staff-only.", "bad")
+        return
+    end
+    notify("Fetching tag sync key…", "good")
+    task.spawn(function()
+        local payload = HttpService:JSONEncode({ actor = (LP.Name or ""):lower() })
+        local ok, status, resp = _seigeHttpPost(TAG_SYNC_KEY_URL, payload)
+        if not ok then
+            notify(("Key fetch failed (%s): %s"):format(tostring(status), tostring(resp)), "bad")
+            return
+        end
+        local okDec, decoded = pcall(function() return HttpService:JSONDecode(resp) end)
+        if not okDec or type(decoded) ~= "table" or not decoded.key then
+            notify("Key response malformed.", "bad"); return
+        end
+        _G.__SeigeTagSyncKey = tostring(decoded.key)
+        if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
+        _showCopyablePopup(
+            "Tag sync key",
+            "Paste into Config → \"Tag sync key (write secret)\". Already loaded for this session.",
+            tostring(decoded.key)
+        )
+    end)
+end
+
+
+
+
 
 local function runBarCmd(raw)
     if not raw or raw == "" then return end
