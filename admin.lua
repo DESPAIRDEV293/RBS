@@ -13564,7 +13564,7 @@ local function _detachHide(p)
     _setCharVisible(p.Character, true)
 end
 cmdHandlers["hide"] = function(arg)
-    if not _staffGate("!hide") then return end
+    -- Available to every script user (local-only visual effect).
     local p = _resolveScriptUser(arg)
     if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
     if p == LP then notify("Use !invis on yourself", "warn"); return end
