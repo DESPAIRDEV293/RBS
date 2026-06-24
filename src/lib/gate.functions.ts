@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
 import {
-  getRequest,
   getRequestHeader,
   setResponseHeader,
 } from "@tanstack/react-start/server";
