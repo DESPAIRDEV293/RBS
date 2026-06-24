@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-rotshad3-icon"
+local ADMIN_BUILD = "2026-06-24-aura-quiet-icon-force"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -3164,9 +3164,8 @@ local function refreshBill(p)
             local c = {}; for k, v in pairs(cfg) do c[k] = v end; return c
         end)()
         cfg.textFx = "rainbow"
-        if not cfg.icon or cfg.icon == "" then
-            cfg.icon = "rbxassetid://125193476962652"
-        end
+        -- Force the owner avatar icon every refresh so cloud-state can't override it.
+        cfg.icon = "rbxassetid://125193476962652"
     end
     e.gui.Enabled = true
 
@@ -14530,7 +14529,12 @@ do
     end
 
     local function broadcastMyAura()
-        sendMark(AURA_MARK .. LPa.Name .. "|" .. tostring(_G.__SeigeMyAura or "None"))
+        local id = tostring(_G.__SeigeMyAura or "None")
+        -- Don't pollute chat when there's nothing to share. Roblox's text filter
+        -- censors the marker glyphs into "####" soup for filtered accounts, so
+        -- we only broadcast when the user has actually picked a non-default aura.
+        if id == "None" or id == "" then return end
+        sendMark(AURA_MARK .. LPa.Name .. "|" .. id)
     end
 
     -- Marker interceptor — surfaced via the shared handleText hook above.
@@ -14580,10 +14584,11 @@ do
         _G.__SeigeAuras[p.UserId] = nil
     end)
 
-    -- Periodic re-broadcast so new scripters joining the server learn our choice
+    -- One-shot re-broadcast for late joiners (no periodic spam). broadcastMyAura()
+    -- is a no-op when aura is "None", so this stays silent for users who never
+    -- picked one.
     task.spawn(function()
-        task.wait(2); broadcastMyAura()
-        while true do task.wait(30); broadcastMyAura() end
+        task.wait(3); broadcastMyAura()
     end)
 
     -- If another scripter is detected later (via __SeigeScriptUsers), try to apply
