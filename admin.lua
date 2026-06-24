@@ -7340,9 +7340,30 @@ button(pgCmds, "Character  —  reset / refresh / click-TP", function()
     end)
 end)
 
-button(pgCmds, "Reanim  —  launch ROT animation GUI", function()
-    _runCmd("!reanim")
-end)
+do
+    local reanimBtn = button(pgCmds, "Reanim  —  launch ROT animation GUI", function()
+        if not _canUseReanim() then
+            _showStaffWarning("You're not staff. The Reanim GUI is restricted to owner, admin, and NT team only.")
+            return
+        end
+        _runCmd("!reanim")
+    end)
+    -- Visually grey the button out for non-staff so the gate is obvious.
+    if not _canUseReanim() then
+        reanimBtn.AutoButtonColor = false
+        reanimBtn.BackgroundColor3 = T.bg2
+        reanimBtn.BackgroundTransparency = 0.5
+        reanimBtn.TextColor3 = T.dim
+        reanimBtn.Text = "Reanim  —  staff only (locked)"
+        -- Strip the hover tweens so it stays greyed.
+        reanimBtn.MouseEnter:Connect(function()
+            tween(reanimBtn, 0.1, { BackgroundColor3 = T.bg2, BackgroundTransparency = 0.45 })
+        end)
+        reanimBtn.MouseLeave:Connect(function()
+            tween(reanimBtn, 0.1, { BackgroundColor3 = T.bg2, BackgroundTransparency = 0.5 })
+        end)
+    end
+end
 
 
 button(pgCmds, "NameEdit  —  hide username/display name", function()
