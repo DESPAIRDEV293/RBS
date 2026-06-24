@@ -12024,6 +12024,7 @@ _G.__SeigeWoA = _G.__SeigeWoA or {
     inputConn = nil,
     upKey = Enum.KeyCode.E,
     downKey = Enum.KeyCode.Q,
+    visible = false,
 }
 
 _G.__SeigeWoAStop = function()
