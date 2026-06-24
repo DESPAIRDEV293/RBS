@@ -7072,7 +7072,9 @@ button(pgCmds, "Character  —  reset / refresh / click-TP", function()
     end)
 end)
 
--- Reanim button removed — ROT GUI is now a standalone downloadable script.
+button(pgCmds, "Reanim  —  launch ROT animation GUI", function()
+    _runCmd("!reanim")
+end)
 
 
 button(pgCmds, "NameEdit  —  hide username/display name", function()
