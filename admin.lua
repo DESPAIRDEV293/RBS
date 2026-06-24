@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-perf-pass"
+local ADMIN_BUILD = "2026-06-24-cfg-persist"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -7334,6 +7334,7 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
         end)
         slider(body, "Step size (studs per press)", 1, 20, (W and W.step) or 4, function(v)
             if _G.__SeigeWoA then _G.__SeigeWoA.step = math.floor(v + 0.5) end
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
         end)
 
         label(body, "Keybinds")
@@ -7362,6 +7363,7 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
                 downBtn.Text = "Down key: " .. i.KeyCode.Name .. "  (click to set)"
             end
             awaiting = nil
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
         end)
         body.AncestryChanged:Connect(function()
             if not body.Parent then pcall(function() kConn:Disconnect() end) end
@@ -7378,6 +7380,7 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
                 Wn.part.Transparency = Wn.visible and 0.55 or 1
             end
             visBtn.Text = _visText()
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
         end)
 
         button(body, "Stop walk on air", function() _G.__SeigeWoAStop() end)
@@ -9387,6 +9390,28 @@ snapshotCfg = function()
             mode  = (_G.__SeigeBang and _G.__SeigeBang.mode)  or nil,
             speed = (_G.__SeigeBang and tonumber(_G.__SeigeBang.speed)) or nil,
         },
+        headStatsOn   = _G.__SeigeHeadStatsOn == true,
+        reanim        = (function()
+            local rc = _G.__SeigeReanimCfg
+            if type(rc) ~= "table" then return nil end
+            local colors = {}
+            if type(rc.colors) == "table" then
+                for k, v in pairs(rc.colors) do
+                    if type(v) == "string" and v ~= "" then colors[k] = v end
+                end
+            end
+            return { opacity = tonumber(rc.opacity) or 0, colors = colors }
+        end)(),
+        woa           = (function()
+            local W = _G.__SeigeWoA
+            if type(W) ~= "table" then return nil end
+            return {
+                step    = tonumber(W.step) or 4,
+                visible = W.visible == true,
+                upKey   = (W.upKey and W.upKey.Name) or "E",
+                downKey = (W.downKey and W.downKey.Name) or "Q",
+            }
+        end)(),
     }
 end
 
@@ -9518,6 +9543,40 @@ applyCfg = function(cfg, opts)
         if cfg.bang.mode  then _G.__SeigeBang.mode  = cfg.bang.mode end
         if cfg.bang.speed then _G.__SeigeBang.speed = tonumber(cfg.bang.speed) or _G.__SeigeBang.speed end
     end
+    if cfg.headStatsOn ~= nil then
+        _G.__SeigeHeadStatsOn = cfg.headStatsOn == true
+        if _G.__SeigeHeadStatsOn then
+            if _G.__SeigeHeadStatsRebuild then pcall(_G.__SeigeHeadStatsRebuild) end
+        else
+            if _G.__SeigeHeadStatsCleanup then pcall(_G.__SeigeHeadStatsCleanup) end
+        end
+    end
+    if type(cfg.reanim) == "table" then
+        _G.__SeigeReanimCfg = _G.__SeigeReanimCfg or { colors = {} }
+        _G.__SeigeReanimCfg.opacity = tonumber(cfg.reanim.opacity) or _G.__SeigeReanimCfg.opacity or 0
+        if type(cfg.reanim.colors) == "table" then
+            _G.__SeigeReanimCfg.colors = _G.__SeigeReanimCfg.colors or {}
+            for k, v in pairs(cfg.reanim.colors) do
+                if type(v) == "string" and v ~= "" then _G.__SeigeReanimCfg.colors[k] = v end
+            end
+        end
+        if _G.__SeigeReanimApplyCfg then pcall(_G.__SeigeReanimApplyCfg) end
+    end
+    if type(cfg.woa) == "table" then
+        _G.__SeigeWoA = _G.__SeigeWoA or { on = false, alt = 0, step = 4, visible = false,
+            upKey = Enum.KeyCode.E, downKey = Enum.KeyCode.Q }
+        _G.__SeigeWoA.step    = tonumber(cfg.woa.step) or _G.__SeigeWoA.step or 4
+        _G.__SeigeWoA.visible = cfg.woa.visible == true
+        if type(cfg.woa.upKey) == "string" then
+            _G.__SeigeWoA.upKey = Enum.KeyCode[cfg.woa.upKey] or _G.__SeigeWoA.upKey
+        end
+        if type(cfg.woa.downKey) == "string" then
+            _G.__SeigeWoA.downKey = Enum.KeyCode[cfg.woa.downKey] or _G.__SeigeWoA.downKey
+        end
+        if _G.__SeigeWoA.part then
+            pcall(function() _G.__SeigeWoA.part.Transparency = _G.__SeigeWoA.visible and 0.55 or 1 end)
+        end
+    end
 end
 
 
@@ -9604,6 +9663,7 @@ toggle(pgConfig, "Show ping tag above other players", _G.__SeigeHeadStatsOn, fun
     else
         if _G.__SeigeHeadStatsCleanup then _G.__SeigeHeadStatsCleanup() end
     end
+    if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
 end)
 
 
