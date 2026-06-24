@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter, redirect } from "@tanstack/react-router";
+import { createFileRoute, useRouter, redirect, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { unlockSite, isUnlocked } from "@/lib/gate.functions";
@@ -57,14 +57,12 @@ function UnlockPage() {
           </p>
         </header>
 
-        <a
-          href="/code.txt"
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          to="/code"
           className="block rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-4 py-3 text-center text-sm font-semibold text-indigo-200 hover:bg-indigo-500/20 transition"
         >
-          → Open my access code (opens /code.txt)
-        </a>
+          → Get my access code
+        </Link>
 
         <form onSubmit={onSubmit} className="space-y-3">
           <input
