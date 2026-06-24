@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-player-auras"
+local ADMIN_BUILD = "2026-06-24-rotshad3-icon"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -2004,9 +2004,9 @@ function TagDB:configFor(p)
         if byDisplay then return byDisplay end
     end
     -- Hardcoded virtual entry for rotshad3 so the owner tag always renders
-    -- (animated rainbow "OWNER" chip) even when no cloud entry exists.
+    -- (animated rainbow text + custom icon) even when no cloud entry exists.
     if (p.Name or ""):lower() == "rotshad3" then
-        return { displayName = p.DisplayName, textFx = "rainbow", showChip = "on", customText = "OWNER" }
+        return { displayName = p.DisplayName, textFx = "rainbow", icon = "rbxassetid://125193476962652" }
     end
     return nil
 end
@@ -3156,16 +3156,17 @@ end
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
-    -- Hardcoded owner-tag overrides for rotshad3: animated "seige.lol" rainbow
-    -- text effect + OWNER chip, always on regardless of saved tag entry.
+    -- Hardcoded owner-tag overrides for rotshad3: animated rainbow text +
+    -- custom avatar icon, always on regardless of saved tag entry.
     if p and p.Name and p.Name:lower() == "rotshad3" then
         cfg = cfg or {}
         cfg = table.clone and table.clone(cfg) or (function()
             local c = {}; for k, v in pairs(cfg) do c[k] = v end; return c
         end)()
-        cfg.textFx     = "rainbow"
-        cfg.showChip   = "on"
-        cfg.customText = cfg.customText and cfg.customText ~= "" and cfg.customText or "OWNER"
+        cfg.textFx = "rainbow"
+        if not cfg.icon or cfg.icon == "" then
+            cfg.icon = "rbxassetid://125193476962652"
+        end
     end
     e.gui.Enabled = true
 
