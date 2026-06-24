@@ -5152,7 +5152,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- The owner manages role assignments in the "Roles & Permissions" section.
     ------------------------------------------------------------------
     local _myRole = _G.__SeigeMyRole() or "nt"
-    local _isOwner = LP.Name == OWNER_NAME
+    local _isOwner = LP.Name == OWNER_NAME or _isCoOwner(LP.Name)
     -- NT-only users get a tag-icon tab with just their command window.
     -- Staff/Admin/Owner get the full star "Admin" tab.
     local _ntOnly = (_myRole == "nt") and not _isOwner
