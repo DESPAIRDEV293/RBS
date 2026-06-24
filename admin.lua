@@ -12581,6 +12581,37 @@ cmdHandlers["freecam"] = function()
 end
 cmdHandlers["unfreecam"] = cmdHandlers["freecam"]
 
+-- !fov <n> — set camera field of view (40-120). No arg = reset to 70.
+cmdHandlers["fov"] = function(arg)
+    local cam = workspace.CurrentCamera
+    if not cam then notify("No camera", "bad"); return end
+    local s = tostring(arg or ""):gsub("%s+","")
+    local n = tonumber(s)
+    if not n then n = 70 end
+    n = math.clamp(n, 40, 120)
+    pcall(function() cam.FieldOfView = n end)
+    notify("FOV " .. n, "good")
+end
+
+-- !zoom <min> [max] — set camera min/max zoom distance. No args = defaults (0.5 / 128).
+cmdHandlers["zoom"] = function(arg)
+    local s = tostring(arg or ""):gsub("^%s+",""):gsub("%s+$","")
+    local a, b = s:match("^(%S+)%s+(%S+)$")
+    local mn, mx
+    if a and b then mn = tonumber(a); mx = tonumber(b)
+    else mn = tonumber(s); mx = nil end
+    if not mn then mn = 0.5 end
+    if not mx then mx = 128 end
+    if mx < mn then mx = mn end
+    pcall(function()
+        LP.CameraMinZoomDistance = math.max(0.5, mn)
+        LP.CameraMaxZoomDistance = math.min(2048, mx)
+    end)
+    notify(("Zoom %.1f → %.1f"):format(mn, mx), "good")
+end
+
+
+
 -- 9) Server hop — teleport to a RANDOM public server
 cmdHandlers["hop"] = function()
     notify("Searching server...", "good")
