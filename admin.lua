@@ -3585,13 +3585,17 @@ local function buildBill(p)
         TextTransparency = 0.05,
         ZIndex = 10,
     })
-    local sh = inst("Frame", bg, {
-        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0),
-        Size = UDim2.new(0, 80, 0, 24),
+    -- Badge chip ("OWNER • DEV • ...") — parented to the BillboardGui (not the
+    -- pill) so it sits BELOW the main tag UI instead of crowding it on the
+    -- right. refreshBill positions/sizes it under bg when visible.
+    local sh = inst("Frame", gui, {
+        AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, -22),
+        Size = UDim2.new(0, 80, 0, 20),
         BackgroundColor3 = T.bg2, BorderSizePixel = 0,
-        ZIndex = 10,
+        ZIndex = 50,
+        Visible = false,
     })
-    corner(sh, 12); stroke(sh, T.line, 1, 0.35)
+    corner(sh, 10); stroke(sh, T.line, 1, 0.35)
     -- chip top-shine
     local chipShine = inst("Frame", sh, {
         Name = "chipShine",
