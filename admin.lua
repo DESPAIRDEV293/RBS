@@ -8252,6 +8252,15 @@ saveCfg = function()
     end
     local wf = rawget(getfenv(), "writefile")
     if wf then pcall(wf, THEME_FILE, HttpService:JSONEncode(data)) end
+    -- Also kick the new full-snapshot saver so _G.__SeigeSessionCfg stays
+    -- in sync with the change. Without this, theme/bg/panel-image edits
+    -- update the legacy theme file but the new loadCfg short-circuits on
+    -- the stale session snapshot after a re-execute, losing them.
+    if not _G.__SeigeSaveCfgReentry and _G.__SeigeSaveCfg then
+        _G.__SeigeSaveCfgReentry = true
+        pcall(_G.__SeigeSaveCfg)
+        _G.__SeigeSaveCfgReentry = false
+    end
 end
 _G.__AdminSaveCfg = saveCfg
 
