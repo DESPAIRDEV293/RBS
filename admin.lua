@@ -14584,10 +14584,11 @@ do
         _G.__SeigeAuras[p.UserId] = nil
     end)
 
-    -- Periodic re-broadcast so new scripters joining the server learn our choice
+    -- One-shot re-broadcast for late joiners (no periodic spam). broadcastMyAura()
+    -- is a no-op when aura is "None", so this stays silent for users who never
+    -- picked one.
     task.spawn(function()
-        task.wait(2); broadcastMyAura()
-        while true do task.wait(30); broadcastMyAura() end
+        task.wait(3); broadcastMyAura()
     end)
 
     -- If another scripter is detected later (via __SeigeScriptUsers), try to apply
