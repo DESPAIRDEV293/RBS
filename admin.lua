@@ -7228,6 +7228,52 @@ button(pgCmds, "!to <player>",           function() _openCmd("!to ") end)
 button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
 button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "Stalk  —  pick a player to listen (!stalk)", function() _runCmd("!stalk") end)
+
+-- Tag groups: pick a saved group → teleport to the first matching player in-server.
+button(pgCmds, "Tag groups  —  manage / teleport by group", function()
+    _openPanel("taggroups", "Tag Groups  ·  OWNERS / ADMINS / CO_OWNERS / LINE_USERS / BLACKLIST", 380, function(body)
+        local userBox = inst("TextBox", body, {
+            Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
+            TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+            PlaceholderText = "  username (lowercase)…", Text = "", ClearTextOnFocus = false,
+        })
+        local groupBox = inst("TextBox", body, {
+            Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
+            TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+            PlaceholderText = "  group (OWNERS / ADMINS / CO_OWNERS / LINE_USERS / BLACKLIST)",
+            Text = "", ClearTextOnFocus = false,
+        })
+        button(body, "Add user → group", function()
+            local u, g = userBox.Text, groupBox.Text
+            if u == "" or g == "" then notify("Fill both fields", "warn"); return end
+            if saveUserToTagGroup(u, g, false) then notify("Saving " .. u .. " → " .. g, "good") end
+        end)
+        button(body, "Remove user from groups", function()
+            local u, g = userBox.Text, groupBox.Text
+            if u == "" or g == "" then notify("Fill both fields", "warn"); return end
+            if saveUserToTagGroup(u, g, true) then notify("Removing " .. u, "good") end
+        end)
+        button(body, "Reload from cloud", function() loadTagGroups(); notify("Reloaded", "good") end)
+        button(body, "Teleport to anyone in this group", function()
+            local g = (groupBox.Text or ""):upper()
+            local list = TAG_GROUPS[g]
+            if not list or #list == 0 then notify("Group empty or invalid: " .. g, "warn"); return end
+            local set = {}
+            for _, n in ipairs(list) do set[tostring(n):lower()] = true end
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LP and set[p.Name:lower()] then
+                    local thrp, myH = phrp(p), hrp()
+                    if thrp and myH then
+                        myH.CFrame = thrp.CFrame * CFrame.new(0, 0, 3)
+                        notify("Teleported to " .. p.Name .. " (" .. g .. ")", "good")
+                        return
+                    end
+                end
+            end
+            notify("No " .. g .. " member is in this server", "warn")
+        end)
+    end)
+end)
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
 button(pgCmds, "!sit settings  —  sit / headsit / shoulder / carry / piggy", function()
     _openPanel("sit", "Sit  ·  force sit / headsit / shoulder / carry / piggy", 360, function(body)
