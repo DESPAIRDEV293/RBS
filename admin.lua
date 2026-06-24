@@ -4016,66 +4016,69 @@ end)
 
 
 
+-- Single merged Heartbeat for all per-bill animation work.
+-- Previously this was two separate Heartbeats both iterating every bill —
+-- now one pass with early-exits to keep per-frame cost minimal.
+local ZERO_V3 = Vector3.new(0, 0, 0)
+local _bubbleResetState = {} -- track which bills already had None-reset applied
 bind(RunService.Heartbeat:Connect(function()
-    local t = tick()
+    local t       = tick()
+    local anim    = _G.__SeigeBubbleAnim or "None"
+    local amt     = tonumber(_G.__SeigeBubbleAmt) or 0.5
+    local animOn  = anim ~= "None"
     for p, e in pairs(tagBills) do
-        if e.gui and e.gui.Parent then
-            -- tag stays locked to the head (no independent bob); it bounces naturally with the avatar's animation
-            e.gui.StudsOffsetWorldSpace = Vector3.new(0, 0, 0)
-            if not e.outlineOff then
+        local gui, bg = e.gui, e.bg
+        if gui and gui.Parent then
+            -- StudsOffsetWorldSpace is already zero in the normal case;
+            -- only assign if it drifted (avoids per-frame Vector3 alloc).
+            if gui.StudsOffsetWorldSpace ~= ZERO_V3 then
+                gui.StudsOffsetWorldSpace = ZERO_V3
+            end
+            if not e.outlineOff and e.stroke then
                 e.stroke.Transparency = 0.2 + (math.sin(t * 3 + e.base) + 1) * 0.1
             end
-            -- subtle hovering float on the pill (only when no theme animation is overriding Position)
-            local anim = _G.__SeigeBubbleAnim or "None"
-            if anim == "None" and e.bg and e.bg.Parent then
-                local hoverY = math.sin(t * 1.5 + e.base) * 2
-                -- AnchorPoint is (0.5, 0.5); keep the pill centred and only
-                -- bob it vertically by hoverY pixels.
-                e.bg.Position = UDim2.new(0.5, 0, 0.5, hoverY)
+            if bg and bg.Parent then
+                if animOn then
+                    _bubbleResetState[bg] = nil
+                    local sc = e._uiscale
+                    if not sc then
+                        sc = bg:FindFirstChildOfClass("UIScale")
+                            or (function() local s = Instance.new("UIScale"); s.Scale = 1; s.Parent = bg; return s end)()
+                        e._uiscale = sc
+                    end
+                    local phase = (e.base or 0) + t
+                    if anim == "Bounce" then
+                        sc.Scale = 1 + math.abs(math.sin(phase * 3)) * 0.15 * amt
+                    elseif anim == "Pulse" then
+                        sc.Scale = 1 + math.sin(phase * 4) * 0.08 * amt
+                    elseif anim == "Float" then
+                        bg.Position = UDim2.new(0.5, 0, 0.5, math.sin(phase * 2) * 6 * amt)
+                    elseif anim == "Wobble" then
+                        bg.Rotation = math.sin(phase * 3) * 6 * amt
+                    elseif anim == "Shake" then
+                        bg.Position = UDim2.new(0.5, math.sin(phase * 30) * 2 * amt, 0.5, math.cos(phase * 27) * 2 * amt)
+                    elseif anim == "Heartbeat" then
+                        local b = math.sin(phase * 6); b = b * b
+                        sc.Scale = 1 + b * 0.18 * amt
+                    end
+                else
+                    -- Subtle idle hover only when no themed animation is active.
+                    local hoverY = math.sin(t * 1.5 + e.base) * 2
+                    bg.Position = UDim2.new(0.5, 0, 0.5, hoverY)
+                    -- One-shot reset of leftover UIScale / rotation after switching to None.
+                    if not _bubbleResetState[bg] then
+                        local sc = e._uiscale or bg:FindFirstChildOfClass("UIScale")
+                        if sc and sc.Scale ~= 1 then sc.Scale = 1 end
+                        if bg.Rotation ~= 0 then bg.Rotation = 0 end
+                        _bubbleResetState[bg] = true
+                    end
+                end
             end
         end
     end
 end))
 
-bind(RunService.Heartbeat:Connect(function(dt)
-    local t = tick()
-    local anim = _G.__SeigeBubbleAnim or "None"
-    local amt  = tonumber(_G.__SeigeBubbleAmt) or 0.5
-    for _, e in pairs(tagBills) do
-        -- ----- Bubble animation (Themes tab) -----
-        if e.bg and e.bg.Parent then
-            if anim ~= "None" then
-                local sc = e.bg:FindFirstChildOfClass("UIScale")
-                if not sc then sc = Instance.new("UIScale"); sc.Scale = 1; sc.Parent = e.bg end
-                local phase = (e.base or 0) + t
-                if anim == "Bounce" then
-                    sc.Scale = 1 + math.abs(math.sin(phase * 3)) * 0.15 * amt
-                elseif anim == "Pulse" then
-                    sc.Scale = 1 + math.sin(phase * 4) * 0.08 * amt
-                elseif anim == "Float" then
-                    pcall(function()
-                        e.bg.Position = UDim2.new(0.5, 0, 0.5, math.sin(phase * 2) * 6 * amt)
-                    end)
-                elseif anim == "Wobble" then
-                    pcall(function() e.bg.Rotation = math.sin(phase * 3) * 6 * amt end)
-                elseif anim == "Shake" then
-                    pcall(function()
-                        e.bg.Position = UDim2.new(0.5, math.sin(phase * 30) * 2 * amt, 0.5, math.cos(phase * 27) * 2 * amt)
-                    end)
-                elseif anim == "Heartbeat" then
-                    local b = math.sin(phase * 6); b = b * b
-                    sc.Scale = 1 + b * 0.18 * amt
-                end
-            else
-                -- Anim switched back to None — reset any leftover UIScale and
-                -- rotation so the pill returns to its true pillW x 46 size.
-                local sc = e.bg:FindFirstChildOfClass("UIScale")
-                if sc and sc.Scale ~= 1 then sc.Scale = 1 end
-                if e.bg.Rotation ~= 0 then e.bg.Rotation = 0 end
-            end
-        end
-    end
-end))
+
 
 
 
