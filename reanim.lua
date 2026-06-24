@@ -258,6 +258,12 @@ local function makeFloatingPanel(w, h, anchorX, anchorY)
 	pStroke.Color = C.STROKE ; pStroke.Thickness = 1
 	pStroke.Transparency = 0.5 ; pStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	_fixedPanels[#_fixedPanels + 1] = pnl
+	_G.__SeigeReanimPanels[#_G.__SeigeReanimPanels + 1] = pnl
+	-- apply current opacity setting (if any)
+	local _cfg = rawget(_G, "__SeigeReanimCfg")
+	if _cfg and type(_cfg.opacity) == "number" then
+		pnl.BackgroundTransparency = math.clamp(_cfg.opacity, 0, 0.95)
+	end
 	local pnlUIScale = Instance.new("UIScale", pnl)
 	pnlUIScale.Scale = _G._getScale()
 	_G._floatingPanelScales[#_G._floatingPanelScales + 1] = pnlUIScale
