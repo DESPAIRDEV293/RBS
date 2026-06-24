@@ -4421,6 +4421,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if tc ~= "" then entry.textColor = tc end
         local to = pick(form.textOutline, tbTextOutline.Text)
         if to ~= "" then entry.textOutline = to end
+        local aoc = pick(form.avatarOutlineColor, tbAvOutlineColor.Text)
+        if aoc ~= "" then entry.avatarOutlineColor = aoc end
         if form.font and form.font ~= "" and form.font ~= "Default" then
             entry.font = form.font
         end
