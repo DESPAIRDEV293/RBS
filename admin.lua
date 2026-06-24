@@ -7361,6 +7361,19 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
             if not body.Parent then pcall(function() kConn:Disconnect() end) end
         end)
 
+        local visBtn
+        local function _visText()
+            return (_G.__SeigeWoA and _G.__SeigeWoA.visible) and "Hide platform (currently shown)" or "Show platform (currently hidden)"
+        end
+        visBtn = button(body, _visText(), function()
+            local Wn = _G.__SeigeWoA; if not Wn then return end
+            Wn.visible = not Wn.visible
+            if Wn.part then
+                Wn.part.Transparency = Wn.visible and 0.55 or 1
+            end
+            visBtn.Text = _visText()
+        end)
+
         button(body, "Stop walk on air", function() _G.__SeigeWoAStop() end)
     end)
 end)
