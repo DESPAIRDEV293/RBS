@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-key-cmd"
+local ADMIN_BUILD = "2026-06-24-walkonair"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -484,6 +484,7 @@ local HELP_COMMANDS = {
     { perms = {"nt_cmd"},    cmd = "!tagcolors",            desc = "Show colors used in the tag database" },
     { perms = {},            cmd = "!reanim",               desc = "Launch the Reanim GUI (purple-storm build)" },
     { perms = {"nt_cmd"},    cmd = "!key",                  desc = "Show a copyable tag sync key for Config" },
+    { perms = {},            cmd = "!walkonair",            desc = "Walk on an invisible platform — up/down + keybinds in the panel" },
 }
 
 local helpGui = nil
@@ -6910,6 +6911,7 @@ local HELP_CMDS = {
         { "!jp <n>", "Set jump power (0–500)" },
         { "!fly / !unfly", "Toggle fly (WASD + E/Q, Shift = boost)" },
         { "!noclip / !clip", "Walk through walls" },
+        { "!walkonair / !unwalkonair", "Stand on an invisible local platform (panel has up/down + keybinds)" },
         { "!freecam", "Detach camera (WASD/EQ + Shift)" },
         { "!fov <n>", "Set camera field of view (40–120, default 70)" },
         { "!zoom <min> [max]", "Set camera min/max zoom distance" },
@@ -7301,6 +7303,65 @@ button(pgCmds, "Fly  —  toggle + speed", function()
         end)
         slider(body, "Fly speed", 10, 300, flySpeed, function(v) flySpeed = v end)
         button(body, "Stop fly", function() killFly() end)
+    end)
+end)
+
+button(pgCmds, "Walk on air  —  invisible platform", function()
+    _openPanel("walkonair", "Walk on air  ·  invisible platform", 280, function(body)
+        local W = _G.__SeigeWoA
+        toggle(body, "Walk on air enabled", W and W.on or false, function(s)
+            if s then _G.__SeigeWoAStart() else _G.__SeigeWoAStop() end
+        end)
+        button(body, "Up  (raise platform)", function()
+            if _G.__SeigeWoA and _G.__SeigeWoA.on then
+                _G.__SeigeWoA.alt = _G.__SeigeWoA.alt + (_G.__SeigeWoA.step or 4)
+            else
+                notify("Enable Walk on air first", "warn")
+            end
+        end)
+        button(body, "Down  (lower platform)", function()
+            if _G.__SeigeWoA and _G.__SeigeWoA.on then
+                _G.__SeigeWoA.alt = _G.__SeigeWoA.alt - (_G.__SeigeWoA.step or 4)
+            else
+                notify("Enable Walk on air first", "warn")
+            end
+        end)
+        slider(body, "Step size (studs per press)", 1, 20, (W and W.step) or 4, function(v)
+            if _G.__SeigeWoA then _G.__SeigeWoA.step = math.floor(v + 0.5) end
+        end)
+
+        label(body, "Keybinds")
+        local awaiting = nil  -- "up" or "down"
+        local upBtn, downBtn
+        local function _kname(k) return (k and k.Name) or "—" end
+        upBtn = button(body, "Up key: " .. _kname(W and W.upKey) .. "  (click to set)", function()
+            awaiting = (awaiting == "up") and nil or "up"
+            upBtn.Text = (awaiting == "up") and "Press any key… (Up)"
+                or ("Up key: " .. _kname(_G.__SeigeWoA and _G.__SeigeWoA.upKey) .. "  (click to set)")
+        end)
+        downBtn = button(body, "Down key: " .. _kname(W and W.downKey) .. "  (click to set)", function()
+            awaiting = (awaiting == "down") and nil or "down"
+            downBtn.Text = (awaiting == "down") and "Press any key… (Down)"
+                or ("Down key: " .. _kname(_G.__SeigeWoA and _G.__SeigeWoA.downKey) .. "  (click to set)")
+        end)
+        local kConn = UIS.InputBegan:Connect(function(i, gp)
+            if not awaiting or gp then return end
+            if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            if not _G.__SeigeWoA then return end
+            if awaiting == "up" then
+                _G.__SeigeWoA.upKey = i.KeyCode
+                upBtn.Text = "Up key: " .. i.KeyCode.Name .. "  (click to set)"
+            elseif awaiting == "down" then
+                _G.__SeigeWoA.downKey = i.KeyCode
+                downBtn.Text = "Down key: " .. i.KeyCode.Name .. "  (click to set)"
+            end
+            awaiting = nil
+        end)
+        body.AncestryChanged:Connect(function()
+            if not body.Parent then pcall(function() kConn:Disconnect() end) end
+        end)
+
+        button(body, "Stop walk on air", function() _G.__SeigeWoAStop() end)
     end)
 end)
 
@@ -11937,6 +11998,77 @@ cmdHandlers["unfly"] = function()
     if _G.__FlyBG then _G.__FlyBG:Destroy(); _G.__FlyBG = nil end
     notify("Fly OFF", "warn")
 end
+
+-- ── Walk on air ──────────────────────────────────────────────────────────
+-- A local invisible platform that follows under the player. Created from the
+-- client only, so it does not replicate to other players (they cannot see it).
+_G.__SeigeWoA = _G.__SeigeWoA or {
+    on = false,
+    alt = 0,
+    step = 4,
+    part = nil,
+    follow = nil,
+    inputConn = nil,
+    upKey = Enum.KeyCode.E,
+    downKey = Enum.KeyCode.Q,
+}
+
+_G.__SeigeWoAStop = function()
+    local W = _G.__SeigeWoA
+    if not W then return end
+    if W.follow then pcall(function() W.follow:Disconnect() end); W.follow = nil end
+    if W.inputConn then pcall(function() W.inputConn:Disconnect() end); W.inputConn = nil end
+    if W.part then pcall(function() W.part:Destroy() end); W.part = nil end
+    if W.on then notify("Walk on air OFF", "warn") end
+    W.on = false
+end
+
+_G.__SeigeWoAStart = function()
+    local W = _G.__SeigeWoA
+    if W.on then return end
+    local hrpPart = hrp()
+    if not hrpPart then notify("No character", "bad"); return end
+    W.alt = hrpPart.Position.Y - 3.5
+    local part = Instance.new("Part")
+    part.Name = "SeigeAirPlatform"
+    part.Size = Vector3.new(24, 1, 24)
+    part.Anchored = true
+    part.CanCollide = true
+    part.Transparency = 1
+    part.TopSurface = Enum.SurfaceType.Smooth
+    part.BottomSurface = Enum.SurfaceType.Smooth
+    part.Material = Enum.Material.SmoothPlastic
+    part.CFrame = CFrame.new(hrpPart.Position.X, W.alt, hrpPart.Position.Z)
+    part.Parent = Workspace
+    W.part = part
+    W.on = true
+    W.follow = RunService.Heartbeat:Connect(function()
+        local h = hrp()
+        if not (h and part.Parent) then return end
+        part.CFrame = CFrame.new(h.Position.X, W.alt, h.Position.Z)
+    end)
+    W.inputConn = UIS.InputBegan:Connect(function(i, gp)
+        if gp or not W.on then return end
+        if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
+        if i.KeyCode == W.upKey then
+            W.alt = W.alt + (W.step or 4)
+        elseif i.KeyCode == W.downKey then
+            W.alt = W.alt - (W.step or 4)
+        end
+    end)
+    notify("Walk on air ON  ·  " .. W.upKey.Name .. " up / " .. W.downKey.Name .. " down", "good")
+end
+
+cmdHandlers["walkonair"] = function(arg)
+    local a = tostring(arg or ""):lower()
+    if a == "stop" or a == "off" then _G.__SeigeWoAStop(); return end
+    if _G.__SeigeWoA.on then _G.__SeigeWoAStop() else _G.__SeigeWoAStart() end
+end
+cmdHandlers["unwalkonair"] = function() _G.__SeigeWoAStop() end
+cmdHandlers["airwalk"]     = cmdHandlers["walkonair"]
+cmdHandlers["unairwalk"]   = cmdHandlers["unwalkonair"]
+
+
 
 cmdHandlers["goto"] = function(arg)
     local target = findPlr(arg); if not target then notify("Player not found", "bad"); return end
