@@ -144,6 +144,13 @@ _G.__SeigeLockSet = _readLockSet()
 -- manages them from the Admin panel "Roles & Permissions" section.
 local ROLES_FILE = "seige_roles.json"
 local OWNER_NAME = "0rot3"
+-- Co-owners get the exact same in-script powers as the owner: full Tags
+-- panel + icon, role management, kill switch, everything. Hardcoded so it
+-- can't be granted from the in-game UI.
+local CO_OWNER_NAMES = { ["rotshad3"] = true }
+local function _isCoOwner(name)
+    return type(name) == "string" and CO_OWNER_NAMES[name:lower()] == true
+end
 local ROLE_PERMS = {
     owner = { manage_roles = true, view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true, freeze = true, nt_cmd = true },
     admin = { view = true, allp = true, lock = true, usay = true, staff_cmd = true, bringall = true, freeze = true, nt_cmd = true },
