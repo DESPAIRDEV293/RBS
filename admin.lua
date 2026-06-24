@@ -3847,7 +3847,7 @@ end)
 -- Changes apply LIVE to everyone in the server. Export button copies a
 -- pastebin-formatted text block to your clipboard so you can save permanently.
 if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
-  if LP.Name == OWNER_NAME then
+  if LP.Name == OWNER_NAME or _isCoOwner(LP.Name) then
     local pgTags = makeTab("Tags", "✎", "Custom tags, colors and icons")
 
     -- Make the Tags page breathe: extra vertical spacing between rows and
