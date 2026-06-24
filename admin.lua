@@ -9280,6 +9280,17 @@ end)() -- end scoped Settings/Cfg function
 
 
 
+section(pgConfig, "Head stat tags")
+if _G.__SeigeHeadStatsOn == nil then _G.__SeigeHeadStatsOn = true end
+toggle(pgConfig, "Show ping/IP tag above other players", _G.__SeigeHeadStatsOn, function(v)
+    _G.__SeigeHeadStatsOn = v
+    if v then
+        if _G.__SeigeHeadStatsRebuild then _G.__SeigeHeadStatsRebuild() end
+    else
+        if _G.__SeigeHeadStatsCleanup then _G.__SeigeHeadStatsCleanup() end
+    end
+end)
+
 
 section(pgConfig, "About")
 label(pgConfig, "seige.lol admin")
