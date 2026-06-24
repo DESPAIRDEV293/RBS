@@ -2324,6 +2324,10 @@ function TagDB:pushRemoteEntry(key, entry)
     else
         payload = { key = key, data = entry }
     end
+    -- Track in-flight pushes so a concurrent TagDB:load() doesn't revert the
+    -- just-saved entry back to stale cloud state for ~90s.
+    self._pendingPushes = self._pendingPushes or {}
+    self._pendingPushes[key] = { entry = entry, until_t = tick() + 90 }
     local okEnc, body = pcall(function() return HttpService:JSONEncode(payload) end)
     if not okEnc then return false, tostring(body) end
     task.spawn(function()
