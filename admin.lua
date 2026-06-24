@@ -3463,19 +3463,17 @@ local function refreshBill(p)
     e.name.Size   = UDim2.new(0, textW + 4, 0, 18)
     e.handle.Size = UDim2.new(0, textW + 4, 0, 14)
 
-    local chipBlock = 0
+    local chipH = 0
     if e.sh and e.sh.Visible then
         local statW = measureText(e.stat.Text or "", e.stat.Font or Enum.Font.GothamBold, 10)
         local shW   = math.ceil(statW + 22)
-        e.sh.Size   = UDim2.new(0, shW, 0, 22)
-        chipBlock   = shW + 4
+        e.sh.Size   = UDim2.new(0, shW, 0, 20)
+        chipH = 24
     end
 
-    -- Layout: leftPad(6) + avatar(34) + gap(8) + text + chipBlock + rightPad(10)
-    -- Comfortable default minimum (118px) — pill hugs short names without the
-    -- text crowding the avatar's gradient ring, and auto-expands for longer
-    -- display names / @handles.
-    local pillW = math.max(118, 6 + 34 + 8 + textW + chipBlock + 10)
+    -- Layout: leftPad(6) + avatar(34) + gap(8) + text + rightPad(10).
+    -- Chip moved BELOW the pill, so it no longer contributes to pillW.
+    local pillW = math.max(118, 6 + 34 + 8 + textW + 10)
     -- Reposition labels so they start with breathing room after the avatar
     -- (override the 46px hardcoded offset from buildBill's initial placement).
     if e.name   then e.name.Position   = UDim2.new(0, 48, 0, 4)  end
@@ -3483,12 +3481,16 @@ local function refreshBill(p)
     e.nameBasePos   = e.name   and e.name.Position   or e.nameBasePos
     e.handleBasePos = e.handle and e.handle.Position or e.handleBasePos
 
-    -- Pill (bg) is exactly pillW x 46. Billboard wrapper is pill + 24 wide,
-    -- 58 tall so the normal outline has a little room without clipping.
-    e.bg.AnchorPoint = Vector2.new(0.5, 0.5)
-    e.bg.Position    = UDim2.new(0.5, 0, 0.5, 0)
+    -- Pill (bg) is pillW x 46, anchored to the TOP of the wrapper so the chip
+    -- can render in the reserved space below without overlapping it.
+    local guiH = 58 + chipH
+    e.bg.AnchorPoint = Vector2.new(0.5, 0)
+    e.bg.Position    = UDim2.new(0.5, 0, 0, 6)
     e.bg.Size        = UDim2.new(0, pillW, 0, 46)
-    e.gui.Size       = UDim2.new(0, pillW + 24, 0, 58)
+    e.gui.Size       = UDim2.new(0, pillW + 24, 0, guiH)
+    if e.sh then
+        e.sh.Position = UDim2.new(0.5, 0, 0, 6 + 46 + 4)
+    end
 end
 
 
