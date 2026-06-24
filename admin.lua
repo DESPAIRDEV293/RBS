@@ -12061,16 +12061,29 @@ _G.__SeigeWoAStart = function()
         if not (h and part.Parent) then return end
         part.CFrame = CFrame.new(h.Position.X, W.alt, h.Position.Z)
     end)
+    local function lift()
+        local h = hrp()
+        if h then
+            local p = h.Position
+            h.CFrame = CFrame.new(p.X, W.alt + 3.5, p.Z)
+            pcall(function() h.AssemblyLinearVelocity = Vector3.new(0, 0, 0) end)
+        end
+    end
+    W.lift = lift
     W.inputConn = UIS.InputBegan:Connect(function(i, gp)
         if gp or not W.on then return end
         if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
         if i.KeyCode == W.upKey then
             W.alt = W.alt + (W.step or 4)
+            lift()
         elseif i.KeyCode == W.downKey then
             W.alt = W.alt - (W.step or 4)
+            lift()
         end
     end)
+    lift()
     notify("Walk on air ON  ·  " .. W.upKey.Name .. " up / " .. W.downKey.Name .. " down", "good")
+
 end
 
 cmdHandlers["walkonair"] = function(arg)
