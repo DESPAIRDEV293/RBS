@@ -3306,7 +3306,12 @@ local function refreshBill(p)
     end
     e.dot.BackgroundColor3 = chipColor
     if e.avRing then
-        e.avRing.Color = chipColor
+        local ringColor = chipColor
+        if cfg and cfg.avatarOutlineColor and cfg.avatarOutlineColor ~= "" then
+            local rc = parseColor(cfg.avatarOutlineColor)
+            if rc then ringColor = rc end
+        end
+        e.avRing.Color = ringColor
         local ao = tostring(cfg and cfg.avatarOutline or ""):lower()
         e.avRing.Enabled = not (ao == "off" or ao == "none" or ao == "0" or ao == "false")
     end
@@ -3463,19 +3468,17 @@ local function refreshBill(p)
     e.name.Size   = UDim2.new(0, textW + 4, 0, 18)
     e.handle.Size = UDim2.new(0, textW + 4, 0, 14)
 
-    local chipBlock = 0
+    local chipH = 0
     if e.sh and e.sh.Visible then
         local statW = measureText(e.stat.Text or "", e.stat.Font or Enum.Font.GothamBold, 10)
         local shW   = math.ceil(statW + 22)
-        e.sh.Size   = UDim2.new(0, shW, 0, 22)
-        chipBlock   = shW + 4
+        e.sh.Size   = UDim2.new(0, shW, 0, 20)
+        chipH = 24
     end
 
-    -- Layout: leftPad(6) + avatar(34) + gap(8) + text + chipBlock + rightPad(10)
-    -- Comfortable default minimum (118px) — pill hugs short names without the
-    -- text crowding the avatar's gradient ring, and auto-expands for longer
-    -- display names / @handles.
-    local pillW = math.max(118, 6 + 34 + 8 + textW + chipBlock + 10)
+    -- Layout: leftPad(6) + avatar(34) + gap(8) + text + rightPad(10).
+    -- Chip moved BELOW the pill, so it no longer contributes to pillW.
+    local pillW = math.max(118, 6 + 34 + 8 + textW + 10)
     -- Reposition labels so they start with breathing room after the avatar
     -- (override the 46px hardcoded offset from buildBill's initial placement).
     if e.name   then e.name.Position   = UDim2.new(0, 48, 0, 4)  end
@@ -3483,12 +3486,16 @@ local function refreshBill(p)
     e.nameBasePos   = e.name   and e.name.Position   or e.nameBasePos
     e.handleBasePos = e.handle and e.handle.Position or e.handleBasePos
 
-    -- Pill (bg) is exactly pillW x 46. Billboard wrapper is pill + 24 wide,
-    -- 58 tall so the normal outline has a little room without clipping.
-    e.bg.AnchorPoint = Vector2.new(0.5, 0.5)
-    e.bg.Position    = UDim2.new(0.5, 0, 0.5, 0)
+    -- Pill (bg) is pillW x 46, anchored to the TOP of the wrapper so the chip
+    -- can render in the reserved space below without overlapping it.
+    local guiH = 58 + chipH
+    e.bg.AnchorPoint = Vector2.new(0.5, 0)
+    e.bg.Position    = UDim2.new(0.5, 0, 0, 6)
     e.bg.Size        = UDim2.new(0, pillW, 0, 46)
-    e.gui.Size       = UDim2.new(0, pillW + 24, 0, 58)
+    e.gui.Size       = UDim2.new(0, pillW + 24, 0, guiH)
+    if e.sh then
+        e.sh.Position = UDim2.new(0.5, 0, 0, 6 + 46 + 4)
+    end
 end
 
 
@@ -3585,13 +3592,17 @@ local function buildBill(p)
         TextTransparency = 0.05,
         ZIndex = 10,
     })
-    local sh = inst("Frame", bg, {
-        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -6, 0.5, 0),
-        Size = UDim2.new(0, 80, 0, 24),
+    -- Badge chip ("OWNER • DEV • ...") — parented to the BillboardGui (not the
+    -- pill) so it sits BELOW the main tag UI instead of crowding it on the
+    -- right. refreshBill positions/sizes it under bg when visible.
+    local sh = inst("Frame", gui, {
+        AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 1, -22),
+        Size = UDim2.new(0, 80, 0, 20),
         BackgroundColor3 = T.bg2, BorderSizePixel = 0,
-        ZIndex = 10,
+        ZIndex = 50,
+        Visible = false,
     })
-    corner(sh, 12); stroke(sh, T.line, 1, 0.35)
+    corner(sh, 10); stroke(sh, T.line, 1, 0.35)
     -- chip top-shine
     local chipShine = inst("Frame", sh, {
         Name = "chipShine",
@@ -4010,6 +4021,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- Toggle for the ring/outline around the profile avatar in the pill
     local AVATAR_OUTLINE_OPTS = { "On", "Off" }
     local avOutlineDD = dropdown(pgTags, "Profile outline", AVATAR_OUTLINE_OPTS, function(v) form.avatarOutline = v end)
+    local tbAvOutlineColor = field(pgTags, "Profile outline color (hex — blank = auto)",
+                                   "avatarOutlineColor", "#ffffff   or   blank for auto")
 
     -- Badge chip (right-side "OWNER/DEV/..." pill). Default OFF; turn ON per-tag.
     local SHOW_CHIP_OPTS = { "Off", "On" }
@@ -4129,6 +4142,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         tbOutline.Text  = (e and e.outline) or ""
         tbTextColor.Text   = (e and e.textColor) or ""
         tbTextOutline.Text = (e and e.textOutline) or ""
+        tbAvOutlineColor.Text = (e and e.avatarOutlineColor) or ""
         fontDD.set((e and e.font) or "Default")
         do
             local fx = tostring((e and e.textFx) or ""):lower()
@@ -4412,6 +4426,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         if tc ~= "" then entry.textColor = tc end
         local to = pick(form.textOutline, tbTextOutline.Text)
         if to ~= "" then entry.textOutline = to end
+        local aoc = pick(form.avatarOutlineColor, tbAvOutlineColor.Text)
+        if aoc ~= "" then entry.avatarOutlineColor = aoc end
         if form.font and form.font ~= "" and form.font ~= "Default" then
             entry.font = form.font
         end
