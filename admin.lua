@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-walkonair"
+local ADMIN_BUILD = "2026-06-24-walkonair-vis"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -7361,6 +7361,19 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
             if not body.Parent then pcall(function() kConn:Disconnect() end) end
         end)
 
+        local visBtn
+        local function _visText()
+            return (_G.__SeigeWoA and _G.__SeigeWoA.visible) and "Hide platform (currently shown)" or "Show platform (currently hidden)"
+        end
+        visBtn = button(body, _visText(), function()
+            local Wn = _G.__SeigeWoA; if not Wn then return end
+            Wn.visible = not Wn.visible
+            if Wn.part then
+                Wn.part.Transparency = Wn.visible and 0.55 or 1
+            end
+            visBtn.Text = _visText()
+        end)
+
         button(body, "Stop walk on air", function() _G.__SeigeWoAStop() end)
     end)
 end)
@@ -12011,6 +12024,7 @@ _G.__SeigeWoA = _G.__SeigeWoA or {
     inputConn = nil,
     upKey = Enum.KeyCode.E,
     downKey = Enum.KeyCode.Q,
+    visible = false,
 }
 
 _G.__SeigeWoAStop = function()
@@ -12034,7 +12048,7 @@ _G.__SeigeWoAStart = function()
     part.Size = Vector3.new(24, 1, 24)
     part.Anchored = true
     part.CanCollide = true
-    part.Transparency = 1
+    part.Transparency = W.visible and 0.55 or 1
     part.TopSurface = Enum.SurfaceType.Smooth
     part.BottomSurface = Enum.SurfaceType.Smooth
     part.Material = Enum.Material.SmoothPlastic
