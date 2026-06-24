@@ -8195,8 +8195,7 @@ end)
         _G.__SeigePageAnimSpeed = v / 1000; saveCfg()
     end)
 end)()
-end)()
-;(function()
+
 
 
 
