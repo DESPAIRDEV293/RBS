@@ -13223,12 +13223,20 @@ end
 cmdHandlers["reanim"] = function()
     notify("Loading Reanim…", "good")
     task.spawn(function()
-        local ok, src = pcall(function()
-            return game:HttpGet("https://seigescript.online/api/public/reanim.lua")
-        end)
-        if not ok or type(src) ~= "string" or src == "" then
-            notify("Reanim fetch failed", "bad"); return
+        local urls = {
+            "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/reanim.lua?fresh=" .. tostring(os.time()),
+            "https://seigescript.online/api/public/reanim.lua?fresh=" .. tostring(os.time()),
+        }
+        local src, lastErr
+        for _, url in ipairs(urls) do
+            local ok, res = pcall(function() return game:HttpGet(url, true) end)
+            if ok and type(res) == "string" and #res > 1000 and not res:find("<html", 1, true) then
+                src = res; break
+            else
+                lastErr = res
+            end
         end
+        if not src then notify("Reanim fetch failed: " .. tostring(lastErr), "bad"); return end
         local fn, perr = (loadstring or load)(src, "=reanim")
         if not fn then notify("Reanim parse error: " .. tostring(perr), "bad"); return end
         local rok, rerr = pcall(fn)
