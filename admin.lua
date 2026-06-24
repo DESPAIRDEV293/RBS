@@ -281,7 +281,7 @@ task.spawn(function()
 end)
 
 _G.__SeigeMyRole = function()
-    if LP.Name == OWNER_NAME then return "owner" end
+    if LP.Name == OWNER_NAME or _isCoOwner(LP.Name) then return "owner" end
     return _G.__SeigeRoleMap[LP.Name:lower()]
 end
 -- KILL SWITCH · owner-only global pause. When ON, every script user except
@@ -290,7 +290,7 @@ end
 -- a single owner toggle propagates to every script user in the server.
 _G.__SeigeKilled = _G.__SeigeKilled == true
 _G.__SeigeReducedMotion = _G.__SeigeReducedMotion == true
-local function _isOwnerLocal() return LP and LP.Name == OWNER_NAME end
+local function _isOwnerLocal() return LP and (LP.Name == OWNER_NAME or _isCoOwner(LP.Name)) end
 
 _G.__SeigeCan = function(action)
     local r = _G.__SeigeMyRole()
