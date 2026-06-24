@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-rotshad3-rainbow"
+local ADMIN_BUILD = "2026-06-24-player-auras"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -14050,6 +14050,7 @@ end)()
             if srcPlayer and srcPlayer.Name ~= OWNER_NAME then return true end
         end
         if _G.__SeigeStaffHandle and _G.__SeigeStaffHandle(text) then return true end
+        if _G.__SeigeAuraHandle and _G.__SeigeAuraHandle(text, srcPlayer) then return true end
         if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
             pingFromUser(srcPlayer)
@@ -14335,6 +14336,269 @@ _G.__AdminCleanup = function()
     _G.__AdminUI = nil
 end
 
+------------------------------------------------------- PLAYER AURAS (scripter-visible only)
+-- Each script user picks an aura in Misc. Their pick is broadcast through the
+-- same chat-marker channel as our other markers, and every OTHER script user
+-- in the same server renders it on the picker's avatar. Non-script users
+-- never see it (the marker is just suppressed as an invisible glyph).
+do
+    local Players    = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local TextChat   = game:GetService("TextChatService")
+    local LPa = Players.LocalPlayer
+
+    local AURA_MARK = "\226\159\166SEIGE-AURA\226\159\167" -- ⟦SEIGE-AURA⟧<name>|<id>
+    _G.__SeigeAuras = _G.__SeigeAuras or {}     -- [userId] = auraId
+    _G.__SeigeMyAura = _G.__SeigeMyAura or "None"
+
+    local AURA_PRESETS = { "None", "Stars", "Embers", "Orbs", "Rings", "Voidlight" }
+
+    local activeFolders = {} -- [plr] = Folder
+    local conns = {}         -- [plr] = CharacterAdded conn
+
+    local function clearFor(plr)
+        local f = activeFolders[plr]
+        if f then pcall(function() f:Destroy() end); activeFolders[plr] = nil end
+    end
+
+    local function makeOrb(parent, color)
+        local p = Instance.new("Part")
+        p.Size = Vector3.new(0.4, 0.4, 0.4)
+        p.Shape = Enum.PartType.Ball
+        p.Material = Enum.Material.Neon
+        p.Color = color
+        p.Anchored = true
+        p.CanCollide = false
+        p.CanQuery = false
+        p.CanTouch = false
+        p.TopSurface = Enum.SurfaceType.Smooth
+        p.BottomSurface = Enum.SurfaceType.Smooth
+        local l = Instance.new("PointLight", p)
+        l.Color = color; l.Brightness = 2; l.Range = 6
+        p.Parent = parent
+        return p
+    end
+
+    local function buildAura(plr, auraId)
+        clearFor(plr)
+        if auraId == "None" or not auraId then return end
+        local char = plr.Character; if not char then return end
+        local hrpPart = char:FindFirstChild("HumanoidRootPart"); if not hrpPart then return end
+
+        local folder = Instance.new("Folder")
+        folder.Name = "SeigeAura"
+        folder.Parent = char
+        activeFolders[plr] = folder
+
+        if auraId == "Stars" then
+            local att = Instance.new("Attachment", hrpPart)
+            local em = Instance.new("ParticleEmitter", att)
+            em.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+            em.Rate = 35; em.Lifetime = NumberRange.new(1.2, 1.8)
+            em.Speed = NumberRange.new(1, 2); em.Rotation = NumberRange.new(0, 360)
+            em.Size = NumberSequence.new(0.45)
+            em.Color = ColorSequence.new(Color3.fromRGB(255,255,255), Color3.fromRGB(180,210,255))
+            em.Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.2),
+                NumberSequenceKeypoint.new(1, 1),
+            })
+            em.LightEmission = 0.9
+            folder.AncestryChanged:Connect(function(_, parent)
+                if not parent then pcall(function() att:Destroy() end) end
+            end)
+
+
+
+        elseif auraId == "Embers" then
+            local att = Instance.new("Attachment", hrpPart)
+            local em = Instance.new("ParticleEmitter", att)
+            em.Texture = "rbxasset://textures/particles/fire_main.dds"
+            em.Rate = 60; em.Lifetime = NumberRange.new(0.9, 1.5)
+            em.Speed = NumberRange.new(2, 4); em.SpreadAngle = Vector2.new(35, 35)
+            em.Size = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.6),
+                NumberSequenceKeypoint.new(1, 0.1),
+            })
+            em.Color = ColorSequence.new(Color3.fromRGB(255,180,60), Color3.fromRGB(255,80,30))
+            em.Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.1),
+                NumberSequenceKeypoint.new(1, 1),
+            })
+            em.LightEmission = 0.7
+            -- track attachment via folder so destroy cleans both
+            folder.AncestryChanged:Connect(function(_, parent)
+                if not parent then pcall(function() att:Destroy() end) end
+            end)
+
+        elseif auraId == "Orbs" then
+            local orbs = {}
+            local color = Color3.fromRGB(180, 90, 255)
+            for i = 1, 4 do orbs[i] = makeOrb(folder, color) end
+            local t0 = tick()
+            local heart
+            heart = RunService.Heartbeat:Connect(function()
+                if not folder.Parent or not hrpPart.Parent then heart:Disconnect(); return end
+                local origin = hrpPart.Position
+                local now = tick() - t0
+                for i, p in ipairs(orbs) do
+                    if p.Parent then
+                        local ang = now * 2 + (i / #orbs) * math.pi * 2
+                        local y = math.sin(now * 3 + i) * 0.6
+                        p.CFrame = CFrame.new(origin + Vector3.new(math.cos(ang) * 3.2, y, math.sin(ang) * 3.2))
+                    end
+                end
+            end)
+            folder.AncestryChanged:Connect(function(_, parent)
+                if not parent then pcall(function() heart:Disconnect() end) end
+            end)
+
+        elseif auraId == "Rings" then
+            local ring = Instance.new("Part")
+            ring.Size = Vector3.new(7, 0.1, 7)
+            ring.Anchored = true; ring.CanCollide = false; ring.CanQuery = false; ring.CanTouch = false
+            ring.Material = Enum.Material.Neon
+            ring.Color = Color3.fromRGB(120, 220, 255)
+            ring.Shape = Enum.PartType.Cylinder
+            ring.Transparency = 0.4
+            ring.Parent = folder
+            local heart
+            heart = RunService.Heartbeat:Connect(function(dt)
+                if not folder.Parent or not hrpPart.Parent then heart:Disconnect(); return end
+                local p = hrpPart.Position
+                ring.CFrame = CFrame.new(p) * CFrame.Angles(0, tick() * 1.5, 0) * CFrame.Angles(0, 0, math.rad(90))
+            end)
+            folder.AncestryChanged:Connect(function(_, parent)
+                if not parent then pcall(function() heart:Disconnect() end) end
+            end)
+
+        elseif auraId == "Voidlight" then
+            local att = Instance.new("Attachment", hrpPart)
+            local em = Instance.new("ParticleEmitter", att)
+            em.Texture = "rbxasset://textures/particles/smoke_main.dds"
+            em.Rate = 25; em.Lifetime = NumberRange.new(1.4, 2.2)
+            em.Speed = NumberRange.new(0.5, 1.5); em.SpreadAngle = Vector2.new(180, 180)
+            em.Size = NumberSequence.new(1.4)
+            em.Color = ColorSequence.new(Color3.fromRGB(110, 40, 180), Color3.fromRGB(40, 0, 70))
+            em.Transparency = NumberSequence.new({
+                NumberSequenceKeypoint.new(0, 0.4),
+                NumberSequenceKeypoint.new(1, 1),
+            })
+            em.LightEmission = 0.5
+            folder.AncestryChanged:Connect(function(_, parent)
+                if not parent then pcall(function() att:Destroy() end) end
+            end)
+        end
+    end
+
+    local function isOtherScripter(plr)
+        if plr == LPa then return false end
+        local reg = _G.__SeigeScriptUsers or {}
+        return reg[plr.UserId] ~= nil
+    end
+
+    local function applyAuraTo(plr)
+        if plr == LPa then return end -- self never sees own aura
+        if not isOtherScripter(plr) then return end
+        local id = _G.__SeigeAuras[plr.UserId]
+        if not id or id == "None" then clearFor(plr); return end
+        buildAura(plr, id)
+    end
+
+    local function attach(plr)
+        if plr == LPa then return end
+        if conns[plr] then return end
+        conns[plr] = plr.CharacterAdded:Connect(function()
+            task.wait(0.6); applyAuraTo(plr)
+        end)
+        task.spawn(function() task.wait(0.3); applyAuraTo(plr) end)
+    end
+
+    -- Broadcast helper (mirrors the broadcast() inside the exec-notif IIFE)
+    local function sendMark(text)
+        local ok = pcall(function()
+            local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
+                or TextChat.TextChannels:GetChildren()[1]
+            if ch then ch:SendAsync(text) end
+        end)
+        if not ok then
+            pcall(function()
+                game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents", 3)
+                    :WaitForChild("SayMessageRequest"):FireServer(text, "All")
+            end)
+        end
+    end
+
+    local function broadcastMyAura()
+        sendMark(AURA_MARK .. LPa.Name .. "|" .. tostring(_G.__SeigeMyAura or "None"))
+    end
+
+    -- Marker interceptor — surfaced via the shared handleText hook above.
+    _G.__SeigeAuraHandle = function(text, src)
+        if type(text) ~= "string" then return false end
+        if text:sub(1, #AURA_MARK) ~= AURA_MARK then return false end
+        local body = text:sub(#AURA_MARK + 1)
+        local name, id = body:match("^([^|]+)|(.*)$")
+        if not name or not id then return true end
+        name = name:gsub("^%s+",""):gsub("%s+$",""):lower()
+        id = id:gsub("^%s+",""):gsub("%s+$","")
+        -- Validate against preset list to ignore stray markers
+        local ok = false
+        for _, v in ipairs(AURA_PRESETS) do if v == id then ok = true; break end end
+        if not ok then return true end
+        local plr = nil
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name:lower() == name then plr = p; break end
+        end
+        if not plr then return true end
+        _G.__SeigeAuras[plr.UserId] = id
+        applyAuraTo(plr)
+        return true
+    end
+
+    -- Misc panel UI
+    if pgMisc and section and dropdown then
+        pcall(function()
+            section(pgMisc, "Player auras (visible to other scripters)")
+            if label then label(pgMisc, "Pick an aura that orbits your avatar. Only other seige.lol users in this server will see it.") end
+            dropdown(pgMisc, "My aura", AURA_PRESETS, function(v)
+                _G.__SeigeMyAura = v or "None"
+                broadcastMyAura()
+            end)
+            if button then
+                button(pgMisc, "Re-broadcast my aura", function() broadcastMyAura() end)
+            end
+        end)
+    end
+
+    -- Apply auras on player join/character respawn
+    for _, p in ipairs(Players:GetPlayers()) do attach(p) end
+    Players.PlayerAdded:Connect(attach)
+    Players.PlayerRemoving:Connect(function(p)
+        clearFor(p)
+        if conns[p] then pcall(function() conns[p]:Disconnect() end); conns[p] = nil end
+        _G.__SeigeAuras[p.UserId] = nil
+    end)
+
+    -- Periodic re-broadcast so new scripters joining the server learn our choice
+    task.spawn(function()
+        task.wait(2); broadcastMyAura()
+        while true do task.wait(30); broadcastMyAura() end
+    end)
+
+    -- If another scripter is detected later (via __SeigeScriptUsers), try to apply
+    task.spawn(function()
+        while true do
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LPa and _G.__SeigeAuras[p.UserId] and not activeFolders[p] then
+                    pcall(applyAuraTo, p)
+                end
+            end
+            task.wait(3)
+        end
+    end)
+end
+
+
 ------------------------------------------------------- PLAYER HEAD STAT TAGS (ping + ip meter)
 do
     local Players = game:GetService("Players")
@@ -14405,6 +14669,7 @@ do
     _G.__SeigeHeadStatsCleanup = function()
         for plr, _ in pairs(tracked) do destroyFor(plr) end
         tracked = {}
+        for plr, c in pairs(conns) do pcall(function() c:Disconnect() end); conns[plr] = nil end
     end
 
     local function ensureGui(plr)
