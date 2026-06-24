@@ -289,8 +289,9 @@ function Index() {
             </button>
           </div>
 
-          <pre className="relative mt-3 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-slate-500/80 backdrop-blur select-none">
-            <code>{loadstringCommand}</code>
+          <pre className="storm-code relative mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-slate-500/80 backdrop-blur select-none">
+            <span className="storm-code-sweep pointer-events-none" />
+            <code className="relative block overflow-x-auto">{loadstringCommand}</code>
           </pre>
 
           <p className="relative mt-4 text-xs text-slate-400/60">
