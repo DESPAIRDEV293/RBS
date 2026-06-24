@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-hide-cmd"
+local ADMIN_BUILD = "2026-06-24-hide-public"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -467,7 +467,7 @@ local HELP_COMMANDS = {
     { perms = {"staff_cmd"}, cmd = "!logs <user>",          desc = "Show last 20 chat messages captured from a player" },
     { perms = {"staff_cmd"}, cmd = "!track <user>",         desc = "Show through-wall arrow + distance to a player (!untrack to stop)" },
     { perms = {"staff_cmd"}, cmd = "!cmute <user>",         desc = "Locally silence a player's chat bubbles & voice (!cunmute to undo)" },
-    { perms = {"staff_cmd"}, cmd = "!hide <user>",          desc = "Locally hide a player's character (!unhide <user> to restore)" },
+    { perms = {},            cmd = "!hide <user>",          desc = "Locally hide a player's character (!unhide <user> to restore)" },
     { perms = {"staff_cmd"}, cmd = "!age <user>",           desc = "Quick account age, premium and userId for a player" },
     { perms = {"staff_cmd"}, cmd = "!countdown <s> <msg>",  desc = "Broadcast a live countdown overlay to every script user" },
     { perms = {"bringall"},  cmd = "!bringall",             desc = "Teleport every script user to you" },
@@ -13564,7 +13564,7 @@ local function _detachHide(p)
     _setCharVisible(p.Character, true)
 end
 cmdHandlers["hide"] = function(arg)
-    if not _staffGate("!hide") then return end
+    -- Available to every script user (local-only visual effect).
     local p = _resolveScriptUser(arg)
     if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
     if p == LP then notify("Use !invis on yourself", "warn"); return end
@@ -13574,7 +13574,7 @@ cmdHandlers["hide"] = function(arg)
     notify("Hid @" .. p.Name .. " — !unhide " .. p.Name .. " to restore", "good")
 end
 cmdHandlers["unhide"] = function(arg)
-    if not _staffGate("!unhide") then return end
+    -- Available to every script user.
     local p = _resolveScriptUser(arg)
     if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
     if not _hidden[p.Name:lower()] then notify("@" .. p.Name .. " is not hidden", "warn"); return end
