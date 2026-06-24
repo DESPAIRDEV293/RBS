@@ -6780,6 +6780,8 @@ local HELP_CMDS = {
         { "!fly / !unfly", "Toggle fly (WASD + E/Q, Shift = boost)" },
         { "!noclip / !clip", "Walk through walls" },
         { "!freecam", "Detach camera (WASD/EQ + Shift)" },
+        { "!fov <n>", "Set camera field of view (40–120, default 70)" },
+        { "!zoom <min> [max]", "Set camera min/max zoom distance" },
     }},
     { "Teleport / target", {
         { "!goto <player>", "Teleport to a player" },
