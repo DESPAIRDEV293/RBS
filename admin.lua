@@ -244,6 +244,85 @@ local function _pushRemoteRole(name, role)
     return true
 end
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- TAG GROUPS  (OWNERS / ADMINS / CO_OWNERS / LINE_USERS / BLACKLIST)
+-- Lives in Lovable Cloud as a single JSONB row, served via /api/public/tag_groups.
+-- Powers fast "teleport to anyone tagged in <group>" actions.
+-- ─────────────────────────────────────────────────────────────────────────────
+local TAG_GROUPS_URL = "https://seigelollua.lovable.app/api/public/tag_groups"
+local TAG_GROUPS = { OWNERS = {}, ADMINS = {}, CO_OWNERS = {}, LINE_USERS = {}, BLACKLIST = {} }
+_G.__SeigeTagGroups = TAG_GROUPS
+
+local function _httpRequest()
+    return (syn and syn.request) or (http and http.request)
+        or http_request or (fluxus and fluxus.request)
+        or (krnl and krnl.request) or request
+end
+
+local function safeHttpGet(url)
+    local ok, res = pcall(function() return game:HttpGet(url) end)
+    if not ok then return nil, res end
+    return res
+end
+
+local function safeHttpPost(url, data, contentType)
+    local ok, res = pcall(function()
+        return game:HttpPost(url, data, false, contentType or "application/json")
+    end)
+    if not ok then return nil, res end
+    return res
+end
+
+local function loadTagGroups()
+    local resp, err = safeHttpGet(TAG_GROUPS_URL .. "?v=" .. tostring(os.time()))
+    if not resp then warn("[TagGroups] load failed:", err); return end
+    local okD, groups = pcall(function() return HttpService:JSONDecode(resp) end)
+    if not okD or type(groups) ~= "table" then warn("[TagGroups] bad response"); return end
+    TAG_GROUPS = {
+        OWNERS    = groups.OWNERS    or {},
+        ADMINS    = groups.ADMINS    or {},
+        CO_OWNERS = groups.CO_OWNERS or {},
+        LINE_USERS = groups.LINE_USERS or {},
+        BLACKLIST = groups.BLACKLIST or {},
+    }
+    _G.__SeigeTagGroups = TAG_GROUPS
+    print("[TagGroups] loaded from cloud")
+end
+
+local function saveUserToTagGroup(user, group, remove)
+    local secret = tostring(_G.__SeigeTagSyncKey or "")
+    if secret == "" then notify("Tag sync key required (Config tab)", "warn"); return false end
+    local req = _httpRequest()
+    if not req then notify("No HTTP request shim available", "bad"); return false end
+    local payload = { username = tostring(user or ""), tag_group = tostring(group or "") }
+    if remove then payload.remove = true end
+    local okEnc, body = pcall(HttpService.JSONEncode, HttpService, payload)
+    if not okEnc then return false end
+    task.spawn(function()
+        local ok, res = pcall(req, {
+            Url = TAG_GROUPS_URL, Method = "POST",
+            Headers = { ["Content-Type"] = "application/json", ["x-tag-secret"] = secret },
+            Body = body,
+        })
+        if not ok then warn("[TagGroups] push failed:", res); return end
+        local status = tonumber(res.StatusCode or res.status_code) or 0
+        if status < 200 or status >= 300 then
+            warn(("[TagGroups] push HTTP %s: %s"):format(tostring(status), tostring(res.Body or "")))
+        else
+            loadTagGroups()
+        end
+    end)
+    return true
+end
+_G.__SeigeLoadTagGroups = loadTagGroups
+_G.__SeigeSaveTagGroup  = saveUserToTagGroup
+
+-- prime cache on script load + periodic refresh
+task.spawn(loadTagGroups)
+task.spawn(function()
+    while true do task.wait(45); pcall(loadTagGroups) end
+end)
+
 _G.__SeigeRoleMap = _readRoleMap()
 do
     local remote = _fetchRemoteRoles()
@@ -7072,7 +7151,9 @@ button(pgCmds, "Character  —  reset / refresh / click-TP", function()
     end)
 end)
 
--- Reanim button removed — ROT GUI is now a standalone downloadable script.
+button(pgCmds, "Reanim  —  launch ROT animation GUI", function()
+    _runCmd("!reanim")
+end)
 
 
 button(pgCmds, "NameEdit  —  hide username/display name", function()
@@ -7147,6 +7228,52 @@ button(pgCmds, "!to <player>",           function() _openCmd("!to ") end)
 button(pgCmds, "!spectate <player>",    function() _openCmd("!spectate ") end)
 button(pgCmds, "!fling <player>",       function() _openCmd("!fling ") end)
 button(pgCmds, "Stalk  —  pick a player to listen (!stalk)", function() _runCmd("!stalk") end)
+
+-- Tag groups: pick a saved group → teleport to the first matching player in-server.
+button(pgCmds, "Tag groups  —  manage / teleport by group", function()
+    _openPanel("taggroups", "Tag Groups  ·  OWNERS / ADMINS / CO_OWNERS / LINE_USERS / BLACKLIST", 380, function(body)
+        local userBox = inst("TextBox", body, {
+            Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
+            TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+            PlaceholderText = "  username (lowercase)…", Text = "", ClearTextOnFocus = false,
+        })
+        local groupBox = inst("TextBox", body, {
+            Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
+            TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+            PlaceholderText = "  group (OWNERS / ADMINS / CO_OWNERS / LINE_USERS / BLACKLIST)",
+            Text = "", ClearTextOnFocus = false,
+        })
+        button(body, "Add user → group", function()
+            local u, g = userBox.Text, groupBox.Text
+            if u == "" or g == "" then notify("Fill both fields", "warn"); return end
+            if saveUserToTagGroup(u, g, false) then notify("Saving " .. u .. " → " .. g, "good") end
+        end)
+        button(body, "Remove user from groups", function()
+            local u, g = userBox.Text, groupBox.Text
+            if u == "" or g == "" then notify("Fill both fields", "warn"); return end
+            if saveUserToTagGroup(u, g, true) then notify("Removing " .. u, "good") end
+        end)
+        button(body, "Reload from cloud", function() loadTagGroups(); notify("Reloaded", "good") end)
+        button(body, "Teleport to anyone in this group", function()
+            local g = (groupBox.Text or ""):upper()
+            local list = TAG_GROUPS[g]
+            if not list or #list == 0 then notify("Group empty or invalid: " .. g, "warn"); return end
+            local set = {}
+            for _, n in ipairs(list) do set[tostring(n):lower()] = true end
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LP and set[p.Name:lower()] then
+                    local thrp, myH = phrp(p), hrp()
+                    if thrp and myH then
+                        myH.CFrame = thrp.CFrame * CFrame.new(0, 0, 3)
+                        notify("Teleported to " .. p.Name .. " (" .. g .. ")", "good")
+                        return
+                    end
+                end
+            end
+            notify("No " .. g .. " member is in this server", "warn")
+        end)
+    end)
+end)
 button(pgCmds, "!face <player>",        function() _openCmd("!face ") end)
 button(pgCmds, "!sit settings  —  sit / headsit / shoulder / carry / piggy", function()
     _openPanel("sit", "Sit  ·  force sit / headsit / shoulder / carry / piggy", 360, function(body)
@@ -7982,7 +8109,6 @@ button(pgThemes, "Reset to default", function()
         end
     end
 end)
-end)()
 
 -- =============================================================
 -- ===== Typography & Animation customisation ==================
@@ -8200,6 +8326,78 @@ toggle(pgShaders, "Enable sun rays", false, function(v)
 end)
 slider(pgShaders, "Ray intensity", 0, 1, 0.25, function(v) fxSun.Intensity = v end)
 slider(pgShaders, "Ray spread",    0, 1, 1,    function(v) fxSun.Spread = v end)
+
+-- ── Cinematic realism preset: layered atmosphere + tuned bloom/DOF/color/sun
+-- for film-grade lighting. One toggle, fully reversible.
+section(pgShaders, "Cinematic preset")
+local _cineSaved
+toggle(pgShaders, "Cinematic realism", false, function(on)
+    if on then
+        ensureModernLighting(); ensureSky()
+        _cineSaved = {
+            tech = Lighting.Technology, shadows = Lighting.GlobalShadows,
+            soft = Lighting.ShadowSoftness, dif = Lighting.EnvironmentDiffuseScale,
+            spc = Lighting.EnvironmentSpecularScale, bright = Lighting.Brightness,
+            ambient = Lighting.Ambient, outdoor = Lighting.OutdoorAmbient,
+            color = Lighting.ColorShift_Top, clock = Lighting.ClockTime,
+            bloomEn = fxBloom.Enabled, bloomI = fxBloom.Intensity, bloomS = fxBloom.Size, bloomT = fxBloom.Threshold,
+            colorEn = fxColor.Enabled, colorB = fxColor.Brightness, colorC = fxColor.Contrast,
+            colorS = fxColor.Saturation, colorT = fxColor.TintColor,
+            dofEn = fxDOF.Enabled, dofF = fxDOF.FocusDistance, dofR = fxDOF.InFocusRadius,
+            dofN = fxDOF.NearIntensity, dofFar = fxDOF.FarIntensity,
+            sunEn = fxSun.Enabled, sunI = fxSun.Intensity, sunSp = fxSun.Spread,
+        }
+        pcall(function()
+            Lighting.Technology = Enum.Technology.Future
+            Lighting.GlobalShadows = true
+            Lighting.ShadowSoftness = 0.35
+            Lighting.EnvironmentDiffuseScale = 1
+            Lighting.EnvironmentSpecularScale = 1
+            Lighting.Brightness = 2.2
+            Lighting.Ambient = Color3.fromRGB(28, 30, 38)
+            Lighting.OutdoorAmbient = Color3.fromRGB(85, 95, 115)
+            Lighting.ColorShift_Top = Color3.fromRGB(45, 35, 25)
+            Lighting.ClockTime = 15.5
+        end)
+        local atm = Lighting:FindFirstChild("SeigeCineAtmos")
+        if not atm then
+            atm = Instance.new("Atmosphere"); atm.Name = "SeigeCineAtmos"; atm.Parent = Lighting
+        end
+        atm.Density = 0.36; atm.Offset = 0.25
+        atm.Color = Color3.fromRGB(199, 199, 199)
+        atm.Decay = Color3.fromRGB(106, 112, 125)
+        atm.Glare = 0.4; atm.Haze = 1.6
+        fxBloom.Enabled = true; fxBloom.Intensity = 0.45; fxBloom.Size = 32; fxBloom.Threshold = 1.6
+        fxColor.Enabled = true; fxColor.Brightness = 0.02; fxColor.Contrast = 0.18
+        fxColor.Saturation = 0.12; fxColor.TintColor = Color3.fromRGB(255, 244, 230)
+        fxDOF.Enabled = true; fxDOF.FocusDistance = 35; fxDOF.InFocusRadius = 14
+        fxDOF.NearIntensity = 0.25; fxDOF.FarIntensity = 0.55
+        fxSun.Enabled = true; fxSun.Intensity = 0.18; fxSun.Spread = 0.85
+        notify("Cinematic realism enabled", "good")
+    else
+        if _cineSaved then
+            pcall(function()
+                Lighting.Technology = _cineSaved.tech; Lighting.GlobalShadows = _cineSaved.shadows
+                Lighting.ShadowSoftness = _cineSaved.soft; Lighting.EnvironmentDiffuseScale = _cineSaved.dif
+                Lighting.EnvironmentSpecularScale = _cineSaved.spc; Lighting.Brightness = _cineSaved.bright
+                Lighting.Ambient = _cineSaved.ambient; Lighting.OutdoorAmbient = _cineSaved.outdoor
+                Lighting.ColorShift_Top = _cineSaved.color; Lighting.ClockTime = _cineSaved.clock
+            end)
+            fxBloom.Enabled = _cineSaved.bloomEn; fxBloom.Intensity = _cineSaved.bloomI
+            fxBloom.Size = _cineSaved.bloomS; fxBloom.Threshold = _cineSaved.bloomT
+            fxColor.Enabled = _cineSaved.colorEn; fxColor.Brightness = _cineSaved.colorB
+            fxColor.Contrast = _cineSaved.colorC; fxColor.Saturation = _cineSaved.colorS
+            fxColor.TintColor = _cineSaved.colorT
+            fxDOF.Enabled = _cineSaved.dofEn; fxDOF.FocusDistance = _cineSaved.dofF
+            fxDOF.InFocusRadius = _cineSaved.dofR; fxDOF.NearIntensity = _cineSaved.dofN
+            fxDOF.FarIntensity = _cineSaved.dofFar
+            fxSun.Enabled = _cineSaved.sunEn; fxSun.Intensity = _cineSaved.sunI; fxSun.Spread = _cineSaved.sunSp
+        end
+        local atm = Lighting:FindFirstChild("SeigeCineAtmos")
+        if atm then atm:Destroy() end
+        notify("Cinematic realism reverted", "good")
+    end
+end)
 
 section(pgShaders, "Weather")
 do
@@ -12997,10 +13195,22 @@ cmdHandlers["tagcolors"] = function()
         { empty = "No colors found in tag database.", height = 360 })
 end
 
--- !reanim — disabled. The ROT GUI is now a standalone downloadable script
--- distributed separately. Tell the user where to grab it instead.
+-- !reanim — launch the Reanim/ROT GUI. Title bar shows the local player's
+-- username (handled inside reanim.lua). Available to every script user.
 cmdHandlers["reanim"] = function()
-    notify("ROT GUI is now a standalone download — run rot_gui.lua yourself.", "warn")
+    notify("Loading Reanim…", "good")
+    task.spawn(function()
+        local ok, src = pcall(function()
+            return game:HttpGet("https://seigescript.online/api/public/reanim.lua")
+        end)
+        if not ok or type(src) ~= "string" or src == "" then
+            notify("Reanim fetch failed", "bad"); return
+        end
+        local fn, perr = (loadstring or load)(src, "=reanim")
+        if not fn then notify("Reanim parse error: " .. tostring(perr), "bad"); return end
+        local rok, rerr = pcall(fn)
+        if not rok then notify("Reanim runtime error: " .. tostring(rerr), "bad") end
+    end)
 end
 
 
