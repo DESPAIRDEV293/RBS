@@ -14529,7 +14529,12 @@ do
     end
 
     local function broadcastMyAura()
-        sendMark(AURA_MARK .. LPa.Name .. "|" .. tostring(_G.__SeigeMyAura or "None"))
+        local id = tostring(_G.__SeigeMyAura or "None")
+        -- Don't pollute chat when there's nothing to share. Roblox's text filter
+        -- censors the marker glyphs into "####" soup for filtered accounts, so
+        -- we only broadcast when the user has actually picked a non-default aura.
+        if id == "None" or id == "" then return end
+        sendMark(AURA_MARK .. LPa.Name .. "|" .. id)
     end
 
     -- Marker interceptor — surfaced via the shared handleText hook above.
