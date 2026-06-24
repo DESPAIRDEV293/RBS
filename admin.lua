@@ -6803,6 +6803,14 @@ local HELP_CMDS = {
         { "!timestop", "Freeze everyone except you (admin/owner only)" },
         { "!untimestop", "Release the freeze" },
     }},
+    { "Staff oversight", {
+        { "!logs <player>", "Show last 20 chat messages captured from a player" },
+        { "!track <player> / !untrack", "Through-wall arrow + live distance to a player" },
+        { "!cmute <player> / !cunmute <player>", "Locally silence a player's chat bubbles & voice" },
+        { "!age <player>", "Quick account age, premium status, and UserId" },
+        { "!countdown <secs> <msg>", "Broadcast a live countdown overlay to every script user" },
+    }},
+    
     
     { "Animations", {
         { "!reanim", "Free the humanoid for custom animations" },
