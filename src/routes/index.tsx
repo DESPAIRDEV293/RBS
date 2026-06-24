@@ -22,16 +22,15 @@ export const Route = createFileRoute("/")({
 });
 
 // pre-built deterministic raindrops/droplets so SSR === client
-// Counts trimmed for perf — fewer animated nodes = less paint/composite work.
-const RAIN = Array.from({ length: 70 }, (_, i) => {
+const RAIN = Array.from({ length: 140 }, (_, i) => {
   const seed = (i * 9301 + 49297) % 233280;
   const r = seed / 233280;
   return {
-    left: (i * 7.3) % 100,
+    left: (i * 3.7) % 100,
     delay: -(r * 1.4),
-    duration: 0.5 + ((i * 13) % 7) / 10,
-    opacity: 0.25 + (r * 0.55),
-    height: 40 + ((i * 11) % 60),
+    duration: 0.45 + ((i * 13) % 7) / 10,
+    opacity: 0.25 + (r * 0.6),
+    height: 36 + ((i * 11) % 80),
   };
 });
 
@@ -40,7 +39,30 @@ function hash(n: number, seed: number) {
   let x = Math.sin(n * 9999 + seed * 374761) * 43758.5453;
   return x - Math.floor(x);
 }
-const DROPLETS = Array.from({ length: 35 }, (_, i) => {
+
+// Twinkling stars/sparkles drifting through the storm
+const SPARKLES = Array.from({ length: 60 }, (_, i) => {
+  const r1 = hash(i, 7);
+  const r2 = hash(i, 11);
+  const r3 = hash(i, 13);
+  const r4 = hash(i, 17);
+  return {
+    top: r1 * 100,
+    left: r2 * 100,
+    size: 1.5 + r3 * 2.5,
+    delay: r4 * 6,
+    duration: 3 + r3 * 4,
+  };
+});
+
+// Extra bolts at varied positions for a richer storm
+const BOLTS = [
+  { left: "18%", top: "-2%", width: 110, delay: "0s", height: "55vh" },
+  { left: "72%", top: "-3%", width: 80, delay: "3.1s", height: "48vh" },
+  { left: "48%", top: "-2%", width: 60, delay: "5.6s", height: "38vh" },
+];
+
+const DROPLETS = Array.from({ length: 55 }, (_, i) => {
   const r1 = hash(i, 1);
   const r2 = hash(i, 2);
   const r3 = hash(i, 3);
@@ -137,29 +159,63 @@ function Index() {
 
       {/* sky gradient */}
       <div className="storm-sky absolute inset-0" />
+      {/* animated aurora mesh */}
+      <div className="storm-aurora absolute inset-0 pointer-events-none" />
       {/* rolling cloud layers */}
       <div className="storm-clouds storm-clouds-1 absolute inset-0" />
       <div className="storm-clouds storm-clouds-2 absolute inset-0" />
+      <div className="storm-clouds storm-clouds-3 absolute inset-0" />
+      {/* subtle vignette for depth */}
+      <div className="storm-vignette absolute inset-0 pointer-events-none" />
       {/* lightning flash overlay */}
       <div className="storm-lightning absolute inset-0 pointer-events-none" />
-      {/* lightning bolt SVG */}
-      <svg
-        className="storm-bolt absolute pointer-events-none"
-        viewBox="0 0 100 300"
-        preserveAspectRatio="none"
-      >
-        <path
-          d="M55 0 L30 130 L55 130 L20 300 L70 140 L42 140 L72 0 Z"
-          fill="url(#boltGrad)"
-        />
-        <defs>
-          <linearGradient id="boltGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#e0e7ff" />
-            <stop offset="60%" stopColor="#a5b4fc" />
-            <stop offset="100%" stopColor="#6366f1" />
-          </linearGradient>
-        </defs>
-      </svg>
+      {/* multiple lightning bolts */}
+      {BOLTS.map((b, i) => (
+        <svg
+          key={i}
+          className="storm-bolt absolute pointer-events-none"
+          viewBox="0 0 100 300"
+          preserveAspectRatio="none"
+          style={{
+            left: b.left,
+            top: b.top,
+            width: `${b.width}px`,
+            height: b.height,
+            animationDelay: b.delay,
+          }}
+        >
+          <path
+            d="M55 0 L30 130 L55 130 L20 300 L70 140 L42 140 L72 0 Z"
+            fill="url(#boltGrad)"
+          />
+          <defs>
+            <linearGradient id="boltGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="40%" stopColor="#e0e7ff" />
+              <stop offset="75%" stopColor="#a5b4fc" />
+              <stop offset="100%" stopColor="#6366f1" />
+            </linearGradient>
+          </defs>
+        </svg>
+      ))}
+
+      {/* twinkling sparkles */}
+      <div className="absolute inset-0 pointer-events-none">
+        {SPARKLES.map((s, i) => (
+          <span
+            key={i}
+            className="storm-sparkle"
+            style={{
+              top: `${s.top}%`,
+              left: `${s.left}%`,
+              width: `${s.size}px`,
+              height: `${s.size}px`,
+              animationDelay: `${s.delay}s`,
+              animationDuration: `${s.duration}s`,
+            }}
+          />
+        ))}
+      </div>
 
       {/* rain */}
       <div className="absolute inset-0 pointer-events-none">
@@ -214,8 +270,10 @@ function Index() {
         </header>
 
         {/* glass card */}
-        <section className="storm-card relative overflow-hidden rounded-2xl p-6 sm:p-7">
+        <section className="storm-card storm-card-shimmer relative overflow-hidden rounded-2xl p-6 sm:p-7">
           <div className="storm-card-glow absolute inset-0 pointer-events-none" />
+          <div className="storm-scanline absolute inset-0 pointer-events-none" />
+
 
 
 
@@ -231,8 +289,9 @@ function Index() {
             </button>
           </div>
 
-          <pre className="relative mt-3 overflow-x-auto rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-slate-500/80 backdrop-blur select-none">
-            <code>{loadstringCommand}</code>
+          <pre className="storm-code relative mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-slate-500/80 backdrop-blur select-none">
+            <span className="storm-code-sweep pointer-events-none" />
+            <code className="relative block overflow-x-auto">{loadstringCommand}</code>
           </pre>
 
           <p className="relative mt-4 text-xs text-slate-400/60">
@@ -571,6 +630,135 @@ function Index() {
         .storm-feature-glow {
           background: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(129,140,248,0.10), transparent 70%);
         }
+
+        /* Aurora mesh — soft drifting color blobs for depth */
+        .storm-aurora {
+          background:
+            radial-gradient(ellipse 50% 40% at 15% 25%, rgba(99,102,241,0.22), transparent 60%),
+            radial-gradient(ellipse 45% 35% at 85% 20%, rgba(56,189,248,0.18), transparent 60%),
+            radial-gradient(ellipse 60% 45% at 50% 80%, rgba(139,92,246,0.18), transparent 65%);
+          mix-blend-mode: screen;
+          filter: blur(40px);
+          animation: storm-aurora-drift 22s ease-in-out infinite alternate;
+        }
+        @keyframes storm-aurora-drift {
+          0%   { transform: translate3d(-2%, -1%, 0) scale(1); opacity: 0.85; }
+          50%  { transform: translate3d(3%, 2%, 0) scale(1.06); opacity: 1; }
+          100% { transform: translate3d(-1%, 1%, 0) scale(1.02); opacity: 0.9; }
+        }
+
+        .storm-clouds-3 {
+          background-image:
+            radial-gradient(ellipse 900px 180px at 40% 8%, rgba(140,150,200,0.32), transparent 60%),
+            radial-gradient(ellipse 700px 150px at 85% 16%, rgba(70,80,130,0.45), transparent 60%);
+          animation: storm-drift-a 120s linear infinite reverse;
+          opacity: 0.35;
+          mix-blend-mode: screen;
+          filter: blur(28px);
+        }
+
+        .storm-vignette {
+          background: radial-gradient(ellipse 90% 70% at 50% 50%, transparent 40%, rgba(0,0,0,0.55) 100%);
+        }
+
+        /* Sparkles — tiny twinkling stars across the storm */
+        .storm-sparkle {
+          position: absolute;
+          border-radius: 50%;
+          background: radial-gradient(circle, #ffffff 0%, rgba(199,210,254,0.9) 40%, transparent 70%);
+          box-shadow: 0 0 6px rgba(199,210,254,0.9), 0 0 14px rgba(129,140,248,0.55);
+          opacity: 0;
+          animation: storm-twinkle ease-in-out infinite;
+          will-change: opacity, transform;
+        }
+        @keyframes storm-twinkle {
+          0%, 100% { opacity: 0; transform: scale(0.6); }
+          50%      { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* Card shimmer — animated gradient border + breathing glow */
+        .storm-card-shimmer {
+          position: relative;
+        }
+        .storm-card-shimmer::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          padding: 1px;
+          background: conic-gradient(
+            from 0deg,
+            rgba(165,180,252,0.0),
+            rgba(165,180,252,0.85),
+            rgba(56,189,248,0.6),
+            rgba(139,92,246,0.7),
+            rgba(165,180,252,0.0)
+          );
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor;
+                  mask-composite: exclude;
+          animation: storm-conic-spin 8s linear infinite;
+          pointer-events: none;
+          opacity: 0.9;
+        }
+        @keyframes storm-conic-spin {
+          to { transform: rotate(360deg); }
+        }
+
+        /* Code block — diagonal sweep highlight */
+        .storm-code-sweep {
+          position: absolute;
+          top: 0; left: -60%;
+          width: 50%; height: 100%;
+          background: linear-gradient(
+            115deg,
+            transparent 0%,
+            rgba(165,180,252,0.0) 30%,
+            rgba(199,210,254,0.18) 50%,
+            rgba(165,180,252,0.0) 70%,
+            transparent 100%
+          );
+          animation: storm-sweep 5.5s ease-in-out infinite;
+        }
+        @keyframes storm-sweep {
+          0%   { transform: translateX(0); }
+          60%  { transform: translateX(360%); }
+          100% { transform: translateX(360%); }
+        }
+
+        /* Scanline across the card */
+        .storm-scanline {
+          background: linear-gradient(180deg, transparent 0%, rgba(165,180,252,0.18) 50%, transparent 100%);
+          height: 2px;
+          top: 0;
+          animation: storm-scan 7s linear infinite;
+          opacity: 0.6;
+        }
+        @keyframes storm-scan {
+          0%   { transform: translateY(0%); opacity: 0; }
+          10%  { opacity: 0.7; }
+          90%  { opacity: 0.7; }
+          100% { transform: translateY(2800%); opacity: 0; }
+        }
+
+        /* Crisper title — breathing glow */
+        .storm-title {
+          animation: storm-title-breathe 5s ease-in-out infinite;
+        }
+        @keyframes storm-title-breathe {
+          0%, 100% { filter: drop-shadow(0 4px 30px rgba(99,102,241,0.25)); }
+          50%      { filter: drop-shadow(0 6px 50px rgba(129,140,248,0.55)); }
+        }
+
+        .storm-low-fx .storm-sparkle,
+        .storm-low-fx .storm-aurora,
+        .storm-low-fx .storm-clouds-3,
+        .storm-low-fx .storm-card-shimmer::before,
+        .storm-low-fx .storm-scanline,
+        .storm-low-fx .storm-code-sweep {
+          display: none !important;
+        }
+        .storm-low-fx .storm-title { animation: none !important; }
       `}</style>
     </div>
   );
