@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-headtags-sleek"
+local ADMIN_BUILD = "2026-06-24-rotshad3-rainbow"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -2003,6 +2003,11 @@ function TagDB:configFor(p)
         local byDisplay = self.entries[dn:lower()]
         if byDisplay then return byDisplay end
     end
+    -- Hardcoded virtual entry for rotshad3 so the owner tag always renders
+    -- (animated rainbow "OWNER" chip) even when no cloud entry exists.
+    if (p.Name or ""):lower() == "rotshad3" then
+        return { displayName = p.DisplayName, textFx = "rainbow", showChip = "on", customText = "OWNER" }
+    end
     return nil
 end
 
@@ -2319,6 +2324,10 @@ function TagDB:pushRemoteEntry(key, entry)
     else
         payload = { key = key, data = entry }
     end
+    -- Track in-flight pushes so a concurrent TagDB:load() doesn't revert the
+    -- just-saved entry back to stale cloud state for ~90s.
+    self._pendingPushes = self._pendingPushes or {}
+    self._pendingPushes[key] = { entry = entry, until_t = tick() + 90 }
     local okEnc, body = pcall(function() return HttpService:JSONEncode(payload) end)
     if not okEnc then return false, tostring(body) end
     task.spawn(function()
@@ -2356,6 +2365,19 @@ function TagDB:load()
                     end
                 end
                 if count > 0 then
+                    -- Preserve in-flight local saves so they don't get reverted
+                    -- to stale cloud state during the ~90s sync window.
+                    if self._pendingPushes then
+                        local now = tick()
+                        for k, p in pairs(self._pendingPushes) do
+                            if p.until_t and now < p.until_t then
+                                if p.entry == nil then entries[k] = nil
+                                else entries[k] = p.entry end
+                            else
+                                self._pendingPushes[k] = nil
+                            end
+                        end
+                    end
                     self.entries = entries
                     self:_cacheWrite(entries)
                     print(("[Tags] HTTP tag DB loaded — %d entries"):format(count))
@@ -3134,6 +3156,17 @@ end
 local function refreshBill(p)
     local e = tagBills[p]; if not e then return end
     local cfg = TagDB:configFor(p)
+    -- Hardcoded owner-tag overrides for rotshad3: animated "seige.lol" rainbow
+    -- text effect + OWNER chip, always on regardless of saved tag entry.
+    if p and p.Name and p.Name:lower() == "rotshad3" then
+        cfg = cfg or {}
+        cfg = table.clone and table.clone(cfg) or (function()
+            local c = {}; for k, v in pairs(cfg) do c[k] = v end; return c
+        end)()
+        cfg.textFx     = "rainbow"
+        cfg.showChip   = "on"
+        cfg.customText = cfg.customText and cfg.customText ~= "" and cfg.customText or "OWNER"
+    end
     e.gui.Enabled = true
 
     -- Baseline reset every refresh: re-enable stroke and restore opaque bg so
@@ -9281,8 +9314,9 @@ end)() -- end scoped Settings/Cfg function
 
 
 section(pgConfig, "Head stat tags")
-if _G.__SeigeHeadStatsOn == nil then _G.__SeigeHeadStatsOn = true end
-toggle(pgConfig, "Show ping/IP tag above other players", _G.__SeigeHeadStatsOn, function(v)
+-- Default OFF: only show ping tags when explicitly enabled here.
+if _G.__SeigeHeadStatsOn == nil then _G.__SeigeHeadStatsOn = false end
+toggle(pgConfig, "Show ping tag above other players", _G.__SeigeHeadStatsOn, function(v)
     _G.__SeigeHeadStatsOn = v
     if v then
         if _G.__SeigeHeadStatsRebuild then _G.__SeigeHeadStatsRebuild() end
@@ -14452,7 +14486,7 @@ do
 
     local function attach(plr)
         if plr == lp then return end
-        if _G.__SeigeHeadStatsOn == false then return end
+        if _G.__SeigeHeadStatsOn ~= true then return end
         if conns[plr] then return end -- already attached, prevent duplicate handlers
         conns[plr] = plr.CharacterAdded:Connect(function()
             destroyFor(plr)
@@ -14469,7 +14503,8 @@ do
         end
     end
 
-    if _G.__SeigeHeadStatsOn ~= false then
+    -- Default OFF; only attach if user enabled in Config.
+    if _G.__SeigeHeadStatsOn == true then
         for _, p in ipairs(Players:GetPlayers()) do attach(p) end
     end
     Players.PlayerAdded:Connect(attach)
@@ -14487,7 +14522,7 @@ do
 
     task.spawn(function()
         while true do
-            if _G.__SeigeHeadStatsOn ~= false then
+            if _G.__SeigeHeadStatsOn == true then
                 for plr, _ in pairs(tracked) do
                     if plr.Parent then pcall(refresh, plr) end
                 end
