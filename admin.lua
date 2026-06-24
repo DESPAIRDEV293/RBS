@@ -14391,8 +14391,8 @@ do
         activeFolders[plr] = folder
 
         if auraId == "Stars" then
-            local att = Instance.new("Attachment", hrpPart); att.Parent = folder; att.Parent = hrpPart
-            local em = Instance.new("ParticleEmitter")
+            local att = Instance.new("Attachment", hrpPart)
+            local em = Instance.new("ParticleEmitter", att)
             em.Texture = "rbxasset://textures/particles/sparkles_main.dds"
             em.Rate = 35; em.Lifetime = NumberRange.new(1.2, 1.8)
             em.Speed = NumberRange.new(1, 2); em.Rotation = NumberRange.new(0, 360)
@@ -14403,11 +14403,11 @@ do
                 NumberSequenceKeypoint.new(1, 1),
             })
             em.LightEmission = 0.9
-            em.Parent = att
-            folder:SetAttribute("att", true)
-            att.Parent = folder
-            att.Parent = hrpPart -- keep attachment on hrp; folder owns lifetime via destroy chain
-            em.Parent = att
+            folder.AncestryChanged:Connect(function(_, parent)
+                if not parent then pcall(function() att:Destroy() end) end
+            end)
+
+
 
         elseif auraId == "Embers" then
             local att = Instance.new("Attachment", hrpPart)
