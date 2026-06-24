@@ -22,16 +22,15 @@ export const Route = createFileRoute("/")({
 });
 
 // pre-built deterministic raindrops/droplets so SSR === client
-// Counts trimmed for perf — fewer animated nodes = less paint/composite work.
-const RAIN = Array.from({ length: 70 }, (_, i) => {
+const RAIN = Array.from({ length: 140 }, (_, i) => {
   const seed = (i * 9301 + 49297) % 233280;
   const r = seed / 233280;
   return {
-    left: (i * 7.3) % 100,
+    left: (i * 3.7) % 100,
     delay: -(r * 1.4),
-    duration: 0.5 + ((i * 13) % 7) / 10,
-    opacity: 0.25 + (r * 0.55),
-    height: 40 + ((i * 11) % 60),
+    duration: 0.45 + ((i * 13) % 7) / 10,
+    opacity: 0.25 + (r * 0.6),
+    height: 36 + ((i * 11) % 80),
   };
 });
 
@@ -40,7 +39,30 @@ function hash(n: number, seed: number) {
   let x = Math.sin(n * 9999 + seed * 374761) * 43758.5453;
   return x - Math.floor(x);
 }
-const DROPLETS = Array.from({ length: 35 }, (_, i) => {
+
+// Twinkling stars/sparkles drifting through the storm
+const SPARKLES = Array.from({ length: 60 }, (_, i) => {
+  const r1 = hash(i, 7);
+  const r2 = hash(i, 11);
+  const r3 = hash(i, 13);
+  const r4 = hash(i, 17);
+  return {
+    top: r1 * 100,
+    left: r2 * 100,
+    size: 1.5 + r3 * 2.5,
+    delay: r4 * 6,
+    duration: 3 + r3 * 4,
+  };
+});
+
+// Extra bolts at varied positions for a richer storm
+const BOLTS = [
+  { left: "18%", top: "-2%", width: 110, delay: "0s", height: "55vh" },
+  { left: "72%", top: "-3%", width: 80, delay: "3.1s", height: "48vh" },
+  { left: "48%", top: "-2%", width: 60, delay: "5.6s", height: "38vh" },
+];
+
+const DROPLETS = Array.from({ length: 55 }, (_, i) => {
   const r1 = hash(i, 1);
   const r2 = hash(i, 2);
   const r3 = hash(i, 3);
