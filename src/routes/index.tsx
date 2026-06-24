@@ -630,6 +630,135 @@ function Index() {
         .storm-feature-glow {
           background: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(129,140,248,0.10), transparent 70%);
         }
+
+        /* Aurora mesh — soft drifting color blobs for depth */
+        .storm-aurora {
+          background:
+            radial-gradient(ellipse 50% 40% at 15% 25%, rgba(99,102,241,0.22), transparent 60%),
+            radial-gradient(ellipse 45% 35% at 85% 20%, rgba(56,189,248,0.18), transparent 60%),
+            radial-gradient(ellipse 60% 45% at 50% 80%, rgba(139,92,246,0.18), transparent 65%);
+          mix-blend-mode: screen;
+          filter: blur(40px);
+          animation: storm-aurora-drift 22s ease-in-out infinite alternate;
+        }
+        @keyframes storm-aurora-drift {
+          0%   { transform: translate3d(-2%, -1%, 0) scale(1); opacity: 0.85; }
+          50%  { transform: translate3d(3%, 2%, 0) scale(1.06); opacity: 1; }
+          100% { transform: translate3d(-1%, 1%, 0) scale(1.02); opacity: 0.9; }
+        }
+
+        .storm-clouds-3 {
+          background-image:
+            radial-gradient(ellipse 900px 180px at 40% 8%, rgba(140,150,200,0.32), transparent 60%),
+            radial-gradient(ellipse 700px 150px at 85% 16%, rgba(70,80,130,0.45), transparent 60%);
+          animation: storm-drift-a 120s linear infinite reverse;
+          opacity: 0.35;
+          mix-blend-mode: screen;
+          filter: blur(28px);
+        }
+
+        .storm-vignette {
+          background: radial-gradient(ellipse 90% 70% at 50% 50%, transparent 40%, rgba(0,0,0,0.55) 100%);
+        }
+
+        /* Sparkles — tiny twinkling stars across the storm */
+        .storm-sparkle {
+          position: absolute;
+          border-radius: 50%;
+          background: radial-gradient(circle, #ffffff 0%, rgba(199,210,254,0.9) 40%, transparent 70%);
+          box-shadow: 0 0 6px rgba(199,210,254,0.9), 0 0 14px rgba(129,140,248,0.55);
+          opacity: 0;
+          animation: storm-twinkle ease-in-out infinite;
+          will-change: opacity, transform;
+        }
+        @keyframes storm-twinkle {
+          0%, 100% { opacity: 0; transform: scale(0.6); }
+          50%      { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* Card shimmer — animated gradient border + breathing glow */
+        .storm-card-shimmer {
+          position: relative;
+        }
+        .storm-card-shimmer::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          padding: 1px;
+          background: conic-gradient(
+            from 0deg,
+            rgba(165,180,252,0.0),
+            rgba(165,180,252,0.85),
+            rgba(56,189,248,0.6),
+            rgba(139,92,246,0.7),
+            rgba(165,180,252,0.0)
+          );
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor;
+                  mask-composite: exclude;
+          animation: storm-conic-spin 8s linear infinite;
+          pointer-events: none;
+          opacity: 0.9;
+        }
+        @keyframes storm-conic-spin {
+          to { transform: rotate(360deg); }
+        }
+
+        /* Code block — diagonal sweep highlight */
+        .storm-code-sweep {
+          position: absolute;
+          top: 0; left: -60%;
+          width: 50%; height: 100%;
+          background: linear-gradient(
+            115deg,
+            transparent 0%,
+            rgba(165,180,252,0.0) 30%,
+            rgba(199,210,254,0.18) 50%,
+            rgba(165,180,252,0.0) 70%,
+            transparent 100%
+          );
+          animation: storm-sweep 5.5s ease-in-out infinite;
+        }
+        @keyframes storm-sweep {
+          0%   { transform: translateX(0); }
+          60%  { transform: translateX(360%); }
+          100% { transform: translateX(360%); }
+        }
+
+        /* Scanline across the card */
+        .storm-scanline {
+          background: linear-gradient(180deg, transparent 0%, rgba(165,180,252,0.18) 50%, transparent 100%);
+          height: 2px;
+          top: 0;
+          animation: storm-scan 7s linear infinite;
+          opacity: 0.6;
+        }
+        @keyframes storm-scan {
+          0%   { transform: translateY(0%); opacity: 0; }
+          10%  { opacity: 0.7; }
+          90%  { opacity: 0.7; }
+          100% { transform: translateY(2800%); opacity: 0; }
+        }
+
+        /* Crisper title — breathing glow */
+        .storm-title {
+          animation: storm-title-breathe 5s ease-in-out infinite;
+        }
+        @keyframes storm-title-breathe {
+          0%, 100% { filter: drop-shadow(0 4px 30px rgba(99,102,241,0.25)); }
+          50%      { filter: drop-shadow(0 6px 50px rgba(129,140,248,0.55)); }
+        }
+
+        .storm-low-fx .storm-sparkle,
+        .storm-low-fx .storm-aurora,
+        .storm-low-fx .storm-clouds-3,
+        .storm-low-fx .storm-card-shimmer::before,
+        .storm-low-fx .storm-scanline,
+        .storm-low-fx .storm-code-sweep {
+          display: none !important;
+        }
+        .storm-low-fx .storm-title { animation: none !important; }
       `}</style>
     </div>
   );
