@@ -15,6 +15,7 @@ import { Route as CodeRouteImport } from './routes/code'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicTags_writeRouteImport } from './routes/api/public/tags_write'
 import { Route as ApiPublicTagsRouteImport } from './routes/api/public/tags'
+import { Route as ApiPublicTag_sync_keyRouteImport } from './routes/api/public/tag_sync_key'
 import { Route as ApiPublicTag_groupsRouteImport } from './routes/api/public/tag_groups'
 import { Route as ApiPublicRolesRouteImport } from './routes/api/public/roles'
 import { Route as ApiPublicReanimDotluaRouteImport } from './routes/api/public/reanim[.]lua'
@@ -49,6 +50,11 @@ const ApiPublicTags_writeRoute = ApiPublicTags_writeRouteImport.update({
 const ApiPublicTagsRoute = ApiPublicTagsRouteImport.update({
   id: '/api/public/tags',
   path: '/api/public/tags',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicTag_sync_keyRoute = ApiPublicTag_sync_keyRouteImport.update({
+  id: '/api/public/tag_sync_key',
+  path: '/api/public/tag_sync_key',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicTag_groupsRoute = ApiPublicTag_groupsRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
+  '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
   '/api/public/tags_write': typeof ApiPublicTags_writeRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
+  '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
   '/api/public/tags_write': typeof ApiPublicTags_writeRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
+  '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
   '/api/public/tags_write': typeof ApiPublicTags_writeRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/api/public/reanim.lua'
     | '/api/public/roles'
     | '/api/public/tag_groups'
+    | '/api/public/tag_sync_key'
     | '/api/public/tags'
     | '/api/public/tags_write'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/api/public/reanim.lua'
     | '/api/public/roles'
     | '/api/public/tag_groups'
+    | '/api/public/tag_sync_key'
     | '/api/public/tags'
     | '/api/public/tags_write'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/api/public/reanim.lua'
     | '/api/public/roles'
     | '/api/public/tag_groups'
+    | '/api/public/tag_sync_key'
     | '/api/public/tags'
     | '/api/public/tags_write'
   fileRoutesById: FileRoutesById
@@ -169,6 +181,7 @@ export interface RootRouteChildren {
   ApiPublicReanimDotluaRoute: typeof ApiPublicReanimDotluaRoute
   ApiPublicRolesRoute: typeof ApiPublicRolesRoute
   ApiPublicTag_groupsRoute: typeof ApiPublicTag_groupsRoute
+  ApiPublicTag_sync_keyRoute: typeof ApiPublicTag_sync_keyRoute
   ApiPublicTagsRoute: typeof ApiPublicTagsRoute
   ApiPublicTags_writeRoute: typeof ApiPublicTags_writeRoute
 }
@@ -215,6 +228,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/tags'
       fullPath: '/api/public/tags'
       preLoaderRoute: typeof ApiPublicTagsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/tag_sync_key': {
+      id: '/api/public/tag_sync_key'
+      path: '/api/public/tag_sync_key'
+      fullPath: '/api/public/tag_sync_key'
+      preLoaderRoute: typeof ApiPublicTag_sync_keyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/tag_groups': {
@@ -265,6 +285,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicReanimDotluaRoute: ApiPublicReanimDotluaRoute,
   ApiPublicRolesRoute: ApiPublicRolesRoute,
   ApiPublicTag_groupsRoute: ApiPublicTag_groupsRoute,
+  ApiPublicTag_sync_keyRoute: ApiPublicTag_sync_keyRoute,
   ApiPublicTagsRoute: ApiPublicTagsRoute,
   ApiPublicTags_writeRoute: ApiPublicTags_writeRoute,
 }
