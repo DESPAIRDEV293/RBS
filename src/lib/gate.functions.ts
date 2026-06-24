@@ -1,5 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 
+export const getMyCode = createServerFn({ method: "GET" }).handler(async () => {
+  const {
+    getCookieValue,
+    setCookieHeader,
+    codeForDevice,
+    randomId,
+    DEVICE_COOKIE,
+    COOKIE_MAX_AGE,
+  } = await import("./gate.server");
+  let id = getCookieValue(DEVICE_COOKIE);
+  if (!id || id.length < 8) {
+    id = randomId();
+    setCookieHeader(DEVICE_COOKIE, id, COOKIE_MAX_AGE);
+  }
+  const code = await codeForDevice(id);
+  return { code };
+});
+
 export const isUnlocked = createServerFn({ method: "GET" }).handler(async () => {
   const {
     getCookieValue,
