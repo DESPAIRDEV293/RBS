@@ -8653,6 +8653,49 @@ button(pgConfig, "Reset bar colors", function()
 end)
 
 
+-- ── Reanim GUI overrides (applied when !reanim is launched, and live if open)
+section(pgConfig, "Reanim GUI")
+label(pgConfig, "Tunes the Reanim panel translucency and color tokens. Title bar always shows your username.")
+
+local function _applyReanim()
+    if _G.__SeigeReanimApplyCfg then pcall(_G.__SeigeReanimApplyCfg) end
+end
+local function _ensureReanimCfg()
+    _G.__SeigeReanimCfg = _G.__SeigeReanimCfg or { colors = {} }
+    _G.__SeigeReanimCfg.colors = _G.__SeigeReanimCfg.colors or {}
+    return _G.__SeigeReanimCfg
+end
+
+local _rc = _ensureReanimCfg()
+slider(pgConfig, "Reanim panel translucency", 0, 0.9, _rc.opacity or 0, function(v)
+    _ensureReanimCfg().opacity = v
+    _applyReanim()
+    if saveCfg then pcall(saveCfg) end
+end)
+
+local function _reanimColorBox(lbl, key)
+    return textbox(pgConfig, lbl, function(v)
+        local c = hexToColor(v)
+        local cfg = _ensureReanimCfg()
+        cfg.colors[key] = v and v ~= "" and v or nil
+        _applyReanim()
+        if saveCfg then pcall(saveCfg) end
+        notify(lbl .. (c and " updated" or " cleared"), "good")
+    end)
+end
+_reanimColorBox("Panel background hex",  "PANEL")
+_reanimColorBox("Panel stroke hex",      "STROKE")
+_reanimColorBox("Accent hex",            "ACCENT")
+_reanimColorBox("Card hex",              "CARD")
+_reanimColorBox("Text hex",              "TEXT")
+button(pgConfig, "Reset Reanim colors / opacity", function()
+    _G.__SeigeReanimCfg = { colors = {}, opacity = 0 }
+    _applyReanim()
+    if saveCfg then pcall(saveCfg) end
+    notify("Reanim GUI reset", "good")
+end)
+
+
 
 section(pgConfig, "World Image (Skybox)")
 label(pgConfig, "6 cubed faces — paste a Roblox asset id/URL, or a local image file path from your PC")

@@ -33,6 +33,28 @@ local C = {
 	GLOW   = Color3.fromRGB(165,  75, 255),
 }
 
+-- Apply any seige-admin overrides (set by admin.lua Config panel before load).
+-- _G.__SeigeReanimCfg = { opacity = 0..1, colors = { PANEL = "#aabbcc", ... } }
+do
+	local cfg = rawget(_G, "__SeigeReanimCfg")
+	if type(cfg) == "table" and type(cfg.colors) == "table" then
+		local function hex(s)
+			if typeof(s) == "Color3" then return s end
+			if type(s) ~= "string" then return nil end
+			local h = s:gsub("^#", "")
+			if #h ~= 6 then return nil end
+			local r = tonumber(h:sub(1,2), 16); local g = tonumber(h:sub(3,4), 16); local b = tonumber(h:sub(5,6), 16)
+			if r and g and b then return Color3.fromRGB(r, g, b) end
+		end
+		for k, v in pairs(cfg.colors) do
+			local c = hex(v); if c and C[k] ~= nil then C[k] = c end
+		end
+	end
+end
+
+-- Tracked panels so the admin Config panel can retune translucency live.
+_G.__SeigeReanimPanels = _G.__SeigeReanimPanels or {}
+
 local font = Enum.Font.GothamSemibold
 
 local function tween(obj, info, goals)
@@ -236,6 +258,12 @@ local function makeFloatingPanel(w, h, anchorX, anchorY)
 	pStroke.Color = C.STROKE ; pStroke.Thickness = 1
 	pStroke.Transparency = 0.5 ; pStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 	_fixedPanels[#_fixedPanels + 1] = pnl
+	_G.__SeigeReanimPanels[#_G.__SeigeReanimPanels + 1] = pnl
+	-- apply current opacity setting (if any)
+	local _cfg = rawget(_G, "__SeigeReanimCfg")
+	if _cfg and type(_cfg.opacity) == "number" then
+		pnl.BackgroundTransparency = math.clamp(_cfg.opacity, 0, 0.95)
+	end
 	local pnlUIScale = Instance.new("UIScale", pnl)
 	pnlUIScale.Scale = _G._getScale()
 	_G._floatingPanelScales[#_G._floatingPanelScales + 1] = pnlUIScale
@@ -958,9 +986,11 @@ _initReanimPanel = function()
 		_G._reanimPanel = makeFloatingPanel(340, 380, 0.5, 0.35)
 		_G._reanimPanel.Name = "ROT_Panel"
 
-		local reanimBar = makePanelTitleBar(_G._reanimPanel, "ROT", function()
+		local _titleName = (lp and (lp.DisplayName or lp.Name)) or "ROT"
+		local reanimBar = makePanelTitleBar(_G._reanimPanel, _titleName, function()
 			_G._reanimPanel.Visible = false
 		end)
+		_G._reanimTitleBar = reanimBar
 		_cs.makePanelDraggable(_G._reanimPanel, reanimBar)
 
 		local STATUS_Y = 46
@@ -2127,3 +2157,43 @@ _G.loadReanimAPI(function()
 	_initReanimPanel()
 	_G._reanimPanel.Visible = true
 end)
+
+-- Live retune entrypoint for the admin Config panel. Reads _G.__SeigeReanimCfg
+-- and re-applies opacity + colors to every tracked panel without a reload.
+_G.__SeigeReanimApplyCfg = function()
+	local cfg = rawget(_G, "__SeigeReanimCfg") or {}
+	local function hex(s)
+		if typeof(s) == "Color3" then return s end
+		if type(s) ~= "string" then return nil end
+		local h = s:gsub("^#", "")
+		if #h ~= 6 then return nil end
+		local r = tonumber(h:sub(1,2), 16); local g = tonumber(h:sub(3,4), 16); local b = tonumber(h:sub(5,6), 16)
+		if r and g and b then return Color3.fromRGB(r, g, b) end
+	end
+	if type(cfg.colors) == "table" then
+		for k, v in pairs(cfg.colors) do
+			local c = hex(v); if c and C[k] ~= nil then C[k] = c end
+		end
+	end
+	local op = (type(cfg.opacity) == "number") and math.clamp(cfg.opacity, 0, 0.95) or nil
+	for _, pnl in ipairs(_G.__SeigeReanimPanels or {}) do
+		if pnl and pnl.Parent then
+			if op ~= nil then pnl.BackgroundTransparency = op end
+			if cfg.colors and cfg.colors.PANEL then
+				local c = hex(cfg.colors.PANEL); if c then pnl.BackgroundColor3 = c end
+			end
+			-- recolor stroke if PANEL stroke present
+			local st = pnl:FindFirstChildOfClass("UIStroke")
+			if st and cfg.colors and cfg.colors.STROKE then
+				local c = hex(cfg.colors.STROKE); if c then st.Color = c end
+			end
+		end
+	end
+	-- Refresh title to current display name in case it changed.
+	pcall(function()
+		if _G._reanimTitleBar then
+			local lbl = _G._reanimTitleBar:FindFirstChildOfClass("TextLabel")
+			if lbl then lbl.Text = (lp and (lp.DisplayName or lp.Name)) or lbl.Text end
+		end
+	end)
+end
