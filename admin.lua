@@ -4016,6 +4016,8 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     -- Toggle for the ring/outline around the profile avatar in the pill
     local AVATAR_OUTLINE_OPTS = { "On", "Off" }
     local avOutlineDD = dropdown(pgTags, "Profile outline", AVATAR_OUTLINE_OPTS, function(v) form.avatarOutline = v end)
+    local tbAvOutlineColor = field(pgTags, "Profile outline color (hex — blank = auto)",
+                                   "avatarOutlineColor", "#ffffff   or   blank for auto")
 
     -- Badge chip (right-side "OWNER/DEV/..." pill). Default OFF; turn ON per-tag.
     local SHOW_CHIP_OPTS = { "Off", "On" }
