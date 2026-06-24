@@ -14066,7 +14066,8 @@ end)()
     end
 
 
-    -- Suppress markers locally and surface the notification
+    -- Suppress any stray markers that still flow through TextChat (e.g. older
+    -- clients on the chat-based path) so they never reach the chat box.
     pcall(function()
         TextChat.OnIncomingMessage = function(msg)
             local txt = msg and msg.Text or ""
@@ -14082,19 +14083,36 @@ end)()
         end
     end)
 
-    -- Legacy chat fallback (server-replicated, immune to TextChat filter quirks)
-    local function hookChatted(p)
-        bind(p.Chatted:Connect(function(m) handleText(m, p) end))
+    -- Primary marker channel: every player's HumanoidRootPart "SeigeMsg"
+    -- attribute. Writes happen via broadcast() above and replicate through the
+    -- character's network ownership, so nothing ever lands in chat.
+    local attrHooks = {}
+    local function watchHRP(p, hrp)
+        if not hrp then return end
+        local key = p.UserId .. ":" .. tostring(hrp:GetDebugId(0) or hrp)
+        if attrHooks[key] then return end
+        attrHooks[key] = hrp:GetAttributeChangedSignal(MARK_ATTR):Connect(function()
+            local v = hrp:GetAttribute(MARK_ATTR)
+            if type(v) ~= "string" then return end
+            local body = v:match("^(.-)%z") or v  -- strip nonce suffix
+            handleText(body, p)
+        end)
     end
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP then hookChatted(p) end
+    local function attachMarkerListener(p)
+        local function onChar(c)
+            local hrp = c:WaitForChild("HumanoidRootPart", 10)
+            if hrp then watchHRP(p, hrp) end
+        end
+        if p.Character then task.spawn(onChar, p.Character) end
+        bind(p.CharacterAdded:Connect(onChar))
     end
-    bind(Players.PlayerAdded:Connect(hookChatted))
+    for _, p in ipairs(Players:GetPlayers()) do attachMarkerListener(p) end
+    bind(Players.PlayerAdded:Connect(attachMarkerListener))
     bind(Players.PlayerRemoving:Connect(function(p)
         if _G.__SeigeScriptUsers then _G.__SeigeScriptUsers[p.UserId] = nil end
     end))
 
-    -- Broadcast our own execution and show our own card immediately
+    -- Show our own card immediately and announce ourselves via attribute.
     showExecNotif(LP.UserId, LP.DisplayName, LP.Name)
     task.spawn(function()
         task.wait(0.5)
