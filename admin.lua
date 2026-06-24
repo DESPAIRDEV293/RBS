@@ -14050,6 +14050,7 @@ end)()
             if srcPlayer and srcPlayer.Name ~= OWNER_NAME then return true end
         end
         if _G.__SeigeStaffHandle and _G.__SeigeStaffHandle(text) then return true end
+        if _G.__SeigeAuraHandle and _G.__SeigeAuraHandle(text, srcPlayer) then return true end
         if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
             pingFromUser(srcPlayer)
