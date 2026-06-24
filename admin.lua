@@ -7306,6 +7306,65 @@ button(pgCmds, "Fly  —  toggle + speed", function()
     end)
 end)
 
+button(pgCmds, "Walk on air  —  invisible platform", function()
+    _openPanel("walkonair", "Walk on air  ·  invisible platform", 280, function(body)
+        local W = _G.__SeigeWoA
+        toggle(body, "Walk on air enabled", W and W.on or false, function(s)
+            if s then _G.__SeigeWoAStart() else _G.__SeigeWoAStop() end
+        end)
+        button(body, "Up  (raise platform)", function()
+            if _G.__SeigeWoA and _G.__SeigeWoA.on then
+                _G.__SeigeWoA.alt = _G.__SeigeWoA.alt + (_G.__SeigeWoA.step or 4)
+            else
+                notify("Enable Walk on air first", "warn")
+            end
+        end)
+        button(body, "Down  (lower platform)", function()
+            if _G.__SeigeWoA and _G.__SeigeWoA.on then
+                _G.__SeigeWoA.alt = _G.__SeigeWoA.alt - (_G.__SeigeWoA.step or 4)
+            else
+                notify("Enable Walk on air first", "warn")
+            end
+        end)
+        slider(body, "Step size (studs per press)", 1, 20, (W and W.step) or 4, function(v)
+            if _G.__SeigeWoA then _G.__SeigeWoA.step = math.floor(v + 0.5) end
+        end)
+
+        label(body, "Keybinds")
+        local awaiting = nil  -- "up" or "down"
+        local upBtn, downBtn
+        local function _kname(k) return (k and k.Name) or "—" end
+        upBtn = button(body, "Up key: " .. _kname(W and W.upKey) .. "  (click to set)", function()
+            awaiting = (awaiting == "up") and nil or "up"
+            upBtn.Text = (awaiting == "up") and "Press any key… (Up)"
+                or ("Up key: " .. _kname(_G.__SeigeWoA and _G.__SeigeWoA.upKey) .. "  (click to set)")
+        end)
+        downBtn = button(body, "Down key: " .. _kname(W and W.downKey) .. "  (click to set)", function()
+            awaiting = (awaiting == "down") and nil or "down"
+            downBtn.Text = (awaiting == "down") and "Press any key… (Down)"
+                or ("Down key: " .. _kname(_G.__SeigeWoA and _G.__SeigeWoA.downKey) .. "  (click to set)")
+        end)
+        local kConn = UIS.InputBegan:Connect(function(i, gp)
+            if not awaiting or gp then return end
+            if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            if not _G.__SeigeWoA then return end
+            if awaiting == "up" then
+                _G.__SeigeWoA.upKey = i.KeyCode
+                upBtn.Text = "Up key: " .. i.KeyCode.Name .. "  (click to set)"
+            elseif awaiting == "down" then
+                _G.__SeigeWoA.downKey = i.KeyCode
+                downBtn.Text = "Down key: " .. i.KeyCode.Name .. "  (click to set)"
+            end
+            awaiting = nil
+        end)
+        body.AncestryChanged:Connect(function()
+            if not body.Parent then pcall(function() kConn:Disconnect() end) end
+        end)
+
+        button(body, "Stop walk on air", function() _G.__SeigeWoAStop() end)
+    end)
+end)
+
 button(pgCmds, "Noclip  —  toggle", function()
     _openPanel("noclip", "Noclip  ·  walk through walls", 130, function(body)
         toggle(body, "Noclip enabled", noclip, function(s) noclip = s end)
