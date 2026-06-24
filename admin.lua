@@ -6808,6 +6808,7 @@ local HELP_CMDS = {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
         { "!track <player> / !untrack", "Through-wall arrow + live distance to a player" },
         { "!cmute <player> / !cunmute <player>", "Locally silence a player's chat bubbles & voice" },
+        { "!hide <player> / !unhide <player>", "Locally hide a player's character from your view" },
         { "!age <player>", "Quick account age, premium status, and UserId" },
         { "!countdown <secs> <msg>", "Broadcast a live countdown overlay to every script user" },
     }},
