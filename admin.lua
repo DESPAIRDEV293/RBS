@@ -2459,6 +2459,7 @@ function TagDB:load()
     end
     self.entries = entries
     self:_cacheWrite(entries)
+    self:hydrateLocalFromDisk(); self:mergeLocal()
     print(("[Tags] GitHub DB loaded — %d entries"):format((function() local n=0; for _ in pairs(entries) do n=n+1 end; return n end)()))
 end
 
