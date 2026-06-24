@@ -14282,6 +14282,153 @@ _G.__AdminCleanup = function()
     _G.__AdminUI = nil
 end
 
+------------------------------------------------------- PLAYER HEAD STAT TAGS (ping + ip meter)
+do
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local Stats = game:GetService("Stats")
+    local lp = Players.LocalPlayer
+
+    -- Roblox does NOT expose other players' real IPs to clients (security).
+    -- We synthesize a stable display IP from the UserId so the meter shows
+    -- consistent values per-player without leaking anything.
+    local function fakeIp(uid)
+        local n = tonumber(uid) or 0
+        local a = 10 + (n % 245)
+        local b = (math.floor(n / 256)) % 256
+        local c = (math.floor(n / 65536)) % 256
+        local d = (math.floor(n / 16777216)) % 256
+        return string.format("%d.%d.%d.%d", a, b, c, d)
+    end
+
+    local function readPing(plr)
+        if plr == lp then
+            local ok, v = pcall(function()
+                return Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+            end)
+            if ok and v then return math.floor(v) end
+        end
+        local ok, v = pcall(function() return plr:GetNetworkPing() * 1000 end)
+        if ok and v then return math.floor(v) end
+        return 0
+    end
+
+    local function pingColor(ms)
+        if ms < 80 then return Color3.fromRGB(120, 255, 140)
+        elseif ms < 160 then return Color3.fromRGB(240, 220, 110)
+        elseif ms < 260 then return Color3.fromRGB(255, 170, 90)
+        else return Color3.fromRGB(255, 90, 100) end
+    end
+
+    local tracked = {}
+    _G.__SeigeHeadStatsCleanup = function()
+        for _, t in pairs(tracked) do pcall(function() t.bg:Destroy() end) end
+        tracked = {}
+    end
+
+    local function ensureGui(plr)
+        if tracked[plr] then return tracked[plr] end
+        local char = plr.Character or plr.CharacterAdded:Wait()
+        local head = char:FindFirstChild("Head") or char:WaitForChild("Head", 5)
+        if not head then return nil end
+
+        local bg = Instance.new("BillboardGui")
+        bg.Name = "SeigeHeadStat"
+        bg.Adornee = head
+        bg.AlwaysOnTop = true
+        bg.Size = UDim2.new(0, 150, 0, 38)
+        bg.StudsOffset = Vector3.new(0, 3.2, 0)
+        bg.MaxDistance = 250
+        bg.LightInfluence = 0
+        bg.ResetOnSpawn = false
+
+        local card = Instance.new("Frame", bg)
+        card.Size = UDim2.new(1, 0, 1, 0)
+        card.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
+        card.BackgroundTransparency = 0.18
+        card.BorderSizePixel = 0
+        local cc = Instance.new("UICorner", card); cc.CornerRadius = UDim.new(0, 6)
+        local st = Instance.new("UIStroke", card)
+        st.Color = Color3.fromRGB(80, 220, 255); st.Thickness = 1; st.Transparency = 0.4
+
+        local pingLbl = Instance.new("TextLabel", card)
+        pingLbl.BackgroundTransparency = 1
+        pingLbl.Size = UDim2.new(1, -10, 0, 16)
+        pingLbl.Position = UDim2.new(0, 5, 0, 2)
+        pingLbl.Font = Enum.Font.GothamBold
+        pingLbl.TextSize = 12
+        pingLbl.TextXAlignment = Enum.TextXAlignment.Left
+        pingLbl.TextColor3 = Color3.fromRGB(230, 240, 255)
+        pingLbl.Text = "PING --"
+
+        local bar = Instance.new("Frame", card)
+        bar.Size = UDim2.new(1, -10, 0, 3)
+        bar.Position = UDim2.new(0, 5, 0, 17)
+        bar.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+        bar.BorderSizePixel = 0
+        local bc = Instance.new("UICorner", bar); bc.CornerRadius = UDim.new(1, 0)
+        local fill = Instance.new("Frame", bar)
+        fill.Size = UDim2.new(0, 0, 1, 0)
+        fill.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
+        fill.BorderSizePixel = 0
+        local fc = Instance.new("UICorner", fill); fc.CornerRadius = UDim.new(1, 0)
+
+        local ipLbl = Instance.new("TextLabel", card)
+        ipLbl.BackgroundTransparency = 1
+        ipLbl.Size = UDim2.new(1, -10, 0, 14)
+        ipLbl.Position = UDim2.new(0, 5, 0, 22)
+        ipLbl.Font = Enum.Font.Code
+        ipLbl.TextSize = 11
+        ipLbl.TextXAlignment = Enum.TextXAlignment.Left
+        ipLbl.TextColor3 = Color3.fromRGB(150, 200, 255)
+        ipLbl.Text = "IP " .. fakeIp(plr.UserId)
+
+        bg.Parent = game:GetService("CoreGui")
+
+        local entry = { bg = bg, pingLbl = pingLbl, fill = fill, plr = plr }
+        tracked[plr] = entry
+        return entry
+    end
+
+    local function refresh(plr)
+        local t = tracked[plr]; if not t or not t.bg.Parent then return end
+        local ms = readPing(plr)
+        t.pingLbl.Text = string.format("PING %d ms", ms)
+        local pct = math.clamp(ms / 400, 0.04, 1)
+        local col = pingColor(ms)
+        t.pingLbl.TextColor3 = col
+        t.fill.BackgroundColor3 = col
+        t.fill:TweenSize(UDim2.new(pct, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.4, true)
+    end
+
+    local function attach(plr)
+        if plr == lp then return end -- don't show above own head
+        task.spawn(function()
+            ensureGui(plr)
+            plr.CharacterAdded:Connect(function()
+                if tracked[plr] then pcall(function() tracked[plr].bg:Destroy() end); tracked[plr] = nil end
+                task.wait(0.5)
+                ensureGui(plr)
+            end)
+        end)
+    end
+
+    for _, p in ipairs(Players:GetPlayers()) do attach(p) end
+    Players.PlayerAdded:Connect(attach)
+    Players.PlayerRemoving:Connect(function(p)
+        if tracked[p] then pcall(function() tracked[p].bg:Destroy() end); tracked[p] = nil end
+    end)
+
+    task.spawn(function()
+        while true do
+            for plr, _ in pairs(tracked) do
+                if plr.Parent then pcall(refresh, plr) end
+            end
+            task.wait(1.2)
+        end
+    end)
+end
+
 ------------------------------------------------------- READY
 notify("seige.lol loaded · " .. ADMIN_BUILD, "good")
 notify("Press F2 to toggle UI · F6 for command bar", "good")
