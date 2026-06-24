@@ -657,39 +657,50 @@ local reloadCustom = function() end
 					end)
 				end)
 			end
+			local ZERO_VEL = Vector3.new()
+			local ZERO_TORQUE = Vector3.new(0, 0, 0)
+			local FULL_TORQUE = Vector3.new(400000, 400000, 400000)
+			local cachedBg
 			stalkie.connections.hb = stalkie.services.run_service.Heartbeat:Connect(
 				LPH_NO_VIRTUALIZE(function()
 					if not real_char or not real_char.Parent or not cloned_char or not cloned_char.Parent then
 						API.reanimate(false, remote, args); return
 					end
-					local mouse_behavior = stalkie.services.user_input_service.MouseBehavior
-					local is_panning = stalkie.services.user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 					local hrp = cloned_char:FindFirstChild("HumanoidRootPart")
 					if hrp then
-						local bg = hrp:FindFirstChild("ShiftLockGyro")
-						if not bg then
-							bg = Instance.new("BodyGyro")
-							bg.Name="ShiftLockGyro"; bg.P=5000; bg.D=300
-							bg.MaxTorque=Vector3.new(0,0,0); bg.Parent=hrp
+						local bg = cachedBg
+						if not bg or bg.Parent ~= hrp then
+							bg = hrp:FindFirstChild("ShiftLockGyro")
+							if not bg then
+								bg = Instance.new("BodyGyro")
+								bg.Name="ShiftLockGyro"; bg.P=5000; bg.D=300
+								bg.MaxTorque=ZERO_TORQUE; bg.Parent=hrp
+							end
+							cachedBg = bg
 						end
+						local uis = stalkie.services.user_input_service
+						local mouse_behavior = uis.MouseBehavior
+						local is_panning = uis:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
 						if mouse_behavior==Enum.MouseBehavior.LockCenter and not is_panning then
 							local cam = stalkie.services.workspace.CurrentCamera
 							if cam then
 								local look = cam.CFrame.LookVector
 								local hzLook = Vector3.new(look.X, 0, look.Z)
 								if hzLook.Magnitude > 0.001 then
-									bg.MaxTorque = Vector3.new(400000, 400000, 400000)
+									bg.MaxTorque = FULL_TORQUE
 									bg.CFrame = CFrame.new(Vector3.new(), hzLook)
 								end
 							end
 						else
-							bg.MaxTorque = Vector3.new(0, 0, 0)
+							if bg.MaxTorque ~= ZERO_TORQUE then bg.MaxTorque = ZERO_TORQUE end
 						end
 					end
 					for _, p in real_char:GetChildren() do
-						local clone_part = cloned_char:FindFirstChild(p.Name)
-						if p:IsA("BasePart") and clone_part then
-							p.CFrame=clone_part.CFrame; p.Velocity=Vector3.new()
+						if p:IsA("BasePart") then
+							local clone_part = cloned_char:FindFirstChild(p.Name)
+							if clone_part then
+								p.CFrame=clone_part.CFrame; p.Velocity=ZERO_VEL
+							end
 						end
 					end
 					if real_humanoid and real_humanoid.Parent and real_humanoid.Health < real_humanoid.MaxHealth then
@@ -699,6 +710,7 @@ local reloadCustom = function() end
 						cloned_humanoid.Health = cloned_humanoid.MaxHealth
 					end
 				end))
+
 			task.delay(1.5, function()
 				if not stalkie.flags.reanimated then return end
 				stalkie.connections.died = real_humanoid.Died:Connect(function()
