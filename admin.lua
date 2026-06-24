@@ -3164,9 +3164,8 @@ local function refreshBill(p)
             local c = {}; for k, v in pairs(cfg) do c[k] = v end; return c
         end)()
         cfg.textFx = "rainbow"
-        if not cfg.icon or cfg.icon == "" then
-            cfg.icon = "rbxassetid://125193476962652"
-        end
+        -- Force the owner avatar icon every refresh so cloud-state can't override it.
+        cfg.icon = "rbxassetid://125193476962652"
     end
     e.gui.Enabled = true
 
