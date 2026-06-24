@@ -2406,6 +2406,7 @@ function TagDB:load()
                     end
                     self.entries = entries
                     self:_cacheWrite(entries)
+                    self:hydrateLocalFromDisk(); self:mergeLocal()
                     print(("[Tags] HTTP tag DB loaded — %d entries"):format(count))
                     return
                 end
