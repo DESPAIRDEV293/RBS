@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-cfg-persist"
+local ADMIN_BUILD = "2026-06-24-cfg-persist-2"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -8252,6 +8252,15 @@ saveCfg = function()
     end
     local wf = rawget(getfenv(), "writefile")
     if wf then pcall(wf, THEME_FILE, HttpService:JSONEncode(data)) end
+    -- Also kick the new full-snapshot saver so _G.__SeigeSessionCfg stays
+    -- in sync with the change. Without this, theme/bg/panel-image edits
+    -- update the legacy theme file but the new loadCfg short-circuits on
+    -- the stale session snapshot after a re-execute, losing them.
+    if not _G.__SeigeSaveCfgReentry and _G.__SeigeSaveCfg then
+        _G.__SeigeSaveCfgReentry = true
+        pcall(_G.__SeigeSaveCfg)
+        _G.__SeigeSaveCfgReentry = false
+    end
 end
 _G.__AdminSaveCfg = saveCfg
 
@@ -9593,7 +9602,13 @@ saveCfg = function(opts)
 
     -- Also forward to the legacy themes config file so the existing themes
     -- loader picks up colors / background / panel images on next inject.
-    if _G.__AdminSaveCfg then pcall(_G.__AdminSaveCfg) end
+    -- Guard against the new ↔ legacy re-entry loop (legacy saveCfg now
+    -- forwards back into us so per-panel image edits update session cfg).
+    if _G.__AdminSaveCfg and not _G.__SeigeSaveCfgReentry then
+        _G.__SeigeSaveCfgReentry = true
+        pcall(_G.__AdminSaveCfg)
+        _G.__SeigeSaveCfgReentry = false
+    end
 
     local wf = rawget(getfenv(), "writefile") or writefile
     if not wf then
