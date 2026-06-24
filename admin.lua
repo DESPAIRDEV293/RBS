@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-reanim-revert"
+local ADMIN_BUILD = "2026-06-24-headtags-sleek"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -14361,105 +14361,111 @@ do
     end
 
     local tracked = {}
+    local conns = {} -- [plr] = {CharacterAdded connection}
+
+    local function destroyFor(plr)
+        local t = tracked[plr]
+        if t then pcall(function() t.bg:Destroy() end); tracked[plr] = nil end
+    end
+
     _G.__SeigeHeadStatsCleanup = function()
-        for _, t in pairs(tracked) do pcall(function() t.bg:Destroy() end) end
+        for plr, _ in pairs(tracked) do destroyFor(plr) end
         tracked = {}
     end
 
     local function ensureGui(plr)
-        if tracked[plr] then return tracked[plr] end
+        if _G.__SeigeHeadStatsOn == false then return nil end
+        if tracked[plr] and tracked[plr].bg.Parent then return tracked[plr] end
+        destroyFor(plr)
         local char = plr.Character or plr.CharacterAdded:Wait()
         local head = char:FindFirstChild("Head") or char:WaitForChild("Head", 5)
         if not head then return nil end
+
+        -- remove any stray prior tag on this head (defensive against duplicates)
+        for _, c in ipairs(head:GetChildren()) do
+            if c.Name == "SeigeHeadStat" then pcall(function() c:Destroy() end) end
+        end
 
         local bg = Instance.new("BillboardGui")
         bg.Name = "SeigeHeadStat"
         bg.Adornee = head
         bg.AlwaysOnTop = true
-        bg.Size = UDim2.new(0, 150, 0, 38)
-        bg.StudsOffset = Vector3.new(0, 3.2, 0)
-        bg.MaxDistance = 250
+        bg.Size = UDim2.new(0, 96, 0, 22)
+        bg.StudsOffset = Vector3.new(0, 2.7, 0)
+        bg.MaxDistance = 220
         bg.LightInfluence = 0
         bg.ResetOnSpawn = false
 
         local card = Instance.new("Frame", bg)
         card.Size = UDim2.new(1, 0, 1, 0)
-        card.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
-        card.BackgroundTransparency = 0.18
+        card.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
+        card.BackgroundTransparency = 0.22
         card.BorderSizePixel = 0
-        local cc = Instance.new("UICorner", card); cc.CornerRadius = UDim.new(0, 6)
+        local cc = Instance.new("UICorner", card); cc.CornerRadius = UDim.new(1, 0)
         local st = Instance.new("UIStroke", card)
-        st.Color = Color3.fromRGB(80, 220, 255); st.Thickness = 1; st.Transparency = 0.4
+        st.Color = Color3.fromRGB(80, 220, 255); st.Thickness = 1; st.Transparency = 0.55
+
+        local dot = Instance.new("Frame", card)
+        dot.Size = UDim2.new(0, 6, 0, 6)
+        dot.Position = UDim2.new(0, 7, 0.5, -3)
+        dot.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
+        dot.BorderSizePixel = 0
+        local dc = Instance.new("UICorner", dot); dc.CornerRadius = UDim.new(1, 0)
 
         local pingLbl = Instance.new("TextLabel", card)
         pingLbl.BackgroundTransparency = 1
-        pingLbl.Size = UDim2.new(1, -10, 0, 16)
-        pingLbl.Position = UDim2.new(0, 5, 0, 2)
+        pingLbl.Size = UDim2.new(0, 34, 1, 0)
+        pingLbl.Position = UDim2.new(0, 17, 0, 0)
         pingLbl.Font = Enum.Font.GothamBold
-        pingLbl.TextSize = 12
+        pingLbl.TextSize = 11
         pingLbl.TextXAlignment = Enum.TextXAlignment.Left
         pingLbl.TextColor3 = Color3.fromRGB(230, 240, 255)
-        pingLbl.Text = "PING --"
-
-        local bar = Instance.new("Frame", card)
-        bar.Size = UDim2.new(1, -10, 0, 3)
-        bar.Position = UDim2.new(0, 5, 0, 17)
-        bar.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
-        bar.BorderSizePixel = 0
-        local bc = Instance.new("UICorner", bar); bc.CornerRadius = UDim.new(1, 0)
-        local fill = Instance.new("Frame", bar)
-        fill.Size = UDim2.new(0, 0, 1, 0)
-        fill.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
-        fill.BorderSizePixel = 0
-        local fc = Instance.new("UICorner", fill); fc.CornerRadius = UDim.new(1, 0)
+        pingLbl.Text = "--"
 
         local nameLbl = Instance.new("TextLabel", card)
         nameLbl.BackgroundTransparency = 1
-        nameLbl.Size = UDim2.new(1, -10, 0, 14)
-        nameLbl.Position = UDim2.new(0, 5, 0, 22)
+        nameLbl.Size = UDim2.new(1, -55, 1, 0)
+        nameLbl.Position = UDim2.new(0, 52, 0, 0)
         nameLbl.Font = Enum.Font.GothamMedium
-        nameLbl.TextSize = 11
+        nameLbl.TextSize = 10
         nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-        nameLbl.TextColor3 = Color3.fromRGB(200, 220, 255)
+        nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
+        nameLbl.TextColor3 = Color3.fromRGB(190, 205, 230)
         nameLbl.Text = "@" .. plr.Name
 
         bg.Parent = game:GetService("CoreGui")
 
         samples[plr] = samples[plr] or {}
-        local entry = { bg = bg, pingLbl = pingLbl, fill = fill, plr = plr }
+        local entry = { bg = bg, pingLbl = pingLbl, dot = dot, plr = plr }
         tracked[plr] = entry
         return entry
     end
 
-
     local function refresh(plr)
         local t = tracked[plr]; if not t or not t.bg.Parent then return end
         local ms = readPing(plr)
-        t.pingLbl.Text = string.format("PING %d ms", ms)
-        local pct = math.clamp(ms / 400, 0.04, 1)
         local col = pingColor(ms)
+        t.pingLbl.Text = tostring(ms) .. "ms"
         t.pingLbl.TextColor3 = col
-        t.fill.BackgroundColor3 = col
-        t.fill:TweenSize(UDim2.new(pct, 0, 1, 0), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.4, true)
+        t.dot.BackgroundColor3 = col
     end
 
     local function attach(plr)
-        if plr == lp then return end -- never show above own head
+        if plr == lp then return end
         if _G.__SeigeHeadStatsOn == false then return end
-        task.spawn(function()
+        if conns[plr] then return end -- already attached, prevent duplicate handlers
+        conns[plr] = plr.CharacterAdded:Connect(function()
+            destroyFor(plr)
+            if _G.__SeigeHeadStatsOn == false then return end
+            task.wait(0.5)
             ensureGui(plr)
-            plr.CharacterAdded:Connect(function()
-                if tracked[plr] then pcall(function() tracked[plr].bg:Destroy() end); tracked[plr] = nil end
-                if _G.__SeigeHeadStatsOn == false then return end
-                task.wait(0.5)
-                ensureGui(plr)
-            end)
         end)
+        task.spawn(function() ensureGui(plr) end)
     end
 
     _G.__SeigeHeadStatsRebuild = function()
         for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= lp and not tracked[p] then attach(p) end
+            if p ~= lp then attach(p) end
         end
     end
 
@@ -14468,12 +14474,11 @@ do
     end
     Players.PlayerAdded:Connect(attach)
     Players.PlayerRemoving:Connect(function(p)
-        if tracked[p] then pcall(function() tracked[p].bg:Destroy() end); tracked[p] = nil end
+        destroyFor(p)
+        if conns[p] then pcall(function() conns[p]:Disconnect() end); conns[p] = nil end
         samples[p] = nil
     end)
 
-    -- Replication-interval sampler (runs every Heartbeat so we catch every
-    -- server tick that nudges the player's character position).
     RunService.Heartbeat:Connect(function()
         for plr, _ in pairs(tracked) do
             if plr.Parent then pcall(sampleTick, plr) end
@@ -14482,8 +14487,10 @@ do
 
     task.spawn(function()
         while true do
-            for plr, _ in pairs(tracked) do
-                if plr.Parent then pcall(refresh, plr) end
+            if _G.__SeigeHeadStatsOn ~= false then
+                for plr, _ in pairs(tracked) do
+                    if plr.Parent then pcall(refresh, plr) end
+                end
             end
             task.wait(0.8)
         end
