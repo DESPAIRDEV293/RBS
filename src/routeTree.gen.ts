@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as PastebinKeyRouteImport } from './routes/pastebin-key'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicTagsRouteImport } from './routes/api/public/tags'
+import { Route as ApiPublicRolesRouteImport } from './routes/api/public/roles'
 import { Route as ApiPublicReanimDotluaRouteImport } from './routes/api/public/reanim[.]lua'
 import { Route as ApiPublicPastebinRouteImport } from './routes/api/public/pastebin'
 import { Route as ApiPublicAdminDotluaRouteImport } from './routes/api/public/admin[.]lua'
@@ -29,6 +30,11 @@ const IndexRoute = IndexRouteImport.update({
 const ApiPublicTagsRoute = ApiPublicTagsRouteImport.update({
   id: '/api/public/tags',
   path: '/api/public/tags',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRolesRoute = ApiPublicRolesRouteImport.update({
+  id: '/api/public/roles',
+  path: '/api/public/roles',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicReanimDotluaRoute = ApiPublicReanimDotluaRouteImport.update({
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
+  '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
 }
 export interface FileRoutesByTo {
@@ -61,6 +68,7 @@ export interface FileRoutesByTo {
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
+  '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
 }
 export interface FileRoutesById {
@@ -70,6 +78,7 @@ export interface FileRoutesById {
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
+  '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
 }
 export interface FileRouteTypes {
@@ -80,6 +89,7 @@ export interface FileRouteTypes {
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
+    | '/api/public/roles'
     | '/api/public/tags'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -88,6 +98,7 @@ export interface FileRouteTypes {
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
+    | '/api/public/roles'
     | '/api/public/tags'
   id:
     | '__root__'
@@ -96,6 +107,7 @@ export interface FileRouteTypes {
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
+    | '/api/public/roles'
     | '/api/public/tags'
   fileRoutesById: FileRoutesById
 }
@@ -105,6 +117,7 @@ export interface RootRouteChildren {
   ApiPublicAdminDotluaRoute: typeof ApiPublicAdminDotluaRoute
   ApiPublicPastebinRoute: typeof ApiPublicPastebinRoute
   ApiPublicReanimDotluaRoute: typeof ApiPublicReanimDotluaRoute
+  ApiPublicRolesRoute: typeof ApiPublicRolesRoute
   ApiPublicTagsRoute: typeof ApiPublicTagsRoute
 }
 
@@ -129,6 +142,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/tags'
       fullPath: '/api/public/tags'
       preLoaderRoute: typeof ApiPublicTagsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/roles': {
+      id: '/api/public/roles'
+      path: '/api/public/roles'
+      fullPath: '/api/public/roles'
+      preLoaderRoute: typeof ApiPublicRolesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/reanim.lua': {
@@ -161,6 +181,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAdminDotluaRoute: ApiPublicAdminDotluaRoute,
   ApiPublicPastebinRoute: ApiPublicPastebinRoute,
   ApiPublicReanimDotluaRoute: ApiPublicReanimDotluaRoute,
+  ApiPublicRolesRoute: ApiPublicRolesRoute,
   ApiPublicTagsRoute: ApiPublicTagsRoute,
 }
 export const routeTree = rootRouteImport
