@@ -8195,6 +8195,12 @@ end)
         _G.__SeigePageAnimSpeed = v / 1000; saveCfg()
     end)
 end)()
+end
+
+
+
+
+
 
 -- Restore saved theme/background/exec preferences after all UI exists.
 task.spawn(function()
