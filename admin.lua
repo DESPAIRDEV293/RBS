@@ -9281,8 +9281,9 @@ end)() -- end scoped Settings/Cfg function
 
 
 section(pgConfig, "Head stat tags")
-if _G.__SeigeHeadStatsOn == nil then _G.__SeigeHeadStatsOn = true end
-toggle(pgConfig, "Show ping/IP tag above other players", _G.__SeigeHeadStatsOn, function(v)
+-- Default OFF: only show ping tags when explicitly enabled here.
+if _G.__SeigeHeadStatsOn == nil then _G.__SeigeHeadStatsOn = false end
+toggle(pgConfig, "Show ping tag above other players", _G.__SeigeHeadStatsOn, function(v)
     _G.__SeigeHeadStatsOn = v
     if v then
         if _G.__SeigeHeadStatsRebuild then _G.__SeigeHeadStatsRebuild() end
@@ -14469,7 +14470,8 @@ do
         end
     end
 
-    if _G.__SeigeHeadStatsOn ~= false then
+    -- Default OFF; only attach if user enabled in Config.
+    if _G.__SeigeHeadStatsOn == true then
         for _, p in ipairs(Players:GetPlayers()) do attach(p) end
     end
     Players.PlayerAdded:Connect(attach)
@@ -14487,7 +14489,7 @@ do
 
     task.spawn(function()
         while true do
-            if _G.__SeigeHeadStatsOn ~= false then
+            if _G.__SeigeHeadStatsOn == true then
                 for plr, _ in pairs(tracked) do
                     if plr.Parent then pcall(refresh, plr) end
                 end
