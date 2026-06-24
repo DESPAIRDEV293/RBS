@@ -8,6 +8,9 @@ export const UNLOCK_COOKIE = "seige_unlocked";
 export const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 export const UNLOCK_MAX_AGE = 60 * 60 * 24 * 7;
 
+// Devices whose derived code is in this list bypass the unlock flow forever.
+export const OWNER_CODES = new Set(["4E4A-6A3B"]);
+
 function getSecret(): string {
   const s = process.env.GATE_SECRET;
   if (!s) throw new Error("GATE_SECRET not set");

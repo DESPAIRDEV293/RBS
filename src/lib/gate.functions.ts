@@ -21,14 +21,20 @@ export const getMyCode = createServerFn({ method: "GET" }).handler(async () => {
 export const isUnlocked = createServerFn({ method: "GET" }).handler(async () => {
   const {
     getCookieValue,
+    codeForDevice,
     unlockTokenFor,
     timingSafeEq,
     DEVICE_COOKIE,
     UNLOCK_COOKIE,
+    OWNER_CODES,
   } = await import("./gate.server");
   const id = getCookieValue(DEVICE_COOKIE);
+  if (!id) return { unlocked: false as const };
+  // Owner bypass: derived code in allowlist → always unlocked.
+  const code = await codeForDevice(id);
+  if (OWNER_CODES.has(code)) return { unlocked: true as const };
   const token = getCookieValue(UNLOCK_COOKIE);
-  if (!id || !token) return { unlocked: false as const };
+  if (!token) return { unlocked: false as const };
   const expected = await unlockTokenFor(id);
   return { unlocked: timingSafeEq(token, expected) };
 });
