@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { codeForDevice } from "@/lib/gate.functions";
 
 const DEVICE_COOKIE = "seige_did";
 
@@ -20,7 +19,9 @@ function randomId(): string {
   return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function hmacHex(secret: string, msg: string): Promise<string> {
+async function deriveCode(deviceId: string): Promise<string> {
+  const secret = process.env.GATE_SECRET;
+  if (!secret) throw new Error("GATE_SECRET not set");
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
@@ -28,15 +29,15 @@ async function hmacHex(secret: string, msg: string): Promise<string> {
     false,
     ["sign"],
   );
-  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(msg));
-  return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function deriveCode(deviceId: string): Promise<string> {
-  void codeForDevice; // keep tree-shake happy if unused
-  const secret = process.env.GATE_SECRET;
-  if (!secret) throw new Error("GATE_SECRET not set");
-  const h = (await hmacHex(secret, `code:${deviceId}`)).slice(0, 8).toUpperCase();
+  const sig = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(`code:${deviceId}`),
+  );
+  const h = Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, "0"))
+    .join("")
+    .slice(0, 8)
+    .toUpperCase();
   return `${h.slice(0, 4)}-${h.slice(4, 8)}`;
 }
 
