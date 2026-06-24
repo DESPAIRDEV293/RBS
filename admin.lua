@@ -12997,21 +12997,10 @@ cmdHandlers["tagcolors"] = function()
         { empty = "No colors found in tag database.", height = 360 })
 end
 
--- !reanim — launch the Reanim GUI (purple-storm build). Available to every script user.
+-- !reanim — disabled. The ROT GUI is now a standalone downloadable script
+-- distributed separately. Tell the user where to grab it instead.
 cmdHandlers["reanim"] = function()
-    notify("Loading Reanim…", "good")
-    task.spawn(function()
-        local ok, src = pcall(function()
-            return game:HttpGet("https://seigescript.online/api/public/reanim.lua")
-        end)
-        if not ok or type(src) ~= "string" or src == "" then
-            notify("Reanim fetch failed", "bad"); return
-        end
-        local fn, perr = (loadstring or load)(src, "=reanim")
-        if not fn then notify("Reanim parse error: " .. tostring(perr), "bad"); return end
-        local rok, rerr = pcall(fn)
-        if not rok then notify("Reanim runtime error: " .. tostring(rerr), "bad") end
-    end)
+    notify("ROT GUI is now a standalone download — run rot_gui.lua yourself.", "warn")
 end
 
 
