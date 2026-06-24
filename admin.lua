@@ -3306,7 +3306,12 @@ local function refreshBill(p)
     end
     e.dot.BackgroundColor3 = chipColor
     if e.avRing then
-        e.avRing.Color = chipColor
+        local ringColor = chipColor
+        if cfg and cfg.avatarOutlineColor and cfg.avatarOutlineColor ~= "" then
+            local rc = parseColor(cfg.avatarOutlineColor)
+            if rc then ringColor = rc end
+        end
+        e.avRing.Color = ringColor
         local ao = tostring(cfg and cfg.avatarOutline or ""):lower()
         e.avRing.Enabled = not (ao == "off" or ao == "none" or ao == "0" or ao == "false")
     end
