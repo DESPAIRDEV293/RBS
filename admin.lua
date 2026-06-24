@@ -14538,19 +14538,18 @@ do
         task.spawn(function() task.wait(0.3); applyAuraTo(plr) end)
     end
 
-    -- Broadcast helper (mirrors the broadcast() inside the exec-notif IIFE)
+    -- Broadcast helper — routes through the attribute channel set up by the
+    -- exec-notif IIFE (see _G.__SeigeBroadcast). Falls back to a chat send only
+    -- if the attribute channel hasn't initialized yet, which keeps chat clean.
     local function sendMark(text)
-        local ok = pcall(function()
+        if _G.__SeigeBroadcast then
+            _G.__SeigeBroadcast(text); return
+        end
+        pcall(function()
             local ch = TextChat.TextChannels:FindFirstChild("RBXGeneral")
                 or TextChat.TextChannels:GetChildren()[1]
             if ch then ch:SendAsync(text) end
         end)
-        if not ok then
-            pcall(function()
-                game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents", 3)
-                    :WaitForChild("SayMessageRequest"):FireServer(text, "All")
-            end)
-        end
     end
 
     local function broadcastMyAura()
