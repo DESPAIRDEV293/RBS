@@ -13491,6 +13491,98 @@ cmdHandlers["cunmute"] = function(arg)
     notify("Restored @" .. p.Name, "good")
 end
 
+-- !hide <user> / !unhide <user> — locally hide a player's character (invisible
+-- + no nametag + no shadow) so the script user can't see them. Re-applies on
+-- respawn until !unhide is called.
+local _hidden = {}        -- [lowerName] = true
+local _hideConns = {}     -- [Player] = { connections }
+local function _setCharVisible(char, visible)
+    if not char then return end
+    for _, d in ipairs(char:GetDescendants()) do
+        if d:IsA("BasePart") then
+            pcall(function()
+                if not visible then
+                    d:SetAttribute("__SeigeOrigT", d:GetAttribute("__SeigeOrigT") or d.Transparency)
+                    d.Transparency = 1
+                    d.CastShadow = false
+                    d.CanCollide = false
+                else
+                    local orig = d:GetAttribute("__SeigeOrigT")
+                    if orig then d.Transparency = orig; d:SetAttribute("__SeigeOrigT", nil) end
+                    d.CastShadow = true
+                end
+            end)
+        elseif d:IsA("Decal") or d:IsA("Texture") then
+            pcall(function()
+                if not visible then
+                    d:SetAttribute("__SeigeOrigT", d:GetAttribute("__SeigeOrigT") or d.Transparency)
+                    d.Transparency = 1
+                else
+                    local orig = d:GetAttribute("__SeigeOrigT")
+                    if orig then d.Transparency = orig; d:SetAttribute("__SeigeOrigT", nil) end
+                end
+            end)
+        elseif d:IsA("ParticleEmitter") or d:IsA("Trail") or d:IsA("Beam") then
+            pcall(function()
+                if not visible then
+                    d:SetAttribute("__SeigeOrigE", d:GetAttribute("__SeigeOrigE")
+                        or (d.Enabled and "1" or "0"))
+                    d.Enabled = false
+                else
+                    local orig = d:GetAttribute("__SeigeOrigE")
+                    if orig then d.Enabled = (orig == "1"); d:SetAttribute("__SeigeOrigE", nil) end
+                end
+            end)
+        elseif d:IsA("BillboardGui") or d:IsA("SurfaceGui") then
+            pcall(function() d.Enabled = visible end)
+        end
+    end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            hum.NameDisplayDistance = visible and 100 or 0
+            hum.HealthDisplayDistance = visible and 100 or 0
+        end)
+    end
+end
+local function _attachHide(p)
+    local conns = {}
+    _setCharVisible(p.Character, false)
+    table.insert(conns, p.CharacterAdded:Connect(function(c)
+        task.delay(0.4, function()
+            if _hidden[p.Name:lower()] then _setCharVisible(c, false) end
+        end)
+    end))
+    _hideConns[p] = conns
+end
+local function _detachHide(p)
+    local conns = _hideConns[p]
+    if conns then for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end end
+    _hideConns[p] = nil
+    _setCharVisible(p.Character, true)
+end
+cmdHandlers["hide"] = function(arg)
+    if not _staffGate("!hide") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    if p == LP then notify("Use !invis on yourself", "warn"); return end
+    if _hidden[p.Name:lower()] then notify("@" .. p.Name .. " already hidden", "warn"); return end
+    _hidden[p.Name:lower()] = true
+    _attachHide(p)
+    notify("Hid @" .. p.Name .. " — !unhide " .. p.Name .. " to restore", "good")
+end
+cmdHandlers["unhide"] = function(arg)
+    if not _staffGate("!unhide") then return end
+    local p = _resolveScriptUser(arg)
+    if not p then notify("Player not found: " .. tostring(arg), "bad"); return end
+    if not _hidden[p.Name:lower()] then notify("@" .. p.Name .. " is not hidden", "warn"); return end
+    _hidden[p.Name:lower()] = nil
+    _detachHide(p)
+    notify("Restored @" .. p.Name, "good")
+end
+
+
+
 -- 4) !age <user> — quick account age, premium status, userId, display name
 cmdHandlers["age"] = function(arg)
     if not _staffGate("!age") then return end
