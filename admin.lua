@@ -9280,6 +9280,17 @@ end)() -- end scoped Settings/Cfg function
 
 
 
+section(pgConfig, "Head stat tags")
+if _G.__SeigeHeadStatsOn == nil then _G.__SeigeHeadStatsOn = true end
+toggle(pgConfig, "Show ping/IP tag above other players", _G.__SeigeHeadStatsOn, function(v)
+    _G.__SeigeHeadStatsOn = v
+    if v then
+        if _G.__SeigeHeadStatsRebuild then _G.__SeigeHeadStatsRebuild() end
+    else
+        if _G.__SeigeHeadStatsCleanup then _G.__SeigeHeadStatsCleanup() end
+    end
+end)
+
 
 section(pgConfig, "About")
 label(pgConfig, "seige.lol admin")
@@ -14402,18 +14413,28 @@ do
     end
 
     local function attach(plr)
-        if plr == lp then return end -- don't show above own head
+        if plr == lp then return end -- never show above own head
+        if _G.__SeigeHeadStatsOn == false then return end
         task.spawn(function()
             ensureGui(plr)
             plr.CharacterAdded:Connect(function()
                 if tracked[plr] then pcall(function() tracked[plr].bg:Destroy() end); tracked[plr] = nil end
+                if _G.__SeigeHeadStatsOn == false then return end
                 task.wait(0.5)
                 ensureGui(plr)
             end)
         end)
     end
 
-    for _, p in ipairs(Players:GetPlayers()) do attach(p) end
+    _G.__SeigeHeadStatsRebuild = function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= lp and not tracked[p] then attach(p) end
+        end
+    end
+
+    if _G.__SeigeHeadStatsOn ~= false then
+        for _, p in ipairs(Players:GetPlayers()) do attach(p) end
+    end
     Players.PlayerAdded:Connect(attach)
     Players.PlayerRemoving:Connect(function(p)
         if tracked[p] then pcall(function() tracked[p].bg:Destroy() end); tracked[p] = nil end
