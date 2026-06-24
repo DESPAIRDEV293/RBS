@@ -7380,6 +7380,7 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
                 Wn.part.Transparency = Wn.visible and 0.55 or 1
             end
             visBtn.Text = _visText()
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
         end)
 
         button(body, "Stop walk on air", function() _G.__SeigeWoAStop() end)
