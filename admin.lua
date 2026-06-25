@@ -5229,7 +5229,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         end
 
         local sok, serr = TagDB:saveLocal()
-        if sok then notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
+        if sok then notify("Saved " .. u .. " locally — pushing server-side…", "info")
         else notify("Saved (local-only) for " .. u .. ": " .. tostring(serr), "warn") end
         pcall(function() TagDB:pushRemoteEntry(key, entry) end)
         if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
