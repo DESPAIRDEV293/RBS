@@ -2481,6 +2481,10 @@ function TagDB:pushRemoteEntry(key, entry)
         local ok, status, resp = _seigeHttpPost(TAGS_WRITE_PROXY_URL, body)
         if ok then
             print(("[Tags] remote push ok for %s"):format(key))
+            pcall(function()
+                if entry == nil then notify("Deleted " .. key .. " server-side", "good")
+                else notify("Saved " .. key .. " server-side", "good") end
+            end)
             return
         end
         warn(("[Tags] remote push failed (%s): %s"):format(tostring(status), tostring(resp)))
@@ -2488,17 +2492,31 @@ function TagDB:pushRemoteEntry(key, entry)
         -- try the older raw /tags endpoint so power users with the key still
         -- have a working path.
         local secret = tostring(_G.__SeigeTagSyncKey or "")
-        if secret == "" then return end
-        local legacy
-        if entry == nil then legacy = { key = key, ["delete"] = true }
-        else legacy = { key = key, data = entry } end
-        local okEnc2, body2 = pcall(function() return HttpService:JSONEncode(legacy) end)
-        if not okEnc2 then return end
-        local ok2, status2, resp2 = _seigeHttpPost(TAGS_HTTP_URL, body2, { ["x-tag-secret"] = secret })
-        if ok2 then
-            print(("[Tags] legacy push ok for %s"):format(key))
-        else
-            warn(("[Tags] legacy push failed (%s): %s"):format(tostring(status2), tostring(resp2)))
+        local legacyOk = false
+        if secret ~= "" then
+            local legacy
+            if entry == nil then legacy = { key = key, ["delete"] = true }
+            else legacy = { key = key, data = entry } end
+            local okEnc2, body2 = pcall(function() return HttpService:JSONEncode(legacy) end)
+            if okEnc2 then
+                local ok2, status2, resp2 = _seigeHttpPost(TAGS_HTTP_URL, body2, { ["x-tag-secret"] = secret })
+                if ok2 then
+                    legacyOk = true
+                    print(("[Tags] legacy push ok for %s"):format(key))
+                    pcall(function() notify("Saved " .. key .. " server-side (legacy key)", "good") end)
+                else
+                    warn(("[Tags] legacy push failed (%s): %s"):format(tostring(status2), tostring(resp2)))
+                end
+            end
+        end
+        if not legacyOk then
+            pcall(function()
+                local reason
+                if status == 403 then reason = "not authorized (need owner/admin/nt role)"
+                elseif status == 0 then reason = "no network / exploit HTTP blocked"
+                else reason = "HTTP " .. tostring(status) end
+                notify("Server-side save failed for " .. key .. " — " .. reason .. ". Change is local-only.", "warn")
+            end)
         end
     end)
     return true
