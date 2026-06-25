@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-24-cfg-persist-2"
+local ADMIN_BUILD = "2026-06-25-tags-server-feedback"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -2481,6 +2481,10 @@ function TagDB:pushRemoteEntry(key, entry)
         local ok, status, resp = _seigeHttpPost(TAGS_WRITE_PROXY_URL, body)
         if ok then
             print(("[Tags] remote push ok for %s"):format(key))
+            pcall(function()
+                if entry == nil then notify("Deleted " .. key .. " server-side", "good")
+                else notify("Saved " .. key .. " server-side", "good") end
+            end)
             return
         end
         warn(("[Tags] remote push failed (%s): %s"):format(tostring(status), tostring(resp)))
@@ -2488,17 +2492,31 @@ function TagDB:pushRemoteEntry(key, entry)
         -- try the older raw /tags endpoint so power users with the key still
         -- have a working path.
         local secret = tostring(_G.__SeigeTagSyncKey or "")
-        if secret == "" then return end
-        local legacy
-        if entry == nil then legacy = { key = key, ["delete"] = true }
-        else legacy = { key = key, data = entry } end
-        local okEnc2, body2 = pcall(function() return HttpService:JSONEncode(legacy) end)
-        if not okEnc2 then return end
-        local ok2, status2, resp2 = _seigeHttpPost(TAGS_HTTP_URL, body2, { ["x-tag-secret"] = secret })
-        if ok2 then
-            print(("[Tags] legacy push ok for %s"):format(key))
-        else
-            warn(("[Tags] legacy push failed (%s): %s"):format(tostring(status2), tostring(resp2)))
+        local legacyOk = false
+        if secret ~= "" then
+            local legacy
+            if entry == nil then legacy = { key = key, ["delete"] = true }
+            else legacy = { key = key, data = entry } end
+            local okEnc2, body2 = pcall(function() return HttpService:JSONEncode(legacy) end)
+            if okEnc2 then
+                local ok2, status2, resp2 = _seigeHttpPost(TAGS_HTTP_URL, body2, { ["x-tag-secret"] = secret })
+                if ok2 then
+                    legacyOk = true
+                    print(("[Tags] legacy push ok for %s"):format(key))
+                    pcall(function() notify("Saved " .. key .. " server-side (legacy key)", "good") end)
+                else
+                    warn(("[Tags] legacy push failed (%s): %s"):format(tostring(status2), tostring(resp2)))
+                end
+            end
+        end
+        if not legacyOk then
+            pcall(function()
+                local reason
+                if status == 403 then reason = "not authorized (need owner/admin/nt role)"
+                elseif status == 0 then reason = "no network / exploit HTTP blocked"
+                else reason = "HTTP " .. tostring(status) end
+                notify("Server-side save failed for " .. key .. " — " .. reason .. ". Change is local-only.", "warn")
+            end)
         end
     end)
     return true
@@ -4751,9 +4769,9 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         -- pushed to pastebin, so don't scare the user with a failure toast.
         local noFs = (not sok) and tostring(serr or ""):find("writefile not available", 1, true)
         if sok then
-            notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
+            notify("Saved " .. u .. " locally — pushing server-side…", "info")
         elseif noFs then
-            notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
+            notify("Pushing " .. u .. " server-side…", "info")
         else
             notify("Saved tag for " .. u .. " — local save failed: " .. tostring(serr), "warn")
         end
@@ -5211,7 +5229,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         end
 
         local sok, serr = TagDB:saveLocal()
-        if sok then notify("Saved tag for " .. u .. " — syncing to GitHub", "good")
+        if sok then notify("Saved " .. u .. " locally — pushing server-side…", "info")
         else notify("Saved (local-only) for " .. u .. ": " .. tostring(serr), "warn") end
         pcall(function() TagDB:pushRemoteEntry(key, entry) end)
         if _G.__SeigePbPush then task.spawn(_G.__SeigePbPush) end
