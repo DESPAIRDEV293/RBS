@@ -11,6 +11,13 @@ export const UNLOCK_MAX_AGE = 60 * 60 * 24 * 7;
 // Devices whose derived code is in this list bypass the unlock flow forever.
 export const OWNER_CODES = new Set(["4E4A-6A3B"]);
 
+// Allowlisted tester paste-codes. Any entered code in this set unlocks the
+// site on the current device. Add new testers by appending to this list.
+// Format is free-form (alphanumerics + hyphens), normalized to UPPERCASE.
+export const TESTER_CODES = new Set<string>([
+  "TESTER-0001",
+]);
+
 function getSecret(): string {
   const s = process.env.GATE_SECRET;
   if (!s) throw new Error("GATE_SECRET not set");

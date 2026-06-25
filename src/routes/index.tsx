@@ -282,21 +282,19 @@ function Index() {
               Loadstring Here:
             </p>
             <button
-              disabled
-              className="storm-btn storm-btn-disabled rounded-lg px-3.5 py-1.5 text-xs font-semibold tracking-wide"
+              onClick={() => {
+                navigator.clipboard?.writeText(loadstringCommand);
+              }}
+              className="storm-btn rounded-lg px-3.5 py-1.5 text-xs font-semibold tracking-wide"
             >
               Copy
             </button>
           </div>
 
-          <pre className="storm-code relative mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-slate-500/80 backdrop-blur select-none">
+          <pre className="storm-code relative mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-slate-200 backdrop-blur">
             <span className="storm-code-sweep pointer-events-none" />
             <code className="relative block overflow-x-auto">{loadstringCommand}</code>
           </pre>
-
-          <p className="relative mt-4 text-xs text-slate-400/60">
-            Script is currently unavailable — check back soon.
-          </p>
         </section>
 
         {/* Features grid */}

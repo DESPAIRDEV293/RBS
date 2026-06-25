@@ -53,28 +53,28 @@ export const isUnlocked = createServerFn({ method: "GET" }).handler(async () => 
 export const unlockSite = createServerFn({ method: "POST" })
   .inputValidator((data: { code: string }) => {
     if (typeof data?.code !== "string") throw new Error("code required");
-    return { code: data.code.trim().toUpperCase().replace(/\s+/g, "") };
+    // Accept any alphanumeric + hyphen format (e.g. "TESTER-0001" or "4E4A-6A3B").
+    return { code: data.code.trim().toUpperCase().replace(/[^A-Z0-9-]/g, "") };
   })
   .handler(async ({ data }) => {
     const {
       getCookieValue,
       setCookieHeader,
-      codeForDevice,
       unlockTokenFor,
-      timingSafeEq,
       DEVICE_COOKIE,
       UNLOCK_COOKIE,
       UNLOCK_MAX_AGE,
+      OWNER_CODES,
+      TESTER_CODES,
     } = await import("./gate.server");
     const id = getCookieValue(DEVICE_COOKIE);
     if (!id) return { ok: false as const, error: "Visit the code page first." };
-    const expected = await codeForDevice(id);
-    const normalized = data.code.includes("-")
-      ? data.code
-      : `${data.code.slice(0, 4)}-${data.code.slice(4, 8)}`;
-    if (!timingSafeEq(normalized, expected)) {
-      return { ok: false as const, error: "Wrong code." };
+
+    // Limited access: only OWNER or TESTER allowlist codes unlock the site.
+    if (!OWNER_CODES.has(data.code) && !TESTER_CODES.has(data.code)) {
+      return { ok: false as const, error: "Invalid code. Tester access only." };
     }
+
     const token = await unlockTokenFor(id);
     setCookieHeader(UNLOCK_COOKIE, token, UNLOCK_MAX_AGE);
     return { ok: true as const };
