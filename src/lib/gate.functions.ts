@@ -28,6 +28,17 @@ export const isUnlocked = createServerFn({ method: "GET" }).handler(async () => 
     UNLOCK_COOKIE,
     OWNER_CODES,
   } = await import("./gate.server");
+  const { getRequestHeader } = await import("@tanstack/react-start/server");
+  // Preview / sandbox host bypass: skip the gate on Lovable preview URLs.
+  const host = (getRequestHeader("host") || "").toLowerCase();
+  if (
+    host.includes("id-preview") ||
+    host.includes("-dev.lovable.app") ||
+    host.startsWith("localhost") ||
+    host.startsWith("127.0.0.1")
+  ) {
+    return { unlocked: true as const };
+  }
   const id = getCookieValue(DEVICE_COOKIE);
   if (!id) return { unlocked: false as const };
   // Owner bypass: derived code in allowlist → always unlocked.
