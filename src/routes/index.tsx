@@ -2,8 +2,10 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isUnlocked } from "@/lib/gate.functions";
 
-// Canonical live loadstring — always pulls latest dev build with cache-buster.
+// Real loadstring used for the Copy button — always pulls latest dev build with cache-buster.
 const loadstringCommand = 'loadstring(game:HttpGet("https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/admin.lua?fresh=" .. tostring(os.time())))()';
+// Branded alias shown on the page. Cosmetic only — Copy still copies the real URL above.
+const loadstringDisplay = 'loadstring(game:HttpGet("https://seige.lol/script"))()';
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
