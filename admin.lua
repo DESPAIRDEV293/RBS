@@ -2005,6 +2005,17 @@ local function resolveIconUrl(raw)
         local direct = "rbxassetid://" .. numId
         local resolved = _assetThumb(numId, 420)
         pcall(function()
+            local IS = game:GetService("InsertService")
+            local ok, model = pcall(function() return IS:LoadAsset(tonumber(numId)) end)
+            if ok and model then
+                local decal = model:FindFirstChildWhichIsA("Decal", true)
+                local img = model:FindFirstChildWhichIsA("ImageLabel", true) or model:FindFirstChildWhichIsA("ImageButton", true)
+                local tex = (decal and decal.Texture) or (img and img.Image)
+                if type(tex) == "string" and tex ~= "" then resolved = tex end
+                pcall(function() model:Destroy() end)
+            end
+        end)
+        pcall(function()
             local hg = _httpget()
             local body = nil
             pcall(function() body = hg("https://assetdelivery.roblox.com/v1/asset/?id=" .. numId) end)
