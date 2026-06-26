@@ -14582,10 +14582,12 @@ end)()
 ;(function()
     local TextChat = game:GetService("TextChatService")
     local Players  = game:GetService("Players")
-    -- Public visible chat is just "…" — non-script users see only the ellipsis.
-    -- Script users detect it and surface a rich notification instead.
-    local PUBLIC_MARK = "…"
-    local PUBLIC_ALT  = "..."
+    -- Exec marker is a script-only signature. Previously this was a bare "…"
+    -- which caused false positives when ANY player typed "..." in chat. The
+    -- new marker is unguessable, only emitted via the SeigeMsg attribute
+    -- channel (never chat), so only real script users trigger the card.
+    local PUBLIC_MARK = "\1SEIGE_EXEC_v2\1"
+    local PUBLIC_ALT  = PUBLIC_MARK
 
     -- Bottom-left stack
     local ExecNotif = inst("Frame", Root, {
