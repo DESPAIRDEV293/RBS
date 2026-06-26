@@ -7711,8 +7711,28 @@ button(pgCmds, "Bang  —  front / face / back (!bang)", function()
             local name = tbox.Text
             if not name or name == "" then notify("Type a player name", "warn"); return end
             local target = findPlr(name)
-            if not target then notify("Player not found", "bad"); return end
+            if not target then notify("Player not found: "..tostring(name), "bad"); return end
+            if target == LP then notify("Pick another player (not yourself)", "warn"); return end
+            tbox.Text = target.Name
             _bangStart(target)
+        end)
+        button(body, "Auto  —  closest player", function()
+            local myH = hrp()
+            if not myH then notify("No character", "bad"); return end
+            local best, bestD
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LP then
+                    local th = phrp(p)
+                    if th then
+                        local d = (th.Position - myH.Position).Magnitude
+                        if not bestD or d < bestD then best, bestD = p, d end
+                    end
+                end
+            end
+            if not best then notify("No other players nearby", "bad"); return end
+            tbox.Text = best.Name
+            _bangStart(best)
+            notify("Auto bang -> "..best.Name.." ("..math.floor(bestD).."m)", "good")
         end)
         slider(body, "Distance", 0, 6, B.distance, function(v) B.distance = v end)
         slider(body, "Height offset", -6, 6, B.height, function(v) B.height = v end)
