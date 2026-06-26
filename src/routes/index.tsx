@@ -2,10 +2,11 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isUnlocked } from "@/lib/gate.functions";
 
-// Real loadstring used for the Copy button — always pulls latest dev build with cache-buster.
-const loadstringCommand = 'loadstring(game:HttpGet("https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/admin.lua?fresh=" .. tostring(os.time())))()';
-// Branded alias shown on the page. Cosmetic only — Copy still copies the real URL above.
-const loadstringDisplay = 'loadstring(game:HttpGet("https://seige.lol/script"))()';
+// Real loadstring — points at the published production endpoint so anyone
+// (not just the owner) can execute. Cache-buster keeps Roblox HTTP cache fresh.
+const loadstringCommand = 'loadstring(game:HttpGet("https://seigescript.online/api/public/admin.lua?fresh=" .. tostring(os.time())))()';
+// Displayed text mirrors the real URL — no fake alias domain.
+const loadstringDisplay = loadstringCommand;
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
