@@ -1989,12 +1989,36 @@ local function resolveIconUrl(raw)
     if raw == "" then return nil end
     if _iconCache[raw] then return _iconCache[raw] end
 
-    -- Pure numeric asset id
-    if raw:match("^%d+$") then
-        local out = "rbxassetid://" .. raw
-        _iconCache[raw] = out; return out
+    -- Pure numeric asset id — or rbxassetid:// URL. May be a Decal/Image
+    -- (texture id, renders directly) OR a wrapper Asset id (needs the
+    -- underlying texture id resolved). We try direct first, then fall back
+    -- to MarketplaceService + asset delivery API to dig out the real id.
+    local numId = raw:match("^(%d+)$") or raw:match("^rbxassetid://(%d+)")
+    if numId then
+        local direct = "rbxassetid://" .. numId
+        -- Probe asset type. 1=Image, 13=Decal render fine via rbxassetid://.
+        -- Anything else, ask asset delivery for the embedded RBXMX and pull
+        -- the Content url out — that is the real texture id.
+        local resolved = direct
+        pcall(function()
+            local MS = game:GetService("MarketplaceService")
+            local info = MS:GetProductInfo(tonumber(numId))
+            local t = info and info.AssetTypeId
+            if t and t ~= 1 and t ~= 13 then
+                local hg = _httpget()
+                local body = nil
+                pcall(function() body = hg("https://assetdelivery.roblox.com/v1/asset/?id=" .. numId) end)
+                if type(body) == "string" then
+                    local inner = body:match("rbxassetid://(%d+)")
+                                or body:match("<url>[^<]-id=(%d+)")
+                                or body:match("<Content[^>]->.-(%d%d%d%d+)")
+                    if inner then resolved = "rbxassetid://" .. inner end
+                end
+            end
+        end)
+        _iconCache[raw] = resolved; return resolved
     end
-    -- Already Roblox-internal
+    -- Already Roblox-internal (thumb/asset paths, non-numeric assetid URLs)
     if raw:match("^rbxassetid://") or raw:match("^rbxthumb://") or raw:match("^rbxasset://") then
         _iconCache[raw] = raw; return raw
     end
