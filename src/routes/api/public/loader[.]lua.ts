@@ -6,30 +6,48 @@ local urls={
   "https://seigelollua.lovable.app/api/public/admin.lua",
   "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua"
 }
-local fresh=tostring((os and os.time and os.time()) or (tick and tick()) or math.random(1,999999999))
+local function now()
+  local ok,v=pcall(function()
+    if os and os.time then return os.time() end
+    if tick then return tick() end
+    return math.random(1,999999999)
+  end)
+  return tostring((ok and v) or math.random(1,999999999))
+end
+local function bodyFromResponse(r)
+  if type(r)=="string" then return r end
+  if type(r)=="table" then return r.Body or r.body or r.ResponseBody or r.responseBody end
+end
+local function good(s)
+  return type(s)=="string" and #s>1000 and s:find("ADMIN_BUILD",1,true)
+end
 local function get(url)
-  local full=url.."?fresh="..fresh
+  local full=url..(url:find("?",1,true) and "&" or "?").."fresh="..now()
   local ok,res=pcall(function()return game:HttpGet(full,true)end)
-  if ok and type(res)=="string" and #res>1000 then return res end
+  res=bodyFromResponse(res)
+  if ok and good(res) then return res end
+  ok,res=pcall(function()return game:HttpGet(full)end)
+  res=bodyFromResponse(res)
+  if ok and good(res) then return res end
   local rq=(syn and syn.request)or(http and http.request)or http_request or request
   if rq then
-    local ok2,r=pcall(rq,{Url=full,Method="GET",Headers={["Cache-Control"]="no-cache"}})
-    if ok2 and r then
-      local body=r.Body or r.body
-      if type(body)=="string" and #body>1000 then return body end
-    end
+    ok,res=pcall(function()return rq({Url=full,Method="GET",Headers={Accept="text/plain",["Cache-Control"]="no-cache"}})end)
+    res=bodyFromResponse(res)
+    if ok and good(res) then return res end
   end
+  return nil, tostring(res)
 end
 local src,last
 for _,u in ipairs(urls)do
   local ok,res=pcall(get,u)
-  if ok and type(res)=="string" and #res>1000 then src=res break else last=res end
+  if ok and good(res) then src=res break end
+  last=res
 end
-if not src then warn("seige load failed",last)return end
+if not src then warn("[seige.lol] load failed: "..tostring(last));return end
 local fn,err=loadstring(src)
-if not fn then warn("seige compile failed",err)return end
+if not fn then warn("[seige.lol] compile failed: "..tostring(err));return end
 local ok,runErr=pcall(fn)
-if not ok then warn("seige runtime failed",runErr)end
+if not ok then warn("[seige.lol] runtime failed: "..tostring(runErr))end
 `;
 
 const loaderHeaders = {
