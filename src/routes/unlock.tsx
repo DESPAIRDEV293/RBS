@@ -52,17 +52,11 @@ function UnlockPage() {
           </p>
           <h1 className="text-2xl font-bold tracking-tight">Enter your access code</h1>
           <p className="text-sm text-slate-400">
-            Each device gets a unique code. Open the link below in a new tab,
-            copy your code, and paste it back here on this same device.
+            Access is invite-only. Paste the tester code you were given to
+            unlock this device.
           </p>
         </header>
 
-        <Link
-          to="/code"
-          className="block rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-4 py-3 text-center text-sm font-semibold text-indigo-200 hover:bg-indigo-500/20 transition"
-        >
-          → Get my access code
-        </Link>
 
         <form onSubmit={onSubmit} className="space-y-3">
           <input
