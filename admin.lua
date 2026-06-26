@@ -11840,7 +11840,7 @@ cmdHandlers["eject"] = function()
     notify("Ejected", "good")
 end
 
-end
+
 
 
 -- ===== Timestop (admin/owner only) — freeze all other players locally =====
