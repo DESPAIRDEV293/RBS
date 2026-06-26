@@ -7667,7 +7667,7 @@ button(pgCmds, "!sit settings  —  sit / headsit / shoulder / carry / piggy", f
                 _runCmd("!unheadsit")
             end
         end)
-        button(body, "Eject rider / stand up (!unheadsit)", function() _runCmd("!unheadsit") end)
+        button(body, "Eject / stand up (head / shoulder / carry / piggy)", function() _runCmd("!eject") end)
         button(body, "Shoulder sit (!shouldersit)", function()
             local name = tbox.Text
             if not name or name == "" then notify("Type a player name", "warn"); return end
