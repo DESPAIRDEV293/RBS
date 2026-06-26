@@ -11614,57 +11614,13 @@ cmdHandlers["unhead"] = function()
     end
 end
 cmdHandlers["unheadsit"] = function()
-    -- Universal eject: kills headsit lock AND shoulder/carry/piggy hold loops.
-    -- Without stopping these, their Heartbeat re-clamps the character every
-    -- frame and "stand up" never sticks.
-    if _G.__HeadLock then
-        if _G.__HeadLock.conn then pcall(function() _G.__HeadLock.conn:Disconnect() end) end
-        _G.__HeadLock = nil
-    end
-    if _G.__SeigeHold and _G.__SeigeHold.conn then
-        pcall(function() _G.__SeigeHold.conn:Disconnect() end)
-        _G.__SeigeHold.conn = nil
-        _G.__SeigeHold.target = nil
-        _G.__SeigeHold.kind = nil
-    end
-
-
-    local mychar = LP.Character
-    local h  = mychar and mychar:FindFirstChildOfClass("Humanoid")
-    local r  = mychar and mychar:FindFirstChild("HumanoidRootPart")
-    if h then
-        h.Sit          = false
-        h.PlatformStand = false
-        h.Jump         = true
-    end
-    -- 2) Eject ourselves: detach any SeatWeld parented to the HRP and pop upward.
-    if r then
-        for _, w in ipairs(r:GetChildren()) do
-            if w:IsA("Weld") and (w.Name == "SeatWeld" or w.Part0 and w.Part0:IsA("Seat")) then
-                pcall(function() w:Destroy() end)
-            end
-        end
-        pcall(function()
-            r.AssemblyLinearVelocity  = Vector3.new(0, 60, 0)
-            r.AssemblyAngularVelocity = Vector3.zero
-            r.CFrame = r.CFrame + Vector3.new(0, 8, 0)
-        end)
-    end
-
-    -- 3) If SOMEONE ELSE is sitting on OUR head, shove them off. We can't move
-    --    their body (no network ownership), but we can yank our head out from
-    --    under them — drop into the floor briefly, then pop back up. The rider
-    --    loses their anchor frame and falls off.
-    if r then
-        local saved = r.CFrame
-        pcall(function() r.CFrame = saved - Vector3.new(0, 12, 0) end)
-        task.wait(0.15)
-        pcall(function() r.CFrame = saved + Vector3.new(0, 4, 0) end)
-        if h then h.Jump = true end
-    end
-
-    notify("Headsit cleared — rider ejected", "good")
+    -- Delegate to the robust !eject path so headsit/shoulder/carry/piggy
+    -- all release the same way (kills hold loop, seat welds, re-applies for
+    -- several frames in case a stale tick re-clamps Sit).
+    local fn = cmdHandlers["eject"]
+    if fn then fn() end
 end
+
 -- Shared bang config used by panel + commands
 _G.__SeigeBang = _G.__SeigeBang or {
     mode = "front",     -- "front" | "back" | "face"
