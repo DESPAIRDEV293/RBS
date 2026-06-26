@@ -4,7 +4,7 @@ import { isUnlocked } from "@/lib/gate.functions";
 
 // Keep the pasted command short for Potassium/Macsploit/Xeno. The hosted
 // loader handles fallback URLs and warning output if an executor blocks one.
-const loadstringCommand = `loadstring(game:HttpGet("https://seigescript.online/api/public/loader.lua?fresh=" .. tostring(os.time())))()`;
+const loadstringCommand = `loadstring(game:HttpGet("https://seigescript.online/api/public/loader.lua"))()`;
 const loadstringDisplay = loadstringCommand;
 
 export const Route = createFileRoute("/")({
