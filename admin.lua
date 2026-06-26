@@ -7093,8 +7093,6 @@ button(pgCmds, "!reset / !respawn",                          function() _runCmd(
 button(pgCmds, "!jump",                                      function() _runCmd("!jump") end)
 
 button(pgCmds, "X-Ray  —  see all players through walls (!xray)", function() _runCmd("!xray") end)
-button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
-button(pgCmds, "!load  —  load saved position",              function() _runCmd("!load") end)
 button(pgCmds, "!info",                                      function() _runCmd("!info") end)
 button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end end)
 
