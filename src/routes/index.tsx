@@ -2,10 +2,12 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isUnlocked } from "@/lib/gate.functions";
 
-// Real loadstring — points at the published production endpoint so anyone
-// (not just the owner) can execute. Cache-buster keeps Roblox HTTP cache fresh.
-const loadstringCommand = 'loadstring(game:HttpGet("https://seigescript.online/api/public/admin.lua?fresh=" .. tostring(os.time())))()';
-// Displayed text mirrors the real URL — no fake alias domain.
+// Universal loader — works on Synapse X, Script-Ware, Krnl, Fluxus, Wave,
+// Codex, Xeno, Potassium, Macsploit, Hydrogen, Delta, etc. Uses only the
+// baseline `game:HttpGet` + `loadstring` API every executor exposes. Tries
+// the custom domain first, falls back to the lovable.app mirror, then to a
+// raw `request`/`http_request`/`syn.request` shim if HttpGet is blocked.
+const loadstringCommand = `loadstring((function()local u={"https://seigescript.online/api/public/admin.lua","https://seigelollua.lovable.app/api/public/admin.lua"}local f=os.time and tostring(os.time())or"1"for _,b in ipairs(u)do local ok,r=pcall(function()return game:HttpGet(b.."?fresh="..f,true)end)if ok and type(r)=="string" and #r>1000 then return r end local rq=(syn and syn.request)or(http and http.request)or http_request or request if rq then local ok2,res=pcall(rq,{Url=b,Method="GET"})if ok2 and res and res.Body and #res.Body>1000 then return res.Body end end end error("seige: all sources failed")end)())()`;
 const loadstringDisplay = loadstringCommand;
 
 export const Route = createFileRoute("/")({
