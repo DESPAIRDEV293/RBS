@@ -84,13 +84,36 @@ local function tween(obj, t, props, style, dir)
 end
 
 ------------------------------------------------------- UI ROOT
+-- Some executors (Potassium, Macsploit, Hydrogen, certain mobile builds)
+-- cannot parent ScreenGuis to CoreGui — the call appears to succeed but the
+-- GUI never renders. They expose `gethui()` (a hidden protected container)
+-- as the correct parent. Try, in order: gethui → CoreGui → PlayerGui.
+local function _hiddenUI()
+    local ok, hui = pcall(function() return gethui and gethui() end)
+    if ok and typeof(hui) == "Instance" then return hui end
+    local ok2, cg = pcall(function() return get_hidden_gui and get_hidden_gui() end)
+    if ok2 and typeof(cg) == "Instance" then return cg end
+    return nil
+end
 local function safeParent(gui)
+    local hui = _hiddenUI()
+    if hui then
+        local ok = pcall(function() gui.Parent = hui end)
+        if ok then return end
+    end
     local ok = pcall(function() gui.Parent = CoreGui end)
-    if not ok then gui.Parent = LP:WaitForChild("PlayerGui") end
+    if ok and gui.Parent == CoreGui then return end
+    gui.Parent = LP:WaitForChild("PlayerGui")
 end
 
-local oldGui = CoreGui:FindFirstChild("SeigeAdmin")
-if oldGui then oldGui:Destroy() end
+-- Clean up any previous instance across all possible parents
+for _, parent in ipairs({ _hiddenUI(), CoreGui, LP:FindFirstChild("PlayerGui") }) do
+    if parent then
+        local old = parent:FindFirstChild("SeigeAdmin")
+        if old then pcall(function() old:Destroy() end) end
+    end
+end
+
 
 local Root = inst("ScreenGui", nil, {
     Name = "SeigeAdmin",
