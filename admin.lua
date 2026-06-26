@@ -11801,23 +11801,69 @@ cmdHandlers["eject"] = function()
         _G.__HeadLock = nil
     end
     _holdStop()
+
     local mychar = LP.Character
     local h = mychar and mychar:FindFirstChildOfClass("Humanoid")
     local r = mychar and mychar:FindFirstChild("HumanoidRootPart")
-    if h then h.Sit = false; h.PlatformStand = false; h.Jump = true end
-    if r then
-        for _, w in ipairs(r:GetChildren()) do
-            if w:IsA("Weld") and (w.Name == "SeatWeld" or (w.Part0 and w.Part0:IsA("Seat"))) then
-                pcall(function() w:Destroy() end)
+
+    -- Detach any SeatWeld (Roblox parents these to the SEAT, not HRP — search both)
+    local function killSeatWelds(inst)
+        if not inst then return end
+        for _, w in ipairs(inst:GetChildren()) do
+            if w:IsA("Weld") or w:IsA("WeldConstraint") then
+                if w.Name == "SeatWeld" or (w.Part1 == r) or (w.Part0 == r) then
+                    pcall(function() w:Destroy() end)
+                end
             end
         end
+    end
+    killSeatWelds(r)
+    -- Walk the workspace for any Seat currently holding us
+    if r then
+        for _, d in ipairs(workspace:GetDescendants()) do
+            if d:IsA("Seat") or d:IsA("VehicleSeat") then
+                if d.Occupant == h then pcall(function() d:Sit(nil) end) end
+                killSeatWelds(d)
+            end
+        end
+    end
+
+    if h then
+        pcall(function() h.Sit = false end)
+        pcall(function() h.PlatformStand = false end)
+        pcall(function() h:ChangeState(Enum.HumanoidStateType.Jumping) end)
+        pcall(function() h.Jump = true end)
+    end
+    if r then
         pcall(function()
             r.AssemblyLinearVelocity  = Vector3.new(0, 60, 0)
             r.AssemblyAngularVelocity = Vector3.zero
             r.CFrame = r.CFrame + Vector3.new(0, 6, 0)
         end)
     end
+
+    -- Re-apply for the next ~10 frames in case a stale heartbeat tick
+    -- or remote SeatWeld re-clamps us.
+    task.spawn(function()
+        for i = 1, 12 do
+            local cc = LP.Character
+            local hh = cc and cc:FindFirstChildOfClass("Humanoid")
+            local rr = cc and cc:FindFirstChild("HumanoidRootPart")
+            if hh then
+                pcall(function() hh.Sit = false end)
+                pcall(function() hh.PlatformStand = false end)
+            end
+            if rr then killSeatWelds(rr) end
+            RunService.Heartbeat:Wait()
+        end
+        local cc = LP.Character
+        local hh = cc and cc:FindFirstChildOfClass("Humanoid")
+        if hh then pcall(function() hh:ChangeState(Enum.HumanoidStateType.GettingUp) end) end
+    end)
+
     notify("Ejected", "good")
+end
+
 end
 
 
