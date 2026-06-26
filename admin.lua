@@ -13555,14 +13555,7 @@ end)()
 end)()
 
 
-cmdHandlers["save"] = function()
-    local h = hrp(); if not h then notify("No character", "bad"); return end
-    _G.__SavedCF = h.CFrame; notify("Position saved", "good")
-end
-cmdHandlers["load"] = function()
-    local h = hrp(); if not h or not _G.__SavedCF then notify("Nothing saved", "bad"); return end
-    h.CFrame = _G.__SavedCF; notify("Position loaded", "good")
-end
+-- !save / !load removed — use !tprj for persistent position rejoin.
 
 cmdHandlers["info"] = function()
     notify(string.format("Players: %d  ·  JobId set: %s", #Players:GetPlayers(), tostring(game.JobId ~= "")), "good")
