@@ -12291,6 +12291,13 @@ cmdHandlers["unwalkonair"] = function() _G.__SeigeWoAStop() end
 cmdHandlers["airwalk"]     = cmdHandlers["walkonair"]
 cmdHandlers["unairwalk"]   = cmdHandlers["unwalkonair"]
 
+cmdHandlers["movement"] = function()
+    if type(_openMovementPanel) == "function" then _openMovementPanel()
+    else notify("Movement panel not ready", "bad") end
+end
+cmdHandlers["move"] = cmdHandlers["movement"]
+
+
 
 
 cmdHandlers["goto"] = function(arg)
