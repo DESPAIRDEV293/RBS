@@ -3605,7 +3605,11 @@ local function refreshBill(p)
                 e.gifKey = key
                 e.gifToken = (e.gifToken or 0) + 1
                 local myToken = e.gifToken
-                local img = "rbxassetid://" .. gifSpec.id
+                -- Resolve through resolveIconUrl so wrapper Asset IDs (Image
+                -- type uploads from the Creator Hub) get their underlying
+                -- texture id dug out via MarketplaceService + asset delivery.
+                -- Without this, pasting an Asset ID renders a blank sheet.
+                local img = resolveIconUrl(gifSpec.id) or ("rbxassetid://" .. gifSpec.id)
                 pcall(function() e.av.Image = "" end)
                 pcall(function() e.av.Image = img end)
                 e.av.ImageTransparency = 0
