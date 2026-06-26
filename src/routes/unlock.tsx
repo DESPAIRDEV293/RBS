@@ -7,6 +7,19 @@ export const Route = createFileRoute("/unlock")({
   validateSearch: (s: Record<string, unknown>) => ({ preview: s.preview === "1" || s.preview === 1 ? "1" : undefined }),
   beforeLoad: async ({ search }) => {
     if (search.preview === "1") return;
+    // On preview/sandbox hosts the gate auto-unlocks, which would bounce
+    // /unlock back to /. Allow viewing the real unlock UI there too.
+    if (typeof window !== "undefined") {
+      const h = window.location.hostname.toLowerCase();
+      if (
+        h.includes("id-preview") ||
+        h.endsWith("-dev.lovable.app") ||
+        h === "localhost" ||
+        h === "127.0.0.1"
+      ) {
+        return;
+      }
+    }
     const r = await isUnlocked();
     if (r.unlocked) throw redirect({ to: "/" });
   },
