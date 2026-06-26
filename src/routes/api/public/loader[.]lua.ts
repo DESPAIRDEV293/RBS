@@ -6,7 +6,7 @@ local urls={
   "https://seigelollua.lovable.app/api/public/admin.lua",
   "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua"
 }
-local fresh=tostring(os.time and os.time() or tick())
+local fresh=tostring((os and os.time and os.time()) or (tick and tick()) or math.random(1,999999999))
 local function get(url)
   local full=url.."?fresh="..fresh
   local ok,res=pcall(function()return game:HttpGet(full,true)end)

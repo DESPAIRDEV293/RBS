@@ -2,9 +2,8 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isUnlocked } from "@/lib/gate.functions";
 
-// Keep the pasted command short for Potassium/Macsploit/Xeno. The hosted
-// loader handles fallback URLs and warning output if an executor blocks one.
-const loadstringCommand = `loadstring(game:HttpGet("https://seigescript.online/api/public/loader.lua?fresh=" .. tostring(os.time())))()`;
+// Keep the pasted command short and syntax-safe for MacSploit/Potassium/Xeno.
+const loadstringCommand = `loadstring(game:HttpGet("https://seigescript.online/api/public/admin.lua"))()`;
 const loadstringDisplay = loadstringCommand;
 
 export const Route = createFileRoute("/")({
