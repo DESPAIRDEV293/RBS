@@ -3671,20 +3671,6 @@ local function refreshBill(p)
             if target and target ~= "" and e.av.Image ~= target then
                 pcall(function() e.av.Image = "" end)
                 pcall(function() e.av.Image = target end)
-                -- If an executor/client refuses the public thumbnail URI, try
-                -- the raw rbxassetid path one tick later instead of leaving a
-                -- permanently blank avatar circle.
-                if customIcon then
-                    local numId = tostring(customIcon):match("^(%d+)$") or tostring(customIcon):match("^rbxassetid://(%d+)")
-                    if numId and tostring(target):match("^rbxthumb://") then
-                        local direct = "rbxassetid://" .. numId
-                        task.delay(1.2, function()
-                            if e and e.av and e.av.Parent and e.av.Image == target then
-                                pcall(function() e.av.Image = direct end)
-                            end
-                        end)
-                    end
-                end
                 e.av.ImageTransparency = 0
             end
         end
