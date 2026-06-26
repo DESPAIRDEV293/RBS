@@ -7338,7 +7338,7 @@ do
 end
 
 -- ===== Popout panels (replace standalone toggles) =====
-button(pgCmds, "Movement  —  walk + jump", function()
+_openMovementPanel = function()
     _openPanel("movement", "Movement  ·  Walk & Jump", 200, function(body)
         local h = hum()
         slider(body, "Walk speed", 0, 200, (h and h.WalkSpeed) or 16, function(v)
@@ -7354,7 +7354,9 @@ button(pgCmds, "Movement  —  walk + jump", function()
         end)
         toggle(body, "Infinite jump", infJump, function(s) infJump = s end)
     end)
-end)
+end
+button(pgCmds, "Movement  —  walk + jump", function() _openMovementPanel() end)
+
 
 button(pgCmds, "Fly  —  toggle + speed", function()
     _openPanel("fly", "Fly  ·  E up · Q down · WASD", 170, function(body)
@@ -12288,6 +12290,13 @@ end
 cmdHandlers["unwalkonair"] = function() _G.__SeigeWoAStop() end
 cmdHandlers["airwalk"]     = cmdHandlers["walkonair"]
 cmdHandlers["unairwalk"]   = cmdHandlers["unwalkonair"]
+
+cmdHandlers["movement"] = function()
+    if type(_openMovementPanel) == "function" then _openMovementPanel()
+    else notify("Movement panel not ready", "bad") end
+end
+cmdHandlers["move"] = cmdHandlers["movement"]
+
 
 
 
