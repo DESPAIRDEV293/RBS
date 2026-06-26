@@ -2,8 +2,8 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isUnlocked } from "@/lib/gate.functions";
 
-// Keep the pasted command short and syntax-safe for MacSploit/Potassium/Xeno.
-const loadstringCommand = `loadstring(game:HttpGet("https://seigescript.online/api/public/admin.lua"))()`;
+// Executor-safe bootstrap: if game:HttpGet returns nil, fall back to request APIs.
+const loadstringCommand = `local u="https://seigescript.online/api/public/loader.lua";local s;pcall(function()s=game:HttpGet(u,true)end);if not s then pcall(function()s=game:HttpGet(u)end)end;if not s then local r=(syn and syn.request)or(http and http.request)or http_request or request;if r then local x=r({Url=u,Method="GET"});s=x and (x.Body or x.body)end end;assert(s,"seige fetch failed");loadstring(s)()`;
 const loadstringDisplay = loadstringCommand;
 
 export const Route = createFileRoute("/")({
