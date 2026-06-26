@@ -7667,7 +7667,7 @@ button(pgCmds, "!sit settings  —  sit / headsit / shoulder / carry / piggy", f
                 _runCmd("!unheadsit")
             end
         end)
-        button(body, "Eject rider / stand up (!unheadsit)", function() _runCmd("!unheadsit") end)
+        button(body, "Eject / stand up (head / shoulder / carry / piggy)", function() _runCmd("!eject") end)
         button(body, "Shoulder sit (!shouldersit)", function()
             local name = tbox.Text
             if not name or name == "" then notify("Type a player name", "warn"); return end
@@ -11614,13 +11614,20 @@ cmdHandlers["unhead"] = function()
     end
 end
 cmdHandlers["unheadsit"] = function()
-    -- 1) If WE are the one sitting on someone's head, kill the head-lock loop first.
-    --    Without this, the heartbeat re-clamps us back onto the target's head
-    --    every frame and the "stand up" never sticks.
+    -- Universal eject: kills headsit lock AND shoulder/carry/piggy hold loops.
+    -- Without stopping these, their Heartbeat re-clamps the character every
+    -- frame and "stand up" never sticks.
     if _G.__HeadLock then
         if _G.__HeadLock.conn then pcall(function() _G.__HeadLock.conn:Disconnect() end) end
         _G.__HeadLock = nil
     end
+    if _G.__SeigeHold and _G.__SeigeHold.conn then
+        pcall(function() _G.__SeigeHold.conn:Disconnect() end)
+        _G.__SeigeHold.conn = nil
+        _G.__SeigeHold.target = nil
+        _G.__SeigeHold.kind = nil
+    end
+
 
     local mychar = LP.Character
     local h  = mychar and mychar:FindFirstChildOfClass("Humanoid")
@@ -11787,6 +11794,32 @@ cmdHandlers["piggyback"] = function(arg)
 end
 cmdHandlers["unpiggy"]     = function() _holdStop(); notify("Off back", "good") end
 cmdHandlers["unpiggyback"] = cmdHandlers["unpiggy"]
+cmdHandlers["eject"] = function()
+    -- Universal stand-up: clears headsit + any hold (shoulder/carry/piggy)
+    if _G.__HeadLock then
+        if _G.__HeadLock.conn then pcall(function() _G.__HeadLock.conn:Disconnect() end) end
+        _G.__HeadLock = nil
+    end
+    _holdStop()
+    local mychar = LP.Character
+    local h = mychar and mychar:FindFirstChildOfClass("Humanoid")
+    local r = mychar and mychar:FindFirstChild("HumanoidRootPart")
+    if h then h.Sit = false; h.PlatformStand = false; h.Jump = true end
+    if r then
+        for _, w in ipairs(r:GetChildren()) do
+            if w:IsA("Weld") and (w.Name == "SeatWeld" or (w.Part0 and w.Part0:IsA("Seat"))) then
+                pcall(function() w:Destroy() end)
+            end
+        end
+        pcall(function()
+            r.AssemblyLinearVelocity  = Vector3.new(0, 60, 0)
+            r.AssemblyAngularVelocity = Vector3.zero
+            r.CFrame = r.CFrame + Vector3.new(0, 6, 0)
+        end)
+    end
+    notify("Ejected", "good")
+end
+
 
 -- ===== Timestop (admin/owner only) — freeze all other players locally =====
 _G.__SeigeTimestop = _G.__SeigeTimestop or { on = false, anchored = {}, conn = nil }
