@@ -20,6 +20,7 @@ import { Route as ApiPublicTag_groupsRouteImport } from './routes/api/public/tag
 import { Route as ApiPublicRolesRouteImport } from './routes/api/public/roles'
 import { Route as ApiPublicReanimDotluaRouteImport } from './routes/api/public/reanim[.]lua'
 import { Route as ApiPublicPastebinRouteImport } from './routes/api/public/pastebin'
+import { Route as ApiPublicLoaderDotluaRouteImport } from './routes/api/public/loader[.]lua'
 import { Route as ApiPublicAdminDotluaRouteImport } from './routes/api/public/admin[.]lua'
 
 const ValidateRoute = ValidateRouteImport.update({
@@ -77,6 +78,11 @@ const ApiPublicPastebinRoute = ApiPublicPastebinRouteImport.update({
   path: '/api/public/pastebin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLoaderDotluaRoute = ApiPublicLoaderDotluaRouteImport.update({
+  id: '/api/public/loader.lua',
+  path: '/api/public/loader.lua',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicAdminDotluaRoute = ApiPublicAdminDotluaRouteImport.update({
   id: '/api/public/admin.lua',
   path: '/api/public/admin.lua',
@@ -89,6 +95,7 @@ export interface FileRoutesByFullPath {
   '/unlock': typeof UnlockRoute
   '/validate': typeof ValidateRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
+  '/api/public/loader.lua': typeof ApiPublicLoaderDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/unlock': typeof UnlockRoute
   '/validate': typeof ValidateRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
+  '/api/public/loader.lua': typeof ApiPublicLoaderDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   '/unlock': typeof UnlockRoute
   '/validate': typeof ValidateRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
+  '/api/public/loader.lua': typeof ApiPublicLoaderDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
     | '/unlock'
     | '/validate'
     | '/api/public/admin.lua'
+    | '/api/public/loader.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
     | '/api/public/roles'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
     | '/unlock'
     | '/validate'
     | '/api/public/admin.lua'
+    | '/api/public/loader.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
     | '/api/public/roles'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '/unlock'
     | '/validate'
     | '/api/public/admin.lua'
+    | '/api/public/loader.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
     | '/api/public/roles'
@@ -177,6 +189,7 @@ export interface RootRouteChildren {
   UnlockRoute: typeof UnlockRoute
   ValidateRoute: typeof ValidateRoute
   ApiPublicAdminDotluaRoute: typeof ApiPublicAdminDotluaRoute
+  ApiPublicLoaderDotluaRoute: typeof ApiPublicLoaderDotluaRoute
   ApiPublicPastebinRoute: typeof ApiPublicPastebinRoute
   ApiPublicReanimDotluaRoute: typeof ApiPublicReanimDotluaRoute
   ApiPublicRolesRoute: typeof ApiPublicRolesRoute
@@ -265,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPastebinRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/loader.lua': {
+      id: '/api/public/loader.lua'
+      path: '/api/public/loader.lua'
+      fullPath: '/api/public/loader.lua'
+      preLoaderRoute: typeof ApiPublicLoaderDotluaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/admin.lua': {
       id: '/api/public/admin.lua'
       path: '/api/public/admin.lua'
@@ -281,6 +301,7 @@ const rootRouteChildren: RootRouteChildren = {
   UnlockRoute: UnlockRoute,
   ValidateRoute: ValidateRoute,
   ApiPublicAdminDotluaRoute: ApiPublicAdminDotluaRoute,
+  ApiPublicLoaderDotluaRoute: ApiPublicLoaderDotluaRoute,
   ApiPublicPastebinRoute: ApiPublicPastebinRoute,
   ApiPublicReanimDotluaRoute: ApiPublicReanimDotluaRoute,
   ApiPublicRolesRoute: ApiPublicRolesRoute,
