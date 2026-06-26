@@ -4,7 +4,9 @@ import { useState } from "react";
 import { unlockSite, isUnlocked } from "@/lib/gate.functions";
 
 export const Route = createFileRoute("/unlock")({
-  beforeLoad: async () => {
+  validateSearch: (s: Record<string, unknown>) => ({ preview: s.preview === "1" || s.preview === 1 ? "1" : undefined }),
+  beforeLoad: async ({ search }) => {
+    if (search.preview === "1") return;
     const r = await isUnlocked();
     if (r.unlocked) throw redirect({ to: "/" });
   },
