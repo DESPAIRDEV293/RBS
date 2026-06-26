@@ -61,18 +61,25 @@ export const unlockSite = createServerFn({ method: "POST" })
       getCookieValue,
       setCookieHeader,
       unlockTokenFor,
+      randomId,
       DEVICE_COOKIE,
       UNLOCK_COOKIE,
+      COOKIE_MAX_AGE,
       UNLOCK_MAX_AGE,
       OWNER_CODES,
       TESTER_CODES,
     } = await import("./gate.server");
-    const id = getCookieValue(DEVICE_COOKIE);
-    if (!id) return { ok: false as const, error: "Visit the code page first." };
 
     // Limited access: only OWNER or TESTER allowlist codes unlock the site.
     if (!OWNER_CODES.has(data.code) && !TESTER_CODES.has(data.code)) {
       return { ok: false as const, error: "Invalid code. Tester access only." };
+    }
+
+    // Tester codes don't require a prior /code visit — mint a device id if missing.
+    let id = getCookieValue(DEVICE_COOKIE);
+    if (!id) {
+      id = randomId();
+      setCookieHeader(DEVICE_COOKIE, id, COOKIE_MAX_AGE);
     }
 
     const token = await unlockTokenFor(id);
