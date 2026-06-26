@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 
 const TARGETS = [
-  "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua",
+  "https://seigescript.online/api/public/loader.lua",
   "https://seigescript.online/api/public/admin.lua",
   "https://seigelollua.lovable.app/api/public/admin.lua",
+  "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua",
 ];
 
 export const validateScriptLink = createServerFn({ method: "GET" }).handler(async () => {

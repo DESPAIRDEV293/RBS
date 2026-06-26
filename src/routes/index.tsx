@@ -2,10 +2,9 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isUnlocked } from "@/lib/gate.functions";
 
-// Universal loader — puts GitHub raw first because Potassium/Macsploit can be
-// inconsistent with protected custom-domain/CDN responses, then falls back to
-// the public website endpoints. Runtime errors are surfaced as Roblox warnings.
-const loadstringCommand = `local u={"https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua","https://seigescript.online/api/public/admin.lua","https://seigelollua.lovable.app/api/public/admin.lua"}local src,err local f=tostring(os.time and os.time()or tick())for _,b in ipairs(u)do local ok,r=pcall(function()return game:HttpGet(b.."?fresh="..f,true)end)if ok and type(r)=="string"and #r>1000 then src=r break else err=r end local rq=(syn and syn.request)or(http and http.request)or http_request or request if rq then local ok2,res=pcall(rq,{Url=b.."?fresh="..f,Method="GET"})if ok2 and res and type(res.Body)=="string"and #res.Body>1000 then src=res.Body break else err=res end end end if not src then warn("seige load failed",err)return end local fn,e=loadstring(src)if not fn then warn("seige compile failed",e)return end local ok,runErr=pcall(fn)if not ok then warn("seige runtime failed",runErr)end`;
+// Keep the pasted command short for Potassium/Macsploit/Xeno. The hosted
+// loader handles fallback URLs and warning output if an executor blocks one.
+const loadstringCommand = `loadstring(game:HttpGet("https://seigescript.online/api/public/loader.lua?fresh=" .. tostring(os.time())))()`;
 const loadstringDisplay = loadstringCommand;
 
 export const Route = createFileRoute("/")({
