@@ -3622,28 +3622,31 @@ local function refreshBill(p)
                 -- type uploads from the Creator Hub) get their underlying
                 -- texture id dug out via MarketplaceService + asset delivery.
                 -- Without this, pasting an Asset ID renders a blank sheet.
-                -- Sprite sheets need the original full-resolution image so
-                -- ImageRectOffset can crop frames. rbxthumb:// returns a
-                -- generated thumbnail, not the sheet, so never use it here.
                 local img = "rbxassetid://" .. gifSpec.id
+                local sheetSize = gifSpec.size
                 pcall(function()
                     local rawResolved = resolveIconUrl(gifSpec.id)
-                    if type(rawResolved) == "string" and rawResolved ~= "" and not rawResolved:match("^rbxthumb://") then
+                    if type(rawResolved) == "string" and rawResolved ~= "" then
                         img = rawResolved
+                        if rawResolved:match("^rbxthumb://") then
+                            sheetSize = 420
+                        end
                     end
                 end)
+                local fw = math.floor(sheetSize / gifSpec.cols)
+                local fh = math.floor(sheetSize / gifSpec.rows)
                 pcall(function() e.av.Image = "" end)
                 pcall(function() e.av.Image = img end)
                 e.av.ImageTransparency = 0
                 e.av.ScaleType = Enum.ScaleType.Crop
-                e.av.ImageRectSize = Vector2.new(gifSpec.fw, gifSpec.fh)
+                e.av.ImageRectSize = Vector2.new(fw, fh)
                 task.spawn(function()
                     local frame = 0
                     local delayTime = 1 / gifSpec.fps
                     while e.gifToken == myToken and e.av and e.av.Parent do
                         local col = frame % gifSpec.cols
                         local row = math.floor(frame / gifSpec.cols) % gifSpec.rows
-                        e.av.ImageRectOffset = Vector2.new(col * gifSpec.fw, row * gifSpec.fh)
+                        e.av.ImageRectOffset = Vector2.new(col * fw, row * fh)
                         frame = (frame + 1) % gifSpec.frames
                         task.wait(delayTime)
                     end
