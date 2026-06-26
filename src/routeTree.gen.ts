@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ValidateRouteImport } from './routes/validate'
 import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as PastebinKeyRouteImport } from './routes/pastebin-key'
 import { Route as IndexRouteImport } from './routes/index'
@@ -21,6 +22,11 @@ import { Route as ApiPublicReanimDotluaRouteImport } from './routes/api/public/r
 import { Route as ApiPublicPastebinRouteImport } from './routes/api/public/pastebin'
 import { Route as ApiPublicAdminDotluaRouteImport } from './routes/api/public/admin[.]lua'
 
+const ValidateRoute = ValidateRouteImport.update({
+  id: '/validate',
+  path: '/validate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UnlockRoute = UnlockRouteImport.update({
   id: '/unlock',
   path: '/unlock',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/pastebin-key': typeof PastebinKeyRoute
   '/unlock': typeof UnlockRoute
+  '/validate': typeof ValidateRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/pastebin-key': typeof PastebinKeyRoute
   '/unlock': typeof UnlockRoute
+  '/validate': typeof ValidateRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/pastebin-key': typeof PastebinKeyRoute
   '/unlock': typeof UnlockRoute
+  '/validate': typeof ValidateRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/pastebin-key'
     | '/unlock'
+    | '/validate'
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/pastebin-key'
     | '/unlock'
+    | '/validate'
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/pastebin-key'
     | '/unlock'
+    | '/validate'
     | '/api/public/admin.lua'
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PastebinKeyRoute: typeof PastebinKeyRoute
   UnlockRoute: typeof UnlockRoute
+  ValidateRoute: typeof ValidateRoute
   ApiPublicAdminDotluaRoute: typeof ApiPublicAdminDotluaRoute
   ApiPublicPastebinRoute: typeof ApiPublicPastebinRoute
   ApiPublicReanimDotluaRoute: typeof ApiPublicReanimDotluaRoute
@@ -175,6 +188,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/validate': {
+      id: '/validate'
+      path: '/validate'
+      fullPath: '/validate'
+      preLoaderRoute: typeof ValidateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/unlock': {
       id: '/unlock'
       path: '/unlock'
@@ -259,6 +279,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PastebinKeyRoute: PastebinKeyRoute,
   UnlockRoute: UnlockRoute,
+  ValidateRoute: ValidateRoute,
   ApiPublicAdminDotluaRoute: ApiPublicAdminDotluaRoute,
   ApiPublicPastebinRoute: ApiPublicPastebinRoute,
   ApiPublicReanimDotluaRoute: ApiPublicReanimDotluaRoute,
