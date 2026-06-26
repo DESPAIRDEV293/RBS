@@ -11794,6 +11794,32 @@ cmdHandlers["piggyback"] = function(arg)
 end
 cmdHandlers["unpiggy"]     = function() _holdStop(); notify("Off back", "good") end
 cmdHandlers["unpiggyback"] = cmdHandlers["unpiggy"]
+cmdHandlers["eject"] = function()
+    -- Universal stand-up: clears headsit + any hold (shoulder/carry/piggy)
+    if _G.__HeadLock then
+        if _G.__HeadLock.conn then pcall(function() _G.__HeadLock.conn:Disconnect() end) end
+        _G.__HeadLock = nil
+    end
+    _holdStop()
+    local mychar = LP.Character
+    local h = mychar and mychar:FindFirstChildOfClass("Humanoid")
+    local r = mychar and mychar:FindFirstChild("HumanoidRootPart")
+    if h then h.Sit = false; h.PlatformStand = false; h.Jump = true end
+    if r then
+        for _, w in ipairs(r:GetChildren()) do
+            if w:IsA("Weld") and (w.Name == "SeatWeld" or (w.Part0 and w.Part0:IsA("Seat"))) then
+                pcall(function() w:Destroy() end)
+            end
+        end
+        pcall(function()
+            r.AssemblyLinearVelocity  = Vector3.new(0, 60, 0)
+            r.AssemblyAngularVelocity = Vector3.zero
+            r.CFrame = r.CFrame + Vector3.new(0, 6, 0)
+        end)
+    end
+    notify("Ejected", "good")
+end
+
 
 -- ===== Timestop (admin/owner only) — freeze all other players locally =====
 _G.__SeigeTimestop = _G.__SeigeTimestop or { on = false, anchored = {}, conn = nil }
