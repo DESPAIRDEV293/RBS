@@ -3611,7 +3611,16 @@ local function refreshBill(p)
                 -- type uploads from the Creator Hub) get their underlying
                 -- texture id dug out via MarketplaceService + asset delivery.
                 -- Without this, pasting an Asset ID renders a blank sheet.
-                local img = resolveIconUrl(gifSpec.id) or ("rbxassetid://" .. gifSpec.id)
+                -- Sprite sheets need the original full-resolution image so
+                -- ImageRectOffset can crop frames. rbxthumb:// returns a
+                -- generated thumbnail, not the sheet, so never use it here.
+                local img = "rbxassetid://" .. gifSpec.id
+                pcall(function()
+                    local rawResolved = resolveIconUrl(gifSpec.id)
+                    if type(rawResolved) == "string" and rawResolved ~= "" and not rawResolved:match("^rbxthumb://") then
+                        img = rawResolved
+                    end
+                end)
                 pcall(function() e.av.Image = "" end)
                 pcall(function() e.av.Image = img end)
                 e.av.ImageTransparency = 0
@@ -3648,6 +3657,20 @@ local function refreshBill(p)
             if target and target ~= "" and e.av.Image ~= target then
                 pcall(function() e.av.Image = "" end)
                 pcall(function() e.av.Image = target end)
+                -- If an executor/client refuses the public thumbnail URI, try
+                -- the raw rbxassetid path one tick later instead of leaving a
+                -- permanently blank avatar circle.
+                if customIcon then
+                    local numId = tostring(customIcon):match("^(%d+)$") or tostring(customIcon):match("^rbxassetid://(%d+)")
+                    if numId and tostring(target):match("^rbxthumb://") then
+                        local direct = "rbxassetid://" .. numId
+                        task.delay(1.2, function()
+                            if e and e.av and e.av.Parent and e.av.Image == target then
+                                pcall(function() e.av.Image = direct end)
+                            end
+                        end)
+                    end
+                end
                 e.av.ImageTransparency = 0
             end
         end
