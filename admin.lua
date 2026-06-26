@@ -7093,8 +7093,6 @@ button(pgCmds, "!reset / !respawn",                          function() _runCmd(
 button(pgCmds, "!jump",                                      function() _runCmd("!jump") end)
 
 button(pgCmds, "X-Ray  —  see all players through walls (!xray)", function() _runCmd("!xray") end)
-button(pgCmds, "!save  —  save position",                    function() _runCmd("!save") end)
-button(pgCmds, "!load  —  load saved position",              function() _runCmd("!load") end)
 button(pgCmds, "!info",                                      function() _runCmd("!info") end)
 button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end end)
 
@@ -7282,21 +7280,26 @@ do
             })
             corner(readout, 6); stroke(readout, T.line, 1, 0.4)
             task.spawn(function()
-                local last = tick(); local frames = 0; local fps = 0
+                local RS = game:GetService("RunService")
+                local frames = 0
+                local fps = 0
+                local windowStart = tick()
+                local rsConn = RS.RenderStepped:Connect(function() frames = frames + 1 end)
                 while readout.Parent do
-                    frames = frames + 1
+                    task.wait(0.25)
                     local now = tick()
-                    if now - last >= 0.5 then
-                        fps = math.floor(frames / (now - last) + 0.5)
-                        frames = 0; last = now
+                    local elapsed = now - windowStart
+                    if elapsed >= 0.5 then
+                        fps = math.floor(frames / elapsed + 0.5)
+                        frames = 0; windowStart = now
                     end
                     local ping = 0
                     pcall(function()
                         ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
                     end)
                     readout.Text = ("FPS: %d   Ping: %d ms"):format(fps, ping)
-                    task.wait(0.1)
                 end
+                pcall(function() rsConn:Disconnect() end)
             end)
             toggle(body, "FPS booster (uncap + low quality + strip FX)", P.fps, function(v)
                 P.fps = v; applyFps(v)
@@ -11519,66 +11522,119 @@ cmdHandlers["rj"] = function()
     notify("Rejoining...", "good")
     pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
 end
-cmdHandlers["tprj"] = function()
-    local h = hrp()
-    if not h then notify("No character to snapshot", "bad"); return end
-    local c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12 = h.CFrame:GetComponents()
-    -- Robust position restore for the next server:
-    --  • waits for the character + humanoid to fully load
-    --  • anchors the HRP so spawn logic can't shove us back
-    --  • holds the CFrame for ~6 seconds across every CharacterAdded
-    --  • unanchors cleanly so movement works after
-    local restore = string.format([[
-task.spawn(function()
-    local p = game:GetService('Players').LocalPlayer
-    local cf = CFrame.new(%.4f,%.4f,%.4f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f)
-    local function apply(c)
-        local r = c:WaitForChild('HumanoidRootPart', 15)
-        local hum = c:FindFirstChildOfClass('Humanoid') or c:WaitForChild('Humanoid', 5)
-        if not r then return end
-        -- wait until the humanoid actually owns the root (avoids "in-falling" snap)
-        for _ = 1, 30 do
-            if hum and hum.RootPart == r and r.Parent then break end
-            task.wait(0.1)
-        end
-        task.wait(0.25)
-        local wasAnchored = r.Anchored
-        r.Anchored = true
-        local t0 = tick()
-        while tick() - t0 < 6 do
-            if not r.Parent then return end
-            pcall(function() r.CFrame = cf end)
-            pcall(function()
-                r.AssemblyLinearVelocity  = Vector3.zero
-                r.AssemblyAngularVelocity = Vector3.zero
-            end)
-            task.wait(0.1)
-        end
-        pcall(function() r.Anchored = wasAnchored end)
-    end
-    local c = p.Character or p.CharacterAdded:Wait()
-    apply(c)
-    p.CharacterAdded:Connect(apply)
-end)
-]], c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12)
+-- ===== !tprj  ·  persistent last-position rejoin =====
+-- Saves the player's last known HRP CFrame to disk every 2s while enabled.
+-- On the NEXT script execution (whether via teleport, normal rejoin, or fresh
+-- join into the same place) the position is restored on the first character
+-- that spawns, then the marker is cleared.
+do
+    local HttpService = game:GetService("HttpService")
+    local _wf = rawget(getfenv(), "writefile")
+    local _rf = rawget(getfenv(), "readfile")
+    local _if = rawget(getfenv(), "isfile")
+    local _df = rawget(getfenv(), "delfile")
+    local FNAME = "seige_tprj_" .. tostring(game.PlaceId) .. ".json"
 
-    local q = (syn and syn.queue_on_teleport)
-        or rawget(getfenv(), "queue_on_teleport")
-        or (fluxus and fluxus.queue_on_teleport)
-        or (getgenv and getgenv().queue_on_teleport)
-    if q then
-        local okQ, errQ = pcall(q, restore)
-        if not okQ then notify("queue_on_teleport failed: " .. tostring(errQ), "bad") end
-    else
-        notify("Your executor lacks queue_on_teleport — position won't restore", "warn")
+    local function _cfToTbl(cf)
+        return { cf:GetComponents() }
     end
-    notify("Teleport rejoin (restoring position)...", "good")
-    local ok = pcall(function()
-        TeleportSrv:TeleportToPlaceInstance(game.PlaceId, game.JobId, LP)
+    local function _tblToCf(t)
+        if type(t) ~= "table" or #t < 12 then return nil end
+        return CFrame.new(t[1],t[2],t[3],t[4],t[5],t[6],t[7],t[8],t[9],t[10],t[11],t[12])
+    end
+
+    local function _writePos(cf)
+        if not (_wf and cf) then return end
+        local data = { placeId = game.PlaceId, savedAt = os.time(), cf = _cfToTbl(cf) }
+        pcall(function() _wf(FNAME, HttpService:JSONEncode(data)) end)
+    end
+
+    local function _readPos()
+        if not (_rf and _if) then return nil end
+        local ok, has = pcall(_if, FNAME); if not (ok and has) then return nil end
+        local ok2, raw = pcall(_rf, FNAME); if not (ok2 and raw) then return nil end
+        local ok3, j = pcall(function() return HttpService:JSONDecode(raw) end)
+        if not ok3 or type(j) ~= "table" then return nil end
+        if j.placeId ~= game.PlaceId then return nil end
+        if (os.time() - (tonumber(j.savedAt) or 0)) > 86400 then return nil end -- 24h
+        return _tblToCf(j.cf)
+    end
+
+    local function _clear()
+        if _df then pcall(_df, FNAME) end
+    end
+
+    -- Auto-restore on this execution if a fresh marker exists.
+    task.spawn(function()
+        local cf = _readPos(); if not cf then return end
+        local function apply(c)
+            local r = c:WaitForChild("HumanoidRootPart", 15)
+            local h = c:FindFirstChildOfClass("Humanoid") or c:WaitForChild("Humanoid", 5)
+            if not r then return end
+            for _ = 1, 30 do
+                if h and h.RootPart == r and r.Parent then break end
+                task.wait(0.1)
+            end
+            task.wait(0.25)
+            local wasAnchored = r.Anchored
+            r.Anchored = true
+            local t0 = tick()
+            while tick() - t0 < 4 do
+                if not r.Parent then break end
+                pcall(function() r.CFrame = cf end)
+                pcall(function()
+                    r.AssemblyLinearVelocity = Vector3.zero
+                    r.AssemblyAngularVelocity = Vector3.zero
+                end)
+                task.wait(0.1)
+            end
+            pcall(function() r.Anchored = wasAnchored end)
+        end
+        local c = LP.Character or LP.CharacterAdded:Wait()
+        apply(c)
+        _clear()
+        notify("Position restored from last session", "good")
     end)
-    if not ok then
-        pcall(function() TeleportSrv:Teleport(game.PlaceId, LP) end)
-        notify("Falling back to normal rejoin", "warn")
+
+    -- Background auto-save loop (started only when !tprj enables it).
+    _G.__SeigeTprjOn = _G.__SeigeTprjOn or false
+    if not _G.__SeigeTprjLoopStarted then
+        _G.__SeigeTprjLoopStarted = true
+        task.spawn(function()
+            while true do
+                task.wait(2)
+                if _G.__SeigeTprjOn then
+                    local h = hrp()
+                    if h then _writePos(h.CFrame) end
+                end
+            end
+        end)
+        -- Save one final time before the player removes (best-effort).
+        pcall(function()
+            Players.PlayerRemoving:Connect(function(p)
+                if p == LP and _G.__SeigeTprjOn then
+                    local h = hrp(); if h then _writePos(h.CFrame) end
+                end
+            end)
+        end)
+    end
+
+    cmdHandlers["tprj"] = function()
+        local h = hrp()
+        if not h then notify("No character to snapshot", "bad"); return end
+        _G.__SeigeTprjOn = true
+        _writePos(h.CFrame)
+        if not _wf then
+            notify("Executor lacks writefile — position cannot persist across rejoin", "warn")
+        else
+            notify("tprj armed — last position will restore on rejoin", "good")
+        end
+    end
+
+    cmdHandlers["untprj"] = function()
+        _G.__SeigeTprjOn = false
+        _clear()
+        notify("tprj disarmed and cleared", "warn")
     end
 end
 cmdHandlers["sit"] = function()
@@ -13552,14 +13608,7 @@ end)()
 end)()
 
 
-cmdHandlers["save"] = function()
-    local h = hrp(); if not h then notify("No character", "bad"); return end
-    _G.__SavedCF = h.CFrame; notify("Position saved", "good")
-end
-cmdHandlers["load"] = function()
-    local h = hrp(); if not h or not _G.__SavedCF then notify("Nothing saved", "bad"); return end
-    h.CFrame = _G.__SavedCF; notify("Position loaded", "good")
-end
+-- !save / !load removed — use !tprj for persistent position rejoin.
 
 cmdHandlers["info"] = function()
     notify(string.format("Players: %d  ·  JobId set: %s", #Players:GetPlayers(), tostring(game.JobId ~= "")), "good")
