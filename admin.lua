@@ -1983,39 +1983,52 @@ local function _httpget()
         or function(u) return game:HttpGet(u) end
 end
 
+local function _assetThumb(id, size)
+    size = tonumber(size) or 420
+    return "rbxthumb://type=Asset&id=" .. tostring(id) .. "&w=" .. tostring(size) .. "&h=" .. tostring(size)
+end
+
 local function resolveIconUrl(raw)
     if not raw or raw == "" then return nil end
     raw = tostring(raw):match("^%s*(.-)%s*$")
     if raw == "" then return nil end
     if _iconCache[raw] then return _iconCache[raw] end
 
-    -- Pure numeric asset id — or rbxassetid:// URL. May be a Decal/Image
-    -- (texture id, renders directly) OR a wrapper Asset id (needs the
-    -- underlying texture id resolved). We try direct first, then fall back
-    -- to MarketplaceService + asset delivery API to dig out the real id.
+    -- Pure numeric asset id — or rbxassetid:// URL. Roblox UI rendering is
+    -- picky here: texture IDs usually work with rbxassetid://, but Creator
+    -- Hub Image/Decal wrapper asset IDs often render blank in live clients.
+    -- AssetDelivery used to expose the underlying texture ID, but Roblox now
+    -- frequently requires auth for that endpoint, so the reliable public path
+    -- for pasted asset IDs is the built-in rbxthumb:// asset thumbnail URI.
     local numId = raw:match("^(%d+)$") or raw:match("^rbxassetid://(%d+)")
     if numId then
         local direct = "rbxassetid://" .. numId
-        -- Probe asset type. 1=Image, 13=Decal render fine via rbxassetid://.
-        -- Anything else, ask asset delivery for the embedded RBXMX and pull
-        -- the Content url out — that is the real texture id.
-        local resolved = direct
+        local resolved = _assetThumb(numId, 420)
         pcall(function()
-            local MS = game:GetService("MarketplaceService")
-            local info = MS:GetProductInfo(tonumber(numId))
-            local t = info and info.AssetTypeId
-            if t and t ~= 1 and t ~= 13 then
-                local hg = _httpget()
-                local body = nil
-                pcall(function() body = hg("https://assetdelivery.roblox.com/v1/asset/?id=" .. numId) end)
-                if type(body) == "string" then
-                    local inner = body:match("rbxassetid://(%d+)")
-                                or body:match("<url>[^<]-id=(%d+)")
-                                or body:match("<Content[^>]->.-(%d%d%d%d+)")
-                    if inner then resolved = "rbxassetid://" .. inner end
-                end
+            local IS = game:GetService("InsertService")
+            local ok, model = pcall(function() return IS:LoadAsset(tonumber(numId)) end)
+            if ok and model then
+                local decal = model:FindFirstChildWhichIsA("Decal", true)
+                local img = model:FindFirstChildWhichIsA("ImageLabel", true) or model:FindFirstChildWhichIsA("ImageButton", true)
+                local tex = (decal and decal.Texture) or (img and img.Image)
+                if type(tex) == "string" and tex ~= "" then resolved = tex end
+                pcall(function() model:Destroy() end)
             end
         end)
+        pcall(function()
+            local hg = _httpget()
+            local body = nil
+            pcall(function() body = hg("https://assetdelivery.roblox.com/v1/asset/?id=" .. numId) end)
+            if type(body) == "string" and not body:find("Authentication required", 1, true) then
+                local inner = body:match("rbxassetid://(%d+)")
+                            or body:match("<url>[^<]-id=(%d+)")
+                            or body:match("<Content[^>]->.-(%d%d%d%d+)")
+                if inner then resolved = "rbxassetid://" .. inner end
+            end
+        end)
+        -- Some older texture IDs still render only through rbxassetid:// in a
+        -- few executors; keep it as a remembered fallback for setters below.
+        _iconCache[raw .. "#directFallback"] = direct
         _iconCache[raw] = resolved; return resolved
     end
     -- Already Roblox-internal (thumb/asset paths, non-numeric assetid URLs)
@@ -3609,19 +3622,31 @@ local function refreshBill(p)
                 -- type uploads from the Creator Hub) get their underlying
                 -- texture id dug out via MarketplaceService + asset delivery.
                 -- Without this, pasting an Asset ID renders a blank sheet.
-                local img = resolveIconUrl(gifSpec.id) or ("rbxassetid://" .. gifSpec.id)
+                local img = "rbxassetid://" .. gifSpec.id
+                local sheetSize = gifSpec.size
+                pcall(function()
+                    local rawResolved = resolveIconUrl(gifSpec.id)
+                    if type(rawResolved) == "string" and rawResolved ~= "" then
+                        img = rawResolved
+                        if rawResolved:match("^rbxthumb://") then
+                            sheetSize = 420
+                        end
+                    end
+                end)
+                local fw = math.floor(sheetSize / gifSpec.cols)
+                local fh = math.floor(sheetSize / gifSpec.rows)
                 pcall(function() e.av.Image = "" end)
                 pcall(function() e.av.Image = img end)
                 e.av.ImageTransparency = 0
                 e.av.ScaleType = Enum.ScaleType.Crop
-                e.av.ImageRectSize = Vector2.new(gifSpec.fw, gifSpec.fh)
+                e.av.ImageRectSize = Vector2.new(fw, fh)
                 task.spawn(function()
                     local frame = 0
                     local delayTime = 1 / gifSpec.fps
                     while e.gifToken == myToken and e.av and e.av.Parent do
                         local col = frame % gifSpec.cols
                         local row = math.floor(frame / gifSpec.cols) % gifSpec.rows
-                        e.av.ImageRectOffset = Vector2.new(col * gifSpec.fw, row * gifSpec.fh)
+                        e.av.ImageRectOffset = Vector2.new(col * fw, row * fh)
                         frame = (frame + 1) % gifSpec.frames
                         task.wait(delayTime)
                     end
