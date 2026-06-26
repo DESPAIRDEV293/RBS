@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-25-tags-server-feedback"
+local ADMIN_BUILD = "2026-06-26-potassium-loader-parent"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -84,10 +84,9 @@ local function tween(obj, t, props, style, dir)
 end
 
 ------------------------------------------------------- UI ROOT
--- Some executors (Potassium, Macsploit, Hydrogen, certain mobile builds)
--- cannot parent ScreenGuis to CoreGui — the call appears to succeed but the
--- GUI never renders. They expose `gethui()` (a hidden protected container)
--- as the correct parent. Try, in order: gethui → CoreGui → PlayerGui.
+-- Some executors silently accept CoreGui/gethui parenting but never render the
+-- GUI. PlayerGui is the most visible cross-executor target, so prefer it first,
+-- then hidden executor UI, then CoreGui. Every assignment verifies the parent.
 local function _hiddenUI()
     local ok, hui = pcall(function() return gethui and gethui() end)
     if ok and typeof(hui) == "Instance" then return hui end
@@ -95,19 +94,36 @@ local function _hiddenUI()
     if ok2 and typeof(cg) == "Instance" then return cg end
     return nil
 end
-local function safeParent(gui)
-    local hui = _hiddenUI()
-    if hui then
-        local ok = pcall(function() gui.Parent = hui end)
-        if ok then return end
+local function _protectGui(gui)
+    pcall(function()
+        if syn and syn.protect_gui then syn.protect_gui(gui) end
+    end)
+end
+local function _uiParents()
+    local out = {}
+    local function add(x)
+        if typeof(x) == "Instance" then
+            for _, existing in ipairs(out) do if existing == x then return end end
+            table.insert(out, x)
+        end
     end
-    local ok = pcall(function() gui.Parent = CoreGui end)
-    if ok and gui.Parent == CoreGui then return end
-    gui.Parent = LP:WaitForChild("PlayerGui")
+    add(LP:FindFirstChildOfClass("PlayerGui") or LP:WaitForChild("PlayerGui", 8))
+    add(_hiddenUI())
+    add(CoreGui)
+    return out
+end
+local function safeParent(gui)
+    _protectGui(gui)
+    for _, parent in ipairs(_uiParents()) do
+        local ok = pcall(function() gui.Parent = parent end)
+        if ok and gui.Parent == parent then return true end
+    end
+    pcall(function() gui.Parent = LP:WaitForChild("PlayerGui") end)
+    return gui.Parent ~= nil
 end
 
 -- Clean up any previous instance across all possible parents
-for _, parent in ipairs({ _hiddenUI(), CoreGui, LP:FindFirstChild("PlayerGui") }) do
+for _, parent in ipairs(_uiParents()) do
     if parent then
         local old = parent:FindFirstChild("SeigeAdmin")
         if old then pcall(function() old:Destroy() end) end
@@ -119,6 +135,7 @@ local Root = inst("ScreenGui", nil, {
     Name = "SeigeAdmin",
     ResetOnSpawn = false,
     IgnoreGuiInset = true,
+    DisplayOrder = 999999,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 })
 safeParent(Root)
