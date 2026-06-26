@@ -5,7 +5,7 @@ import { validateScriptLink } from "@/lib/validate.functions";
 import { isUnlocked } from "@/lib/gate.functions";
 
 const LOADSTRING =
-  'loadstring(game:HttpGet("https://seigescript.online/api/public/loader.lua"))()';
+  'loadstring(game:HttpGet("https://seigelollua.lovable.app/api/public/loader.lua"))()';
 
 export const Route = createFileRoute("/validate")({
   beforeLoad: async () => {

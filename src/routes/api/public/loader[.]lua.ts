@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 
 const loaderLua = `-- seige.lol universal bootstrap
 local urls={
-  "https://seigescript.online/api/public/admin.lua",
   "https://seigelollua.lovable.app/api/public/admin.lua",
-  "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua"
+  "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua",
+  "https://seigescript.online/api/public/admin.lua"
 }
 local function now()
   local ok,v=pcall(function()
@@ -21,6 +21,12 @@ end
 local function good(s)
   return type(s)=="string" and #s>1000 and s:find("ADMIN_BUILD",1,true)
 end
+local function requester()
+  if type(syn)=="table" and type(syn.request)=="function" then return syn.request end
+  if type(http)=="table" and type(http.request)=="function" then return http.request end
+  if type(http_request)=="function" then return http_request end
+  if type(request)=="function" then return request end
+end
 local function get(url)
   local full=url..(url:find("?",1,true) and "&" or "?").."fresh="..now()
   local ok,res=pcall(function()return game:HttpGet(full,true)end)
@@ -29,7 +35,7 @@ local function get(url)
   ok,res=pcall(function()return game:HttpGet(full)end)
   res=bodyFromResponse(res)
   if ok and good(res) then return res end
-  local rq=(syn and syn.request)or(http and http.request)or http_request or request
+  local rq=requester()
   if rq then
     ok,res=pcall(function()return rq({Url=full,Method="GET",Headers={Accept="text/plain",["Cache-Control"]="no-cache"}})end)
     res=bodyFromResponse(res)
@@ -44,6 +50,7 @@ for _,u in ipairs(urls)do
   last=res
 end
 if not src then warn("[seige.lol] load failed: "..tostring(last));return end
+if type(loadstring)~="function" then warn("[seige.lol] executor has no loadstring support");return end
 local fn,err=loadstring(src)
 if not fn then warn("[seige.lol] compile failed: "..tostring(err));return end
 local ok,runErr=pcall(fn)
