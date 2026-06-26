@@ -3393,12 +3393,12 @@ local function refreshBill(p)
             cfg.textFx = "rainbow"
         end
         -- Force the owner avatar icon every refresh so cloud-state can't override it.
-        -- EXCEPTION: if the user has set a sprite/gif spec (animated GIF via sprite
-        -- sheet), preserve it so rotshad3 can use animated tag images too.
+        -- Default to an animated sprite-sheet GIF (asset 125984220361443, 4x4 @ 12fps).
+        -- If the user has set their own sprite/gif spec or a plain rbxassetid, preserve it.
         do
             local cur = tostring(cfg.icon or ""):lower()
             if not (cur:sub(1,4) == "gif:" or cur:sub(1,7) == "sprite:") then
-                cfg.icon = "rbxassetid://125193476962652"
+                cfg.icon = "sprite:125984220361443:4:4:12"
             end
         end
     end
