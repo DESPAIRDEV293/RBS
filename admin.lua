@@ -7280,21 +7280,26 @@ do
             })
             corner(readout, 6); stroke(readout, T.line, 1, 0.4)
             task.spawn(function()
-                local last = tick(); local frames = 0; local fps = 0
+                local RS = game:GetService("RunService")
+                local frames = 0
+                local fps = 0
+                local windowStart = tick()
+                local rsConn = RS.RenderStepped:Connect(function() frames = frames + 1 end)
                 while readout.Parent do
-                    frames = frames + 1
+                    task.wait(0.25)
                     local now = tick()
-                    if now - last >= 0.5 then
-                        fps = math.floor(frames / (now - last) + 0.5)
-                        frames = 0; last = now
+                    local elapsed = now - windowStart
+                    if elapsed >= 0.5 then
+                        fps = math.floor(frames / elapsed + 0.5)
+                        frames = 0; windowStart = now
                     end
                     local ping = 0
                     pcall(function()
                         ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
                     end)
                     readout.Text = ("FPS: %d   Ping: %d ms"):format(fps, ping)
-                    task.wait(0.1)
                 end
+                pcall(function() rsConn:Disconnect() end)
             end)
             toggle(body, "FPS booster (uncap + low quality + strip FX)", P.fps, function(v)
                 P.fps = v; applyFps(v)
