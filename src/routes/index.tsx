@@ -295,7 +295,7 @@ function Index() {
 
           <pre className="storm-code relative mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-slate-200 backdrop-blur">
             <span className="storm-code-sweep pointer-events-none" />
-            <code className="relative block overflow-x-auto">{loadstringCommand}</code>
+            <code className="relative block overflow-x-auto">{loadstringDisplay}</code>
           </pre>
         </section>
 
