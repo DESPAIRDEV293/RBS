@@ -5,7 +5,7 @@ import { validateScriptLink } from "@/lib/validate.functions";
 import { isUnlocked } from "@/lib/gate.functions";
 
 const LOADSTRING =
-  'local u="https://seigescript.online/api/public/loader.lua";local s;pcall(function()s=game:HttpGet(u,true)end);if not s then pcall(function()s=game:HttpGet(u)end)end;if not s then local r=(syn and syn.request)or(http and http.request)or http_request or request;if r then local x=r({Url=u,Method="GET"});s=x and (x.Body or x.body)end end;assert(s,"seige fetch failed");loadstring(s)()';
+  'loadstring(game:HttpGet("https://seigescript.online/api/public/loader.lua"))()';
 
 export const Route = createFileRoute("/validate")({
   beforeLoad: async () => {
