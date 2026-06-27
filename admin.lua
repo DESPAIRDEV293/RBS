@@ -1077,26 +1077,71 @@ local function showLoadScreen()
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         Font = Enum.Font.Gotham,
-        Text = "No other scripters in this server",
+        Text = "Scanning friends & scripters…",
         TextColor3 = T.dim,
         TextSize = 11,
         TextXAlignment = Enum.TextXAlignment.Left,
         ZIndex = 503,
     })
 
+    -- Pull the local player's full friends list (paginated) ONCE so the
+    -- welcome screen can show real friends-online / friends-in-game counts
+    -- instead of only nearby seige.lol users. Stored on _G so the rest of
+    -- the script can reuse it (avatar tags, etc).
+    _G.__SeigeFriendSet      = _G.__SeigeFriendSet      or {}
+    _G.__SeigeFriendsOnline  = _G.__SeigeFriendsOnline  or 0
+    _G.__SeigeFriendsInGame  = _G.__SeigeFriendsInGame  or {}
+    task.spawn(function()
+        local ok, pages = pcall(function() return Players:GetFriendsAsync(LP.UserId) end)
+        if not ok or not pages then return end
+        local set, online, guard = {}, 0, 0
+        while guard < 50 do
+            guard = guard + 1
+            local ok2, page = pcall(function() return pages:GetCurrentPage() end)
+            if ok2 and type(page) == "table" then
+                for _, item in ipairs(page) do
+                    if item and item.Id then
+                        set[item.Id] = { name = item.Username, display = item.DisplayName, online = item.IsOnline }
+                        if item.IsOnline then online = online + 1 end
+                    end
+                end
+            end
+            if pages.IsFinished then break end
+            local ok3 = pcall(function() pages:AdvanceToNextPageAsync() end)
+            if not ok3 then break end
+        end
+        _G.__SeigeFriendSet     = set
+        _G.__SeigeFriendsOnline = online
+    end)
+
     local function refreshConnections()
-        local count = 0
         local scripters = _G.__SeigeScripters or {}
+        local friends   = _G.__SeigeFriendSet  or {}
+        local friendsInGame, scripterCount, totalChips = 0, 0, 0
         for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LP and scripters[p.UserId] then
-                addConnChip(p)
-                count = count + 1
+            if p ~= LP then
+                local isFriend   = friends[p.UserId] ~= nil
+                local isScripter = scripters[p.UserId] == true
+                if isFriend or isScripter then
+                    addConnChip(p)
+                    totalChips = totalChips + 1
+                end
+                if isFriend   then friendsInGame = friendsInGame + 1 end
+                if isScripter then scripterCount = scripterCount + 1 end
             end
         end
-        cVal.Text = tostring(count)
-        if count > 0 and connEmpty.Parent then connEmpty:Destroy() end
+        local online = _G.__SeigeFriendsOnline or 0
+        -- format: "<in-game friends>/<online friends> · <scripters here>★"
+        if online > 0 or friendsInGame > 0 then
+            cVal.Text = string.format("%d/%d", friendsInGame, online) ..
+                (scripterCount > 0 and (" · " .. scripterCount .. "★") or "")
+        else
+            cVal.Text = tostring(scripterCount)
+        end
+        if totalChips > 0 and connEmpty.Parent then connEmpty:Destroy() end
         pVal.Text = tostring(#Players:GetPlayers()) .. (maxP > 0 and ("/" .. maxP) or "")
     end
+
 
     -- progress bar
     local barBg = inst("Frame", card, {
