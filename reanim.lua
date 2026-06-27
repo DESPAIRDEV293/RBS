@@ -946,12 +946,21 @@ local reloadCustom = function() end
 			       or _animCC:FindFirstChildOfClass("AnimationController")
 			return h and h:FindFirstChildOfClass("Animator")
 		end)() or nil
+		local _animAccum = 0
+		local _animStep  = 1/60
 		stalkie.connections.animation_hb = _animEvent:Connect(
 			LPH_NO_VIRTUALIZE(function(dt)
 				if not anim.state.is_playing then return end
 				if not _animCC or not _animCC.Parent then API.stop_animation(); return end
+				-- Throttle to ~60Hz: uncapped FPS would otherwise force a
+				-- Motor6D write per joint per frame, flooding replication
+				-- and visibly spiking ping.
+				_animAccum = _animAccum + dt
+				if _animAccum < _animStep then return end
+				local stepDt = _animAccum
+				_animAccum = 0
 				anim.state.elapsed_time =
-					(anim.state.elapsed_time + dt * anim.state.speed) % anim.state.total_duration
+					(anim.state.elapsed_time + stepDt * anim.state.speed) % anim.state.total_duration
 				local kfs = anim.state.keyframes
 				local t   = anim.state.elapsed_time
 				local lo, hi = 1, #kfs - 1
