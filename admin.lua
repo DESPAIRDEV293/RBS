@@ -13133,6 +13133,7 @@ cmdHandlers["blink"] = cmdHandlers["flashstep"]
 _G.__SeigeLimb = _G.__SeigeLimb or {
     on = false, target = nil, limb = "RightUpperArm",
     sens = 1.0, motor = nil, baseC1 = nil, baseCam = nil, conn = nil, gui = nil,
+    stretch = 1.0, stretchPart = nil, baseSize = nil, childOffsets = nil,
 }
 
 local R15_LIMBS = {"Head","UpperTorso","LowerTorso","LeftUpperArm","RightUpperArm",
