@@ -13483,7 +13483,7 @@ local function _openLimbPanel()
         local rig = _detectRig(char)
         title.Text = ("Limb Track  ·  @%s  ·  %s (%d)"):format(plr and plr.Name or "?", rig, #limbs)
         if #limbs == 0 then
-            hint.Text = "No Motor6D joints found on target. Wait for character to load, then Refresh."
+            hint.Text = "No controllable limbs found yet. Wait for the avatar to finish loading, then Refresh."
             return
         end
         -- ensure current selection exists in this rig
@@ -13508,6 +13508,11 @@ local function _openLimbPanel()
         refreshSel()
     end
     rebuildLimbs()
+    -- Some layered/S15 packages stream bones/mesh parts after CharacterAdded;
+    -- rescan a few times so the user doesn't have to spam Refresh.
+    task.delay(0.6, function() if sg.Parent then rebuildLimbs() end end)
+    task.delay(1.8, function() if sg.Parent then rebuildLimbs() end end)
+    task.delay(3.5, function() if sg.Parent then rebuildLimbs() end end)
     -- auto-rebuild when target respawns
     do
         local plr = S.target or LP
