@@ -10224,6 +10224,107 @@ toggle(pgConfig, "Show ping tag above other players", _G.__SeigeHeadStatsOn, fun
 end)
 
 
+section(pgConfig, "Auto Execute")
+label(pgConfig, "When on, seige.lol will inject automatically every time you rejoin any game. Stays on until you toggle it off. Requires an executor that supports writefile + an autoexec folder (Synapse, Xeno, Potassium, MacSploit, Wave, etc).")
+do
+    local wf  = rawget(getfenv(), "writefile")
+    local rf  = rawget(getfenv(), "readfile")
+    local isf = rawget(getfenv(), "isfile")
+    local df  = rawget(getfenv(), "delfile")
+    local lf  = rawget(getfenv(), "listfiles")
+    local mf  = rawget(getfenv(), "makefolder")
+    local isfo = rawget(getfenv(), "isfolder")
+
+    local SCRIPT_NAME = "seige_autoexec.lua"
+    local FOLDERS = { "autoexec", "auto_exec", "autoexecute", "scripts/autoexec" }
+
+    local function currentKey()
+        local k = rawget(getfenv(), "script_key")
+        if type(k) ~= "string" or k == "" then
+            k = (_G and _G.script_key) or (getgenv and getgenv().script_key) or ""
+        end
+        return (type(k) == "string" and k) or ""
+    end
+
+    local function buildPayload()
+        local key = currentKey()
+        if key == "" then return nil, "script_key not detected — re-run loadstring once with your key" end
+        return ('script_key = "%s"\nloadstring(game:HttpGet("https://seigescript.online/api/public/loader.lua"))()\n')
+            :format(key:gsub('"','\\"'))
+    end
+
+    local function targetPaths()
+        local out = {}
+        for _, f in ipairs(FOLDERS) do
+            if isfo then pcall(function() if not isfo(f) and mf then mf(f) end end) end
+            table.insert(out, f .. "/" .. SCRIPT_NAME)
+        end
+        -- root-level fallback (some executors scan root for autoexec_*.lua)
+        table.insert(out, "autoexec_" .. SCRIPT_NAME)
+        return out
+    end
+
+    local function isInstalled()
+        if not isf then return false end
+        for _, p in ipairs(targetPaths()) do
+            local ok, yes = pcall(isf, p)
+            if ok and yes then return true, p end
+        end
+        return false
+    end
+
+    local function install()
+        if not wf then return false, "writefile not available on this executor" end
+        local payload, perr = buildPayload()
+        if not payload then return false, perr end
+        local wrote = 0
+        for _, p in ipairs(targetPaths()) do
+            local ok = pcall(wf, p, payload)
+            if ok then wrote = wrote + 1 end
+        end
+        if wrote == 0 then return false, "all autoexec write attempts failed" end
+        return true
+    end
+
+    local function uninstall()
+        local removed = 0
+        if df then
+            for _, p in ipairs(targetPaths()) do
+                pcall(function() if (not isf) or isf(p) then df(p); removed = removed + 1 end end)
+            end
+        elseif wf then
+            -- Overwrite with a no-op so future joins don't reinject.
+            for _, p in ipairs(targetPaths()) do
+                pcall(wf, p, "-- seige.lol autoexec disabled\n")
+            end
+            removed = 1
+        end
+        return removed > 0
+    end
+
+    local installed = isInstalled()
+    if _G.__SeigeAutoExec == nil then _G.__SeigeAutoExec = installed end
+
+    local autoExecCtl
+    autoExecCtl = toggle(pgConfig, "Auto-execute on rejoin", _G.__SeigeAutoExec == true, function(v)
+        _G.__SeigeAutoExec = v
+        if v then
+            local ok, err = install()
+            if ok then
+                notify("Auto-execute enabled — seige.lol will inject on rejoin", "good")
+            else
+                _G.__SeigeAutoExec = false
+                notify("Auto-execute failed: " .. tostring(err), "warn")
+            end
+        else
+            uninstall()
+            notify("Auto-execute disabled", "good")
+        end
+        if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
+    end)
+end
+
+
 section(pgConfig, "About")
 label(pgConfig, "seige.lol admin")
 label(pgConfig, "Build " .. ADMIN_BUILD)
