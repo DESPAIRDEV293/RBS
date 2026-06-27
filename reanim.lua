@@ -37,6 +37,11 @@ do
                 local L = game:GetService("Lighting")
                 if P.prevGQ ~= nil then L.GlobalShadows = P.prevGQ end
             end)
+            -- Re-cap FPS after the load burst. Uncapped FPS during animation
+            -- playback floods Motor6D replication and tanks ping, so settle to
+            -- 144 (smooth) once the rig is in. User can re-uncap manually.
+            pcall(function() if setfpscap then setfpscap(144) end end)
+            pcall(function() if syn and syn.set_fps_cap then syn.set_fps_cap(144) end end)
         end)
     end
 end
