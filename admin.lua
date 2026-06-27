@@ -998,7 +998,7 @@ local function showLoadScreen()
 
     local maxP = Players.MaxPlayers or 0
     local pTile, pLab, pVal = makeTile(1, "PLAYERS IN SERVER", tostring(#Players:GetPlayers()) .. (maxP > 0 and ("/" .. maxP) or ""))
-    local cTile, cLab, cVal = makeTile(2, "CONNECTIONS", "0")
+    local cTile, cLab, cVal = makeTile(2, "FRIENDS  IN/ONLINE", "0/0")
     local gameName = "Game"
     pcall(function()
         local MarketplaceService = game:GetService("MarketplaceService")
