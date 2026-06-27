@@ -1,5 +1,48 @@
 if not game:IsLoaded() then game.Loaded:Wait() end
 
+-- ============================================================================
+-- ROT / Reanim performance boost: uncap FPS and lower network throttle BEFORE
+-- the rig spawns so the heaviest frames (rig build + initial replication) run
+-- at full speed. Saves the user's previous values so we can restore on unload.
+-- ============================================================================
+_G.__RotPerfBoost = _G.__RotPerfBoost or {}
+do
+    local P = _G.__RotPerfBoost
+    if not P.applied then
+        P.applied = true
+        -- 1) Uncap FPS — try every executor flavor of the call
+        pcall(function()
+            if setfpscap then P.prevFps = 60; setfpscap(0) end
+        end)
+        pcall(function()
+            if not P.prevFps and (syn and syn.set_fps_cap) then P.prevFps = 60; syn.set_fps_cap(0) end
+        end)
+        -- 2) Lower send/receive throttle so replication keeps up at high FPS
+        pcall(function()
+            local NS = game:GetService("NetworkSettings")
+            P.prevSend = NS.IncomingReplicationLag
+            NS.IncomingReplicationLag = 0
+        end)
+        pcall(function()
+            settings():GetService("NetworkSettings").PhysicsSendRate = 30
+        end)
+        -- 3) Defer heavy renderer features for one frame while we load
+        pcall(function()
+            local L = game:GetService("Lighting")
+            P.prevGQ = L.GlobalShadows
+            L.GlobalShadows = false
+        end)
+        task.delay(6, function()
+            pcall(function()
+                local L = game:GetService("Lighting")
+                if P.prevGQ ~= nil then L.GlobalShadows = P.prevGQ end
+            end)
+        end)
+    end
+end
+
+
+
 local LPH_NO_VIRTUALIZE = LPH_NO_VIRTUALIZE or function(f) return f end
 local LPH_JIT           = LPH_JIT           or function(f) return f end
 
