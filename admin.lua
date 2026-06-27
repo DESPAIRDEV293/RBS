@@ -14651,6 +14651,20 @@ end
         task.delay(15, function() if gui and gui.Parent then gui:Destroy() end end)
     end
 
+    local function findDefaultBaseplate()
+        local bp = workspace:FindFirstChild("Baseplate")
+        if bp and bp:IsA("BasePart") then return bp end
+        local best
+        for _, v in ipairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") and v.Anchored and v.Size.Y <= 2 then
+                if not best or v.Size.X * v.Size.Z > best.Size.X * best.Size.Z then
+                    best = v
+                end
+            end
+        end
+        return best
+    end
+
     local function doExtend()
         local h = hrp()
         if not h then notify("No character — stand somewhere first", "bad"); return end
@@ -14662,14 +14676,20 @@ end
         else
             size = Vector3.new(2048, 1, 2048)
         end
+        local ref = findDefaultBaseplate()
         local plate = prev or Instance.new("Part")
         plate.Name = "SeigeBaseplate"
         plate.Anchored = true
         plate.CanCollide = true
         plate.TopSurface = Enum.SurfaceType.Smooth
         plate.BottomSurface = Enum.SurfaceType.Smooth
-        plate.Material = Enum.Material.SmoothPlastic
-        plate.Color = Color3.fromRGB(80, 90, 110)
+        if ref then
+            plate.Material = ref.Material
+            plate.Color = ref.Color
+        else
+            plate.Material = Enum.Material.SmoothPlastic
+            plate.Color = Color3.fromRGB(80, 90, 110)
+        end
         plate.Size = size
         plate.CFrame = CFrame.new(h.Position.X, h.Position.Y - 6, h.Position.Z)
         plate.Parent = workspace
