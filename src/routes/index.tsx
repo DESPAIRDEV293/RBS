@@ -266,32 +266,31 @@ function Index() {
           </p>
         </header>
 
-        {/* glass card */}
+        {/* glass card — Get Key redirect */}
         <section className="storm-card storm-card-shimmer relative overflow-hidden rounded-2xl p-6 sm:p-7">
           <div className="storm-card-glow absolute inset-0 pointer-events-none" />
           <div className="storm-scanline absolute inset-0 pointer-events-none" />
 
-
-
-
-          <div className="relative flex items-center justify-between gap-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-indigo-200/70">
-              Loadstring Here:
-            </p>
-            <button
-              onClick={() => {
-                navigator.clipboard?.writeText(loadstringCommand);
-              }}
-              className="storm-btn rounded-lg px-3.5 py-1.5 text-xs font-semibold tracking-wide"
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1.5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-indigo-200/70">
+                Get your script key
+              </p>
+              <h2 className="text-xl font-bold text-white sm:text-2xl">
+                One key. One device. 24h refresh.
+              </h2>
+              <p className="text-xs leading-relaxed text-slate-400/85 max-w-md">
+                Keys are unique to each user. Click below to mint or retrieve yours, then paste it
+                above your loadstring in any executor.
+              </p>
+            </div>
+            <Link
+              to="/get-key"
+              className="storm-btn shrink-0 rounded-lg px-5 py-2.5 text-sm font-semibold tracking-wide text-center"
             >
-              Copy
-            </button>
+              Get Key →
+            </Link>
           </div>
-
-          <pre className="storm-code relative mt-3 overflow-hidden rounded-xl border border-white/10 bg-black/40 p-4 text-sm text-slate-200 backdrop-blur">
-            <span className="storm-code-sweep pointer-events-none" />
-            <code className="relative block overflow-x-auto">{loadstringDisplay}</code>
-          </pre>
         </section>
 
         {/* Features grid */}
