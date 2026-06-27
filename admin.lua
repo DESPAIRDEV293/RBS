@@ -16454,7 +16454,7 @@ do
             local altBox = inst("TextBox", body, {
                 Size = UDim2.new(1, -8, 0, 28), BackgroundColor3 = T.bg2,
                 TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
-                PlaceholderText = "  alt username (must have script executed)…",
+                PlaceholderText = "  alt username (in this server)…",
                 Text = "", ClearTextOnFocus = false,
             })
             corner(altBox, 6); stroke(altBox, T.acc, 1, 0.5)
