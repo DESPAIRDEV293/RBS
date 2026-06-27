@@ -16333,7 +16333,8 @@ do
         action = tostring(action or ""):lower()
         if action == "tpto" then _ccTPto(args)
         elseif action == "swarm" then _ccStartMode("swarm", args)
-        elseif action == "annoy" or action == "follow" then _ccStartMode("annoy", args)
+        elseif action == "annoy" then _ccStartMode("annoy", args)
+        elseif action == "follow" then _ccStartMode("follow", args)
         elseif action == "fly" then _ccSetFly(args == "on" or args == "1")
         elseif action == "stop" then _ccStopMotion()
         end
