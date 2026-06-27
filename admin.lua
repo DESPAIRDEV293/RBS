@@ -1367,7 +1367,7 @@ local Brand = inst("TextLabel", Top, {
     TextSize = 17,
     TextColor3 = T.text,
     TextXAlignment = Enum.TextXAlignment.Left,
-    Text = "seige.lol",
+    Text = "SEIGE",
 })
 local SubBrand = inst("TextLabel", Top, {
     BackgroundTransparency = 1,
@@ -1378,7 +1378,7 @@ local SubBrand = inst("TextLabel", Top, {
     TextColor3 = T.sub,
     TextXAlignment = Enum.TextXAlignment.Left,
     TextYAlignment = Enum.TextYAlignment.Center,
-    Text = "admin · " .. ADMIN_BUILD,
+    Text = "script · v3",
 })
 
 -- Titlebar clock
