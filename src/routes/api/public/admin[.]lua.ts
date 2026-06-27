@@ -70,15 +70,10 @@ export const Route = createFileRoute("/api/public/admin.lua")({
           await supabaseAdmin.from("script_keys").update({ hwid }).eq("key", key);
         }
 
-        await supabaseAdmin
+        // Best-effort usage stamp; never block the executor on this.
+        void supabaseAdmin
           .from("script_keys")
           .update({ last_used_at: new Date().toISOString() })
-          .eq("key", key);
-        // Best-effort use counter (separate update to avoid blocking the response on RPC).
-        supabaseAdmin.rpc as unknown; // no-op marker
-        await supabaseAdmin
-          .from("script_keys")
-          .update({ uses: ((data as { uses?: number }).uses ?? 0) + 1 } as never)
           .eq("key", key)
           .then(() => undefined, () => undefined);
 
