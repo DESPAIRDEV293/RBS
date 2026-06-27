@@ -1569,10 +1569,14 @@ _initReanimPanel = function()
 				and game:GetService("RunService").PreSimulation
 				or  game:GetService("RunService").Heartbeat
 			local localConn
+			local _locAccum, _locStep = 0, 1/60
 			localConn = _localEvent:Connect(LPH_NO_VIRTUALIZE(function(dt)
 				if myGen ~= _RS.reanimGeneration then localConn:Disconnect() ; return end
+				_locAccum = _locAccum + dt
+				if _locAccum < _locStep then return end
+				local stepDt = _locAccum ; _locAccum = 0
 				if totalDur > 0 then
-					elapsed = (elapsed + dt * _RS.reanimSpeed) % totalDur
+					elapsed = (elapsed + stepDt * _RS.reanimSpeed) % totalDur
 					local lo, hi = 1, #keyframes - 1
 					while lo < hi do
 						local mid = math.floor((lo + hi) / 2)
