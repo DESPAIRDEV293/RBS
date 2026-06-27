@@ -13142,10 +13142,48 @@ local R6_FALLBACK = { Head="Head", UpperTorso="Torso", LowerTorso="Torso",
     LeftUpperArm="Left Arm", RightUpperArm="Right Arm",
     LeftUpperLeg="Left Leg", RightUpperLeg="Right Leg" }
 
+local function _limbRestoreStretch()
+    local S = _G.__SeigeLimb
+    if S.stretchPart and S.baseSize then
+        pcall(function() S.stretchPart.Size = S.baseSize end)
+    end
+    if S.childOffsets then
+        for m, c0 in pairs(S.childOffsets) do
+            if m and m.Parent then pcall(function() m.C0 = c0 end) end
+        end
+    end
+    S.stretchPart, S.baseSize, S.childOffsets = nil, nil, nil
+end
+
+local function _limbApplyStretch(part)
+    local S = _G.__SeigeLimb
+    _limbRestoreStretch()
+    if not part then return end
+    S.stretchPart = part
+    S.baseSize = part.Size
+    S.childOffsets = {}
+    -- snapshot child motor C0s so we can shift them along the stretched axis
+    local char = part.Parent
+    if char then
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("Motor6D") and d.Part0 == part then
+                S.childOffsets[d] = d.C0
+            end
+        end
+    end
+    local f = math.clamp(S.stretch or 1, 0.25, 6)
+    pcall(function() part.Size = Vector3.new(S.baseSize.X, S.baseSize.Y * f, S.baseSize.Z) end)
+    local delta = (S.baseSize.Y * (f - 1)) * 0.5
+    for m, c0 in pairs(S.childOffsets) do
+        pcall(function() m.C0 = c0 * CFrame.new(0, -delta, 0) end)
+    end
+end
+
 local function _limbStop()
     local S = _G.__SeigeLimb
     if S.conn then pcall(function() S.conn:Disconnect() end); S.conn = nil end
     if S.motor and S.baseC1 then pcall(function() S.motor.C1 = S.baseC1 end) end
+    _limbRestoreStretch()
     S.motor, S.baseC1, S.baseCam = nil, nil, nil
     S.on = false
 end
