@@ -7376,9 +7376,13 @@ local HELP_CMDS = {
         
         { "!cir <player> / !uncir", "Orbit a player — adjust distance/speed in the panel" },
     }},
+    { "Limb Track", {
+        { "!limbtrack <player> / !ltrack <player>", "Drive a target player's limb with your camera rotation" },
+        { "!selflimbtrack / !sltrack", "Drive your own limb with your camera rotation" },
+        { "!unlimbtrack / !unltrack", "Stop limb tracking" },
+    }},
     { "Position", {
-        { "!save", "Save current position" },
-        { "!load", "Teleport back to saved position" },
+        { "!tprj", "Saves your last position and restores it on rejoin (auto)" },
     }},
     { "World / lighting", {
         { "!fullbright", "Flat max ambient" },
