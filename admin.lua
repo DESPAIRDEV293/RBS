@@ -3860,6 +3860,20 @@ local function refreshBill(p)
 
     end
 
+    -- Tag aura overlay: LOCAL-only visual that wraps the pill bubble. Off by
+    -- default. User picks via Config → Tag Auras. Only applies to LP's own
+    -- bubble and only when LP actually has a tag entry.
+    if p == LP and e.bg and Auras and Auras.canonical then
+        local auraName = Auras.canonical(_G.__SeigeMyTagAura)
+        if auraName then
+            local ok, stopFn = pcall(Auras.apply, e.bg, auraName)
+            if ok and type(stopFn) == "function" then
+                e.auraStop = stopFn
+                e.auraName = auraName
+            end
+        end
+    end
+
     -- Auto-size bubble to hug the visible text. Measure the FULL display name
     -- + @handle (not the in-progress typewriter/glitch text) so the pill stays
     -- snug even mid-animation. No artificial minimum so short names like
