@@ -3167,23 +3167,25 @@ do
     local TweenService = game:GetService("TweenService")
 
     local function glow(pill, c3, trans, pad, zOff)
-        -- Aura glow sits exactly on the pill footprint (no padding expansion)
-        -- so the aura's outer edge matches the pill outline. `pad` is kept in
-        -- the signature for call-site compatibility but no longer enlarges
-        -- the frame. Corner radius stays at 23 to match the pill's UICorner.
+        -- Aura glow extends BEYOND the pill footprint by `pad` pixels so the
+        -- halo is actually visible around the opaque pill. Parented to the
+        -- BillboardGui wrapper (pill.Parent) so it isn't clipped by the pill.
+        pad = tonumber(pad) or 4
         local f = Instance.new("Frame")
         f.Name = "_AuraGlow"
-        f.AnchorPoint = Vector2.new(0.5, 0.5)
-        f.Position    = UDim2.new(0.5, 0, 0.5, 0)
-        f.Size        = UDim2.new(1, 0, 1, 0)
+        f.AnchorPoint = pill.AnchorPoint
+        f.Position    = pill.Position
+        f.Size        = UDim2.new(pill.Size.X.Scale, pill.Size.X.Offset + pad * 2,
+                                  pill.Size.Y.Scale, pill.Size.Y.Offset + pad * 2)
         f.BackgroundColor3 = c3
         f.BackgroundTransparency = trans
         f.BorderSizePixel = 0
         f.ZIndex = (pill.ZIndex or 1) + (zOff or -1)
-        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 23); c.Parent = f
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, 23 + pad); c.Parent = f
         f.Parent = pill.Parent
         return f
     end
+
     local function strokeOn(pill, c3, thick)
         local s = Instance.new("UIStroke")
         s.Name = "_AuraStroke"
