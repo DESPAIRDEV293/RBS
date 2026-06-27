@@ -13210,10 +13210,34 @@ _G.__SeigeLimb = _G.__SeigeLimb or {
 local function _enumerateLimbs(char)
     local out, seen = {}, {}
     if not char then return out end
+    -- Pass 1: real Motor6D joints (R6/R15/S15/most custom rigs)
     for _, d in ipairs(char:GetDescendants()) do
         if d:IsA("Motor6D") and d.Part1 and not seen[d.Part1] then
             seen[d.Part1] = true
             table.insert(out, { name = d.Part1.Name, motor = d, part = d.Part1 })
+        end
+    end
+    -- Pass 2: skinned-mesh S15 / Bone-driven rigs expose Bone instances
+    -- instead of Motor6Ds. Wrap each Bone in a synthetic motor proxy so the
+    -- tracker can still drive it via CFrame on the Bone.
+    if #out == 0 then
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("Bone") and not seen[d] then
+                seen[d] = true
+                local proxy = { __bone = d, C0 = d.CFrame, C1 = CFrame.new(),
+                    Part1 = d, Parent = d.Parent }
+                table.insert(out, { name = d.Name, motor = proxy, part = d })
+            end
+        end
+    end
+    -- Pass 3: last-resort fallback — list every BasePart so the user always
+    -- has something to grab. Synthesize a weld-style proxy at runtime.
+    if #out == 0 then
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("BasePart") and not seen[d] and d.Name ~= "HumanoidRootPart" then
+                seen[d] = true
+                table.insert(out, { name = d.Name, motor = nil, part = d })
+            end
         end
     end
     table.sort(out, function(a,b) return a.name < b.name end)
@@ -13298,12 +13322,17 @@ local function _findMotorForLimb(char, limbName)
             return d
         end
     end
+    -- Bone-driven rigs (skinned-mesh S15 etc.)
+    for _, d in ipairs(char:GetDescendants()) do
+        if d:IsA("Bone") and d.Name == limbName then return d end
+    end
     -- fallback: part exists but no incoming motor; try outgoing motor (root part case)
     local part = char:FindFirstChild(limbName, true)
     if part then
         for _, d in ipairs(char:GetDescendants()) do
             if d:IsA("Motor6D") and (d.Part1 == part or d.Part0 == part) then return d end
         end
+        return part -- raw BasePart fallback (driven via CFrame each frame)
     end
     return nil
 end
@@ -13315,19 +13344,40 @@ local function _limbStart()
     local char = plr and plr.Character
     if not char then notify("Target has no character", "bad"); return end
     local motor = _findMotorForLimb(char, S.limb)
-    if not motor then notify("No Motor6D for "..S.limb, "bad"); return end
-    S.motor, S.baseC1 = motor, motor.C1
+    if not motor then notify("No joint found for "..S.limb, "bad"); return end
+    S.motor = motor
+    local isMotor6D = typeof(motor) == "Instance" and motor:IsA("Motor6D")
+    local isBone = typeof(motor) == "Instance" and motor:IsA("Bone")
+    if isMotor6D then
+        S.baseC1 = motor.C1
+        _limbApplyStretch(motor.Part1)
+    elseif isBone then
+        S.baseC1 = motor.CFrame
+    else
+        -- raw BasePart: drive via CFrame; snapshot base offset to root
+        local root = char:FindFirstChild("HumanoidRootPart")
+        S.baseC1 = root and root.CFrame:ToObjectSpace(motor.CFrame) or motor.CFrame
+        S._root = root
+    end
     S.baseCam = workspace.CurrentCamera.CFrame
     S.on = true
-    _limbApplyStretch(motor.Part1)
     S.conn = game:GetService("RunService").RenderStepped:Connect(function()
-        if not S.on or not S.motor or not S.motor.Parent then _limbStop(); return end
+        if not S.on or not S.motor then _limbStop(); return end
         local cam = workspace.CurrentCamera.CFrame
         local rel = S.baseCam:ToObjectSpace(cam)
         local x, y, z = rel:ToEulerAnglesYXZ()
         local s = S.sens or 1
         local rot = CFrame.fromEulerAnglesYXZ(x*s, y*s, z*s)
-        pcall(function() S.motor.C1 = S.baseC1 * rot end)
+        if isMotor6D then
+            pcall(function() S.motor.C1 = S.baseC1 * rot end)
+        elseif isBone then
+            pcall(function() S.motor.CFrame = S.baseC1 * rot end)
+        else
+            pcall(function()
+                local root = S._root
+                if root then S.motor.CFrame = root.CFrame * S.baseC1 * rot end
+            end)
+        end
     end)
     notify(("Limb-track ON · %s · @%s"):format(S.limb, plr.Name), "good")
 end
@@ -13402,7 +13452,21 @@ local function _openLimbPanel()
         local rig = _detectRig(char)
         title.Text = ("Limb Track  ·  @%s  ·  %s (%d)"):format(plr and plr.Name or "?", rig, #limbs)
         if #limbs == 0 then
-            hint.Text = "No Motor6D joints found on target. Wait for character to load, then Refresh."
+            hint.Text = "No joints found yet — waiting for rig to stream in…"
+            task.spawn(function()
+                for i = 1, 12 do
+                    task.wait(0.35)
+                    if not sg.Parent then return end
+                    local p = S.target or LP
+                    local c = p and p.Character
+                    if c and #_enumerateLimbs(c) > 0 then
+                        rebuildLimbs(); return
+                    end
+                end
+                if sg.Parent then
+                    hint.Text = "No joints on this rig. Reset character or pick another player, then Refresh."
+                end
+            end)
             return
         end
         -- ensure current selection exists in this rig
