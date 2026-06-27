@@ -1,0 +1,1 @@
+CREATE POLICY "deny all client access" ON public.script_keys FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);

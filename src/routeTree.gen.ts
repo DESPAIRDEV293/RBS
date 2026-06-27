@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ValidateRouteImport } from './routes/validate'
 import { Route as UnlockRouteImport } from './routes/unlock'
 import { Route as PastebinKeyRouteImport } from './routes/pastebin-key'
+import { Route as GetKeyRouteImport } from './routes/get-key'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiPublicTags_writeRouteImport } from './routes/api/public/tags_write'
 import { Route as ApiPublicTagsRouteImport } from './routes/api/public/tags'
@@ -22,6 +23,7 @@ import { Route as ApiPublicReanimDotluaRouteImport } from './routes/api/public/r
 import { Route as ApiPublicPastebinRouteImport } from './routes/api/public/pastebin'
 import { Route as ApiPublicLoaderDotluaRouteImport } from './routes/api/public/loader[.]lua'
 import { Route as ApiPublicAdminDotluaRouteImport } from './routes/api/public/admin[.]lua'
+import { Route as ApiPublicKTokenRouteImport } from './routes/api/public/k.$token'
 
 const ValidateRoute = ValidateRouteImport.update({
   id: '/validate',
@@ -36,6 +38,11 @@ const UnlockRoute = UnlockRouteImport.update({
 const PastebinKeyRoute = PastebinKeyRouteImport.update({
   id: '/pastebin-key',
   path: '/pastebin-key',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GetKeyRoute = GetKeyRouteImport.update({
+  id: '/get-key',
+  path: '/get-key',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -88,9 +95,15 @@ const ApiPublicAdminDotluaRoute = ApiPublicAdminDotluaRouteImport.update({
   path: '/api/public/admin.lua',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicKTokenRoute = ApiPublicKTokenRouteImport.update({
+  id: '/api/public/k/$token',
+  path: '/api/public/k/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/get-key': typeof GetKeyRoute
   '/pastebin-key': typeof PastebinKeyRoute
   '/unlock': typeof UnlockRoute
   '/validate': typeof ValidateRoute
@@ -103,9 +116,11 @@ export interface FileRoutesByFullPath {
   '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
   '/api/public/tags_write': typeof ApiPublicTags_writeRoute
+  '/api/public/k/$token': typeof ApiPublicKTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/get-key': typeof GetKeyRoute
   '/pastebin-key': typeof PastebinKeyRoute
   '/unlock': typeof UnlockRoute
   '/validate': typeof ValidateRoute
@@ -118,10 +133,12 @@ export interface FileRoutesByTo {
   '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
   '/api/public/tags_write': typeof ApiPublicTags_writeRoute
+  '/api/public/k/$token': typeof ApiPublicKTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/get-key': typeof GetKeyRoute
   '/pastebin-key': typeof PastebinKeyRoute
   '/unlock': typeof UnlockRoute
   '/validate': typeof ValidateRoute
@@ -134,11 +151,13 @@ export interface FileRoutesById {
   '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
   '/api/public/tags_write': typeof ApiPublicTags_writeRoute
+  '/api/public/k/$token': typeof ApiPublicKTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/get-key'
     | '/pastebin-key'
     | '/unlock'
     | '/validate'
@@ -151,9 +170,11 @@ export interface FileRouteTypes {
     | '/api/public/tag_sync_key'
     | '/api/public/tags'
     | '/api/public/tags_write'
+    | '/api/public/k/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/get-key'
     | '/pastebin-key'
     | '/unlock'
     | '/validate'
@@ -166,9 +187,11 @@ export interface FileRouteTypes {
     | '/api/public/tag_sync_key'
     | '/api/public/tags'
     | '/api/public/tags_write'
+    | '/api/public/k/$token'
   id:
     | '__root__'
     | '/'
+    | '/get-key'
     | '/pastebin-key'
     | '/unlock'
     | '/validate'
@@ -181,10 +204,12 @@ export interface FileRouteTypes {
     | '/api/public/tag_sync_key'
     | '/api/public/tags'
     | '/api/public/tags_write'
+    | '/api/public/k/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GetKeyRoute: typeof GetKeyRoute
   PastebinKeyRoute: typeof PastebinKeyRoute
   UnlockRoute: typeof UnlockRoute
   ValidateRoute: typeof ValidateRoute
@@ -197,6 +222,7 @@ export interface RootRouteChildren {
   ApiPublicTag_sync_keyRoute: typeof ApiPublicTag_sync_keyRoute
   ApiPublicTagsRoute: typeof ApiPublicTagsRoute
   ApiPublicTags_writeRoute: typeof ApiPublicTags_writeRoute
+  ApiPublicKTokenRoute: typeof ApiPublicKTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -220,6 +246,13 @@ declare module '@tanstack/react-router' {
       path: '/pastebin-key'
       fullPath: '/pastebin-key'
       preLoaderRoute: typeof PastebinKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/get-key': {
+      id: '/get-key'
+      path: '/get-key'
+      fullPath: '/get-key'
+      preLoaderRoute: typeof GetKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -292,11 +325,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAdminDotluaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/k/$token': {
+      id: '/api/public/k/$token'
+      path: '/api/public/k/$token'
+      fullPath: '/api/public/k/$token'
+      preLoaderRoute: typeof ApiPublicKTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GetKeyRoute: GetKeyRoute,
   PastebinKeyRoute: PastebinKeyRoute,
   UnlockRoute: UnlockRoute,
   ValidateRoute: ValidateRoute,
@@ -309,6 +350,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicTag_sync_keyRoute: ApiPublicTag_sync_keyRoute,
   ApiPublicTagsRoute: ApiPublicTagsRoute,
   ApiPublicTags_writeRoute: ApiPublicTags_writeRoute,
+  ApiPublicKTokenRoute: ApiPublicKTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

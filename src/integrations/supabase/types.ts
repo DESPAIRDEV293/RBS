@@ -35,6 +35,48 @@ export type Database = {
         }
         Relationships: []
       }
+      script_keys: {
+        Row: {
+          created_at: string
+          device_id: string | null
+          expires_at: string | null
+          hwid: string | null
+          key: string
+          label: string | null
+          last_used_at: string | null
+          revoked: boolean
+          tier: string
+          token: string
+          uses: number
+        }
+        Insert: {
+          created_at?: string
+          device_id?: string | null
+          expires_at?: string | null
+          hwid?: string | null
+          key: string
+          label?: string | null
+          last_used_at?: string | null
+          revoked?: boolean
+          tier?: string
+          token: string
+          uses?: number
+        }
+        Update: {
+          created_at?: string
+          device_id?: string | null
+          expires_at?: string | null
+          hwid?: string | null
+          key?: string
+          label?: string | null
+          last_used_at?: string | null
+          revoked?: boolean
+          tier?: string
+          token?: string
+          uses?: number
+        }
+        Relationships: []
+      }
       tag_entries: {
         Row: {
           created_at: string
