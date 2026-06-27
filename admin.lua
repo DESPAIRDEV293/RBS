@@ -2,7 +2,12 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-27-limbtrack"
+local ADMIN_BUILD = "2026-06-27-tier-gate"
+-- Injected by server (admin.lua endpoint) based on the script_key tier.
+-- Defaults to "normal" if served unreplaced (e.g. browser preview).
+local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
+if _SEIGE_KEY_TIER == "__" .. "SEIGE_KEY_TIER__" then _SEIGE_KEY_TIER = "normal" end
+_G.__SeigeKeyTier = _SEIGE_KEY_TIER
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
