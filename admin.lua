@@ -2059,7 +2059,9 @@ end
 
 ------------------------------------------------------- STAFF GATE (Reanim etc.)
 -- Allowed roles for Reanim GUI: owner, admin, nt team. Staff is NOT allowed.
+-- Additionally, "normal" key tiers are NEVER allowed regardless of role.
 local function _canUseReanim()
+    if (_G.__SeigeKeyTier or "normal") == "normal" then return false end
     local r = _G.__SeigeMyRole and _G.__SeigeMyRole() or nil
     return r == "owner" or r == "admin" or r == "nt"
 end
