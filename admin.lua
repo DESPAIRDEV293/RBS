@@ -7321,11 +7321,13 @@ local HELP_CMDS = {
         { "!hatspin", "Spin/break accessories (flings nearby)" },
     }},
     { "Movement", {
+        { "!movement / !move", "Open the movement panel (walkspeed + jumppower)" },
         { "!ws <n>", "Set walk speed (0–200)" },
         { "!jp <n>", "Set jump power (0–500)" },
         { "!fly / !unfly", "Toggle fly (WASD + E/Q, Shift = boost)" },
         { "!noclip / !clip", "Walk through walls" },
         { "!walkonair / !unwalkonair", "Stand on an invisible local platform (panel has up/down + keybinds)" },
+        { "!flashstep", "Open the Flashstep panel — blink teleport in look/mouse direction with a keybind" },
         { "!freecam", "Detach camera (WASD/EQ + Shift)" },
         { "!fov <n>", "Set camera field of view (40–120, default 70)" },
         { "!zoom <min> [max]", "Set camera min/max zoom distance" },
@@ -7349,6 +7351,7 @@ local HELP_CMDS = {
     { "Admin / owner", {
         { "!timestop", "Freeze everyone except you (admin/owner only)" },
         { "!untimestop", "Release the freeze" },
+        { "!key", "Show the tag-sync key (staff/admin/owner only)" },
     }},
     { "Staff oversight", {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
@@ -7373,9 +7376,13 @@ local HELP_CMDS = {
         
         { "!cir <player> / !uncir", "Orbit a player — adjust distance/speed in the panel" },
     }},
+    { "Limb Track", {
+        { "!limbtrack <player> / !ltrack <player>", "Drive a target player's limb with your camera rotation" },
+        { "!selflimbtrack / !sltrack", "Drive your own limb with your camera rotation" },
+        { "!unlimbtrack / !unltrack", "Stop limb tracking" },
+    }},
     { "Position", {
-        { "!save", "Save current position" },
-        { "!load", "Teleport back to saved position" },
+        { "!tprj", "Saves your last position and restores it on rejoin (auto)" },
     }},
     { "World / lighting", {
         { "!fullbright", "Flat max ambient" },
@@ -7449,6 +7456,25 @@ button(pgCmds, "!jump",                                      function() _runCmd(
 button(pgCmds, "X-Ray  —  see all players through walls (!xray)", function() _runCmd("!xray") end)
 button(pgCmds, "!info",                                      function() _runCmd("!info") end)
 button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end end)
+
+-- Camera / view
+button(pgCmds, "!fov <n>  —  field of view (40-120)", function() _openCmd("!fov ") end)
+button(pgCmds, "!zoom <min> [max]  —  camera zoom", function() _openCmd("!zoom ") end)
+
+-- Limb track
+button(pgCmds, "!limbtrack <player>  —  drive their limb with camera", function() _openCmd("!limbtrack ") end)
+button(pgCmds, "!selflimbtrack  —  drive your own limb", function() _runCmd("!selflimbtrack") end)
+
+-- Staff oversight
+button(pgCmds, "!logs <player>  —  recent chat (staff)", function() _openCmd("!logs ") end)
+button(pgCmds, "!track <player>  —  arrow + distance (staff)", function() _openCmd("!track ") end)
+button(pgCmds, "!cmute <player>  —  silence locally (staff)", function() _openCmd("!cmute ") end)
+button(pgCmds, "!hide <player>  —  hide locally (staff)", function() _openCmd("!hide ") end)
+button(pgCmds, "!unhide <player>  —  unhide (staff)", function() _openCmd("!unhide ") end)
+button(pgCmds, "!age <player>  —  account age (staff)", function() _openCmd("!age ") end)
+button(pgCmds, "!countdown <secs> <msg>  —  broadcast (staff)", function() _openCmd("!countdown ") end)
+button(pgCmds, "!key  —  show tag sync key (staff)", function() _runCmd("!key") end)
+
 
 -- ===== Performance & Optimize — unified panel =====
 -- One place for FPS booster, Ping booster, and Optimize.
