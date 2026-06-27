@@ -7374,6 +7374,7 @@ local HELP_CMDS = {
         { "!noclip / !clip", "Walk through walls" },
         { "!walkonair / !unwalkonair", "Stand on an invisible local platform (panel has up/down + keybinds)" },
         { "!flashstep", "Open the Flashstep panel — blink teleport in look/mouse direction with a keybind" },
+        { "!iy / !infyield", "Open Infinite Yield — search & run IY-style commands (fly, ws, god, esp, spin, trippy, loopkill, serverhop, dex, etc.)" },
         { "!freecam", "Detach camera (WASD/EQ + Shift)" },
         { "!fov <n>", "Set camera field of view (40–120, default 70)" },
         { "!zoom <min> [max]", "Set camera min/max zoom distance" },
