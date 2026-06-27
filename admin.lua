@@ -13322,6 +13322,50 @@ local function _openLimbPanel()
         end
     end)
 
+    -- stretch
+    local stl = Instance.new("TextLabel", f); stl.BackgroundTransparency = 1
+    stl.Position = UDim2.new(0,12,0,234); stl.Size = UDim2.new(1,-24,0,16)
+    stl.Font = Enum.Font.Gotham; stl.TextSize = 11; stl.TextColor3 = Color3.fromRGB(200,200,215)
+    stl.TextXAlignment = Enum.TextXAlignment.Left
+    stl.Text = ("Stretch: %.2fx"):format(S.stretch or 1)
+    local sbar = Instance.new("Frame", f); sbar.Position = UDim2.new(0,12,0,252)
+    sbar.Size = UDim2.new(1,-24,0,8); sbar.BackgroundColor3 = Color3.fromRGB(40,40,52); sbar.BorderSizePixel = 0
+    Instance.new("UICorner", sbar).CornerRadius = UDim.new(1,0)
+    local sfill = Instance.new("Frame", sbar); sfill.BackgroundColor3 = Color3.fromRGB(90,200,255)
+    sfill.BorderSizePixel = 0
+    local function _stretchFrac() return math.clamp(((S.stretch or 1) - 0.25) / (6 - 0.25), 0, 1) end
+    sfill.Size = UDim2.fromScale(_stretchFrac(), 1)
+    Instance.new("UICorner", sfill).CornerRadius = UDim.new(1,0)
+    sbar.InputBegan:Connect(function(io)
+        if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+            local UIS = game:GetService("UserInputService")
+            local move, rel
+            move = UIS.InputChanged:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+                    local p = (i.Position.X - sbar.AbsolutePosition.X) / sbar.AbsoluteSize.X
+                    p = math.clamp(p, 0, 1)
+                    S.stretch = 0.25 + p * (6 - 0.25)
+                    sfill.Size = UDim2.fromScale(p, 1); stl.Text = ("Stretch: %.2fx"):format(S.stretch)
+                    if S.on and S.stretchPart then _limbApplyStretch(S.stretchPart) end
+                end
+            end)
+            rel = UIS.InputEnded:Connect(function(i)
+                if i.UserInputType == io.UserInputType then move:Disconnect(); rel:Disconnect() end
+            end)
+        end
+    end)
+    local resetBtn = Instance.new("TextButton", f)
+    resetBtn.Position = UDim2.new(1,-60,0,232); resetBtn.Size = UDim2.new(0,48,0,18)
+    resetBtn.BackgroundColor3 = Color3.fromRGB(40,40,52); resetBtn.BorderSizePixel = 0
+    resetBtn.Font = Enum.Font.Gotham; resetBtn.TextSize = 10
+    resetBtn.TextColor3 = Color3.fromRGB(220,220,235); resetBtn.Text = "Reset"
+    Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0,4)
+    resetBtn.MouseButton1Click:Connect(function()
+        S.stretch = 1.0; sfill.Size = UDim2.fromScale(_stretchFrac(), 1)
+        stl.Text = ("Stretch: %.2fx"):format(S.stretch)
+        if S.on and S.stretchPart then _limbApplyStretch(S.stretchPart) end
+    end)
+
     -- toggle button
     local toggle = Instance.new("TextButton", f)
     toggle.Position = UDim2.new(0,12,1,-40); toggle.Size = UDim2.new(1,-24,0,30)
