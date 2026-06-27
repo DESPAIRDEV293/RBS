@@ -525,6 +525,7 @@ local HELP_COMMANDS = {
     { perms = {},            cmd = "!reanim",               desc = "Launch the Reanim GUI (purple-storm build)" },
     { perms = {"nt_cmd"},    cmd = "!key",                  desc = "Show a copyable tag sync key for Config" },
     { perms = {},            cmd = "!walkonair",            desc = "Walk on an invisible platform — up/down + keybinds in the panel" },
+    { perms = {},            cmd = "!flashstep",            desc = "Blink-teleport in camera direction or to your mouse hover (keybind in panel)" },
 }
 
 local helpGui = nil
