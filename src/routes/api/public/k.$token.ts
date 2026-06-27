@@ -33,7 +33,8 @@ export const Route = createFileRoute("/api/public/k/$token")({
         const exp = data.expires_at
           ? `expires: ${new Date(data.expires_at).toISOString()}`
           : "expires: never";
-        const body = `${data.key}\n\n-- tier: ${data.tier}\n-- ${exp}\n-- Usage:\n-- script_key = "${data.key}"\n-- loadstring(game:HttpGet("https://seigescript.online/api/public/loader.lua"))()\n`;
+        const loadstring = `script_key = "${data.key}" loadstring(game:HttpGet("https://seigescript.online/api/public/loader.lua"))()`;
+        const body = `${loadstring}\n\n-- ---------------------------------------------\n-- Your key: ${data.key}\n-- Tier: ${data.tier}\n-- ${exp}\n-- ---------------------------------------------\n-- Copy the FIRST line above and paste it into your executor.\n`;
         return new Response(body, { status: 200, headers });
       },
     },
