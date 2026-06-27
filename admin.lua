@@ -13164,11 +13164,27 @@ end
 
 local function _detectRig(char)
     if not char then return "?" end
-    if char:FindFirstChild("UpperTorso") then return "R15" end
+    -- S15 rigs reuse the R15 skeleton but swap the UpperTorso for a custom
+    -- mesh (thin / hourglass / etc). Detect by mesh swap or known marker tags.
+    local upper = char:FindFirstChild("UpperTorso")
+    if upper then
+        local mesh = upper:FindFirstChildOfClass("SpecialMesh") or upper:FindFirstChildOfClass("MeshPart")
+        local marker = char:FindFirstChild("S15") or char:FindFirstChild("s15")
+        local isMeshPart = upper:IsA("MeshPart") and (upper.MeshId or "") ~= ""
+        if marker or mesh or isMeshPart then
+            -- crude shape sniff: thin torsos are narrower on X, hourglass on Z
+            local sz = upper.Size
+            if sz.X < 1.6 then return "S15 Thin" end
+            if sz.Z < 1.0 then return "S15 Hourglass" end
+            return "S15"
+        end
+        return "R15"
+    end
     if char:FindFirstChild("Torso") then return "R6" end
     if char:FindFirstChild("HumanoidRootPart") then return "Custom" end
     return "?"
 end
+
 
 local function _limbRestoreStretch()
     local S = _G.__SeigeLimb
