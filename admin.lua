@@ -11373,22 +11373,27 @@ end
 ;(function()
     -- Known script signatures: name -> patterns to match in URLs / source / GUI names
     local KNOWN = {
-        { name = "AKADMIN (absent.wtf)",  patterns = { "absent%.wtf", "AKADMIN" }, gui = { "AKAdmin", "AKADMIN" } },
-        { name = "Novoline",              patterns = { "novoline%.pro", "novoline" }, gui = { "Novoline" } },
-        { name = "Infinite Yield",        patterns = { "EdgeIY/infiniteyield", "infiniteyield", "Infinite Yield" }, gui = { "IY", "InfiniteYield" } },
-        { name = "Dex Explorer",          patterns = { "Dex%.lua", "Moon%-Dex", "dex%-v4" }, gui = { "Dex", "DexExplorer" } },
-        { name = "Owl Hub",               patterns = { "owlhub", "Owl Hub" }, gui = { "OwlHub" } },
-        { name = "Hydroxide",             patterns = { "Hydroxide", "Upholstery" }, gui = {} },
+        { name = "AKADMIN (absent.wtf)",  patterns = { "absent%.wtf", "akadmin", "ak%-admin", "ak_admin" }, gui = { "AKAdmin", "AKADMIN", "AK_Admin", "AK-Admin", "AbsentAdmin" } },
+        { name = "M7 Hub",                patterns = { "m7hub", "m7%-hub", "m7_hub", "m7%.lua", "m7scripts", "discord%.gg/m7" }, gui = { "M7Hub", "M7_Hub", "M7Gui", "M7Menu", "M7Loader" } },
+        { name = "Novoline",              patterns = { "novoline%.pro", "novoline", "novo%-line" }, gui = { "Novoline", "NovolineHub", "NovolineUI" } },
+        { name = "Infinite Yield",        patterns = { "edgeiy/infiniteyield", "infiniteyield", "infinite yield" }, gui = { "IY", "InfiniteYield", "IYAdmin" } },
+        { name = "Dex Explorer",          patterns = { "dex%.lua", "moon%-dex", "dex%-v4", "moonsec/dex" }, gui = { "Dex", "DexExplorer", "MoonDex" } },
+        { name = "Owl Hub",               patterns = { "owlhub", "owl hub" }, gui = { "OwlHub" } },
+        { name = "Hydroxide",             patterns = { "hydroxide", "upholstery" }, gui = { "Hydroxide" } },
         { name = "Synapse X UI",          patterns = { "synapse" }, gui = { "Synapse" } },
         { name = "Script-Ware",           patterns = { "script%-ware", "scriptware" }, gui = { "ScriptWare" } },
         { name = "Krnl",                  patterns = { "krnl%." }, gui = { "Krnl" } },
         { name = "Fluxus",                patterns = { "fluxus" }, gui = { "Fluxus" } },
-        { name = "Rayfield UI",           patterns = { "Rayfield", "shlexware/Rayfield" }, gui = { "Rayfield" } },
-        { name = "Linoria / OrionLib",    patterns = { "Linoria", "OrionLib", "orion%.lua" }, gui = { "Orion", "Linoria" } },
-        { name = "Reviz Admin",           patterns = { "Reviz%.lua", "reviz admin" }, gui = { "RevizAdmin" } },
-        { name = "Nameless Admin",        patterns = { "Nameless Admin", "nameless%-admin" }, gui = { "NamelessAdmin" } },
-        { name = "SEIGE.LOL (this)",      patterns = { "DESPAIRDEV293", "roblox%-script%-buddy", "seige%.lol" }, gui = { "SeigeAdmin", "Admin_v" } },
+        { name = "Solara",                patterns = { "solara" }, gui = { "Solara" } },
+        { name = "Wave",                  patterns = { "getwave", "wave%-executor" }, gui = { "Wave" } },
+        { name = "Hydrogen",              patterns = { "hydrogen" }, gui = { "Hydrogen" } },
+        { name = "Rayfield UI",           patterns = { "rayfield", "shlexware/rayfield" }, gui = { "Rayfield" } },
+        { name = "Linoria / OrionLib",    patterns = { "linoria", "orionlib", "orion%.lua" }, gui = { "Orion", "Linoria" } },
+        { name = "Reviz Admin",           patterns = { "reviz%.lua", "reviz admin" }, gui = { "RevizAdmin" } },
+        { name = "Nameless Admin",        patterns = { "nameless admin", "nameless%-admin" }, gui = { "NamelessAdmin" } },
+        { name = "SEIGE.LOL (this)",      patterns = { "despairdev293", "roblox%-script%-buddy", "seige%.lol", "seigescript" }, gui = { "SeigeAdmin", "Admin_v" } },
         { name = "ScriptBlox script",     patterns = { "scriptblox%.com", "scriptbloxapi", "rawscripts%.net" }, gui = {} },
+
     }
 
     local detected = {}      -- name -> { source, url, time }
