@@ -528,7 +528,7 @@ local HELP_COMMANDS = {
     { perms = {"nt_cmd"},    cmd = "!tagfind <keyword>",    desc = "Search tag database by username or tag" },
     { perms = {"nt_cmd"},    cmd = "!tagcolors",            desc = "Show colors used in the tag database" },
     { perms = {},            cmd = "!reanim",               desc = "Launch the Reanim GUI (purple-storm build)" },
-    { perms = {"nt_cmd"},    cmd = "!key",                  desc = "Show a copyable tag sync key for Config" },
+    { perms = {"staff_cmd"}, cmd = "!key",                  desc = "Show a copyable tag sync key for Config (staff/admin/owner only)" },
     { perms = {},            cmd = "!walkonair",            desc = "Walk on an invisible platform — up/down + keybinds in the panel" },
     { perms = {},            cmd = "!flashstep",            desc = "Blink-teleport in camera direction or to your mouse hover (keybind in panel)" },
 }
