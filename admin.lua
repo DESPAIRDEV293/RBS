@@ -2,7 +2,12 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-27-limbtrack"
+local ADMIN_BUILD = "2026-06-27-tier-gate"
+-- Injected by server (admin.lua endpoint) based on the script_key tier.
+-- Defaults to "normal" if served unreplaced (e.g. browser preview).
+local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
+if _SEIGE_KEY_TIER == "__" .. "SEIGE_KEY_TIER__" then _SEIGE_KEY_TIER = "normal" end
+_G.__SeigeKeyTier = _SEIGE_KEY_TIER
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -2054,7 +2059,9 @@ end
 
 ------------------------------------------------------- STAFF GATE (Reanim etc.)
 -- Allowed roles for Reanim GUI: owner, admin, nt team. Staff is NOT allowed.
+-- Additionally, "normal" key tiers are NEVER allowed regardless of role.
 local function _canUseReanim()
+    if (_G.__SeigeKeyTier or "normal") == "normal" then return false end
     local r = _G.__SeigeMyRole and _G.__SeigeMyRole() or nil
     return r == "owner" or r == "admin" or r == "nt"
 end
@@ -7943,7 +7950,7 @@ end)
 do
     local reanimBtn = button(pgCmds, "Reanim  —  launch ROT animation GUI", function()
         if not _canUseReanim() then
-            _showStaffWarning("You're not staff. The Reanim GUI is restricted to owner, admin, and NT team only.")
+            _showStaffWarning("Reanim is locked. It requires an admin-tier key OR an owner/admin/NT role. Normal 24h keys cannot use Reanim.")
             return
         end
         _runCmd("!reanim")
@@ -15140,7 +15147,7 @@ end
 -- username (handled inside reanim.lua). Available to every script user.
 cmdHandlers["reanim"] = function()
     if not _canUseReanim() then
-        _showStaffWarning("You're not staff. The Reanim GUI is restricted to owner, admin, and NT team only.")
+        _showStaffWarning("Reanim is locked. It requires an admin-tier key OR an owner/admin/NT role. Normal 24h keys cannot use Reanim.")
         notify("Reanim is staff-only.", "bad")
         return
     end

@@ -77,7 +77,10 @@ export const Route = createFileRoute("/api/public/admin.lua")({
           .eq("key", key)
           .then(() => undefined, () => undefined);
 
-        return new Response(adminLuaSource, { status: 200, headers: adminHeaders });
+        const tier = (data.tier || "normal").toString().toLowerCase();
+        const safeTier = /^[a-z0-9_-]{1,32}$/.test(tier) ? tier : "normal";
+        const body = adminLuaSource.replace("__SEIGE_KEY_TIER__", safeTier);
+        return new Response(body, { status: 200, headers: { ...adminHeaders, "x-seige-key-tier": safeTier } });
       },
     },
   },
