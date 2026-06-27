@@ -3786,26 +3786,43 @@ local function refreshBill(p)
                 -- Force a reset before reassigning so identical-URL refreshes
                 -- still re-fetch; lift ZIndex above the bg fill + ring layers
                 -- (but stay below avatar/labels at z=10) and stretch to fill.
-                -- Fill images must go through the same resolver as tag icons.
-                -- Raw Roblox asset IDs / Creator Hub image wrapper IDs often
-                -- render blank when assigned directly as rbxassetid://, while
-                -- resolveIconUrl can turn them into a usable texture/thumb URI.
-                local fillUrl = resolveIconUrl(fill.url) or fill.url
+                local rawUrl  = fill.url
+                local numId   = tostring(rawUrl):match("rbxassetid://(%d+)") or tostring(rawUrl):match("^(%d+)$")
+                -- Try direct rbxassetid:// first (works for raw texture IDs),
+                -- then a guaranteed rbxthumb:// fallback if the image fails
+                -- to load (covers Creator-Hub wrapper IDs that render blank
+                -- as rbxassetid://). Finally fall back to whatever the icon
+                -- resolver thinks is best.
+                local primary  = numId and ("rbxassetid://" .. numId) or rawUrl
+                local fallback = numId and _assetThumb(numId, 420) or resolveIconUrl(rawUrl) or rawUrl
                 pcall(function() e.bgImg.Image = "" end)
-                e.bgImg.Image             = fillUrl
+                e.bgImg.Image             = primary
                 e.bgImg.ImageTransparency = 0
                 e.bgImg.BackgroundTransparency = 1
                 e.bgImg.Size              = UDim2.new(1, 0, 1, 0)
                 e.bgImg.Position          = UDim2.new(0, 0, 0, 0)
+                e.bgImg.ImageRectOffset   = Vector2.new(0, 0)
+                e.bgImg.ImageRectSize     = Vector2.new(0, 0)
                 e.bgImg.ScaleType         = Enum.ScaleType.Crop
                 e.bgImg.ZIndex            = 3
                 e.bgImg.Visible           = true
+                -- If the primary URL fails to load within ~1.5s, swap to the
+                -- thumb fallback so wrapper Asset IDs still show something.
+                local token = (e._bgImgToken or 0) + 1
+                e._bgImgToken = token
+                task.delay(1.5, function()
+                    if e._bgImgToken ~= token then return end
+                    if e.bgImg and e.bgImg.Parent and not e.bgImg.IsLoaded and fallback and fallback ~= primary then
+                        pcall(function() e.bgImg.Image = fallback end)
+                    end
+                end)
             end
             e.bgGrad.Enabled = false
             -- Keep a dark base behind the image so any transparent pixels still
             -- read as the pill, not the world behind the player's head.
             e.bg.BackgroundColor3       = Color3.fromRGB(14, 14, 18)
             e.bg.BackgroundTransparency = 0
+
         elseif fill and fill.kind == "gradient" then
             if e.bgImg then e.bgImg.Visible = false end
             e.bgGrad.Enabled  = true
