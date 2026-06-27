@@ -309,8 +309,12 @@ function Index() {
               desc="Modern glass-morphism admin panel with smooth animations, customizable themes, typography, and transparency."
             />
             <FeatureCard
+              title="Role-Based Permissions"
+              desc="Owner, Admin, Staff, and NT Team roles with gated command access. Owner-only kill switch and audit logging."
+            />
+            <FeatureCard
               title="50+ Built-in Commands"
-              desc="From utility to combat — everything is one ! command away in the chat or via the GUI."
+              desc="From trolling to utility — everything is one ! command away in the chat or via the GUI."
             />
             <FeatureCard
               title="Movement"
@@ -319,6 +323,10 @@ function Index() {
             <FeatureCard
               title="Player Interactions"
               desc="Goto, Bring, Carry, Headsit, Shouldersit, Piggyback, Bang, Facebang, Backbang, Fling, Stalk, and Spectate."
+            />
+            <FeatureCard
+              title="Trolling"
+              desc="Timestop to freeze everyone, Circle players, force-chat with !usay, private banners with !allp."
             />
             <FeatureCard
               title="Performance Boost"
@@ -357,6 +365,9 @@ function Index() {
               <CmdExample cmd="!facebang <player>" desc="Face-to-face bang" />
               <CmdExample cmd="!fling <player>" desc="Launch a player" />
               <CmdExample cmd="!stalk <player>" desc="Follow and listen" />
+              <CmdExample cmd="!timestop" desc="Freeze everyone (admin)" />
+              <CmdExample cmd="!circle <player>" desc="Orbit around target" />
+              <CmdExample cmd="!allp <msg>" desc="Banner to all script users" />
               <CmdExample cmd="!ws 100" desc="Set walk speed" />
               <CmdExample cmd="!jp 150" desc="Set jump power" />
               <CmdExample cmd="!maxboost" desc="Enable all performance" />
