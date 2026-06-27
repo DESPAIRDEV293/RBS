@@ -8250,7 +8250,16 @@ button(pgCmds, "Timestop  —  freeze everyone (admin/owner)", function()
 end)
 button(pgCmds, "Bang  —  front / face / back (!bang)", function()
     _openPanel("bang", "Bang  ·  front / face / back", 420, function(body)
+        _G.__SeigeBang = _G.__SeigeBang or {}
         local B = _G.__SeigeBang
+        if B.mode      == nil then B.mode      = "front" end
+        if B.distance  == nil then B.distance  = 1.2 end
+        if B.height    == nil then B.height    = 0 end
+        if B.speed     == nil then B.speed     = 3 end
+        if B.amp       == nil then B.amp       = 0.6 end
+        if B.autoFace  == nil then B.autoFace  = true end
+        if B.spin      == nil then B.spin      = false end
+        if B.spinSpeed == nil then B.spinSpeed = 4 end
         local tbox = inst("TextBox", body, {
             Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
             TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
