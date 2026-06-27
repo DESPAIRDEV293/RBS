@@ -9578,6 +9578,7 @@ snapshotCfg = function()
             speed = (_G.__SeigeBang and tonumber(_G.__SeigeBang.speed)) or nil,
         },
         headStatsOn   = _G.__SeigeHeadStatsOn == true,
+        tagAura       = _G.__SeigeMyTagAura or "None",
         reanim        = (function()
             local rc = _G.__SeigeReanimCfg
             if type(rc) ~= "table" then return nil end
