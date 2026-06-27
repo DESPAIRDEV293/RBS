@@ -12589,6 +12589,9 @@ _G.__SeigeFlash = _G.__SeigeFlash or {
     distance = 18,           -- studs (used for camera-direction mode)
     mode     = "camera",     -- "camera" or "mouse"
     fx       = true,         -- brief blink VFX
+    sound    = true,         -- play blink SFX
+    soundId  = "rbxassetid://127115086296756",
+    volume   = 1.0,
     _conn    = nil,
 }
 
