@@ -530,7 +530,8 @@ local HELP_COMMANDS = {
     { perms = {},            cmd = "!reanim",               desc = "Launch the Reanim GUI (purple-storm build)" },
     { perms = {"staff_cmd"}, cmd = "!key",                  desc = "Show a copyable tag sync key for Config (staff/admin/owner only)" },
     { perms = {},            cmd = "!walkonair",            desc = "Walk on an invisible platform — up/down + keybinds in the panel" },
-    { perms = {},            cmd = "!flashstep",            desc = "Blink-teleport in camera direction or to your mouse hover (keybind in panel)" },
+     { perms = {},            cmd = "!flashstep",            desc = "Blink-teleport in camera direction or to your mouse hover (keybind in panel)" },
+     { perms = {},            cmd = "!iy",                   desc = "Infinite Yield — IY-style command runner panel (aliases: !infyield, !infiniteyield)" },
 }
 
 local helpGui = nil
