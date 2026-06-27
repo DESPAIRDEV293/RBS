@@ -7556,6 +7556,7 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
         end)
 
         button(body, "Stop walk on air", function() _G.__SeigeWoAStop() end)
+    end)
 end)
 
 button(pgCmds, "Flashstep  —  blink teleport (keybind)", function()
