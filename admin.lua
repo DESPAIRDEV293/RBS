@@ -7525,7 +7525,7 @@ button(pgCmds, "!key  —  show tag sync key (staff)", function() _runCmd("!key"
 -- One place for FPS booster, Ping booster, and Optimize.
 -- All three actually do work: uncap fps, drop quality, kill effects,
 -- disable shadows/water/decoration, push network priority.
-do
+;(function()
     local Lighting   = game:GetService("Lighting")
     local RunService = game:GetService("RunService")
     local Stats      = game:GetService("Stats")
@@ -7763,7 +7763,7 @@ do
             _G.__SeigeCmds["unboost"]     = function() applyAll(false); notify("Performance restored", "warn") end
         end
     end)
-end
+end)()
 
 -- ===== Popout panels (replace standalone toggles) =====
 _openMovementPanel = function()
