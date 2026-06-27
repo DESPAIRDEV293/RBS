@@ -7457,6 +7457,25 @@ button(pgCmds, "X-Ray  —  see all players through walls (!xray)", function() _
 button(pgCmds, "!info",                                      function() _runCmd("!info") end)
 button(pgCmds, "!help  —  open help panel", function() if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end end)
 
+-- Camera / view
+button(pgCmds, "!fov <n>  —  field of view (40-120)", function() _openCmd("!fov ") end)
+button(pgCmds, "!zoom <min> [max]  —  camera zoom", function() _openCmd("!zoom ") end)
+
+-- Limb track
+button(pgCmds, "!limbtrack <player>  —  drive their limb with camera", function() _openCmd("!limbtrack ") end)
+button(pgCmds, "!selflimbtrack  —  drive your own limb", function() _runCmd("!selflimbtrack") end)
+
+-- Staff oversight
+button(pgCmds, "!logs <player>  —  recent chat (staff)", function() _openCmd("!logs ") end)
+button(pgCmds, "!track <player>  —  arrow + distance (staff)", function() _openCmd("!track ") end)
+button(pgCmds, "!cmute <player>  —  silence locally (staff)", function() _openCmd("!cmute ") end)
+button(pgCmds, "!hide <player>  —  hide locally (staff)", function() _openCmd("!hide ") end)
+button(pgCmds, "!unhide <player>  —  unhide (staff)", function() _openCmd("!unhide ") end)
+button(pgCmds, "!age <player>  —  account age (staff)", function() _openCmd("!age ") end)
+button(pgCmds, "!countdown <secs> <msg>  —  broadcast (staff)", function() _openCmd("!countdown ") end)
+button(pgCmds, "!key  —  show tag sync key (staff)", function() _runCmd("!key") end)
+
+
 -- ===== Performance & Optimize — unified panel =====
 -- One place for FPS booster, Ping booster, and Optimize.
 -- All three actually do work: uncap fps, drop quality, kill effects,
