@@ -1,9 +1,6 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isUnlocked } from "@/lib/gate.functions";
-
-const loadstringCommand = `loadstring(game:HttpGet("https://seigelollua.lovable.app/api/public/loader.lua"))()`;
-const loadstringDisplay = loadstringCommand;
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
