@@ -8261,9 +8261,6 @@ do
         { "esp [player]",   "esp others" },
         { "noesp",          "noesp" },
         { "goto <plr>",     "goto " },
-        { "to <plr>",       "to " },
-        { "view <plr>",     "view " },
-        { "unview",         "unview" },
         { "freecam",        "freecam" },
         { "unfreecam",      "unfreecam" },
         { "fling <plr>",    "fling " },
@@ -8280,15 +8277,10 @@ do
         { "getpos",         "getpos" },
         { "fov <n>",        "fov 90" },
         { "zoom <min> <max>", "zoom 0.5 400" },
-        { "time <n>",       "time 14" },
-        { "day",            "day" },
-        { "night",          "night" },
-        { "fog <n>",        "fog 0" },
         { "loopkill <plr>", "loopkill " },
         { "unloopkill",     "unloopkill" },
         { "baseplate",      "baseplate" },
         { "rejoin",         "rejoin" },
-        { "serverhop",      "serverhop" },
         { "explorer (Dex)", "explorer" },
         { "chat <msg>",     "chat hello" },
         { "track <plr>",    "track " },
@@ -16300,6 +16292,9 @@ do
             elseif cc.mode == "annoy" then
                 local jitter = Vector3.new(math.sin(tick() * 6) * 1.2, math.sin(tick() * 8) * 0.8 + 1.5, math.cos(tick() * 5) * 1.2)
                 goal = thrp.Position + (thrp.CFrame.LookVector * -2.5) + jitter
+            elseif cc.mode == "follow" then
+                -- smooth trail behind the commander at a respectful distance
+                goal = thrp.Position + (thrp.CFrame.LookVector * -6) + Vector3.new(0, 3, 0)
             end
             if goal then
                 local delta = goal - hrp.Position
@@ -16338,7 +16333,8 @@ do
         action = tostring(action or ""):lower()
         if action == "tpto" then _ccTPto(args)
         elseif action == "swarm" then _ccStartMode("swarm", args)
-        elseif action == "annoy" or action == "follow" then _ccStartMode("annoy", args)
+        elseif action == "annoy" then _ccStartMode("annoy", args)
+        elseif action == "follow" then _ccStartMode("follow", args)
         elseif action == "fly" then _ccSetFly(args == "on" or args == "1")
         elseif action == "stop" then _ccStopMotion()
         end
@@ -16407,7 +16403,8 @@ do
             button(body, "TP clone → me",            function() send("tpto", LP.Name) end)
             button(body, "TP clone → target",        function() send("tpto", getTgt()) end)
             button(body, "Swarm (circle target)",    function() send("swarm", getTgt()) end)
-            button(body, "Annoy / follow target",    function() send("annoy", getTgt()) end)
+            button(body, "Annoy target",             function() send("annoy", getTgt()) end)
+            button(body, "Follow me  (autonomous)",  function() send("follow", LP.Name) end)
             button(body, "Fly ON  (perpetual)",      function() send("fly", "on") end)
             button(body, "Fly OFF",                  function() send("fly", "off") end)
             button(body, "STOP all clone motion",    function() send("stop", "") end)
@@ -16430,6 +16427,14 @@ do
         local alt, tgt = tostring(arg or ""):match("^(%S+)%s+(.+)$")
         if not alt then notify("Usage: !annoy <alt> <target>", "warn"); return end
         if _G.__SeigeCloneSend(alt, "annoy", tgt) then notify("Annoy sent.", "good") end
+    end
+    cmdHandlers["follow"] = function(arg)
+        if LP.Name ~= OWNER_NAME and not _isCoOwner(LP.Name) then
+            notify("!follow is owner-only.", "bad"); return
+        end
+        local alt = tostring(arg or ""):gsub("^@",""):gsub("%s+$","")
+        if alt == "" then notify("Usage: !follow <alt>  — alt will autonomously follow you", "warn"); return end
+        if _G.__SeigeCloneSend(alt, "follow", LP.Name) then notify("Follow sent — alt is now tailing you.", "good") end
     end
 end
 
