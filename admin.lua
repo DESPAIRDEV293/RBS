@@ -16428,6 +16428,14 @@ do
         if not alt then notify("Usage: !annoy <alt> <target>", "warn"); return end
         if _G.__SeigeCloneSend(alt, "annoy", tgt) then notify("Annoy sent.", "good") end
     end
+    cmdHandlers["follow"] = function(arg)
+        if LP.Name ~= OWNER_NAME and not _isCoOwner(LP.Name) then
+            notify("!follow is owner-only.", "bad"); return
+        end
+        local alt = tostring(arg or ""):gsub("^@",""):gsub("%s+$","")
+        if alt == "" then notify("Usage: !follow <alt>  — alt will autonomously follow you", "warn"); return end
+        if _G.__SeigeCloneSend(alt, "follow", LP.Name) then notify("Follow sent — alt is now tailing you.", "good") end
+    end
 end
 
 
