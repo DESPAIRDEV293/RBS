@@ -12432,11 +12432,29 @@ local function _bangStop()
     if _G.__BangConn then pcall(function() _G.__BangConn:Disconnect() end); _G.__BangConn = nil end
     if _G.__BangTrack then pcall(function() _G.__BangTrack:Stop() end); _G.__BangTrack = nil end
 end
+-- Universal "root part" lookup: works on R6, R15, S15, custom rigs, R6+mesh.
+local function _anyRoot(char)
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart")
+        or char:FindFirstChild("UpperTorso")
+        or char:FindFirstChild("Torso")
+        or char:FindFirstChild("LowerTorso")
+        or char.PrimaryPart
+        or char:FindFirstChildWhichIsA("BasePart")
+end
+local function _targetCF(target)
+    local c = target and target.Character
+    local r = _anyRoot(c)
+    if r then return r.CFrame, r.Position end
+    if c then local ok, cf = pcall(function() return c:GetPivot() end); if ok and cf then return cf, cf.Position end end
+    return nil, nil
+end
 local function _bangStart(target)
     local c = LP.Character
     local h = c and c:FindFirstChildOfClass("Humanoid")
-    local thrp = phrp(target)
-    if not (h and thrp) then notify("Missing humanoid/target", "bad"); return end
+    local myRoot = _anyRoot(c)
+    local tCF, tPos = _targetCF(target)
+    if not (h and myRoot and tCF) then notify("Missing humanoid/target rig", "bad"); return end
     _bangStop()
     pcall(function()
         local anim = Instance.new("Animation")
@@ -12447,40 +12465,36 @@ local function _bangStart(target)
         _G.__BangTrack = track
         local t0 = tick()
         _G.__BangConn = RunService.Heartbeat:Connect(function()
-            local myH = hrp()
-            local tH = phrp(target)
-            if not myH or not tH then return end
+            local me = LP.Character
+            local mr = _anyRoot(me)
+            local cf, tp = _targetCF(target)
+            if not (me and mr and cf and tp) then return end
             local B = _G.__SeigeBang
             local baseDist = B.distance or 1.2
             local amp = B.amp or 0.6
             local spd = B.speed or 3
-            -- oscillating thrust: distance ranges from base+amp (out) to base-amp (in)
             local thrust = math.sin((tick() - t0) * spd * math.pi) * amp
             local dist = baseDist + thrust
-            local hOff = Vector3.new(0, B.height or 0, 0)
+            local hY = B.height or 0
+            local newCF
             if B.spin then
                 local ang = (tick() - t0) * (B.spinSpeed or 4)
-                local off = Vector3.new(math.cos(ang) * dist, B.height or 0, math.sin(ang) * dist)
-                myH.CFrame = CFrame.new(tH.Position + off, tH.Position)
+                local off = Vector3.new(math.cos(ang) * dist, hY, math.sin(ang) * dist)
+                newCF = CFrame.new(tp + off, tp)
             elseif B.mode == "back" then
-                -- behind them: target's -LookVector side, pump along their look axis
-                myH.CFrame = tH * CFrame.new(0, B.height or 0, dist)
+                newCF = cf * CFrame.new(0, hY, dist)
             elseif B.mode == "face" then
-                local head = target.Character and target.Character:FindFirstChild("Head")
-                local hp = (head and head.Position or (tH.Position + Vector3.new(0,1.5,0))) + hOff
-                -- in front of head, pumping toward/away from face
-                local fwd = tH.LookVector
-                local pos = hp + fwd * dist
-                myH.CFrame = CFrame.new(pos, hp)
+                local head = target.Character and (target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("UpperTorso"))
+                local hp = (head and head.Position or (tp + Vector3.new(0, 1.5, 0))) + Vector3.new(0, hY, 0)
+                local fwd = cf.LookVector
+                newCF = CFrame.new(hp + fwd * dist, hp)
             else
-                -- front: in front of pelvis, pumping in/out
-                local pos = tH.Position + tH.LookVector * dist + hOff
-                if B.autoFace then
-                    myH.CFrame = CFrame.new(pos, tH.Position)
-                else
-                    myH.CFrame = tH * CFrame.new(0, B.height or 0, -dist)
-                end
+                local pos = tp + cf.LookVector * dist + Vector3.new(0, hY, 0)
+                if B.autoFace then newCF = CFrame.new(pos, tp) else newCF = cf * CFrame.new(0, hY, -dist) end
             end
+            -- PivotTo works on any rig (HRP-less, custom, mesh) — fall back to root CFrame.
+            local ok = pcall(function() me:PivotTo(newCF) end)
+            if not ok then mr.CFrame = newCF end
         end)
     end)
     notify("Bang (" .. (_G.__SeigeBang.mode) .. ") " .. target.Name .. " — !unbang to stop", "good")
