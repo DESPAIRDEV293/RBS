@@ -998,7 +998,7 @@ local function showLoadScreen()
 
     local maxP = Players.MaxPlayers or 0
     local pTile, pLab, pVal = makeTile(1, "PLAYERS IN SERVER", tostring(#Players:GetPlayers()) .. (maxP > 0 and ("/" .. maxP) or ""))
-    local cTile, cLab, cVal = makeTile(2, "CONNECTIONS", "0")
+    local cTile, cLab, cVal = makeTile(2, "FRIENDS  IN/ONLINE", "0/0")
     local gameName = "Game"
     pcall(function()
         local MarketplaceService = game:GetService("MarketplaceService")
@@ -1077,26 +1077,71 @@ local function showLoadScreen()
         Size = UDim2.new(1, 0, 1, 0),
         BackgroundTransparency = 1,
         Font = Enum.Font.Gotham,
-        Text = "No other scripters in this server",
+        Text = "Scanning friends & scripters…",
         TextColor3 = T.dim,
         TextSize = 11,
         TextXAlignment = Enum.TextXAlignment.Left,
         ZIndex = 503,
     })
 
+    -- Pull the local player's full friends list (paginated) ONCE so the
+    -- welcome screen can show real friends-online / friends-in-game counts
+    -- instead of only nearby seige.lol users. Stored on _G so the rest of
+    -- the script can reuse it (avatar tags, etc).
+    _G.__SeigeFriendSet      = _G.__SeigeFriendSet      or {}
+    _G.__SeigeFriendsOnline  = _G.__SeigeFriendsOnline  or 0
+    _G.__SeigeFriendsInGame  = _G.__SeigeFriendsInGame  or {}
+    task.spawn(function()
+        local ok, pages = pcall(function() return Players:GetFriendsAsync(LP.UserId) end)
+        if not ok or not pages then return end
+        local set, online, guard = {}, 0, 0
+        while guard < 50 do
+            guard = guard + 1
+            local ok2, page = pcall(function() return pages:GetCurrentPage() end)
+            if ok2 and type(page) == "table" then
+                for _, item in ipairs(page) do
+                    if item and item.Id then
+                        set[item.Id] = { name = item.Username, display = item.DisplayName, online = item.IsOnline }
+                        if item.IsOnline then online = online + 1 end
+                    end
+                end
+            end
+            if pages.IsFinished then break end
+            local ok3 = pcall(function() pages:AdvanceToNextPageAsync() end)
+            if not ok3 then break end
+        end
+        _G.__SeigeFriendSet     = set
+        _G.__SeigeFriendsOnline = online
+    end)
+
     local function refreshConnections()
-        local count = 0
         local scripters = _G.__SeigeScripters or {}
+        local friends   = _G.__SeigeFriendSet  or {}
+        local friendsInGame, scripterCount, totalChips = 0, 0, 0
         for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LP and scripters[p.UserId] then
-                addConnChip(p)
-                count = count + 1
+            if p ~= LP then
+                local isFriend   = friends[p.UserId] ~= nil
+                local isScripter = scripters[p.UserId] == true
+                if isFriend or isScripter then
+                    addConnChip(p)
+                    totalChips = totalChips + 1
+                end
+                if isFriend   then friendsInGame = friendsInGame + 1 end
+                if isScripter then scripterCount = scripterCount + 1 end
             end
         end
-        cVal.Text = tostring(count)
-        if count > 0 and connEmpty.Parent then connEmpty:Destroy() end
+        local online = _G.__SeigeFriendsOnline or 0
+        -- format: "<in-game friends>/<online friends> · <scripters here>★"
+        if online > 0 or friendsInGame > 0 then
+            cVal.Text = string.format("%d/%d", friendsInGame, online) ..
+                (scripterCount > 0 and (" · " .. scripterCount .. "★") or "")
+        else
+            cVal.Text = tostring(scripterCount)
+        end
+        if totalChips > 0 and connEmpty.Parent then connEmpty:Destroy() end
         pVal.Text = tostring(#Players:GetPlayers()) .. (maxP > 0 and ("/" .. maxP) or "")
     end
+
 
     -- progress bar
     local barBg = inst("Frame", card, {
@@ -11328,22 +11373,27 @@ end
 ;(function()
     -- Known script signatures: name -> patterns to match in URLs / source / GUI names
     local KNOWN = {
-        { name = "AKADMIN (absent.wtf)",  patterns = { "absent%.wtf", "AKADMIN" }, gui = { "AKAdmin", "AKADMIN" } },
-        { name = "Novoline",              patterns = { "novoline%.pro", "novoline" }, gui = { "Novoline" } },
-        { name = "Infinite Yield",        patterns = { "EdgeIY/infiniteyield", "infiniteyield", "Infinite Yield" }, gui = { "IY", "InfiniteYield" } },
-        { name = "Dex Explorer",          patterns = { "Dex%.lua", "Moon%-Dex", "dex%-v4" }, gui = { "Dex", "DexExplorer" } },
-        { name = "Owl Hub",               patterns = { "owlhub", "Owl Hub" }, gui = { "OwlHub" } },
-        { name = "Hydroxide",             patterns = { "Hydroxide", "Upholstery" }, gui = {} },
+        { name = "AKADMIN (absent.wtf)",  patterns = { "absent%.wtf", "akadmin", "ak%-admin", "ak_admin" }, gui = { "AKAdmin", "AKADMIN", "AK_Admin", "AK-Admin", "AbsentAdmin" } },
+        { name = "M7 Hub",                patterns = { "m7hub", "m7%-hub", "m7_hub", "m7%.lua", "m7scripts", "discord%.gg/m7" }, gui = { "M7Hub", "M7_Hub", "M7Gui", "M7Menu", "M7Loader" } },
+        { name = "Novoline",              patterns = { "novoline%.pro", "novoline", "novo%-line" }, gui = { "Novoline", "NovolineHub", "NovolineUI" } },
+        { name = "Infinite Yield",        patterns = { "edgeiy/infiniteyield", "infiniteyield", "infinite yield" }, gui = { "IY", "InfiniteYield", "IYAdmin" } },
+        { name = "Dex Explorer",          patterns = { "dex%.lua", "moon%-dex", "dex%-v4", "moonsec/dex" }, gui = { "Dex", "DexExplorer", "MoonDex" } },
+        { name = "Owl Hub",               patterns = { "owlhub", "owl hub" }, gui = { "OwlHub" } },
+        { name = "Hydroxide",             patterns = { "hydroxide", "upholstery" }, gui = { "Hydroxide" } },
         { name = "Synapse X UI",          patterns = { "synapse" }, gui = { "Synapse" } },
         { name = "Script-Ware",           patterns = { "script%-ware", "scriptware" }, gui = { "ScriptWare" } },
         { name = "Krnl",                  patterns = { "krnl%." }, gui = { "Krnl" } },
         { name = "Fluxus",                patterns = { "fluxus" }, gui = { "Fluxus" } },
-        { name = "Rayfield UI",           patterns = { "Rayfield", "shlexware/Rayfield" }, gui = { "Rayfield" } },
-        { name = "Linoria / OrionLib",    patterns = { "Linoria", "OrionLib", "orion%.lua" }, gui = { "Orion", "Linoria" } },
-        { name = "Reviz Admin",           patterns = { "Reviz%.lua", "reviz admin" }, gui = { "RevizAdmin" } },
-        { name = "Nameless Admin",        patterns = { "Nameless Admin", "nameless%-admin" }, gui = { "NamelessAdmin" } },
-        { name = "SEIGE.LOL (this)",      patterns = { "DESPAIRDEV293", "roblox%-script%-buddy", "seige%.lol" }, gui = { "SeigeAdmin", "Admin_v" } },
+        { name = "Solara",                patterns = { "solara" }, gui = { "Solara" } },
+        { name = "Wave",                  patterns = { "getwave", "wave%-executor" }, gui = { "Wave" } },
+        { name = "Hydrogen",              patterns = { "hydrogen" }, gui = { "Hydrogen" } },
+        { name = "Rayfield UI",           patterns = { "rayfield", "shlexware/rayfield" }, gui = { "Rayfield" } },
+        { name = "Linoria / OrionLib",    patterns = { "linoria", "orionlib", "orion%.lua" }, gui = { "Orion", "Linoria" } },
+        { name = "Reviz Admin",           patterns = { "reviz%.lua", "reviz admin" }, gui = { "RevizAdmin" } },
+        { name = "Nameless Admin",        patterns = { "nameless admin", "nameless%-admin" }, gui = { "NamelessAdmin" } },
+        { name = "SEIGE.LOL (this)",      patterns = { "despairdev293", "roblox%-script%-buddy", "seige%.lol", "seigescript" }, gui = { "SeigeAdmin", "Admin_v" } },
         { name = "ScriptBlox script",     patterns = { "scriptblox%.com", "scriptbloxapi", "rawscripts%.net" }, gui = {} },
+
     }
 
     local detected = {}      -- name -> { source, url, time }
@@ -11532,17 +11582,25 @@ end
         refresh()
     end)
 
-    local autoOn = false
-    toggle(pgDetect, "Auto-scan GUIs every 10s (off by default)", false, function(v) autoOn = v end)
+    local autoOn = true
+    toggle(pgDetect, "Auto-scan GUIs every 10s (on)", true, function(v) autoOn = v end)
     task.spawn(function()
         while true do
             task.wait(10)
-            if autoOn then pcall(scanGuis) end
+            if autoOn then pcall(scanGuis); pcall(scanScripts) end
         end
     end)
 
-    -- No automatic initial scan — MacSploit / some executors throw
-    -- "DM Lock Violation" when CoreGui is walked too early. User must press Rescan.
+    -- Deferred initial scan: wait until the game has been loaded for a few
+    -- seconds so CoreGui is safe to walk on MacSploit/Wave/etc, then sweep
+    -- once so akadmin / m7 / novoline appear without the user pressing Rescan.
+    task.spawn(function()
+        task.wait(6)
+        pcall(scanGuis); pcall(scanScripts)
+        statusLbl:set("Status: initial scan complete (" .. os.date("%H:%M:%S") .. ")")
+    end)
+
+
 
     --------------------------------------------------------------------------
     -- DISCORD MEMBER LIST (server 1425348267457253498, bot 1455765555318493431)
