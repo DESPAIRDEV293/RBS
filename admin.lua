@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-27-reanim-nofreeze"
+local ADMIN_BUILD = "2026-06-27-limbtrack"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -12979,6 +12979,191 @@ cmdHandlers["unflashstep"] = function()
     notify("Flashstep OFF", "warn")
 end
 cmdHandlers["blink"] = cmdHandlers["flashstep"]
+
+-- ===== Limb Track: camera-rotation drives a chosen limb on a target avatar =====
+-- Commands: !limbtrack <user>  and  !selflimbtrack  (aliases: !ltrack / !sltrack)
+-- Opens a small panel: pick limb, sensitivity, On/Off. While on, the camera's
+-- rotation delta from the moment you toggled it is applied to that limb's Motor6D.
+_G.__SeigeLimb = _G.__SeigeLimb or {
+    on = false, target = nil, limb = "RightUpperArm",
+    sens = 1.0, motor = nil, baseC1 = nil, baseCam = nil, conn = nil, gui = nil,
+}
+
+local R15_LIMBS = {"Head","UpperTorso","LowerTorso","LeftUpperArm","RightUpperArm",
+    "LeftLowerArm","RightLowerArm","LeftUpperLeg","RightUpperLeg"}
+local R6_FALLBACK = { Head="Head", UpperTorso="Torso", LowerTorso="Torso",
+    LeftUpperArm="Left Arm", RightUpperArm="Right Arm",
+    LeftUpperLeg="Left Leg", RightUpperLeg="Right Leg" }
+
+local function _limbStop()
+    local S = _G.__SeigeLimb
+    if S.conn then pcall(function() S.conn:Disconnect() end); S.conn = nil end
+    if S.motor and S.baseC1 then pcall(function() S.motor.C1 = S.baseC1 end) end
+    S.motor, S.baseC1, S.baseCam = nil, nil, nil
+    S.on = false
+end
+
+local function _findMotorForLimb(char, limbName)
+    if not char then return nil end
+    local name = limbName
+    local part = char:FindFirstChild(name)
+    if not part then
+        local alt = R6_FALLBACK[name]
+        if alt then part = char:FindFirstChild(alt) end
+    end
+    if not part then return nil end
+    for _, d in ipairs(char:GetDescendants()) do
+        if d:IsA("Motor6D") and d.Part1 == part then return d end
+    end
+    return nil
+end
+
+local function _limbStart()
+    local S = _G.__SeigeLimb
+    _limbStop()
+    local plr = S.target or LP
+    local char = plr and plr.Character
+    if not char then notify("Target has no character", "bad"); return end
+    local motor = _findMotorForLimb(char, S.limb)
+    if not motor then notify("No Motor6D for "..S.limb, "bad"); return end
+    S.motor, S.baseC1 = motor, motor.C1
+    S.baseCam = workspace.CurrentCamera.CFrame
+    S.on = true
+    S.conn = game:GetService("RunService").RenderStepped:Connect(function()
+        if not S.on or not S.motor or not S.motor.Parent then _limbStop(); return end
+        local cam = workspace.CurrentCamera.CFrame
+        local rel = S.baseCam:ToObjectSpace(cam)
+        local x, y, z = rel:ToEulerAnglesYXZ()
+        local s = S.sens or 1
+        local rot = CFrame.fromEulerAnglesYXZ(x*s, y*s, z*s)
+        pcall(function() S.motor.C1 = S.baseC1 * rot end)
+    end)
+    notify(("Limb-track ON · %s · @%s"):format(S.limb, plr.Name), "good")
+end
+
+local function _openLimbPanel()
+    local S = _G.__SeigeLimb
+    if S.gui then pcall(function() S.gui:Destroy() end); S.gui = nil end
+    local parent = (gethui and gethui()) or (LP:FindFirstChildOfClass("PlayerGui"))
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "SeigeLimbTrack"; sg.ResetOnSpawn = false
+    sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    sg.Parent = parent
+    S.gui = sg
+
+    local f = Instance.new("Frame", sg)
+    f.Size = UDim2.new(0, 280, 0, 260)
+    f.Position = UDim2.new(0.5, -140, 0.5, -130)
+    f.BackgroundColor3 = Color3.fromRGB(16,16,22)
+    f.BorderSizePixel = 0; f.Active = true; f.Draggable = true
+    Instance.new("UICorner", f).CornerRadius = UDim.new(0, 10)
+    local stroke = Instance.new("UIStroke", f); stroke.Color = Color3.fromRGB(220,40,60); stroke.Thickness = 1
+
+    local title = Instance.new("TextLabel", f)
+    title.BackgroundTransparency = 1; title.Size = UDim2.new(1,-40,0,28)
+    title.Position = UDim2.new(0,12,0,6); title.Font = Enum.Font.GothamBold
+    title.TextSize = 14; title.TextColor3 = Color3.fromRGB(255,220,90)
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Text = "Limb Track  ·  @"..(S.target and S.target.Name or LP.Name)
+
+    local close = Instance.new("TextButton", f)
+    close.Size = UDim2.new(0,24,0,24); close.Position = UDim2.new(1,-30,0,6)
+    close.BackgroundColor3 = Color3.fromRGB(60,20,28); close.BorderSizePixel = 0
+    close.Font = Enum.Font.GothamBold; close.TextSize = 14
+    close.TextColor3 = Color3.fromRGB(255,210,210); close.Text = "X"
+    Instance.new("UICorner", close).CornerRadius = UDim.new(0,6)
+    close.MouseButton1Click:Connect(function() _limbStop(); sg:Destroy(); S.gui=nil end)
+
+    local hint = Instance.new("TextLabel", f)
+    hint.BackgroundTransparency = 1; hint.Position = UDim2.new(0,12,0,36)
+    hint.Size = UDim2.new(1,-24,0,28); hint.Font = Enum.Font.Gotham; hint.TextSize = 11
+    hint.TextColor3 = Color3.fromRGB(180,180,200); hint.TextWrapped = true
+    hint.TextXAlignment = Enum.TextXAlignment.Left
+    hint.Text = "Pick a limb. Move your camera — the limb mirrors that rotation."
+
+    -- limb grid
+    local grid = Instance.new("Frame", f); grid.BackgroundTransparency = 1
+    grid.Position = UDim2.new(0,12,0,70); grid.Size = UDim2.new(1,-24,0,118)
+    local ug = Instance.new("UIGridLayout", grid)
+    ug.CellSize = UDim2.new(0,80,0,28); ug.CellPadding = UDim2.new(0,6,0,6)
+
+    local btns = {}
+    local function refreshSel()
+        for n,b in pairs(btns) do
+            b.BackgroundColor3 = (n == S.limb) and Color3.fromRGB(180,30,50) or Color3.fromRGB(28,28,38)
+        end
+    end
+    for _, n in ipairs(R15_LIMBS) do
+        local b = Instance.new("TextButton", grid)
+        b.BackgroundColor3 = Color3.fromRGB(28,28,38); b.BorderSizePixel = 0
+        b.Font = Enum.Font.Gotham; b.TextSize = 11; b.TextColor3 = Color3.fromRGB(230,230,240)
+        b.Text = n:gsub("Upper",""):gsub("Lower","L "):gsub("Left","L"):gsub("Right","R")
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
+        btns[n] = b
+        b.MouseButton1Click:Connect(function()
+            S.limb = n; refreshSel()
+            if S.on then _limbStart() end
+        end)
+    end
+    refreshSel()
+
+    -- sensitivity
+    local sl = Instance.new("TextLabel", f); sl.BackgroundTransparency = 1
+    sl.Position = UDim2.new(0,12,0,194); sl.Size = UDim2.new(1,-24,0,16)
+    sl.Font = Enum.Font.Gotham; sl.TextSize = 11; sl.TextColor3 = Color3.fromRGB(200,200,215)
+    sl.TextXAlignment = Enum.TextXAlignment.Left
+    sl.Text = ("Sensitivity: %.2f"):format(S.sens)
+    local bar = Instance.new("Frame", f); bar.Position = UDim2.new(0,12,0,212)
+    bar.Size = UDim2.new(1,-24,0,8); bar.BackgroundColor3 = Color3.fromRGB(40,40,52); bar.BorderSizePixel = 0
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(1,0)
+    local fill = Instance.new("Frame", bar); fill.BackgroundColor3 = Color3.fromRGB(220,40,60)
+    fill.BorderSizePixel = 0; fill.Size = UDim2.fromScale(math.clamp(S.sens/3,0,1),1)
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1,0)
+    bar.InputBegan:Connect(function(io)
+        if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+            local UIS = game:GetService("UserInputService")
+            local move, rel
+            move = UIS.InputChanged:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+                    local p = (i.Position.X - bar.AbsolutePosition.X) / bar.AbsoluteSize.X
+                    p = math.clamp(p, 0, 1); S.sens = p * 3
+                    fill.Size = UDim2.fromScale(p, 1); sl.Text = ("Sensitivity: %.2f"):format(S.sens)
+                end
+            end)
+            rel = UIS.InputEnded:Connect(function(i)
+                if i.UserInputType == io.UserInputType then move:Disconnect(); rel:Disconnect() end
+            end)
+        end
+    end)
+
+    -- toggle button
+    local toggle = Instance.new("TextButton", f)
+    toggle.Position = UDim2.new(0,12,1,-40); toggle.Size = UDim2.new(1,-24,0,30)
+    toggle.BackgroundColor3 = Color3.fromRGB(180,30,50); toggle.BorderSizePixel = 0
+    toggle.Font = Enum.Font.GothamBold; toggle.TextSize = 13
+    toggle.TextColor3 = Color3.fromRGB(255,255,255); toggle.Text = S.on and "STOP" or "START"
+    Instance.new("UICorner", toggle).CornerRadius = UDim.new(0,6)
+    toggle.MouseButton1Click:Connect(function()
+        if S.on then _limbStop(); toggle.Text = "START"
+        else _limbStart(); toggle.Text = S.on and "STOP" or "START" end
+    end)
+end
+
+cmdHandlers["limbtrack"] = function(arg)
+    local p = arg and findPlr(arg) or nil
+    if arg and not p then notify("Player not found: "..tostring(arg), "bad"); return end
+    _G.__SeigeLimb.target = p or LP
+    _openLimbPanel()
+end
+cmdHandlers["ltrack"] = cmdHandlers["limbtrack"]
+cmdHandlers["selflimbtrack"] = function()
+    _G.__SeigeLimb.target = LP
+    _openLimbPanel()
+end
+cmdHandlers["sltrack"] = cmdHandlers["selflimbtrack"]
+cmdHandlers["unlimbtrack"] = function() _limbStop(); notify("Limb-track OFF", "warn") end
+
+
 
 
 cmdHandlers["movement"] = function()
