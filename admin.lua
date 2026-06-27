@@ -16292,6 +16292,9 @@ do
             elseif cc.mode == "annoy" then
                 local jitter = Vector3.new(math.sin(tick() * 6) * 1.2, math.sin(tick() * 8) * 0.8 + 1.5, math.cos(tick() * 5) * 1.2)
                 goal = thrp.Position + (thrp.CFrame.LookVector * -2.5) + jitter
+            elseif cc.mode == "follow" then
+                -- smooth trail behind the commander at a respectful distance
+                goal = thrp.Position + (thrp.CFrame.LookVector * -6) + Vector3.new(0, 3, 0)
             end
             if goal then
                 local delta = goal - hrp.Position
