@@ -13214,6 +13214,7 @@ local function _limbStart()
     S.motor, S.baseC1 = motor, motor.C1
     S.baseCam = workspace.CurrentCamera.CFrame
     S.on = true
+    _limbApplyStretch(motor.Part1)
     S.conn = game:GetService("RunService").RenderStepped:Connect(function()
         if not S.on or not S.motor or not S.motor.Parent then _limbStop(); return end
         local cam = workspace.CurrentCamera.CFrame
