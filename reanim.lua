@@ -37,11 +37,6 @@ do
                 local L = game:GetService("Lighting")
                 if P.prevGQ ~= nil then L.GlobalShadows = P.prevGQ end
             end)
-            -- Re-cap FPS after the load burst. Uncapped FPS during animation
-            -- playback floods Motor6D replication and tanks ping, so settle to
-            -- 144 (smooth) once the rig is in. User can re-uncap manually.
-            pcall(function() if setfpscap then setfpscap(144) end end)
-            pcall(function() if syn and syn.set_fps_cap then syn.set_fps_cap(144) end end)
         end)
     end
 end
@@ -946,21 +941,12 @@ local reloadCustom = function() end
 			       or _animCC:FindFirstChildOfClass("AnimationController")
 			return h and h:FindFirstChildOfClass("Animator")
 		end)() or nil
-		local _animAccum = 0
-		local _animStep  = 1/60
 		stalkie.connections.animation_hb = _animEvent:Connect(
 			LPH_NO_VIRTUALIZE(function(dt)
 				if not anim.state.is_playing then return end
 				if not _animCC or not _animCC.Parent then API.stop_animation(); return end
-				-- Throttle to ~60Hz: uncapped FPS would otherwise force a
-				-- Motor6D write per joint per frame, flooding replication
-				-- and visibly spiking ping.
-				_animAccum = _animAccum + dt
-				if _animAccum < _animStep then return end
-				local stepDt = _animAccum
-				_animAccum = 0
 				anim.state.elapsed_time =
-					(anim.state.elapsed_time + stepDt * anim.state.speed) % anim.state.total_duration
+					(anim.state.elapsed_time + dt * anim.state.speed) % anim.state.total_duration
 				local kfs = anim.state.keyframes
 				local t   = anim.state.elapsed_time
 				local lo, hi = 1, #kfs - 1
@@ -1569,14 +1555,10 @@ _initReanimPanel = function()
 				and game:GetService("RunService").PreSimulation
 				or  game:GetService("RunService").Heartbeat
 			local localConn
-			local _locAccum, _locStep = 0, 1/60
 			localConn = _localEvent:Connect(LPH_NO_VIRTUALIZE(function(dt)
 				if myGen ~= _RS.reanimGeneration then localConn:Disconnect() ; return end
-				_locAccum = _locAccum + dt
-				if _locAccum < _locStep then return end
-				local stepDt = _locAccum ; _locAccum = 0
 				if totalDur > 0 then
-					elapsed = (elapsed + stepDt * _RS.reanimSpeed) % totalDur
+					elapsed = (elapsed + dt * _RS.reanimSpeed) % totalDur
 					local lo, hi = 1, #keyframes - 1
 					while lo < hi do
 						local mid = math.floor((lo + hi) / 2)

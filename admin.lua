@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-27-s15-limb-fallback"
+local ADMIN_BUILD = "2026-06-27-tier-gate"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -13202,63 +13202,26 @@ _G.__SeigeLimb = _G.__SeigeLimb or {
     on = false, target = nil, limb = "RightUpperArm",
     sens = 1.0, motor = nil, baseC1 = nil, baseCam = nil, conn = nil, gui = nil,
     stretch = 1.0, stretchPart = nil, baseSize = nil, childOffsets = nil,
-    driverKind = nil, part = nil, basePartCF = nil, bone = nil, baseBoneTransform = nil,
 }
 
 -- Dynamic rig detection: enumerate every Motor6D in the character and use
--- its Part1.Name as the selectable limb. If an S15/skinned package does not
--- expose normal Motor6Ds, fall back to Bones, then visible BaseParts so the
--- panel still has controllable body targets instead of showing an empty list.
+-- its Part1.Name as the selectable limb. Works for R6, R15, S15, Korblox,
+-- mesh/anime packages and any custom rig that uses Motor6D joints.
 local function _enumerateLimbs(char)
     local out, seen = {}, {}
     if not char then return out end
-    local function add(kind, name, motor, part, bone)
-        if type(name) ~= "string" or name == "" then return end
-        local key = kind .. ":" .. name
-        if seen[key] then return end
-        seen[key] = true
-        table.insert(out, { key = key, name = name, label = name, kind = kind, motor = motor, part = part, bone = bone })
-    end
     for _, d in ipairs(char:GetDescendants()) do
-        if d:IsA("Motor6D") and d.Part1 then
-            add("motor", d.Part1.Name, d, d.Part1, nil)
+        if d:IsA("Motor6D") and d.Part1 and not seen[d.Part1] then
+            seen[d.Part1] = true
+            table.insert(out, { name = d.Part1.Name, motor = d, part = d.Part1 })
         end
     end
-    for _, d in ipairs(char:GetDescendants()) do
-        if d:IsA("Bone") then
-            local part = d:FindFirstAncestorWhichIsA("BasePart")
-            add("bone", d.Name, nil, part, d)
-        end
-    end
-    if #out == 0 then
-        for _, d in ipairs(char:GetDescendants()) do
-            if d:IsA("BasePart") and d.Name ~= "HumanoidRootPart" then
-                add("part", d.Name, nil, d, nil)
-            end
-        end
-    end
-    if #out == 0 then
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if hrp and hrp:IsA("BasePart") then
-            add("part", hrp.Name, nil, hrp, nil)
-        end
-    end
-    table.sort(out, function(a,b)
-        if a.kind == b.kind then return a.name < b.name end
-        local rank = { motor = 1, bone = 2, part = 3 }
-        return (rank[a.kind] or 9) < (rank[b.kind] or 9)
-    end)
+    table.sort(out, function(a,b) return a.name < b.name end)
     return out
 end
 
 local function _detectRig(char)
     if not char then return "?" end
-    local hasMotor, hasBone = false, false
-    for _, d in ipairs(char:GetDescendants()) do
-        if d:IsA("Motor6D") then hasMotor = true end
-        if d:IsA("Bone") then hasBone = true end
-        if hasMotor and hasBone then break end
-    end
     -- S15 rigs reuse the R15 skeleton but swap the UpperTorso for a custom
     -- mesh (thin / hourglass / etc). Detect by mesh swap or known marker tags.
     local upper = char:FindFirstChild("UpperTorso")
@@ -13266,7 +13229,7 @@ local function _detectRig(char)
         local mesh = upper:FindFirstChildOfClass("SpecialMesh") or upper:FindFirstChildOfClass("MeshPart")
         local marker = char:FindFirstChild("S15") or char:FindFirstChild("s15")
         local isMeshPart = upper:IsA("MeshPart") and (upper.MeshId or "") ~= ""
-        if marker or mesh or isMeshPart or (hasBone and not hasMotor) then
+        if marker or mesh or isMeshPart then
             -- crude shape sniff: thin torsos are narrower on X, hourglass on Z
             local sz = upper.Size
             if sz.X < 1.6 then return "S15 Thin" end
@@ -13322,56 +13285,25 @@ local function _limbStop()
     local S = _G.__SeigeLimb
     if S.conn then pcall(function() S.conn:Disconnect() end); S.conn = nil end
     if S.motor and S.baseC1 then pcall(function() S.motor.C1 = S.baseC1 end) end
-    if S.bone and S.baseBoneTransform then pcall(function() S.bone.Transform = S.baseBoneTransform end) end
-    if S.driverKind == "part" and S.part and S.basePartCF then pcall(function() S.part.CFrame = S.basePartCF end) end
     _limbRestoreStretch()
     S.motor, S.baseC1, S.baseCam = nil, nil, nil
-    S.driverKind, S.part, S.basePartCF, S.bone, S.baseBoneTransform = nil, nil, nil, nil, nil
     S.on = false
 end
 
-local function _findLimbDriver(char, limbName)
+local function _findMotorForLimb(char, limbName)
     if not char or not limbName then return nil end
-    local kind, name = tostring(limbName):match("^([^:]+):(.+)$")
-    name = name or tostring(limbName)
-    if kind == "motor" then
-        for _, d in ipairs(char:GetDescendants()) do
-            if d:IsA("Motor6D") and d.Part1 and d.Part1.Name == name then
-                return { kind = "motor", motor = d, part = d.Part1, label = name }
-            end
-        end
-    elseif kind == "bone" then
-        for _, d in ipairs(char:GetDescendants()) do
-            if d:IsA("Bone") and d.Name == name then
-                return { kind = "bone", bone = d, part = d:FindFirstAncestorWhichIsA("BasePart"), label = name }
-            end
-        end
-    elseif kind == "part" then
-        local p = char:FindFirstChild(name, true)
-        if p and p:IsA("BasePart") then
-            return { kind = "part", part = p, label = name }
-        end
-    end
     -- exact Part1 match (works on any rig because we list by Part1.Name)
     for _, d in ipairs(char:GetDescendants()) do
         if d:IsA("Motor6D") and d.Part1 and d.Part1.Name == limbName then
-            return { kind = "motor", motor = d, part = d.Part1, label = limbName }
-        end
-    end
-    for _, d in ipairs(char:GetDescendants()) do
-        if d:IsA("Bone") and d.Name == name then
-            return { kind = "bone", bone = d, part = d:FindFirstAncestorWhichIsA("BasePart"), label = name }
+            return d
         end
     end
     -- fallback: part exists but no incoming motor; try outgoing motor (root part case)
-    local part = char:FindFirstChild(name, true) or char:FindFirstChild(limbName, true)
+    local part = char:FindFirstChild(limbName, true)
     if part then
         for _, d in ipairs(char:GetDescendants()) do
-            if d:IsA("Motor6D") and (d.Part1 == part or d.Part0 == part) then
-                return { kind = "motor", motor = d, part = d.Part1 or part, label = part.Name }
-            end
+            if d:IsA("Motor6D") and (d.Part1 == part or d.Part0 == part) then return d end
         end
-        if part:IsA("BasePart") then return { kind = "part", part = part, label = part.Name } end
     end
     return nil
 end
@@ -13382,35 +13314,22 @@ local function _limbStart()
     local plr = S.target or LP
     local char = plr and plr.Character
     if not char then notify("Target has no character", "bad"); return end
-    local driver = _findLimbDriver(char, S.limb)
-    if not driver then notify("No limb driver for "..tostring(S.limb), "bad"); return end
-    S.driverKind = driver.kind
-    S.motor, S.part, S.bone = driver.motor, driver.part, driver.bone
-    S.baseC1 = driver.motor and driver.motor.C1 or nil
-    S.basePartCF = driver.part and driver.part.CFrame or nil
-    S.baseBoneTransform = driver.bone and driver.bone.Transform or nil
+    local motor = _findMotorForLimb(char, S.limb)
+    if not motor then notify("No Motor6D for "..S.limb, "bad"); return end
+    S.motor, S.baseC1 = motor, motor.C1
     S.baseCam = workspace.CurrentCamera.CFrame
     S.on = true
-    _limbApplyStretch(driver.part)
+    _limbApplyStretch(motor.Part1)
     S.conn = game:GetService("RunService").RenderStepped:Connect(function()
-        if not S.on then _limbStop(); return end
-        if S.driverKind == "motor" and (not S.motor or not S.motor.Parent) then _limbStop(); return end
-        if S.driverKind == "bone" and (not S.bone or not S.bone.Parent) then _limbStop(); return end
-        if S.driverKind == "part" and (not S.part or not S.part.Parent) then _limbStop(); return end
+        if not S.on or not S.motor or not S.motor.Parent then _limbStop(); return end
         local cam = workspace.CurrentCamera.CFrame
         local rel = S.baseCam:ToObjectSpace(cam)
         local x, y, z = rel:ToEulerAnglesYXZ()
         local s = S.sens or 1
         local rot = CFrame.fromEulerAnglesYXZ(x*s, y*s, z*s)
-        if S.driverKind == "motor" then
-            pcall(function() S.motor.C1 = S.baseC1 * rot end)
-        elseif S.driverKind == "bone" then
-            pcall(function() S.bone.Transform = S.baseBoneTransform * rot end)
-        elseif S.driverKind == "part" then
-            pcall(function() S.part.CFrame = S.basePartCF * rot end)
-        end
+        pcall(function() S.motor.C1 = S.baseC1 * rot end)
     end)
-    notify(("Limb-track ON · %s · @%s"):format(driver.label or tostring(S.limb), plr.Name), "good")
+    notify(("Limb-track ON · %s · @%s"):format(S.limb, plr.Name), "good")
 end
 
 local function _openLimbPanel()
@@ -13483,21 +13402,19 @@ local function _openLimbPanel()
         local rig = _detectRig(char)
         title.Text = ("Limb Track  ·  @%s  ·  %s (%d)"):format(plr and plr.Name or "?", rig, #limbs)
         if #limbs == 0 then
-            hint.Text = "No controllable limbs found yet. Wait for the avatar to finish loading, then Refresh."
+            hint.Text = "No Motor6D joints found on target. Wait for character to load, then Refresh."
             return
         end
         -- ensure current selection exists in this rig
         local has = false
+        for _, l in ipairs(limbs) do if l.name == S.limb then has = true break end end
+        if not has then S.limb = limbs[1].name end
         for _, l in ipairs(limbs) do
-            if (l.key == S.limb) or (l.name == S.limb) then S.limb = l.key or l.name; has = true break end
-        end
-        if not has then S.limb = limbs[1].key or limbs[1].name end
-        for _, l in ipairs(limbs) do
-            local n = l.key or l.name
+            local n = l.name
             local b = Instance.new("TextButton", grid)
             b.BackgroundColor3 = Color3.fromRGB(28,28,38); b.BorderSizePixel = 0
             b.Font = Enum.Font.Gotham; b.TextSize = 11; b.TextColor3 = Color3.fromRGB(230,230,240)
-            b.Text = shortLabel(l.label or l.name)
+            b.Text = shortLabel(n)
             Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
             btns[n] = b
             b.MouseButton1Click:Connect(function()
@@ -13508,11 +13425,6 @@ local function _openLimbPanel()
         refreshSel()
     end
     rebuildLimbs()
-    -- Some layered/S15 packages stream bones/mesh parts after CharacterAdded;
-    -- rescan a few times so the user doesn't have to spam Refresh.
-    task.delay(0.6, function() if sg.Parent then rebuildLimbs() end end)
-    task.delay(1.8, function() if sg.Parent then rebuildLimbs() end end)
-    task.delay(3.5, function() if sg.Parent then rebuildLimbs() end end)
     -- auto-rebuild when target respawns
     do
         local plr = S.target or LP
