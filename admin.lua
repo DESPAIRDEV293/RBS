@@ -233,7 +233,7 @@ local function _writeRoleMap(map)
     if not ok then return false end
     return pcall(wf, ROLES_FILE, raw)
 end
-local ROLES_HTTP_URL = "https://seigelollua.lovable.app/api/public/roles"
+local ROLES_HTTP_URL = "https://seigescript.online/api/public/roles"
 
 -- Fetch role assignments from Lovable Cloud so the player targeted by a
 -- !role command on the owner's machine actually picks up their role.
@@ -294,7 +294,7 @@ end
 -- Lives in Lovable Cloud as a single JSONB row, served via /api/public/tag_groups.
 -- Powers fast "teleport to anyone tagged in <group>" actions.
 -- ─────────────────────────────────────────────────────────────────────────────
-local TAG_GROUPS_URL = "https://seigelollua.lovable.app/api/public/tag_groups"
+local TAG_GROUPS_URL = "https://seigescript.online/api/public/tag_groups"
 local TAG_GROUPS = { OWNERS = {}, ADMINS = {}, CO_OWNERS = {}, LINE_USERS = {}, BLACKLIST = {} }
 _G.__SeigeTagGroups = TAG_GROUPS
 
@@ -2315,11 +2315,11 @@ end
 -- round-trips exactly instead of being squeezed through fragile pipe columns.
 -- Legacy pipe rows are still accepted for old backups, but all new saves write:
 -- { version = 2, format = "seige.tags.v2", tags = { username = { ... } } }
-local TAGS_PASTEBIN_URL = "https://seigelollua.lovable.app/api/public/pastebin?raw=1"
+local TAGS_PASTEBIN_URL = "https://seigescript.online/api/public/pastebin?raw=1"
 local TAGS_DB_URL       = "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/tags.lua"
 -- New primary HTTP-backed tag DB (Lovable Cloud). Reads are public; writes
 -- require the shared secret set via _G.__SeigeTagSyncKey + admin role.
-local TAGS_HTTP_URL     = "https://seigelollua.lovable.app/api/public/tags"
+local TAGS_HTTP_URL     = "https://seigescript.online/api/public/tags"
 
 local TagDB = { entries = {}, localEntries = {}, appliedTags = {}, appliedIcons = {} }
 local function parseColor(c)
@@ -2780,7 +2780,7 @@ end
 -- admin / nt) using the role_entries table, so the actual TAG_WRITE_SECRET
 -- never has to ship inside admin.lua. Falls back to the legacy
 -- /api/public/tags endpoint if a tag-sync key is set in _G.__SeigeTagSyncKey.
-local TAGS_WRITE_PROXY_URL = "https://seigelollua.lovable.app/api/public/tags_write"
+local TAGS_WRITE_PROXY_URL = "https://seigescript.online/api/public/tags_write"
 
 function TagDB:pushRemoteEntry(key, entry)
     key = tostring(key or ""):lower()
@@ -5316,7 +5316,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
 
     -- Save through the same published host the loader reads from. This avoids
     -- preview/dev-domain bot pages being mistaken for a successful GitHub save.
-    local BOT_URL  = "https://seigelollua.lovable.app/api/public/pastebin"
+    local BOT_URL  = "https://seigescript.online/api/public/pastebin"
     local BOT_AUTH = "1f0957eaf8dd4ed89bb594440220eb4c"
     local lastPullHash = nil
     local lastPushHash = nil
@@ -15158,7 +15158,7 @@ cmdHandlers["reanim"] = function()
     task.spawn(function()
         -- Stable mirrors first; the dev-preview host requires auth and stalls executors.
         local urls = {
-            "https://seigelollua.lovable.app/api/public/reanim.lua",
+            "https://seigescript.online/api/public/reanim.lua",
             "https://seigescript.online/api/public/reanim.lua",
         }
         local src, lastErr
@@ -15207,7 +15207,7 @@ end
 -- !key — fetch the tag sync key (TAG_WRITE_SECRET) from the server and show
 -- it in a copyable popup. Server-side role check decides who gets it
 -- (owner / admin / nt / staff). The secret is never baked into admin.lua.
-local TAG_SYNC_KEY_URL = "https://seigelollua.lovable.app/api/public/tag_sync_key"
+local TAG_SYNC_KEY_URL = "https://seigescript.online/api/public/tag_sync_key"
 
 local function _showCopyablePopup(title, message, secret)
     local pg = LP:FindFirstChildOfClass("PlayerGui"); if not pg then return end

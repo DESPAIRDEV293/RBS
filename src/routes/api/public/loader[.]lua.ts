@@ -24,7 +24,7 @@ local function now()
 end
 local urls={
   base.."?key="..enc(KEY).."&hwid="..enc(HWID).."&fresh="..now(),
-  "https://seigelollua.lovable.app/api/public/admin.lua?key="..enc(KEY).."&hwid="..enc(HWID).."&fresh="..now(),
+  "https://seigescript.online/api/public/admin.lua?key="..enc(KEY).."&hwid="..enc(HWID).."&fresh="..now(),
 }
 local function body(r)
   if type(r)=="string" then return r end

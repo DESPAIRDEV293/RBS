@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 
 const TARGETS = [
-  "https://seigelollua.lovable.app/api/public/loader.lua",
-  "https://seigelollua.lovable.app/api/public/admin.lua",
+  "https://seigescript.online/api/public/loader.lua",
+  "https://seigescript.online/api/public/admin.lua",
   "https://raw.githubusercontent.com/DESPAIRDEV293/roblox-script-buddy/main/admin.lua",
   "https://seigescript.online/api/public/loader.lua",
   "https://seigescript.online/api/public/admin.lua",
