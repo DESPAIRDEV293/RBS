@@ -13238,8 +13238,8 @@ local function _openLimbPanel()
     S.gui = sg
 
     local f = Instance.new("Frame", sg)
-    f.Size = UDim2.new(0, 280, 0, 260)
-    f.Position = UDim2.new(0.5, -140, 0.5, -130)
+    f.Size = UDim2.new(0, 280, 0, 320)
+    f.Position = UDim2.new(0.5, -140, 0.5, -160)
     f.BackgroundColor3 = Color3.fromRGB(16,16,22)
     f.BorderSizePixel = 0; f.Active = true; f.Draggable = true
     Instance.new("UICorner", f).CornerRadius = UDim.new(0, 10)
