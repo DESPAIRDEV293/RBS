@@ -13207,16 +13207,19 @@ local function _limbStop()
 end
 
 local function _findMotorForLimb(char, limbName)
-    if not char then return nil end
-    local name = limbName
-    local part = char:FindFirstChild(name)
-    if not part then
-        local alt = R6_FALLBACK[name]
-        if alt then part = char:FindFirstChild(alt) end
-    end
-    if not part then return nil end
+    if not char or not limbName then return nil end
+    -- exact Part1 match (works on any rig because we list by Part1.Name)
     for _, d in ipairs(char:GetDescendants()) do
-        if d:IsA("Motor6D") and d.Part1 == part then return d end
+        if d:IsA("Motor6D") and d.Part1 and d.Part1.Name == limbName then
+            return d
+        end
+    end
+    -- fallback: part exists but no incoming motor; try outgoing motor (root part case)
+    local part = char:FindFirstChild(limbName, true)
+    if part then
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("Motor6D") and (d.Part1 == part or d.Part0 == part) then return d end
+        end
     end
     return nil
 end
