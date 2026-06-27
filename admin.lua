@@ -12322,6 +12322,7 @@ _G.__SeigeBang = _G.__SeigeBang or {
     distance = 1.2,
     height = 0,
     speed = 3,
+    amp = 0.6,          -- thrust amplitude (studs)
     autoFace = true,    -- face the target (front/face modes)
     spin = false,       -- orbit around them
     spinSpeed = 4,
@@ -12349,20 +12350,29 @@ local function _bangStart(target)
             local tH = phrp(target)
             if not myH or not tH then return end
             local B = _G.__SeigeBang
-            local dist = B.distance or 1.2
+            local baseDist = B.distance or 1.2
+            local amp = B.amp or 0.6
+            local spd = B.speed or 3
+            -- oscillating thrust: distance ranges from base+amp (out) to base-amp (in)
+            local thrust = math.sin((tick() - t0) * spd * math.pi) * amp
+            local dist = baseDist + thrust
             local hOff = Vector3.new(0, B.height or 0, 0)
             if B.spin then
                 local ang = (tick() - t0) * (B.spinSpeed or 4)
                 local off = Vector3.new(math.cos(ang) * dist, B.height or 0, math.sin(ang) * dist)
                 myH.CFrame = CFrame.new(tH.Position + off, tH.Position)
             elseif B.mode == "back" then
+                -- behind them: target's -LookVector side, pump along their look axis
                 myH.CFrame = tH * CFrame.new(0, B.height or 0, dist)
             elseif B.mode == "face" then
                 local head = target.Character and target.Character:FindFirstChild("Head")
                 local hp = (head and head.Position or (tH.Position + Vector3.new(0,1.5,0))) + hOff
-                local pos = hp + tH.LookVector * (dist * 0.5)
+                -- in front of head, pumping toward/away from face
+                local fwd = tH.LookVector
+                local pos = hp + fwd * dist
                 myH.CFrame = CFrame.new(pos, hp)
             else
+                -- front: in front of pelvis, pumping in/out
                 local pos = tH.Position + tH.LookVector * dist + hOff
                 if B.autoFace then
                     myH.CFrame = CFrame.new(pos, tH.Position)
