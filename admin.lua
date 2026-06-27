@@ -7359,7 +7359,7 @@ local HELP_CMDS = {
     }},
     { "Character", {
         { "!reset / !r / !respawn", "Kill your character to respawn" },
-        { "!jump", "Force a jump" },
+        
         { "!size <n>", "Scale your character (e.g. !size 2)" },
         { "!invis", "Hide your character locally (toggle / keybind via popout)" },
         { "!ghost", "Semi-transparent + noclip" },
@@ -7496,7 +7496,7 @@ button(pgCmds, "Open Command Bar (F6)", function() _openCmd("!") end)
 button(pgCmds, "!rj  —  rejoin same server",                function() _runCmd("!rj") end)
 button(pgCmds, "!tprj  —  rejoin & restore position",        function() _runCmd("!tprj") end)
 button(pgCmds, "!reset / !respawn",                          function() _runCmd("!reset") end)
-button(pgCmds, "!jump",                                      function() _runCmd("!jump") end)
+
 
 button(pgCmds, "X-Ray  —  see all players through walls (!xray)", function() _runCmd("!xray") end)
 button(pgCmds, "!info",                                      function() _runCmd("!info") end)
@@ -12886,7 +12886,11 @@ end
 cmdHandlers["respawn"] = cmdHandlers["reset"]
 
 cmdHandlers["ws"] = function(arg)
-    local n = tonumber(arg) or 16
+    local n = tonumber(arg)
+    if not n then
+        if cmdHandlers["movement"] then cmdHandlers["movement"]() else notify("Movement panel unavailable", "bad") end
+        return
+    end
     local h = getHum(); if not h then notify("No humanoid", "bad"); return end
     h.WalkSpeed = math.clamp(n, 0, 500); notify("WalkSpeed " .. h.WalkSpeed, "good")
 end
@@ -12898,9 +12902,6 @@ cmdHandlers["jp"] = function(arg)
     h.JumpPower = math.clamp(n, 0, 1000)
     h.UseJumpPower = true
     notify("JumpPower " .. h.JumpPower, "good")
-end
-cmdHandlers["jump"] = function()
-    local h = getHum(); if h then h.Jump = true; notify("Jump", "good") end
 end
 
 
