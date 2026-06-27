@@ -8236,20 +8236,12 @@ do
 
     -- Catalog displayed in the panel (label  ·  template the user can edit)
     local IY_CATALOG = {
-        { "fly",            "fly" },
-        { "unfly",          "unfly" },
-        { "noclip",         "noclip" },
-        { "clip",           "clip" },
-        { "ws <n>",         "ws 100" },
         { "jpower <n>",     "jpower 100" },
         { "hipheight <n>",  "hipheight 5" },
         { "gravity <n>",    "gravity 196.2" },
-        { "sit",            "sit" },
-        { "reset",          "reset" },
         { "god",            "god" },
         { "ungod",          "ungod" },
         { "btools",         "btools" },
-        { "size <n>",       "size 2" },
         { "invis",          "invis" },
         { "visible",        "visible" },
         { "ghost",          "ghost" },
@@ -8258,7 +8250,6 @@ do
         { "unspin",         "unspin" },
         { "trippy",         "trippy" },
         { "untrippy",       "untrippy" },
-        { "esp [player]",   "esp others" },
         { "noesp",          "noesp" },
         { "fire / smoke / sparkles", "sparkles" },
         { "loopkill <plr>", "loopkill " },
