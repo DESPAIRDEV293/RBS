@@ -13133,6 +13133,7 @@ cmdHandlers["blink"] = cmdHandlers["flashstep"]
 _G.__SeigeLimb = _G.__SeigeLimb or {
     on = false, target = nil, limb = "RightUpperArm",
     sens = 1.0, motor = nil, baseC1 = nil, baseCam = nil, conn = nil, gui = nil,
+    stretch = 1.0, stretchPart = nil, baseSize = nil, childOffsets = nil,
 }
 
 local R15_LIMBS = {"Head","UpperTorso","LowerTorso","LeftUpperArm","RightUpperArm",
@@ -13141,10 +13142,48 @@ local R6_FALLBACK = { Head="Head", UpperTorso="Torso", LowerTorso="Torso",
     LeftUpperArm="Left Arm", RightUpperArm="Right Arm",
     LeftUpperLeg="Left Leg", RightUpperLeg="Right Leg" }
 
+local function _limbRestoreStretch()
+    local S = _G.__SeigeLimb
+    if S.stretchPart and S.baseSize then
+        pcall(function() S.stretchPart.Size = S.baseSize end)
+    end
+    if S.childOffsets then
+        for m, c0 in pairs(S.childOffsets) do
+            if m and m.Parent then pcall(function() m.C0 = c0 end) end
+        end
+    end
+    S.stretchPart, S.baseSize, S.childOffsets = nil, nil, nil
+end
+
+local function _limbApplyStretch(part)
+    local S = _G.__SeigeLimb
+    _limbRestoreStretch()
+    if not part then return end
+    S.stretchPart = part
+    S.baseSize = part.Size
+    S.childOffsets = {}
+    -- snapshot child motor C0s so we can shift them along the stretched axis
+    local char = part.Parent
+    if char then
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("Motor6D") and d.Part0 == part then
+                S.childOffsets[d] = d.C0
+            end
+        end
+    end
+    local f = math.clamp(S.stretch or 1, 0.25, 6)
+    pcall(function() part.Size = Vector3.new(S.baseSize.X, S.baseSize.Y * f, S.baseSize.Z) end)
+    local delta = (S.baseSize.Y * (f - 1)) * 0.5
+    for m, c0 in pairs(S.childOffsets) do
+        pcall(function() m.C0 = c0 * CFrame.new(0, -delta, 0) end)
+    end
+end
+
 local function _limbStop()
     local S = _G.__SeigeLimb
     if S.conn then pcall(function() S.conn:Disconnect() end); S.conn = nil end
     if S.motor and S.baseC1 then pcall(function() S.motor.C1 = S.baseC1 end) end
+    _limbRestoreStretch()
     S.motor, S.baseC1, S.baseCam = nil, nil, nil
     S.on = false
 end
@@ -13175,6 +13214,7 @@ local function _limbStart()
     S.motor, S.baseC1 = motor, motor.C1
     S.baseCam = workspace.CurrentCamera.CFrame
     S.on = true
+    _limbApplyStretch(motor.Part1)
     S.conn = game:GetService("RunService").RenderStepped:Connect(function()
         if not S.on or not S.motor or not S.motor.Parent then _limbStop(); return end
         local cam = workspace.CurrentCamera.CFrame
@@ -13198,8 +13238,8 @@ local function _openLimbPanel()
     S.gui = sg
 
     local f = Instance.new("Frame", sg)
-    f.Size = UDim2.new(0, 280, 0, 260)
-    f.Position = UDim2.new(0.5, -140, 0.5, -130)
+    f.Size = UDim2.new(0, 280, 0, 320)
+    f.Position = UDim2.new(0.5, -140, 0.5, -160)
     f.BackgroundColor3 = Color3.fromRGB(16,16,22)
     f.BorderSizePixel = 0; f.Active = true; f.Draggable = true
     Instance.new("UICorner", f).CornerRadius = UDim.new(0, 10)
@@ -13280,6 +13320,50 @@ local function _openLimbPanel()
                 if i.UserInputType == io.UserInputType then move:Disconnect(); rel:Disconnect() end
             end)
         end
+    end)
+
+    -- stretch
+    local stl = Instance.new("TextLabel", f); stl.BackgroundTransparency = 1
+    stl.Position = UDim2.new(0,12,0,234); stl.Size = UDim2.new(1,-24,0,16)
+    stl.Font = Enum.Font.Gotham; stl.TextSize = 11; stl.TextColor3 = Color3.fromRGB(200,200,215)
+    stl.TextXAlignment = Enum.TextXAlignment.Left
+    stl.Text = ("Stretch: %.2fx"):format(S.stretch or 1)
+    local sbar = Instance.new("Frame", f); sbar.Position = UDim2.new(0,12,0,252)
+    sbar.Size = UDim2.new(1,-24,0,8); sbar.BackgroundColor3 = Color3.fromRGB(40,40,52); sbar.BorderSizePixel = 0
+    Instance.new("UICorner", sbar).CornerRadius = UDim.new(1,0)
+    local sfill = Instance.new("Frame", sbar); sfill.BackgroundColor3 = Color3.fromRGB(90,200,255)
+    sfill.BorderSizePixel = 0
+    local function _stretchFrac() return math.clamp(((S.stretch or 1) - 0.25) / (6 - 0.25), 0, 1) end
+    sfill.Size = UDim2.fromScale(_stretchFrac(), 1)
+    Instance.new("UICorner", sfill).CornerRadius = UDim.new(1,0)
+    sbar.InputBegan:Connect(function(io)
+        if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
+            local UIS = game:GetService("UserInputService")
+            local move, rel
+            move = UIS.InputChanged:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+                    local p = (i.Position.X - sbar.AbsolutePosition.X) / sbar.AbsoluteSize.X
+                    p = math.clamp(p, 0, 1)
+                    S.stretch = 0.25 + p * (6 - 0.25)
+                    sfill.Size = UDim2.fromScale(p, 1); stl.Text = ("Stretch: %.2fx"):format(S.stretch)
+                    if S.on and S.stretchPart then _limbApplyStretch(S.stretchPart) end
+                end
+            end)
+            rel = UIS.InputEnded:Connect(function(i)
+                if i.UserInputType == io.UserInputType then move:Disconnect(); rel:Disconnect() end
+            end)
+        end
+    end)
+    local resetBtn = Instance.new("TextButton", f)
+    resetBtn.Position = UDim2.new(1,-60,0,232); resetBtn.Size = UDim2.new(0,48,0,18)
+    resetBtn.BackgroundColor3 = Color3.fromRGB(40,40,52); resetBtn.BorderSizePixel = 0
+    resetBtn.Font = Enum.Font.Gotham; resetBtn.TextSize = 10
+    resetBtn.TextColor3 = Color3.fromRGB(220,220,235); resetBtn.Text = "Reset"
+    Instance.new("UICorner", resetBtn).CornerRadius = UDim.new(0,4)
+    resetBtn.MouseButton1Click:Connect(function()
+        S.stretch = 1.0; sfill.Size = UDim2.fromScale(_stretchFrac(), 1)
+        stl.Text = ("Stretch: %.2fx"):format(S.stretch)
+        if S.on and S.stretchPart then _limbApplyStretch(S.stretchPart) end
     end)
 
     -- toggle button
