@@ -11582,17 +11582,25 @@ end
         refresh()
     end)
 
-    local autoOn = false
-    toggle(pgDetect, "Auto-scan GUIs every 10s (off by default)", false, function(v) autoOn = v end)
+    local autoOn = true
+    toggle(pgDetect, "Auto-scan GUIs every 10s (on)", true, function(v) autoOn = v end)
     task.spawn(function()
         while true do
             task.wait(10)
-            if autoOn then pcall(scanGuis) end
+            if autoOn then pcall(scanGuis); pcall(scanScripts) end
         end
     end)
 
-    -- No automatic initial scan — MacSploit / some executors throw
-    -- "DM Lock Violation" when CoreGui is walked too early. User must press Rescan.
+    -- Deferred initial scan: wait until the game has been loaded for a few
+    -- seconds so CoreGui is safe to walk on MacSploit/Wave/etc, then sweep
+    -- once so akadmin / m7 / novoline appear without the user pressing Rescan.
+    task.spawn(function()
+        task.wait(6)
+        pcall(scanGuis); pcall(scanScripts)
+        statusLbl:set("Status: initial scan complete (" .. os.date("%H:%M:%S") .. ")")
+    end)
+
+
 
     --------------------------------------------------------------------------
     -- DISCORD MEMBER LIST (server 1425348267457253498, bot 1455765555318493431)
