@@ -7781,6 +7781,48 @@ _openMovementPanel = function()
             local hh = hum(); if hh then hh.HipHeight = v end
         end)
         toggle(body, "Infinite jump", infJump, function(s) infJump = s end)
+
+        -- CFrame Speed: multiplies WalkSpeed AND animation playback rate
+        _G.__SeigeCFrameMult = _G.__SeigeCFrameMult or 1
+        _G.__SeigeBaseWS = _G.__SeigeBaseWS or ((h and h.WalkSpeed) or 16)
+        local function applyCFrameSpeed(mult)
+            _G.__SeigeCFrameMult = mult
+            local hh = hum()
+            if hh then
+                hh.WalkSpeed = (_G.__SeigeBaseWS or 16) * mult
+                local anim = hh:FindFirstChildOfClass("Animator")
+                if anim then
+                    for _, tr in ipairs(anim:GetPlayingAnimationTracks()) do
+                        pcall(function() tr:AdjustSpeed(mult) end)
+                    end
+                end
+            end
+        end
+        if not _G.__SeigeCFrameHook then
+            _G.__SeigeCFrameHook = true
+            task.spawn(function()
+                while true do
+                    task.wait(0.25)
+                    local m = _G.__SeigeCFrameMult or 1
+                    if m ~= 1 then
+                        local hh = hum()
+                        if hh then
+                            local anim = hh:FindFirstChildOfClass("Animator")
+                            if anim then
+                                for _, tr in ipairs(anim:GetPlayingAnimationTracks()) do
+                                    if math.abs(tr.Speed - m) > 0.05 then
+                                        pcall(function() tr:AdjustSpeed(m) end)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+        slider(body, "CFrame speed (x)", 0.25, 4, _G.__SeigeCFrameMult, function(v)
+            applyCFrameSpeed(v)
+        end)
     end)
 end
 button(pgCmds, "Movement  —  walk + jump", function() _openMovementPanel() end)
