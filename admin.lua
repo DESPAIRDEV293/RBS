@@ -11658,43 +11658,56 @@ end
 -- join into the same place) the position is restored on the first character
 -- that spawns, then the marker is cleared.
 do
-    local HttpService = game:GetService("HttpService")
+    local HttpService    = game:GetService("HttpService")
+    local TeleportService= game:GetService("TeleportService")
     local _wf = rawget(getfenv(), "writefile")
     local _rf = rawget(getfenv(), "readfile")
     local _if = rawget(getfenv(), "isfile")
     local _df = rawget(getfenv(), "delfile")
+    local _qot= rawget(getfenv(), "queue_on_teleport")
+        or rawget(getfenv(), "syn") and syn.queue_on_teleport
     local FNAME = "seige_tprj_" .. tostring(game.PlaceId) .. ".json"
+    local HAS_FS = (_wf and _rf and _if) and true or false
 
-    local function _cfToTbl(cf)
-        return { cf:GetComponents() }
-    end
+    local function _cfToTbl(cf) return { cf:GetComponents() } end
     local function _tblToCf(t)
         if type(t) ~= "table" or #t < 12 then return nil end
         return CFrame.new(t[1],t[2],t[3],t[4],t[5],t[6],t[7],t[8],t[9],t[10],t[11],t[12])
     end
 
     local function _writePos(cf)
-        if not (_wf and cf) then return end
+        if not (HAS_FS and cf) then return end
         local data = { placeId = game.PlaceId, savedAt = os.time(), cf = _cfToTbl(cf) }
         pcall(function() _wf(FNAME, HttpService:JSONEncode(data)) end)
     end
 
     local function _readPos()
-        if not (_rf and _if) then return nil end
-        local ok, has = pcall(_if, FNAME); if not (ok and has) then return nil end
-        local ok2, raw = pcall(_rf, FNAME); if not (ok2 and raw) then return nil end
-        local ok3, j = pcall(function() return HttpService:JSONDecode(raw) end)
-        if not ok3 or type(j) ~= "table" then return nil end
-        if j.placeId ~= game.PlaceId then return nil end
-        if (os.time() - (tonumber(j.savedAt) or 0)) > 86400 then return nil end -- 24h
-        return _tblToCf(j.cf)
+        -- 1) File-based (writefile executors)
+        if HAS_FS then
+            local ok, has = pcall(_if, FNAME)
+            if ok and has then
+                local ok2, raw = pcall(_rf, FNAME)
+                if ok2 and raw then
+                    local ok3, j = pcall(function() return HttpService:JSONDecode(raw) end)
+                    if ok3 and type(j) == "table" and j.placeId == game.PlaceId
+                       and (os.time() - (tonumber(j.savedAt) or 0)) <= 86400 then
+                        local cf = _tblToCf(j.cf); if cf then return cf end
+                    end
+                end
+            end
+        end
+        -- 2) TeleportData (no-writefile path: we teleported with a payload)
+        local ok, td = pcall(function() return TeleportService:GetLocalPlayerTeleportData() end)
+        if ok and type(td) == "table" and td.__seige_tprj and td.placeId == game.PlaceId then
+            local cf = _tblToCf(td.__seige_tprj); if cf then return cf end
+        end
+        return nil
     end
 
     local function _clear()
-        if _df then pcall(_df, FNAME) end
+        if HAS_FS and _df then pcall(_df, FNAME) end
     end
 
-    -- Auto-restore on this execution if a fresh marker exists.
     task.spawn(function()
         local cf = _readPos(); if not cf then return end
         local function apply(c)
@@ -11726,9 +11739,8 @@ do
         notify("Position restored from last session", "good")
     end)
 
-    -- Background auto-save loop (started only when !tprj enables it).
     _G.__SeigeTprjOn = _G.__SeigeTprjOn or false
-    if not _G.__SeigeTprjLoopStarted then
+    if HAS_FS and not _G.__SeigeTprjLoopStarted then
         _G.__SeigeTprjLoopStarted = true
         task.spawn(function()
             while true do
@@ -11739,7 +11751,6 @@ do
                 end
             end
         end)
-        -- Save one final time before the player removes (best-effort).
         pcall(function()
             Players.PlayerRemoving:Connect(function(p)
                 if p == LP and _G.__SeigeTprjOn then
@@ -11753,11 +11764,29 @@ do
         local h = hrp()
         if not h then notify("No character to snapshot", "bad"); return end
         _G.__SeigeTprjOn = true
-        _writePos(h.CFrame)
-        if not _wf then
-            notify("Executor lacks writefile — position cannot persist across rejoin", "warn")
-        else
+
+        if HAS_FS then
+            _writePos(h.CFrame)
             notify("tprj armed — last position will restore on rejoin", "good")
+            return
+        end
+
+        -- Fallback path: no writefile. Use queue_on_teleport + TeleportData
+        -- to carry the CFrame across a rejoin to this same place.
+        local payload = { placeId = game.PlaceId, __seige_tprj = _cfToTbl(h.CFrame) }
+        local loader = _G.__SeigeLoadstring
+            or 'loadstring(game:HttpGet("https://seigescript.online/api/public/admin.lua"))()'
+
+        if _qot then
+            pcall(_qot, loader)
+        end
+        local okT = pcall(function()
+            TeleportService:Teleport(game.PlaceId, LP, payload)
+        end)
+        if okT then
+            notify("tprj: rejoining to restore position…", "good")
+        else
+            notify("tprj: executor lacks writefile and teleport failed", "bad")
         end
     end
 
@@ -11767,6 +11796,7 @@ do
         notify("tprj disarmed and cleared", "warn")
     end
 end
+
 cmdHandlers["sit"] = function()
     local c = LP.Character
     local h = c and c:FindFirstChildOfClass("Humanoid")
