@@ -13112,16 +13112,11 @@ local function _flashBindKey()
 end
 
 cmdHandlers["flashstep"] = function()
-    _G.__SeigeFlash.on = not _G.__SeigeFlash.on
-    if _G.__SeigeFlash.on then
-        _flashBindKey()
-        notify("Flashstep ON · press " .. _G.__SeigeFlash.key.Name, "good")
+    if type(_G.__SeigeOpenFlashstep) == "function" then
+        _G.__SeigeOpenFlashstep()
     else
-        if _G.__SeigeFlash._conn then pcall(function() _G.__SeigeFlash._conn:Disconnect() end) end
-        _G.__SeigeFlash._conn = nil
-        notify("Flashstep OFF", "warn")
+        notify("Flashstep panel not ready", "bad")
     end
-    if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
 end
 cmdHandlers["unflashstep"] = function()
     _G.__SeigeFlash.on = false
