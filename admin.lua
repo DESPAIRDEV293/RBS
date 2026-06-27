@@ -13322,12 +13322,17 @@ local function _findMotorForLimb(char, limbName)
             return d
         end
     end
+    -- Bone-driven rigs (skinned-mesh S15 etc.)
+    for _, d in ipairs(char:GetDescendants()) do
+        if d:IsA("Bone") and d.Name == limbName then return d end
+    end
     -- fallback: part exists but no incoming motor; try outgoing motor (root part case)
     local part = char:FindFirstChild(limbName, true)
     if part then
         for _, d in ipairs(char:GetDescendants()) do
             if d:IsA("Motor6D") and (d.Part1 == part or d.Part0 == part) then return d end
         end
+        return part -- raw BasePart fallback (driven via CFrame each frame)
     end
     return nil
 end
@@ -13339,19 +13344,40 @@ local function _limbStart()
     local char = plr and plr.Character
     if not char then notify("Target has no character", "bad"); return end
     local motor = _findMotorForLimb(char, S.limb)
-    if not motor then notify("No Motor6D for "..S.limb, "bad"); return end
-    S.motor, S.baseC1 = motor, motor.C1
+    if not motor then notify("No joint found for "..S.limb, "bad"); return end
+    S.motor = motor
+    local isMotor6D = typeof(motor) == "Instance" and motor:IsA("Motor6D")
+    local isBone = typeof(motor) == "Instance" and motor:IsA("Bone")
+    if isMotor6D then
+        S.baseC1 = motor.C1
+        _limbApplyStretch(motor.Part1)
+    elseif isBone then
+        S.baseC1 = motor.CFrame
+    else
+        -- raw BasePart: drive via CFrame; snapshot base offset to root
+        local root = char:FindFirstChild("HumanoidRootPart")
+        S.baseC1 = root and root.CFrame:ToObjectSpace(motor.CFrame) or motor.CFrame
+        S._root = root
+    end
     S.baseCam = workspace.CurrentCamera.CFrame
     S.on = true
-    _limbApplyStretch(motor.Part1)
     S.conn = game:GetService("RunService").RenderStepped:Connect(function()
-        if not S.on or not S.motor or not S.motor.Parent then _limbStop(); return end
+        if not S.on or not S.motor then _limbStop(); return end
         local cam = workspace.CurrentCamera.CFrame
         local rel = S.baseCam:ToObjectSpace(cam)
         local x, y, z = rel:ToEulerAnglesYXZ()
         local s = S.sens or 1
         local rot = CFrame.fromEulerAnglesYXZ(x*s, y*s, z*s)
-        pcall(function() S.motor.C1 = S.baseC1 * rot end)
+        if isMotor6D then
+            pcall(function() S.motor.C1 = S.baseC1 * rot end)
+        elseif isBone then
+            pcall(function() S.motor.CFrame = S.baseC1 * rot end)
+        else
+            pcall(function()
+                local root = S._root
+                if root then S.motor.CFrame = root.CFrame * S.baseC1 * rot end
+            end)
+        end
     end)
     notify(("Limb-track ON · %s · @%s"):format(S.limb, plr.Name), "good")
 end
