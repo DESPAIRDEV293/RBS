@@ -12654,9 +12654,23 @@ local function _doFlashstep()
             local s = Instance.new("Sound")
             s.SoundId = F.soundId or "rbxassetid://127115086296756"
             s.Volume  = tonumber(F.volume) or 1.0
-            s.PlayOnRemove = true
-            s.Parent = (workspace:FindFirstChildOfClass("Terrain") or workspace)
-            s:Destroy()
+            s.RollOffMode = Enum.RollOffMode.Linear
+            s.RollOffMaxDistance = 10000
+            s.Parent = r
+            -- Play immediately; if not yet loaded, wait briefly then play.
+            local played = false
+            local function tryPlay()
+                if played then return end
+                played = true
+                pcall(function() s:Play() end)
+            end
+            if s.IsLoaded then
+                tryPlay()
+            else
+                s.Loaded:Once(tryPlay)
+                task.delay(0.25, tryPlay) -- fallback if Loaded never fires on this executor
+            end
+            game:GetService("Debris"):AddItem(s, 5)
         end)
     end
 end
