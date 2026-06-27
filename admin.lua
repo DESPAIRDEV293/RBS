@@ -13286,13 +13286,17 @@ local function _openLimbPanel()
     hint.Size = UDim2.new(1,-24,0,28); hint.Font = Enum.Font.Gotham; hint.TextSize = 11
     hint.TextColor3 = Color3.fromRGB(180,180,200); hint.TextWrapped = true
     hint.TextXAlignment = Enum.TextXAlignment.Left
-    hint.Text = "Pick a limb. Move your camera — the limb mirrors that rotation."
+    hint.Text = "Auto-detected rig joints. Pick one — limb mirrors camera rotation."
 
-    -- limb grid
-    local grid = Instance.new("Frame", f); grid.BackgroundTransparency = 1
+    -- limb grid (scrolling, dynamic — supports R6 / R15 / S15 / custom rigs)
+    local grid = Instance.new("ScrollingFrame", f); grid.BackgroundTransparency = 1
+    grid.BorderSizePixel = 0
     grid.Position = UDim2.new(0,12,0,70); grid.Size = UDim2.new(1,-24,0,118)
+    grid.ScrollBarThickness = 4; grid.CanvasSize = UDim2.new(0,0,0,0)
+    grid.AutomaticCanvasSize = Enum.AutomaticSize.Y
     local ug = Instance.new("UIGridLayout", grid)
     ug.CellSize = UDim2.new(0,80,0,28); ug.CellPadding = UDim2.new(0,6,0,6)
+    ug.SortOrder = Enum.SortOrder.Name
 
     local btns = {}
     local function refreshSel()
@@ -13300,19 +13304,62 @@ local function _openLimbPanel()
             b.BackgroundColor3 = (n == S.limb) and Color3.fromRGB(180,30,50) or Color3.fromRGB(28,28,38)
         end
     end
-    for _, n in ipairs(R15_LIMBS) do
-        local b = Instance.new("TextButton", grid)
-        b.BackgroundColor3 = Color3.fromRGB(28,28,38); b.BorderSizePixel = 0
-        b.Font = Enum.Font.Gotham; b.TextSize = 11; b.TextColor3 = Color3.fromRGB(230,230,240)
-        b.Text = n:gsub("Upper",""):gsub("Lower","L "):gsub("Left","L"):gsub("Right","R")
-        Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
-        btns[n] = b
-        b.MouseButton1Click:Connect(function()
-            S.limb = n; refreshSel()
-            if S.on then _limbStart() end
-        end)
+    local function shortLabel(n)
+        return (n:gsub("Upper",""):gsub("Lower","L "):gsub("Left","L"):gsub("Right","R"))
     end
-    refreshSel()
+    local function rebuildLimbs()
+        for _, c in ipairs(grid:GetChildren()) do
+            if c:IsA("TextButton") then c:Destroy() end
+        end
+        btns = {}
+        local plr = S.target or LP
+        local char = plr and plr.Character
+        local limbs = _enumerateLimbs(char)
+        local rig = _detectRig(char)
+        title.Text = ("Limb Track  ·  @%s  ·  %s (%d)"):format(plr and plr.Name or "?", rig, #limbs)
+        if #limbs == 0 then
+            hint.Text = "No Motor6D joints found on target. Wait for character to load, then Refresh."
+            return
+        end
+        -- ensure current selection exists in this rig
+        local has = false
+        for _, l in ipairs(limbs) do if l.name == S.limb then has = true break end end
+        if not has then S.limb = limbs[1].name end
+        for _, l in ipairs(limbs) do
+            local n = l.name
+            local b = Instance.new("TextButton", grid)
+            b.BackgroundColor3 = Color3.fromRGB(28,28,38); b.BorderSizePixel = 0
+            b.Font = Enum.Font.Gotham; b.TextSize = 11; b.TextColor3 = Color3.fromRGB(230,230,240)
+            b.Text = shortLabel(n)
+            Instance.new("UICorner", b).CornerRadius = UDim.new(0,6)
+            btns[n] = b
+            b.MouseButton1Click:Connect(function()
+                S.limb = n; refreshSel()
+                if S.on then _limbStart() end
+            end)
+        end
+        refreshSel()
+    end
+    rebuildLimbs()
+    -- auto-rebuild when target respawns
+    do
+        local plr = S.target or LP
+        if plr then
+            local conn
+            conn = plr.CharacterAdded:Connect(function()
+                task.wait(0.5)
+                if sg.Parent then rebuildLimbs() else conn:Disconnect() end
+            end)
+        end
+    end
+    -- Refresh button (top-right, next to close)
+    local refresh = Instance.new("TextButton", f)
+    refresh.Size = UDim2.new(0,52,0,24); refresh.Position = UDim2.new(1,-86,0,6)
+    refresh.BackgroundColor3 = Color3.fromRGB(40,28,48); refresh.BorderSizePixel = 0
+    refresh.Font = Enum.Font.GothamBold; refresh.TextSize = 11
+    refresh.TextColor3 = Color3.fromRGB(230,220,255); refresh.Text = "REFRESH"
+    Instance.new("UICorner", refresh).CornerRadius = UDim.new(0,6)
+    refresh.MouseButton1Click:Connect(rebuildLimbs)
 
     -- sensitivity
     local sl = Instance.new("TextLabel", f); sl.BackgroundTransparency = 1
