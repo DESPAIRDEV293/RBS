@@ -525,6 +525,7 @@ local HELP_COMMANDS = {
     { perms = {},            cmd = "!reanim",               desc = "Launch the Reanim GUI (purple-storm build)" },
     { perms = {"nt_cmd"},    cmd = "!key",                  desc = "Show a copyable tag sync key for Config" },
     { perms = {},            cmd = "!walkonair",            desc = "Walk on an invisible platform — up/down + keybinds in the panel" },
+    { perms = {},            cmd = "!flashstep",            desc = "Blink-teleport in camera direction or to your mouse hover (keybind in panel)" },
 }
 
 local helpGui = nil
@@ -7555,6 +7556,80 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
         end)
 
         button(body, "Stop walk on air", function() _G.__SeigeWoAStop() end)
+end)
+
+button(pgCmds, "Flashstep  —  blink teleport (keybind)", function()
+    _openPanel("flashstep", "Flashstep  ·  blink toward camera or mouse", 300, function(body)
+        local F = _G.__SeigeFlash
+        toggle(body, "Flashstep enabled", F.on, function(s)
+            if s then
+                F.on = true
+                if _G.__SeigeFlashDo then
+                    -- rebind key
+                    if F._conn then pcall(function() F._conn:Disconnect() end) end
+                    F._conn = UIS.InputBegan:Connect(function(i, gp)
+                        if gp or not F.on then return end
+                        if i.UserInputType == Enum.UserInputType.Keyboard and i.KeyCode == F.key then
+                            _G.__SeigeFlashDo()
+                        end
+                    end)
+                end
+                notify("Flashstep ON · press " .. F.key.Name, "good")
+            else
+                F.on = false
+                if F._conn then pcall(function() F._conn:Disconnect() end) end
+                F._conn = nil
+                notify("Flashstep OFF", "warn")
+            end
+        end)
+
+        local modeBtn
+        local function _mtxt() return "Mode: " .. (F.mode == "mouse" and "Mouse hover" or "Camera direction") end
+        modeBtn = button(body, _mtxt(), function()
+            F.mode = (F.mode == "mouse") and "camera" or "mouse"
+            modeBtn.Text = _mtxt()
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
+        end)
+
+        slider(body, "Distance (camera mode)", 4, 80, F.distance or 18, function(v)
+            F.distance = math.floor(v + 0.5)
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
+        end)
+
+        toggle(body, "Blink VFX trail", F.fx, function(s) F.fx = s end)
+
+        button(body, "Trigger now", function()
+            if _G.__SeigeFlashDo then _G.__SeigeFlashDo() end
+        end)
+
+        label(body, "Keybind")
+        local awaiting = false
+        local kBtn
+        kBtn = button(body, "Key: " .. F.key.Name .. "  (click to set)", function()
+            awaiting = not awaiting
+            kBtn.Text = awaiting and "Press any key…" or ("Key: " .. F.key.Name .. "  (click to set)")
+        end)
+        local kConn = UIS.InputBegan:Connect(function(i, gp)
+            if not awaiting or gp then return end
+            if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
+            F.key = i.KeyCode
+            awaiting = false
+            kBtn.Text = "Key: " .. i.KeyCode.Name .. "  (click to set)"
+            -- rebind active listener
+            if F.on and F._conn then
+                pcall(function() F._conn:Disconnect() end)
+                F._conn = UIS.InputBegan:Connect(function(ii, gpp)
+                    if gpp or not F.on then return end
+                    if ii.UserInputType == Enum.UserInputType.Keyboard and ii.KeyCode == F.key then
+                        _G.__SeigeFlashDo()
+                    end
+                end)
+            end
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
+        end)
+        body.AncestryChanged:Connect(function()
+            if not body.Parent then pcall(function() kConn:Disconnect() end) end
+        end)
     end)
 end)
 
@@ -12506,6 +12581,95 @@ end
 cmdHandlers["unwalkonair"] = function() _G.__SeigeWoAStop() end
 cmdHandlers["airwalk"]     = cmdHandlers["walkonair"]
 cmdHandlers["unairwalk"]   = cmdHandlers["unwalkonair"]
+
+-- ===== !flashstep · blink teleport (camera dir OR mouse hover) =====
+_G.__SeigeFlash = _G.__SeigeFlash or {
+    on       = false,
+    key      = Enum.KeyCode.F,
+    distance = 18,           -- studs (used for camera-direction mode)
+    mode     = "camera",     -- "camera" or "mouse"
+    fx       = true,         -- brief blink VFX
+    _conn    = nil,
+}
+
+local function _flashTrail(fromCF, toCF)
+    if not (fromCF and toCF) then return end
+    local n = 6
+    for i = 0, n do
+        local cf = fromCF:Lerp(toCF, i / n)
+        local p = Instance.new("Part")
+        p.Anchored, p.CanCollide, p.CanQuery, p.CanTouch = true, false, false, false
+        p.Material = Enum.Material.Neon
+        p.Color    = Color3.fromRGB(140, 220, 255)
+        p.Transparency = 0.35
+        p.Size = Vector3.new(1.6, 3.4, 1.6)
+        p.CFrame = cf
+        p.Parent = workspace
+        task.delay(0.25, function()
+            for t = 0, 1, 0.1 do
+                p.Transparency = 0.35 + t * 0.65
+                task.wait(0.02)
+            end
+            p:Destroy()
+        end)
+    end
+end
+
+local function _doFlashstep()
+    local r = hrp(); if not r then return end
+    local F = _G.__SeigeFlash
+    local Cam = workspace.CurrentCamera
+    local target
+    if F.mode == "mouse" then
+        local m = LP:GetMouse()
+        if m and m.Hit then
+            target = CFrame.new(m.Hit.Position + Vector3.new(0, 3, 0)) * (r.CFrame - r.CFrame.Position)
+        end
+    end
+    if not target then
+        local dir = (Cam and Cam.CFrame.LookVector) or r.CFrame.LookVector
+        target = r.CFrame + dir.Unit * (F.distance or 18)
+    end
+    local origin = r.CFrame
+    pcall(function()
+        r.AssemblyLinearVelocity  = Vector3.zero
+        r.AssemblyAngularVelocity = Vector3.zero
+        r.CFrame = target
+    end)
+    if F.fx then _flashTrail(origin, target) end
+end
+_G.__SeigeFlashDo = _doFlashstep
+
+local function _flashBindKey()
+    if _G.__SeigeFlash._conn then pcall(function() _G.__SeigeFlash._conn:Disconnect() end) end
+    _G.__SeigeFlash._conn = UIS.InputBegan:Connect(function(i, gp)
+        if gp then return end
+        if not _G.__SeigeFlash.on then return end
+        if i.UserInputType ~= Enum.UserInputType.Keyboard then return end
+        if i.KeyCode == _G.__SeigeFlash.key then _doFlashstep() end
+    end)
+end
+
+cmdHandlers["flashstep"] = function()
+    _G.__SeigeFlash.on = not _G.__SeigeFlash.on
+    if _G.__SeigeFlash.on then
+        _flashBindKey()
+        notify("Flashstep ON · press " .. _G.__SeigeFlash.key.Name, "good")
+    else
+        if _G.__SeigeFlash._conn then pcall(function() _G.__SeigeFlash._conn:Disconnect() end) end
+        _G.__SeigeFlash._conn = nil
+        notify("Flashstep OFF", "warn")
+    end
+    if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
+end
+cmdHandlers["unflashstep"] = function()
+    _G.__SeigeFlash.on = false
+    if _G.__SeigeFlash._conn then pcall(function() _G.__SeigeFlash._conn:Disconnect() end) end
+    _G.__SeigeFlash._conn = nil
+    notify("Flashstep OFF", "warn")
+end
+cmdHandlers["blink"] = cmdHandlers["flashstep"]
+
 
 cmdHandlers["movement"] = function()
     if type(_openMovementPanel) == "function" then _openMovementPanel()
