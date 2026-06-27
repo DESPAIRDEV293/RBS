@@ -9488,6 +9488,22 @@ for _, k in ipairs(FX_TABS) do
     end)
 end
 
+------------------------------------------------------- TAG AURAS
+section(pgConfig, "Tag Auras")
+label(pgConfig, "Wrap your tag bubble with an aura effect (fire, stars, lightning, particles). Local-only visual on your own tag. Default: Off.")
+local tagAuraCtl
+do
+    local opts = { "None" }
+    if Auras and Auras.NAMES then
+        for _, n in ipairs(Auras.NAMES) do table.insert(opts, n) end
+    end
+    _G.__SeigeMyTagAura = _G.__SeigeMyTagAura or "None"
+    tagAuraCtl = dropdown(pgConfig, "Tag aura", opts, function(v)
+        _G.__SeigeMyTagAura = v or "None"
+        if tagBills and tagBills[LP] then pcall(refreshBill, LP) end
+    end)
+end
+
 ------------------------------------------------------- SAVE / RESET CONFIG (impl)
 
 
