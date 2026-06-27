@@ -528,7 +528,7 @@ local HELP_COMMANDS = {
     { perms = {"nt_cmd"},    cmd = "!tagfind <keyword>",    desc = "Search tag database by username or tag" },
     { perms = {"nt_cmd"},    cmd = "!tagcolors",            desc = "Show colors used in the tag database" },
     { perms = {},            cmd = "!reanim",               desc = "Launch the Reanim GUI (purple-storm build)" },
-    { perms = {"nt_cmd"},    cmd = "!key",                  desc = "Show a copyable tag sync key for Config" },
+    { perms = {"staff_cmd"}, cmd = "!key",                  desc = "Show a copyable tag sync key for Config (staff/admin/owner only)" },
     { perms = {},            cmd = "!walkonair",            desc = "Walk on an invisible platform — up/down + keybinds in the panel" },
     { perms = {},            cmd = "!flashstep",            desc = "Blink-teleport in camera direction or to your mouse hover (keybind in panel)" },
 }
@@ -7830,14 +7830,13 @@ button(pgCmds, "Walk on air  —  invisible platform", function()
     end)
 end)
 
-button(pgCmds, "Flashstep  —  blink teleport (keybind)", function()
+local function _openFlashstepPanel()
     _openPanel("flashstep", "Flashstep  ·  blink toward camera or mouse", 300, function(body)
         local F = _G.__SeigeFlash
         toggle(body, "Flashstep enabled", F.on, function(s)
             if s then
                 F.on = true
                 if _G.__SeigeFlashDo then
-                    -- rebind key
                     if F._conn then pcall(function() F._conn:Disconnect() end) end
                     F._conn = UIS.InputBegan:Connect(function(i, gp)
                         if gp or not F.on then return end
@@ -7895,7 +7894,6 @@ button(pgCmds, "Flashstep  —  blink teleport (keybind)", function()
             F.key = i.KeyCode
             awaiting = false
             kBtn.Text = "Key: " .. i.KeyCode.Name .. "  (click to set)"
-            -- rebind active listener
             if F.on and F._conn then
                 pcall(function() F._conn:Disconnect() end)
                 F._conn = UIS.InputBegan:Connect(function(ii, gpp)
@@ -7911,7 +7909,10 @@ button(pgCmds, "Flashstep  —  blink teleport (keybind)", function()
             if not body.Parent then pcall(function() kConn:Disconnect() end) end
         end)
     end)
-end)
+end
+_G.__SeigeOpenFlashstep = _openFlashstepPanel
+
+button(pgCmds, "Flashstep  —  blink teleport (keybind)", _openFlashstepPanel)
 
 button(pgCmds, "Noclip  —  toggle", function()
     _openPanel("noclip", "Noclip  ·  walk through walls", 130, function(body)
@@ -13111,16 +13112,11 @@ local function _flashBindKey()
 end
 
 cmdHandlers["flashstep"] = function()
-    _G.__SeigeFlash.on = not _G.__SeigeFlash.on
-    if _G.__SeigeFlash.on then
-        _flashBindKey()
-        notify("Flashstep ON · press " .. _G.__SeigeFlash.key.Name, "good")
+    if type(_G.__SeigeOpenFlashstep) == "function" then
+        _G.__SeigeOpenFlashstep()
     else
-        if _G.__SeigeFlash._conn then pcall(function() _G.__SeigeFlash._conn:Disconnect() end) end
-        _G.__SeigeFlash._conn = nil
-        notify("Flashstep OFF", "warn")
+        notify("Flashstep panel not ready", "bad")
     end
-    if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
 end
 cmdHandlers["unflashstep"] = function()
     _G.__SeigeFlash.on = false
@@ -15429,11 +15425,11 @@ end
 
 cmdHandlers["key"] = function()
     local role = (_G.__SeigeMyRole and _G.__SeigeMyRole()) or nil
-    if role ~= "owner" and role ~= "admin" and role ~= "nt" and role ~= "staff" then
+    if role ~= "owner" and role ~= "admin" and role ~= "staff" then
         if _showStaffWarning then
-            _showStaffWarning("The !key command is restricted to staff, NT, admin, and owner.")
+            _showStaffWarning("The !key command is restricted to staff, admin, and owner.")
         end
-        notify("!key is staff-only.", "bad")
+        notify("!key is staff/admin/owner only.", "bad")
         return
     end
     notify("Fetching tag sync key…", "good")
