@@ -13426,7 +13426,21 @@ local function _openLimbPanel()
         local rig = _detectRig(char)
         title.Text = ("Limb Track  ·  @%s  ·  %s (%d)"):format(plr and plr.Name or "?", rig, #limbs)
         if #limbs == 0 then
-            hint.Text = "No Motor6D joints found on target. Wait for character to load, then Refresh."
+            hint.Text = "No joints found yet — waiting for rig to stream in…"
+            task.spawn(function()
+                for i = 1, 12 do
+                    task.wait(0.35)
+                    if not sg.Parent then return end
+                    local p = S.target or LP
+                    local c = p and p.Character
+                    if c and #_enumerateLimbs(c) > 0 then
+                        rebuildLimbs(); return
+                    end
+                end
+                if sg.Parent then
+                    hint.Text = "No joints on this rig. Reset character or pick another player, then Refresh."
+                end
+            end)
             return
         end
         -- ensure current selection exists in this rig
