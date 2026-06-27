@@ -12982,7 +12982,9 @@ do
     F.mode     = (F.mode == "mouse") and "mouse" or "camera"
     if F.fx == nil then F.fx = true end
     if F.sound == nil then F.sound = true end
-    F.soundId  = "rbxassetid://127115086296756"
+    if not F.soundId or F.soundId == "" or F.soundId == "rbxassetid://127115086296756" then
+        F.soundId = "rbxasset://sounds/electronicpingshort.wav"
+    end
     F.volume   = tonumber(F.volume) or 1.0
 end
 
