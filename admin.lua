@@ -7321,11 +7321,13 @@ local HELP_CMDS = {
         { "!hatspin", "Spin/break accessories (flings nearby)" },
     }},
     { "Movement", {
+        { "!movement / !move", "Open the movement panel (walkspeed + jumppower)" },
         { "!ws <n>", "Set walk speed (0–200)" },
         { "!jp <n>", "Set jump power (0–500)" },
         { "!fly / !unfly", "Toggle fly (WASD + E/Q, Shift = boost)" },
         { "!noclip / !clip", "Walk through walls" },
         { "!walkonair / !unwalkonair", "Stand on an invisible local platform (panel has up/down + keybinds)" },
+        { "!flashstep", "Open the Flashstep panel — blink teleport in look/mouse direction with a keybind" },
         { "!freecam", "Detach camera (WASD/EQ + Shift)" },
         { "!fov <n>", "Set camera field of view (40–120, default 70)" },
         { "!zoom <min> [max]", "Set camera min/max zoom distance" },
