@@ -16227,6 +16227,213 @@ cmdHandlers["key"] = function()
     end)
 end
 
+------------------------------------------------------------------
+-- CLONE CONTROL  ·  owner-only.  Drives an alt account (which must
+-- also have the script executed) as a personal puppet: teleport,
+-- swarm-circle a target, annoy-follow a target, perpetual flight.
+------------------------------------------------------------------
+do
+    local CLONE_MARK = "\226\159\166SEIGE-CLONE\226\159\167" -- <owner>|<alt>|<action>|<args>
+
+    -- Local executor state (lives on the alt that obeys).
+    local cc = { fly = false, mode = nil, target = nil, conn = nil, bv = nil, bg = nil, t0 = 0 }
+
+    local function _ccStopMotion()
+        if cc.conn then pcall(function() cc.conn:Disconnect() end); cc.conn = nil end
+        if cc.bv then pcall(function() cc.bv:Destroy() end); cc.bv = nil end
+        if cc.bg then pcall(function() cc.bg:Destroy() end); cc.bg = nil end
+        cc.mode, cc.target = nil, nil
+    end
+
+    local function _ccHRP()
+        local c = LP.Character
+        return c and c:FindFirstChild("HumanoidRootPart"), c and c:FindFirstChildOfClass("Humanoid")
+    end
+
+    local function _ccEnsureFly()
+        local hrp = _ccHRP()
+        if not hrp then return end
+        if not (cc.bv and cc.bv.Parent) then
+            cc.bv = Instance.new("BodyVelocity")
+            cc.bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+            cc.bv.Velocity = Vector3.new(0, 0, 0)
+            cc.bv.Parent = hrp
+        end
+        if not (cc.bg and cc.bg.Parent) then
+            cc.bg = Instance.new("BodyGyro")
+            cc.bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+            cc.bg.P = 9000
+            cc.bg.CFrame = hrp.CFrame
+            cc.bg.Parent = hrp
+        end
+    end
+
+    local function _ccFindPlayer(name)
+        if not name or name == "" then return nil end
+        name = tostring(name):gsub("^@", ""):lower()
+        local best
+        for _, p in ipairs(Players:GetPlayers()) do
+            local n, d = p.Name:lower(), (p.DisplayName or ""):lower()
+            if n == name or d == name then return p end
+            if (not best) and (n:sub(1, #name) == name or d:sub(1, #name) == name) then best = p end
+        end
+        return best
+    end
+
+    local function _ccStartMode(mode, targetName)
+        local tplr = _ccFindPlayer(targetName)
+        if not tplr then return end
+        _ccStopMotion()
+        cc.mode, cc.target, cc.t0 = mode, tplr, tick()
+        cc.fly = true
+        _ccEnsureFly()
+        cc.conn = RunService.Heartbeat:Connect(function()
+            local hrp = _ccHRP()
+            local tc = tplr.Character
+            local thrp = tc and tc:FindFirstChild("HumanoidRootPart")
+            if not (hrp and thrp and cc.bv and cc.bg) then return end
+            local goal
+            if cc.mode == "swarm" then
+                local theta = (tick() - cc.t0) * 3.2
+                local r = 8
+                goal = thrp.Position + Vector3.new(math.cos(theta) * r, 2.5 + math.sin(theta * 0.7) * 1.5, math.sin(theta) * r)
+            elseif cc.mode == "annoy" then
+                local jitter = Vector3.new(math.sin(tick() * 6) * 1.2, math.sin(tick() * 8) * 0.8 + 1.5, math.cos(tick() * 5) * 1.2)
+                goal = thrp.Position + (thrp.CFrame.LookVector * -2.5) + jitter
+            end
+            if goal then
+                local delta = goal - hrp.Position
+                cc.bv.Velocity = delta * 6
+                cc.bg.CFrame = CFrame.new(hrp.Position, thrp.Position)
+            end
+        end)
+    end
+
+    local function _ccTPto(targetName)
+        local tplr = _ccFindPlayer(targetName)
+        local hrp = _ccHRP()
+        if not (tplr and hrp) then return end
+        local tc = tplr.Character
+        local thrp = tc and tc:FindFirstChild("HumanoidRootPart")
+        if not thrp then return end
+        hrp.CFrame = thrp.CFrame * CFrame.new(0, 0, -3)
+    end
+
+    local function _ccSetFly(on)
+        cc.fly = on and true or false
+        if on then
+            _ccEnsureFly()
+            if not cc.conn then
+                cc.conn = RunService.Heartbeat:Connect(function()
+                    local hrp = _ccHRP()
+                    if hrp and cc.bv and cc.mode == nil then cc.bv.Velocity = Vector3.new(0, 0, 0) end
+                end)
+            end
+        else
+            _ccStopMotion()
+        end
+    end
+
+    local function _ccApply(action, args)
+        action = tostring(action or ""):lower()
+        if action == "tpto" then _ccTPto(args)
+        elseif action == "swarm" then _ccStartMode("swarm", args)
+        elseif action == "annoy" or action == "follow" then _ccStartMode("annoy", args)
+        elseif action == "fly" then _ccSetFly(args == "on" or args == "1")
+        elseif action == "stop" then _ccStopMotion()
+        end
+    end
+
+    _G.__SeigeCloneHandle = function(text, srcPlayer)
+        if type(text) ~= "string" or text:sub(1, #CLONE_MARK) ~= CLONE_MARK then return false end
+        local body = text:sub(#CLONE_MARK + 1)
+        local owner, alt, action, args = body:match("^([^|]+)|([^|]+)|([^|]+)|?(.*)$")
+        if not (owner and alt and action) then return true end
+        -- Verify broadcaster identity matches the claimed owner, and that
+        -- the broadcaster is actually owner / co-owner.
+        if not srcPlayer or srcPlayer.Name:lower() ~= owner:lower() then return true end
+        local nm = srcPlayer.Name
+        if nm ~= OWNER_NAME and not _isCoOwner(nm) then return true end
+        if alt:lower() ~= LP.Name:lower() then return true end
+        _ccApply(action, args)
+        return true
+    end
+
+    _G.__SeigeCloneSend = function(altName, action, args)
+        altName = tostring(altName or ""):gsub("^@", ""):gsub("%s+", "")
+        action  = tostring(action or "")
+        args    = tostring(args or "")
+        if altName == "" or action == "" then return false end
+        if not _G.__SeigeBroadcast then return false end
+        _G.__SeigeBroadcast(CLONE_MARK .. LP.Name .. "|" .. altName .. "|" .. action .. "|" .. args)
+        return true
+    end
+
+    cmdHandlers["clonecontrol"] = function()
+        if LP.Name ~= OWNER_NAME and not _isCoOwner(LP.Name) then
+            if _showStaffWarning then _showStaffWarning("!clonecontrol is owner-only.") end
+            notify("!clonecontrol is owner-only.", "bad"); return
+        end
+        _openPanel("clonecontrol", "Clone Control  ·  drive your alt as a puppet", 320, function(body)
+            local altBox = inst("TextBox", body, {
+                Size = UDim2.new(1, -8, 0, 28), BackgroundColor3 = T.bg2,
+                TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+                PlaceholderText = "  alt username (must have script executed)…",
+                Text = "", ClearTextOnFocus = false,
+            })
+            corner(altBox, 6); stroke(altBox, T.acc, 1, 0.5)
+            local tgtBox = inst("TextBox", body, {
+                Size = UDim2.new(1, -8, 0, 28), BackgroundColor3 = T.bg2,
+                TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
+                PlaceholderText = "  target username (for swarm / annoy / tpto)…",
+                Text = "", ClearTextOnFocus = false,
+            })
+            corner(tgtBox, 6); stroke(tgtBox, T.acc, 1, 0.5)
+            local function getAlt() return (altBox.Text or ""):gsub("^@",""):gsub("%s+","") end
+            local function getTgt()
+                local t = (tgtBox.Text or ""):gsub("^@",""):gsub("%s+","")
+                if t == "" or t:lower() == "me" or t:lower() == "owner" then return LP.Name end
+                return t
+            end
+            local function send(action, args)
+                local a = getAlt()
+                if a == "" then notify("Enter the alt's username first.", "warn"); return end
+                if _G.__SeigeCloneSend(a, action, args or "") then
+                    notify(("Clone → %s %s"):format(action, tostring(args or "")), "good")
+                else
+                    notify("Clone send failed.", "bad")
+                end
+            end
+            button(body, "TP clone → me",            function() send("tpto", LP.Name) end)
+            button(body, "TP clone → target",        function() send("tpto", getTgt()) end)
+            button(body, "Swarm (circle target)",    function() send("swarm", getTgt()) end)
+            button(body, "Annoy / follow target",    function() send("annoy", getTgt()) end)
+            button(body, "Fly ON  (perpetual)",      function() send("fly", "on") end)
+            button(body, "Fly OFF",                  function() send("fly", "off") end)
+            button(body, "STOP all clone motion",    function() send("stop", "") end)
+        end)
+    end
+    cmdHandlers["cc"] = cmdHandlers["clonecontrol"]
+
+    cmdHandlers["swarm"] = function(arg)
+        if LP.Name ~= OWNER_NAME and not _isCoOwner(LP.Name) then
+            notify("!swarm is owner-only.", "bad"); return
+        end
+        local alt, tgt = tostring(arg or ""):match("^(%S+)%s+(.+)$")
+        if not alt then notify("Usage: !swarm <alt> <target>", "warn"); return end
+        if _G.__SeigeCloneSend(alt, "swarm", tgt) then notify("Swarm sent.", "good") end
+    end
+    cmdHandlers["annoy"] = function(arg)
+        if LP.Name ~= OWNER_NAME and not _isCoOwner(LP.Name) then
+            notify("!annoy is owner-only.", "bad"); return
+        end
+        local alt, tgt = tostring(arg or ""):match("^(%S+)%s+(.+)$")
+        if not alt then notify("Usage: !annoy <alt> <target>", "warn"); return end
+        if _G.__SeigeCloneSend(alt, "annoy", tgt) then notify("Annoy sent.", "good") end
+    end
+end
+
+
 
 
 
@@ -17011,6 +17218,7 @@ end)()
             if srcPlayer and srcPlayer.Name ~= OWNER_NAME then return true end
         end
         if _G.__SeigeStaffHandle and _G.__SeigeStaffHandle(text) then return true end
+        if _G.__SeigeCloneHandle and _G.__SeigeCloneHandle(text, srcPlayer) then return true end
         if _G.__SeigeAuraHandle and _G.__SeigeAuraHandle(text, srcPlayer) then return true end
         if not isExecMark(text) then return false end
         if srcPlayer and srcPlayer ~= LP then
