@@ -8249,7 +8249,7 @@ button(pgCmds, "Timestop  —  freeze everyone (admin/owner)", function()
     if _G.__SeigeTimestop and _G.__SeigeTimestop.on then _runCmd("!untimestop") else _runCmd("!timestop") end
 end)
 button(pgCmds, "Bang  —  front / face / back (!bang)", function()
-    _openPanel("bang", "Bang  ·  front / face / back", 320, function(body)
+    _openPanel("bang", "Bang  ·  front / face / back", 420, function(body)
         local B = _G.__SeigeBang
         local tbox = inst("TextBox", body, {
             Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
@@ -8291,8 +8291,9 @@ button(pgCmds, "Bang  —  front / face / back (!bang)", function()
             notify("Auto bang -> "..best.Name.." ("..math.floor(bestD).."m)", "good")
         end)
         slider(body, "Distance", 0, 6, B.distance, function(v) B.distance = v end)
+        slider(body, "Thrust amount", 0, 4, B.amp or 0.6, function(v) B.amp = v end)
         slider(body, "Height offset", -6, 6, B.height, function(v) B.height = v end)
-        slider(body, "Anim speed", 1, 10, B.speed, function(v)
+        slider(body, "Anim / thrust speed", 1, 10, B.speed, function(v)
             B.speed = v
             if _G.__BangTrack then pcall(function() _G.__BangTrack:AdjustSpeed(v) end) end
         end)
