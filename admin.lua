@@ -769,13 +769,13 @@ local function showLoadScreen()
     local card = inst("Frame", ls, {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 440, 0, 260),
+        Size = UDim2.new(0, 520, 0, 360),
         BackgroundColor3 = T.glass,
         BackgroundTransparency = 0.05,
         BorderSizePixel = 0,
         ZIndex = 501,
     })
-    corner(card, 20)
+    corner(card, 22)
     stroke(card, T.acc, 1, 0.35)
     inst("UIGradient", card, {
         Rotation = 120,
@@ -801,7 +801,38 @@ local function showLoadScreen()
         },
     })
 
-    -- avatar ring (tries to fetch player's headshot)
+    -- rotating conic-style ring behind the avatar
+    local spin = inst("Frame", card, {
+        AnchorPoint = Vector2.new(0.5, 0),
+        Position = UDim2.new(0.5, 0, 0, 18),
+        Size = UDim2.new(0, 0, 0, 0),
+        BackgroundColor3 = T.acc,
+        BackgroundTransparency = 0.55,
+        BorderSizePixel = 0,
+        ZIndex = 501,
+    })
+    corner(spin, 9999)
+    local spinGrad = inst("UIGradient", spin, {
+        Rotation = 0,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0, 0.2),
+            NumberSequenceKeypoint.new(0.5, 0.9),
+            NumberSequenceKeypoint.new(1, 0.2),
+        },
+        Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, T.acc),
+            ColorSequenceKeypoint.new(0.5, T.acc2),
+            ColorSequenceKeypoint.new(1, T.acc),
+        },
+    })
+    task.spawn(function()
+        while spin.Parent do
+            spinGrad.Rotation = (spinGrad.Rotation + 2) % 360
+            task.wait(1/60)
+        end
+    end)
+
+    -- avatar ring
     local ring = inst("Frame", card, {
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.new(0.5, 0, 0, 24),
@@ -835,26 +866,24 @@ local function showLoadScreen()
 
     local welcome = inst("TextLabel", card, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, 96),
-        Size = UDim2.new(1, 0, 0, 16),
+        Position = UDim2.new(0, 0, 0, 100),
+        Size = UDim2.new(1, 0, 0, 14),
         Font = Enum.Font.Gotham,
-        Text = "WELCOME TO",
+        Text = "W E L C O M E   T O",
         TextColor3 = T.sub,
         TextSize = 11,
         TextTransparency = 1,
         ZIndex = 502,
     })
-    -- letter-space the welcome
-    welcome.Text = "W E L C O M E   T O"
 
     local title = inst("TextLabel", card, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, 116),
+        Position = UDim2.new(0, 0, 0, 118),
         Size = UDim2.new(1, 0, 0, 32),
         Font = Enum.Font.GothamBold,
         Text = "Seige Admin",
         TextColor3 = T.text,
-        TextSize = 26,
+        TextSize = 28,
         TextTransparency = 1,
         ZIndex = 502,
     })
@@ -868,7 +897,7 @@ local function showLoadScreen()
     local displayName = LP.DisplayName ~= "" and LP.DisplayName or LP.Name
     local hello = inst("TextLabel", card, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, 152),
+        Position = UDim2.new(0, 0, 0, 154),
         Size = UDim2.new(1, 0, 0, 18),
         Font = Enum.Font.GothamMedium,
         Text = "hey, " .. displayName,
@@ -878,11 +907,155 @@ local function showLoadScreen()
         ZIndex = 502,
     })
 
+    -- ===== STATS ROW (3 tiles): Players / Connections / Game =====
+    local function makeTile(idx, label, valueText)
+        local x = 24 + (idx - 1) * ((520 - 48 + 10) / 3)
+        local w = (520 - 48 - 20) / 3
+        local tile = inst("Frame", card, {
+            Position = UDim2.new(0, x, 0, 180),
+            Size = UDim2.new(0, w, 0, 52),
+            BackgroundColor3 = T.bg3,
+            BackgroundTransparency = 0.35,
+            BorderSizePixel = 0,
+            ZIndex = 502,
+        })
+        corner(tile, 10)
+        stroke(tile, T.acc, 1, 0.7)
+        local lab = inst("TextLabel", tile, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 6),
+            Size = UDim2.new(1, -20, 0, 12),
+            Font = Enum.Font.Gotham,
+            Text = label,
+            TextColor3 = T.dim,
+            TextSize = 10,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTransparency = 1,
+            ZIndex = 503,
+        })
+        local val = inst("TextLabel", tile, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 20),
+            Size = UDim2.new(1, -20, 0, 26),
+            Font = Enum.Font.GothamBold,
+            Text = valueText,
+            TextColor3 = T.text,
+            TextSize = 18,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTransparency = 1,
+            ZIndex = 503,
+        })
+        tile.BackgroundTransparency = 1
+        return tile, lab, val
+    end
+
+    local maxP = Players.MaxPlayers or 0
+    local pTile, pLab, pVal = makeTile(1, "PLAYERS IN SERVER", tostring(#Players:GetPlayers()) .. (maxP > 0 and ("/" .. maxP) or ""))
+    local cTile, cLab, cVal = makeTile(2, "CONNECTIONS", "0")
+    local gameName = "Game"
+    pcall(function()
+        local MarketplaceService = game:GetService("MarketplaceService")
+        local info = MarketplaceService:GetProductInfo(game.PlaceId)
+        if info and info.Name then gameName = info.Name end
+    end)
+    if #gameName > 18 then gameName = gameName:sub(1, 17) .. "…" end
+    local gTile, gLab, gVal = makeTile(3, "GAME", gameName)
+    gVal.TextSize = 14
+
+    -- connections strip (other scripter avatars)
+    local connRow = inst("Frame", card, {
+        Position = UDim2.new(0, 24, 0, 240),
+        Size = UDim2.new(1, -48, 0, 28),
+        BackgroundTransparency = 1,
+        ZIndex = 502,
+    })
+    local connList = inst("UIListLayout", connRow, {
+        FillDirection = Enum.FillDirection.Horizontal,
+        Padding = UDim.new(0, 6),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        VerticalAlignment = Enum.VerticalAlignment.Center,
+    })
+
+    local connSeen = {}
+    local function addConnChip(p)
+        if connSeen[p.UserId] then return end
+        connSeen[p.UserId] = true
+        local chip = inst("Frame", connRow, {
+            Size = UDim2.new(0, 0, 1, 0),
+            AutomaticSize = Enum.AutomaticSize.X,
+            BackgroundColor3 = T.bg3,
+            BackgroundTransparency = 0.3,
+            BorderSizePixel = 0,
+            ZIndex = 503,
+        })
+        corner(chip, 14)
+        stroke(chip, T.acc, 1, 0.5)
+        inst("UIPadding", chip, {
+            PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 10),
+            PaddingTop = UDim.new(0, 3), PaddingBottom = UDim.new(0, 3),
+        })
+        inst("UIListLayout", chip, {
+            FillDirection = Enum.FillDirection.Horizontal,
+            Padding = UDim.new(0, 6),
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+        })
+        local av = inst("ImageLabel", chip, {
+            Size = UDim2.new(0, 20, 0, 20),
+            BackgroundColor3 = T.bg2,
+            BorderSizePixel = 0,
+            Image = "",
+            ZIndex = 504,
+        })
+        corner(av, 9999)
+        task.spawn(function()
+            local ok, img = pcall(function()
+                return Players:GetUserThumbnailAsync(p.UserId,
+                    Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size48x48)
+            end)
+            if ok and img then av.Image = img end
+        end)
+        inst("TextLabel", chip, {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0, 0, 1, 0),
+            AutomaticSize = Enum.AutomaticSize.X,
+            Font = Enum.Font.GothamMedium,
+            Text = p.DisplayName ~= "" and p.DisplayName or p.Name,
+            TextColor3 = T.text,
+            TextSize = 12,
+            ZIndex = 504,
+        })
+    end
+
+    local connEmpty = inst("TextLabel", connRow, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Font = Enum.Font.Gotham,
+        Text = "No other scripters in this server",
+        TextColor3 = T.dim,
+        TextSize = 11,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 503,
+    })
+
+    local function refreshConnections()
+        local count = 0
+        local scripters = _G.__SeigeScripters or {}
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LP and scripters[p.UserId] then
+                addConnChip(p)
+                count = count + 1
+            end
+        end
+        cVal.Text = tostring(count)
+        if count > 0 and connEmpty.Parent then connEmpty:Destroy() end
+        pVal.Text = tostring(#Players:GetPlayers()) .. (maxP > 0 and ("/" .. maxP) or "")
+    end
+
     -- progress bar
     local barBg = inst("Frame", card, {
         AnchorPoint = Vector2.new(0.5, 0),
-        Position = UDim2.new(0.5, 0, 0, 188),
-        Size = UDim2.new(0, 320, 0, 4),
+        Position = UDim2.new(0.5, 0, 0, 282),
+        Size = UDim2.new(0, 380, 0, 4),
         BackgroundColor3 = T.bg3,
         BackgroundTransparency = 0.3,
         BorderSizePixel = 0,
@@ -905,7 +1078,7 @@ local function showLoadScreen()
 
     local status = inst("TextLabel", card, {
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, 204),
+        Position = UDim2.new(0, 0, 0, 298),
         Size = UDim2.new(1, 0, 0, 14),
         Font = Enum.Font.Gotham,
         Text = "Initializing…",
@@ -931,6 +1104,8 @@ local function showLoadScreen()
         "Hooking services",
         "Building interface",
         "Loading modules",
+        "Scanning server",
+        "Pinging scripters",
         "Calibrating combat",
         "Finalizing",
         "Ready",
@@ -942,12 +1117,13 @@ local function showLoadScreen()
             props):Play()
     end
 
-    -- entrance: card pops up, then text fades in sequentially
-    card.Size = UDim2.new(0, 440, 0, 0)
+    -- entrance
+    card.Size = UDim2.new(0, 520, 0, 0)
     card.BackgroundTransparency = 1
-    tw(card, 0.45, { Size = UDim2.new(0, 440, 0, 260), BackgroundTransparency = 0.05 }, Enum.EasingStyle.Back)
+    tw(card, 0.5, { Size = UDim2.new(0, 520, 0, 360), BackgroundTransparency = 0.05 }, Enum.EasingStyle.Back)
     tw(accentBar, 0.6, { Size = UDim2.new(1, -2, 0, 2) })
     tw(ring, 0.5, { Size = UDim2.new(0, 64, 0, 64) }, Enum.EasingStyle.Back)
+    tw(spin, 0.55, { Size = UDim2.new(0, 86, 0, 86) }, Enum.EasingStyle.Back)
 
     -- breathing glow loop
     task.spawn(function()
@@ -961,6 +1137,17 @@ local function showLoadScreen()
         end
     end)
 
+    -- live refresh connections during the load
+    local refreshConn
+    refreshConn = task.spawn(function()
+        while ls.Parent do
+            pcall(refreshConnections)
+            task.wait(0.4)
+        end
+    end)
+    local playerConn = Players.PlayerAdded:Connect(function() pcall(refreshConnections) end)
+    local playerLeft = Players.PlayerRemoving:Connect(function() pcall(refreshConnections) end)
+
     task.spawn(function()
         task.wait(0.3)
         tw(welcome, 0.4, { TextTransparency = 0 })
@@ -968,7 +1155,14 @@ local function showLoadScreen()
         tw(title, 0.5, { TextTransparency = 0 })
         task.wait(0.2)
         tw(hello, 0.5, { TextTransparency = 0 })
-        task.wait(0.15)
+        task.wait(0.1)
+        for _, tile in ipairs({pTile, cTile, gTile}) do
+            tw(tile, 0.35, { BackgroundTransparency = 0.35 })
+            for _, d in ipairs(tile:GetChildren()) do
+                if d:IsA("TextLabel") then tw(d, 0.35, { TextTransparency = 0 }) end
+            end
+            task.wait(0.08)
+        end
         tw(status, 0.4, { TextTransparency = 0 })
         tw(credit, 0.4, { TextTransparency = 0.3 })
 
@@ -976,13 +1170,15 @@ local function showLoadScreen()
             status.Text = label .. "…"
             local pct = i / #steps
             tw(barFill, 0.3, { Size = UDim2.new(pct, 0, 1, 0) })
-            task.wait(0.2 + math.random() * 0.15)
+            task.wait(0.22 + math.random() * 0.12)
         end
-        task.wait(0.35)
+        task.wait(0.4)
 
         -- exit
+        pcall(function() playerConn:Disconnect() end)
+        pcall(function() playerLeft:Disconnect() end)
         tw(ls, 0.5, { BackgroundTransparency = 1 })
-        tw(card, 0.45, { BackgroundTransparency = 1, Size = UDim2.new(0, 440, 0, 240) })
+        tw(card, 0.45, { BackgroundTransparency = 1, Size = UDim2.new(0, 520, 0, 340) })
         for _, d in ipairs(ls:GetDescendants()) do
             if d:IsA("TextLabel") then TweenService:Create(d, TweenInfo.new(0.35), { TextTransparency = 1 }):Play()
             elseif d:IsA("Frame") then TweenService:Create(d, TweenInfo.new(0.4), { BackgroundTransparency = 1 }):Play()
