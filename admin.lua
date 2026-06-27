@@ -7597,6 +7597,14 @@ button(pgCmds, "Flashstep  —  blink teleport (keybind)", function()
         end)
 
         toggle(body, "Blink VFX trail", F.fx, function(s) F.fx = s end)
+        toggle(body, "Blink sound", F.sound, function(s)
+            F.sound = s
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
+        end)
+        slider(body, "Sound volume", 0, 10, math.floor((F.volume or 1) * 10), function(v)
+            F.volume = v / 10
+            if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
+        end)
 
         button(body, "Trigger now", function()
             if _G.__SeigeFlashDo then _G.__SeigeFlashDo() end
@@ -12589,6 +12597,9 @@ _G.__SeigeFlash = _G.__SeigeFlash or {
     distance = 18,           -- studs (used for camera-direction mode)
     mode     = "camera",     -- "camera" or "mouse"
     fx       = true,         -- brief blink VFX
+    sound    = true,         -- play blink SFX
+    soundId  = "rbxassetid://127115086296756",
+    volume   = 1.0,
     _conn    = nil,
 }
 
@@ -12637,6 +12648,16 @@ local function _doFlashstep()
         r.CFrame = target
     end)
     if F.fx then _flashTrail(origin, target) end
+    if F.sound then
+        pcall(function()
+            local s = Instance.new("Sound")
+            s.SoundId = F.soundId or "rbxassetid://127115086296756"
+            s.Volume  = tonumber(F.volume) or 1.0
+            s.PlayOnRemove = true
+            s.Parent = (workspace:FindFirstChildOfClass("Terrain") or workspace)
+            s:Destroy()
+        end)
+    end
 end
 _G.__SeigeFlashDo = _doFlashstep
 
