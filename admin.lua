@@ -12641,6 +12641,18 @@ local function _doFlashstep()
     end)
     if F.fx then _flashTrail(origin, target) end
 end
+    if F.fx then _flashTrail(origin, target) end
+    if F.sound then
+        pcall(function()
+            local s = Instance.new("Sound")
+            s.SoundId = F.soundId or "rbxassetid://127115086296756"
+            s.Volume  = tonumber(F.volume) or 1.0
+            s.PlayOnRemove = true
+            s.Parent = (workspace:FindFirstChildOfClass("Terrain") or workspace)
+            s:Destroy()
+        end)
+    end
+end
 _G.__SeigeFlashDo = _doFlashstep
 
 local function _flashBindKey()
