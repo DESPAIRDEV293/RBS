@@ -3867,14 +3867,24 @@ local function refreshBill(p)
     -- bubble and only when LP actually has a tag entry.
     if p == LP and e.bg and Auras and Auras.canonical then
         local auraName = Auras.canonical(_G.__SeigeMyTagAura)
-        if auraName then
-            local ok, stopFn = pcall(Auras.apply, e.bg, auraName)
-            if ok and type(stopFn) == "function" then
-                e.auraStop = stopFn
-                e.auraName = auraName
+        if e.auraName ~= auraName then
+            -- tear down the previous aura before swapping
+            if e.auraStop then pcall(e.auraStop); e.auraStop = nil end
+            if e.bg and e.bg.Parent then
+                for _, ch in ipairs(e.bg.Parent:GetChildren()) do
+                    if ch.Name == "_AuraGlow" then pcall(function() ch:Destroy() end) end
+                end
+                local oldStroke = e.bg:FindFirstChild("_AuraStroke")
+                if oldStroke then pcall(function() oldStroke:Destroy() end) end
+            end
+            e.auraName = auraName
+            if auraName then
+                local ok, stopFn = pcall(Auras.apply, e.bg, auraName)
+                if ok and type(stopFn) == "function" then e.auraStop = stopFn end
             end
         end
     end
+
 
     -- Auto-size bubble to hug the visible text. Measure the FULL display name
     -- + @handle (not the in-progress typewriter/glitch text) so the pill stays
