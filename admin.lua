@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-27-flashstep-sfx2"
+local ADMIN_BUILD = "2026-06-27-flashstep-sfx3"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -12603,6 +12603,65 @@ _G.__SeigeFlash = _G.__SeigeFlash or {
     volume   = 1.0,
     _conn    = nil,
 }
+do
+    local F = _G.__SeigeFlash
+    F.key      = F.key or Enum.KeyCode.F
+    F.distance = tonumber(F.distance) or 18
+    F.mode     = (F.mode == "mouse") and "mouse" or "camera"
+    if F.fx == nil then F.fx = true end
+    if F.sound == nil then F.sound = true end
+    F.soundId  = "rbxassetid://127115086296756"
+    F.volume   = tonumber(F.volume) or 1.0
+end
+
+local function _soundContentId(raw)
+    raw = tostring(raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local id = raw:match("rbxassetid://(%d+)") or raw:match("[?&]id=(%d+)") or raw:match("(%d+)")
+    if id then return "rbxassetid://" .. id end
+    return raw ~= "" and raw or "rbxassetid://127115086296756"
+end
+
+local _lastFlashSoundWarn = 0
+local function _playFlashSound(parentPart)
+    local F = _G.__SeigeFlash or {}
+    if F.sound == false then return end
+    local soundId = _soundContentId(F.soundId or "127115086296756")
+    local s = Instance.new("Sound")
+    s.Name = "__SeigeFlashstepSFX"
+    s.SoundId = soundId
+    s.Volume = math.clamp(tonumber(F.volume) or 1.0, 0, 10)
+    s.RollOffMode = Enum.RollOffMode.Linear
+    s.RollOffMaxDistance = 10000
+    s.Parent = parentPart or game:GetService("SoundService")
+
+    local debris = game:GetService("Debris")
+    local soundService = game:GetService("SoundService")
+    local contentProvider = game:GetService("ContentProvider")
+    local played = false
+    local conn
+    local function playNow()
+        if played then return end
+        played = true
+        if conn then pcall(function() conn:Disconnect() end); conn = nil end
+        local okLocal = pcall(function() soundService:PlayLocalSound(s) end)
+        if not okLocal then pcall(function() s:Play() end) end
+    end
+
+    -- Use Connect, not Loaded:Once. Some executors/clients don't support :Once,
+    -- which aborted the old pcall before Play() ever ran when the sound wasn't loaded yet.
+    pcall(function() conn = s.Loaded:Connect(playNow) end)
+    task.spawn(function()
+        pcall(function() contentProvider:PreloadAsync({ s }) end)
+        playNow()
+        task.delay(1.5, function()
+            if s and s.Parent and s.TimeLength == 0 and os.clock() - _lastFlashSoundWarn > 8 then
+                _lastFlashSoundWarn = os.clock()
+                notify("Flashstep sound couldn't load. The audio asset may be private or not allowed in this game.", "warn")
+            end
+        end)
+    end)
+    debris:AddItem(s, 6)
+end
 
 local function _flashTrail(fromCF, toCF)
     if not (fromCF and toCF) then return end
@@ -12649,30 +12708,7 @@ local function _doFlashstep()
         r.CFrame = target
     end)
     if F.fx then _flashTrail(origin, target) end
-    if F.sound then
-        pcall(function()
-            local s = Instance.new("Sound")
-            s.SoundId = F.soundId or "rbxassetid://127115086296756"
-            s.Volume  = tonumber(F.volume) or 1.0
-            s.RollOffMode = Enum.RollOffMode.Linear
-            s.RollOffMaxDistance = 10000
-            s.Parent = r
-            -- Play immediately; if not yet loaded, wait briefly then play.
-            local played = false
-            local function tryPlay()
-                if played then return end
-                played = true
-                pcall(function() s:Play() end)
-            end
-            if s.IsLoaded then
-                tryPlay()
-            else
-                s.Loaded:Once(tryPlay)
-                task.delay(0.25, tryPlay) -- fallback if Loaded never fires on this executor
-            end
-            game:GetService("Debris"):AddItem(s, 5)
-        end)
-    end
+    if F.sound then pcall(_playFlashSound, r) end
 end
 _G.__SeigeFlashDo = _doFlashstep
 
