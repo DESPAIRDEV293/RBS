@@ -9739,6 +9739,11 @@ applyCfg = function(cfg, opts)
             if _G.__SeigeHeadStatsCleanup then pcall(_G.__SeigeHeadStatsCleanup) end
         end
     end
+    if cfg.tagAura ~= nil then
+        _G.__SeigeMyTagAura = tostring(cfg.tagAura or "None")
+        if tagAuraCtl and tagAuraCtl.set then pcall(tagAuraCtl.set, _G.__SeigeMyTagAura) end
+        if tagBills and tagBills[LP] then pcall(refreshBill, LP) end
+    end
     if type(cfg.reanim) == "table" then
         _G.__SeigeReanimCfg = _G.__SeigeReanimCfg or { colors = {} }
         _G.__SeigeReanimCfg.opacity = tonumber(cfg.reanim.opacity) or _G.__SeigeReanimCfg.opacity or 0
