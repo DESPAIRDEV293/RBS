@@ -8001,6 +8001,390 @@ _G.__SeigeOpenFlashstep = _openFlashstepPanel
 
 button(pgCmds, "Flashstep  —  blink teleport (keybind)", _openFlashstepPanel)
 
+-- ===== Infinite Yield  ·  IY-style command runner =====
+local _openInfYieldPanel
+do
+    local Workspace = game:GetService("Workspace")
+    local RunSvc    = game:GetService("RunService")
+    local TS        = game:GetService("TweenService")
+    local Lighting  = game:GetService("Lighting")
+
+    local function _iyFindPlayer(name)
+        if not name or name == "" then return nil end
+        name = name:lower()
+        if name == "me" then return LP end
+        if name == "all" or name == "others" or name == "random" then return name end
+        local best, bestLen
+        for _, p in ipairs(Players:GetPlayers()) do
+            local n, d = p.Name:lower(), p.DisplayName:lower()
+            if n == name or d == name then return p end
+            if n:sub(1, #name) == name or d:sub(1, #name) == name then
+                local L = #p.Name
+                if not best or L < bestLen then best, bestLen = p, L end
+            end
+        end
+        return best
+    end
+    local function _iyTargets(name)
+        local r = _iyFindPlayer(name)
+        if r == "all" then return Players:GetPlayers() end
+        if r == "others" then
+            local t = {}
+            for _, p in ipairs(Players:GetPlayers()) do if p ~= LP then table.insert(t, p) end end
+            return t
+        end
+        if r == "random" then
+            local t = {}
+            for _, p in ipairs(Players:GetPlayers()) do if p ~= LP then table.insert(t, p) end end
+            return { t[math.random(1, math.max(1, #t))] }
+        end
+        if r then return { r } end
+        return {}
+    end
+    local function _iyHrp(p)
+        local c = p and p.Character
+        return c and (c:FindFirstChild("HumanoidRootPart") or c.PrimaryPart)
+    end
+    local function _iyHum(p)
+        local c = p and p.Character
+        return c and c:FindFirstChildWhichIsA("Humanoid")
+    end
+
+    _G.__SeigeIY = _G.__SeigeIY or { spinSpeed = 0, spinConn = nil, trippy = nil, esp = {} }
+
+    local function _iyExec(line)
+        line = (line or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if line == "" then return end
+        local cmd, rest = line:match("^(%S+)%s*(.*)$")
+        cmd = (cmd or ""):lower():gsub("^!", "")
+        rest = rest or ""
+
+        -- Forwards to existing seige commands
+        local forwards = {
+            kill=true, reset=true, respawn=true, fly=true, unfly=true,
+            noclip=true, clip=true, ws=true, jp=true, goto=true, tp=true,
+            to=true, bring=true, freecam=true, unfreecam=true, invis=true, visible=true,
+            fling=true, headsit=true, unheadsit=true, eject=true, shouldersit=true,
+            carry=true, uncarry=true, piggyback=true, unpiggy=true, hide=true, unhide=true,
+            cmute=true, cunmute=true, fov=true, zoom=true, age=true, track=true, untrack=true,
+            xray=true, unxray=true, fire=true, unfire=true, sparkles=true, unsparkles=true,
+            smoke=true, unsmoke=true, baseplate=true, ghost=true, hatspin=true, size=true,
+            stalk=true, unstalk=true, face=true, freeze=true, thaw=true,
+        }
+        if forwards[cmd] then
+            _runCmd("!" .. cmd .. (rest ~= "" and (" " .. rest) or ""))
+            return true
+        end
+
+        -- Native IY-style implementations
+        local IY = _G.__SeigeIY
+        local me = LP
+        local myHum = _iyHum(me)
+        local myHrp = _iyHrp(me)
+
+        if cmd == "jpower" or cmd == "jumppower" then
+            local n = tonumber(rest); if n and myHum then myHum.JumpPower = n; notify("JumpPower = " .. n, "good") end; return true
+        elseif cmd == "jheight" then
+            local n = tonumber(rest); if n and myHum then myHum.JumpHeight = n; notify("JumpHeight = " .. n, "good") end; return true
+        elseif cmd == "grav" or cmd == "gravity" then
+            local n = tonumber(rest) or 196.2; Workspace.Gravity = n; notify("Gravity = " .. n, "good"); return true
+        elseif cmd == "hipheight" or cmd == "hh" then
+            local n = tonumber(rest); if n and myHum then myHum.HipHeight = n; notify("HipHeight = " .. n, "good") end; return true
+        elseif cmd == "sit" then
+            if myHum then myHum.Sit = true end; return true
+        elseif cmd == "god" then
+            if myHum then myHum.MaxHealth = math.huge; myHum.Health = math.huge; notify("Godmode (client)", "good") end; return true
+        elseif cmd == "ungod" then
+            if myHum then myHum.MaxHealth = 100; myHum.Health = 100; notify("Ungod", "warn") end; return true
+        elseif cmd == "btools" then
+            for i = 1, 4 do
+                local t = Instance.new("HopperBin")
+                t.BinType = ({"GameTool","Clone","Hammer","Grab"})[i] and Enum.BinType[({"GameTool","Clone","Hammer","Grab"})[i]] or Enum.BinType.Hammer
+                t.Parent = me:FindFirstChildOfClass("Backpack") or me
+            end
+            notify("Building tools given", "good"); return true
+        elseif cmd == "spin" then
+            local n = tonumber(rest) or 6
+            IY.spinSpeed = n
+            if IY.spinConn then pcall(function() IY.spinConn:Disconnect() end) end
+            IY.spinConn = RunSvc.Heartbeat:Connect(function(dt)
+                local hrp = _iyHrp(LP); if not hrp then return end
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(IY.spinSpeed * 60 * dt), 0)
+            end)
+            notify("Spinning at " .. n, "good"); return true
+        elseif cmd == "unspin" then
+            if IY.spinConn then pcall(function() IY.spinConn:Disconnect() end) end
+            IY.spinConn = nil; notify("Spin off", "warn"); return true
+        elseif cmd == "trippy" then
+            if IY.trippy then IY.trippy:Cancel() end
+            local cc = Lighting:FindFirstChildOfClass("ColorCorrectionEffect") or Instance.new("ColorCorrectionEffect", Lighting)
+            cc.Saturation = 5
+            spawn(function()
+                while cc.Parent do
+                    cc.TintColor = Color3.fromHSV(math.random(), 1, 1)
+                    task.wait(0.08)
+                end
+            end)
+            notify("Trippy mode", "good"); return true
+        elseif cmd == "untrippy" then
+            for _, e in ipairs(Lighting:GetChildren()) do if e:IsA("ColorCorrectionEffect") then e:Destroy() end end
+            notify("Trippy off", "warn"); return true
+        elseif cmd == "esp" then
+            local who = rest ~= "" and _iyTargets(rest) or _iyTargets("others")
+            for _, p in ipairs(who) do
+                if p and p.Character and not p.Character:FindFirstChild("SeigeIYESP") then
+                    local h = Instance.new("Highlight")
+                    h.Name = "SeigeIYESP"
+                    h.FillTransparency = 0.7
+                    h.OutlineTransparency = 0
+                    h.FillColor = Color3.fromRGB(255, 60, 60)
+                    h.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                    h.Parent = p.Character
+                    IY.esp[p] = h
+                end
+            end
+            notify("ESP on", "good"); return true
+        elseif cmd == "noesp" or cmd == "unesp" then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Character then
+                    local h = p.Character:FindFirstChild("SeigeIYESP")
+                    if h then h:Destroy() end
+                end
+            end
+            IY.esp = {}; notify("ESP off", "warn"); return true
+        elseif cmd == "tppos" then
+            local x, y, z = rest:match("(-?%d+%.?%d*)%s*,?%s*(-?%d+%.?%d*)%s*,?%s*(-?%d+%.?%d*)")
+            if x and y and z and myHrp then myHrp.CFrame = CFrame.new(tonumber(x), tonumber(y), tonumber(z)); notify("Teleported", "good") end
+            return true
+        elseif cmd == "getpos" or cmd == "pos" then
+            if myHrp then
+                local p = myHrp.Position
+                notify(("%.1f, %.1f, %.1f"):format(p.X, p.Y, p.Z), "good")
+            end
+            return true
+        elseif cmd == "time" then
+            local n = tonumber(rest); if n then Lighting.ClockTime = n; notify("Time = " .. n, "good") end; return true
+        elseif cmd == "fog" then
+            local n = tonumber(rest) or 0; Lighting.FogEnd = n == 0 and 1e9 or n; notify("Fog end = " .. tostring(Lighting.FogEnd), "good"); return true
+        elseif cmd == "day" then
+            Lighting.ClockTime = 14; notify("Day", "good"); return true
+        elseif cmd == "night" then
+            Lighting.ClockTime = 0; notify("Night", "good"); return true
+        elseif cmd == "loopkill" or cmd == "lk" then
+            local who = _iyTargets(rest)
+            IY.loopkill = IY.loopkill or {}
+            for _, p in ipairs(who) do
+                if p ~= LP then IY.loopkill[p] = true end
+            end
+            if not IY.loopkillConn then
+                IY.loopkillConn = RunSvc.Heartbeat:Connect(function()
+                    if not myHrp then return end
+                    for p in pairs(IY.loopkill) do
+                        local hrp = _iyHrp(p)
+                        if hrp then pcall(function() myHrp.CFrame = hrp.CFrame end) end
+                    end
+                end)
+            end
+            notify("Loopkill ON for " .. #who .. " target(s)", "good"); return true
+        elseif cmd == "unloopkill" or cmd == "unlk" then
+            if IY.loopkillConn then pcall(function() IY.loopkillConn:Disconnect() end) end
+            IY.loopkillConn = nil; IY.loopkill = {}
+            notify("Loopkill off", "warn"); return true
+        elseif cmd == "view" or cmd == "spectate" then
+            local p = _iyFindPlayer(rest)
+            if typeof(p) == "Instance" and p.Character then
+                Workspace.CurrentCamera.CameraSubject = p.Character:FindFirstChildWhichIsA("Humanoid")
+                notify("Viewing " .. p.Name, "good")
+            end
+            return true
+        elseif cmd == "unview" then
+            if me.Character then Workspace.CurrentCamera.CameraSubject = me.Character:FindFirstChildWhichIsA("Humanoid") end
+            return true
+        elseif cmd == "chat" or cmd == "say" then
+            pcall(function()
+                game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", { Text = rest, Color = Color3.fromRGB(255, 80, 80), Font = Enum.Font.GothamBold })
+            end)
+            return true
+        elseif cmd == "rejoin" then
+            game:GetService("TeleportService"):Teleport(game.PlaceId, LP); return true
+        elseif cmd == "serverhop" or cmd == "shop" then
+            local HttpServ = game:GetService("HttpService")
+            local TPS = game:GetService("TeleportService")
+            pcall(function()
+                local data = HttpServ:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+                for _, s in ipairs(data.data or {}) do
+                    if s.playing and s.maxPlayers and s.playing < s.maxPlayers - 1 and s.id ~= game.JobId then
+                        TPS:TeleportToPlaceInstance(game.PlaceId, s.id, LP); break
+                    end
+                end
+            end)
+            return true
+        elseif cmd == "explorer" or cmd == "dex" then
+            pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/Babyhamsta/RBLX_Scripts/main/Universal/BypassedDarkDex.lua"))() end)
+            return true
+        elseif cmd == "cmds" or cmd == "commands" or cmd == "help" then
+            if _G.__SeigeOpenHelp then _G.__SeigeOpenHelp() end
+            return true
+        end
+
+        notify("Unknown IY command: " .. cmd, "warn")
+        return false
+    end
+
+    -- Catalog displayed in the panel (label  ·  template the user can edit)
+    local IY_CATALOG = {
+        { "fly",            "fly" },
+        { "unfly",          "unfly" },
+        { "noclip",         "noclip" },
+        { "clip",           "clip" },
+        { "ws <n>",         "ws 100" },
+        { "jpower <n>",     "jpower 100" },
+        { "hipheight <n>",  "hipheight 5" },
+        { "gravity <n>",    "gravity 196.2" },
+        { "sit",            "sit" },
+        { "reset",          "reset" },
+        { "god",            "god" },
+        { "ungod",          "ungod" },
+        { "btools",         "btools" },
+        { "size <n>",       "size 2" },
+        { "invis",          "invis" },
+        { "visible",        "visible" },
+        { "ghost",          "ghost" },
+        { "hatspin",        "hatspin" },
+        { "spin <n>",       "spin 6" },
+        { "unspin",         "unspin" },
+        { "trippy",         "trippy" },
+        { "untrippy",       "untrippy" },
+        { "esp [player]",   "esp others" },
+        { "noesp",          "noesp" },
+        { "goto <plr>",     "goto " },
+        { "to <plr>",       "to " },
+        { "view <plr>",     "view " },
+        { "unview",         "unview" },
+        { "freecam",        "freecam" },
+        { "unfreecam",      "unfreecam" },
+        { "fling <plr>",    "fling " },
+        { "stalk <plr>",    "stalk " },
+        { "headsit <plr>",  "headsit " },
+        { "carry <plr>",    "carry " },
+        { "xray",           "xray" },
+        { "unxray",         "unxray" },
+        { "hide <plr>",     "hide " },
+        { "unhide <plr>",   "unhide " },
+        { "cmute <plr>",    "cmute " },
+        { "fire / smoke / sparkles", "sparkles" },
+        { "tppos x,y,z",    "tppos 0,50,0" },
+        { "getpos",         "getpos" },
+        { "fov <n>",        "fov 90" },
+        { "zoom <min> <max>", "zoom 0.5 400" },
+        { "time <n>",       "time 14" },
+        { "day",            "day" },
+        { "night",          "night" },
+        { "fog <n>",        "fog 0" },
+        { "loopkill <plr>", "loopkill " },
+        { "unloopkill",     "unloopkill" },
+        { "baseplate",      "baseplate" },
+        { "rejoin",         "rejoin" },
+        { "serverhop",      "serverhop" },
+        { "explorer (Dex)", "explorer" },
+        { "chat <msg>",     "chat hello" },
+        { "track <plr>",    "track " },
+        { "age <plr>",      "age " },
+    }
+
+    _openInfYieldPanel = function()
+        _openPanel("infyield", "Infinite Yield  ·  IY-style command runner", 460, function(body)
+            local cmdBox = inst("TextBox", body, {
+                Size = UDim2.new(1, -8, 0, 32), BackgroundColor3 = T.bg2,
+                TextColor3 = T.fg, Font = Enum.Font.Code, TextSize = 14,
+                PlaceholderText = "  Type a command (e.g.  fly  ·  ws 120  ·  goto bob)  then press Enter…",
+                Text = "", ClearTextOnFocus = false,
+            })
+            corner(cmdBox, 8); stroke(cmdBox, T.line, 1, 0.3)
+
+            local row = inst("Frame", body, {
+                Size = UDim2.new(1, -8, 0, 30), BackgroundTransparency = 1,
+            })
+            local runBtn = inst("TextButton", row, {
+                Size = UDim2.new(0.5, -4, 1, 0), Position = UDim2.new(0, 0, 0, 0),
+                BackgroundColor3 = T.acc, AutoButtonColor = false,
+                Text = "RUN", Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = T.text,
+            })
+            corner(runBtn, 8)
+            local searchBtn = inst("TextButton", row, {
+                Size = UDim2.new(0.5, -4, 1, 0), Position = UDim2.new(0.5, 4, 0, 0),
+                BackgroundColor3 = T.bg3, AutoButtonColor = false,
+                Text = "CLEAR", Font = Enum.Font.GothamSemibold, TextSize = 13, TextColor3 = T.text,
+            })
+            corner(searchBtn, 8); stroke(searchBtn, T.line, 1, 0.4)
+
+            local filterBox = inst("TextBox", body, {
+                Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg2,
+                TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 12,
+                PlaceholderText = "  Filter commands…", Text = "", ClearTextOnFocus = false,
+            })
+            corner(filterBox, 6); stroke(filterBox, T.line, 1, 0.3)
+
+            local scroll = inst("ScrollingFrame", body, {
+                Size = UDim2.new(1, -4, 1, -130),
+                BackgroundTransparency = 1, BorderSizePixel = 0,
+                CanvasSize = UDim2.new(0, 0, 0, 0),
+                AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                ScrollBarThickness = 4, ScrollBarImageColor3 = T.acc,
+            })
+            local lay = Instance.new("UIListLayout", scroll)
+            lay.Padding = UDim.new(0, 4); lay.SortOrder = Enum.SortOrder.LayoutOrder
+
+            local function rebuild(query)
+                for _, c in ipairs(scroll:GetChildren()) do
+                    if c:IsA("TextButton") then c:Destroy() end
+                end
+                query = (query or ""):lower()
+                for _, entry in ipairs(IY_CATALOG) do
+                    if query == "" or entry[1]:lower():find(query, 1, true) or entry[2]:lower():find(query, 1, true) then
+                        local b = inst("TextButton", scroll, {
+                            Size = UDim2.new(1, -8, 0, 26), BackgroundColor3 = T.bg3,
+                            BackgroundTransparency = 0.2, AutoButtonColor = false,
+                            Text = "  " .. entry[1], Font = Enum.Font.GothamMedium, TextSize = 12,
+                            TextColor3 = T.text, TextXAlignment = Enum.TextXAlignment.Left,
+                        })
+                        corner(b, 6); stroke(b, T.line, 1, 0.5)
+                        b.MouseEnter:Connect(function() tween(b, 0.1, { BackgroundColor3 = T.acc, BackgroundTransparency = 0.15 }) end)
+                        b.MouseLeave:Connect(function() tween(b, 0.1, { BackgroundColor3 = T.bg3, BackgroundTransparency = 0.2 }) end)
+                        b.MouseButton1Click:Connect(function()
+                            cmdBox.Text = entry[2]
+                            cmdBox:CaptureFocus()
+                        end)
+                    end
+                end
+            end
+            rebuild("")
+            filterBox:GetPropertyChangedSignal("Text"):Connect(function() rebuild(filterBox.Text) end)
+
+            local function doRun()
+                local t = cmdBox.Text
+                if t and t ~= "" then _iyExec(t) end
+            end
+            runBtn.MouseButton1Click:Connect(doRun)
+            searchBtn.MouseButton1Click:Connect(function() cmdBox.Text = "" end)
+            cmdBox.FocusLost:Connect(function(enter)
+                if enter then doRun() end
+            end)
+        end)
+    end
+    _G.__SeigeOpenInfYield = _openInfYieldPanel
+    _G.__SeigeIYExec = _iyExec
+
+    cmdHandlers["iy"] = _openInfYieldPanel
+    cmdHandlers["infyield"] = _openInfYieldPanel
+    cmdHandlers["infiniteyield"] = _openInfYieldPanel
+end
+
+button(pgCmds, "Infinite Yield  —  IY-style command runner (!iy)", function() _openInfYieldPanel() end)
+
+
+
 button(pgCmds, "Noclip  —  toggle", function()
     _openPanel("noclip", "Noclip  ·  walk through walls", 130, function(body)
         toggle(body, "Noclip enabled", noclip, function(s) noclip = s end)
