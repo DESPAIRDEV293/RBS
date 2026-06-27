@@ -811,18 +811,18 @@ local function showLoadScreen()
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
         Size = UDim2.new(0, 520, 0, 360),
-        BackgroundColor3 = T.glass,
+        BackgroundColor3 = Color3.fromRGB(10, 2, 4),
         BackgroundTransparency = 0.05,
         BorderSizePixel = 0,
         ZIndex = 501,
     })
     corner(card, 22)
-    stroke(card, T.acc, 1, 0.35)
+    stroke(card, CRIMSON, 1, 0.25)
     inst("UIGradient", card, {
         Rotation = 120,
         Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, T.bg2),
-            ColorSequenceKeypoint.new(1, T.glass),
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 3, 6)),
+            ColorSequenceKeypoint.new(1, BLACK),
         },
     })
 
@@ -831,14 +831,14 @@ local function showLoadScreen()
         Position = UDim2.new(0.5, -1, 0, 0),
         AnchorPoint = Vector2.new(0.5, 0),
         Size = UDim2.new(0, 0, 0, 2),
-        BackgroundColor3 = T.acc,
+        BackgroundColor3 = CRIMSON,
         BorderSizePixel = 0,
         ZIndex = 503,
     })
     inst("UIGradient", accentBar, {
         Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, T.acc2),
-            ColorSequenceKeypoint.new(1, T.acc),
+            ColorSequenceKeypoint.new(0, CRIMSON2),
+            ColorSequenceKeypoint.new(1, CRIMSON),
         },
     })
 
@@ -847,7 +847,7 @@ local function showLoadScreen()
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.new(0.5, 0, 0, 18),
         Size = UDim2.new(0, 0, 0, 0),
-        BackgroundColor3 = T.acc,
+        BackgroundColor3 = CRIMSON,
         BackgroundTransparency = 0.55,
         BorderSizePixel = 0,
         ZIndex = 501,
@@ -861,11 +861,12 @@ local function showLoadScreen()
             NumberSequenceKeypoint.new(1, 0.2),
         },
         Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, T.acc),
-            ColorSequenceKeypoint.new(0.5, T.acc2),
-            ColorSequenceKeypoint.new(1, T.acc),
+            ColorSequenceKeypoint.new(0, CRIMSON),
+            ColorSequenceKeypoint.new(0.5, CRIMSON2),
+            ColorSequenceKeypoint.new(1, CRIMSON),
         },
     })
+
     task.spawn(function()
         while spin.Parent do
             spinGrad.Rotation = (spinGrad.Rotation + 2) % 360
