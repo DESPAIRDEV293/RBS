@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-27-welcome-crimson"
+local ADMIN_BUILD = "2026-06-27-reanim-nofreeze"
 
 if _G.__AdminLoaded then
     if _G.__AdminCleanup then pcall(_G.__AdminCleanup) end
@@ -14959,14 +14959,33 @@ cmdHandlers["reanim"] = function()
         notify("Reanim is staff-only.", "bad")
         return
     end
+    if _G.__SeigeReanimLoading then notify("Reanim is already loading…", "good"); return end
+    if _G.__SeigeReanimLoaded then notify("Reanim already loaded.", "good"); return end
+    _G.__SeigeReanimLoading = true
     notify("Loading Reanim…", "good")
     task.spawn(function()
+        -- Stable mirrors first; the dev-preview host requires auth and stalls executors.
         local urls = {
-            "https://project--9cc69d4f-b5d0-456b-878c-80800e55ce94-dev.lovable.app/api/public/reanim.lua?fresh=" .. tostring(os.time()),
-            "https://seigescript.online/api/public/reanim.lua?fresh=" .. tostring(os.time()),
+            "https://seigelollua.lovable.app/api/public/reanim.lua",
+            "https://seigescript.online/api/public/reanim.lua",
         }
         local src, lastErr
-        for _, url in ipairs(urls) do
+        local rq = (syn and syn.request) or (http and http.request) or http_request or request
+        for _, base in ipairs(urls) do
+            local url = base .. "?fresh=" .. tostring(os.time())
+            -- Try executor request() first — it honors timeouts and doesn't block render.
+            if rq then
+                local ok, res = pcall(rq, { Url = url, Method = "GET",
+                    Headers = { Accept = "text/plain", ["Cache-Control"] = "no-cache" } })
+                local body = ok and type(res) == "table" and (res.Body or res.body)
+                if type(body) == "string" and #body > 1000 and not body:find("<html", 1, true) then
+                    src = body; break
+                else
+                    lastErr = body or res
+                end
+            end
+            -- Fallback to HttpGet, but yield first so the UI thread breathes.
+            task.wait()
             local ok, res = pcall(function() return game:HttpGet(url, true) end)
             if ok and type(res) == "string" and #res > 1000 and not res:find("<html", 1, true) then
                 src = res; break
@@ -14974,11 +14993,22 @@ cmdHandlers["reanim"] = function()
                 lastErr = res
             end
         end
-        if not src then notify("Reanim fetch failed: " .. tostring(lastErr), "bad"); return end
+        if not src then
+            _G.__SeigeReanimLoading = nil
+            notify("Reanim fetch failed: " .. tostring(lastErr), "bad"); return
+        end
         local fn, perr = (loadstring or load)(src, "=reanim")
-        if not fn then notify("Reanim parse error: " .. tostring(perr), "bad"); return end
+        if not fn then
+            _G.__SeigeReanimLoading = nil
+            notify("Reanim parse error: " .. tostring(perr), "bad"); return
+        end
         local rok, rerr = pcall(fn)
-        if not rok then notify("Reanim runtime error: " .. tostring(rerr), "bad") end
+        _G.__SeigeReanimLoading = nil
+        if not rok then
+            notify("Reanim runtime error: " .. tostring(rerr), "bad")
+        else
+            _G.__SeigeReanimLoaded = true
+        end
     end)
 end
 
