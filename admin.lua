@@ -12990,9 +12990,10 @@ end
 
 local function _soundContentId(raw)
     raw = tostring(raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if raw:sub(1, 11) == "rbxasset://" then return raw end
     local id = raw:match("rbxassetid://(%d+)") or raw:match("[?&]id=(%d+)") or raw:match("(%d+)")
     if id then return "rbxassetid://" .. id end
-    return raw ~= "" and raw or "rbxassetid://127115086296756"
+    return raw ~= "" and raw or "rbxasset://sounds/electronicpingshort.wav"
 end
 
 local _lastFlashSoundWarn = 0
