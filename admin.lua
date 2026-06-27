@@ -13136,11 +13136,29 @@ _G.__SeigeLimb = _G.__SeigeLimb or {
     stretch = 1.0, stretchPart = nil, baseSize = nil, childOffsets = nil,
 }
 
-local R15_LIMBS = {"Head","UpperTorso","LowerTorso","LeftUpperArm","RightUpperArm",
-    "LeftLowerArm","RightLowerArm","LeftUpperLeg","RightUpperLeg"}
-local R6_FALLBACK = { Head="Head", UpperTorso="Torso", LowerTorso="Torso",
-    LeftUpperArm="Left Arm", RightUpperArm="Right Arm",
-    LeftUpperLeg="Left Leg", RightUpperLeg="Right Leg" }
+-- Dynamic rig detection: enumerate every Motor6D in the character and use
+-- its Part1.Name as the selectable limb. Works for R6, R15, S15, Korblox,
+-- mesh/anime packages and any custom rig that uses Motor6D joints.
+local function _enumerateLimbs(char)
+    local out, seen = {}, {}
+    if not char then return out end
+    for _, d in ipairs(char:GetDescendants()) do
+        if d:IsA("Motor6D") and d.Part1 and not seen[d.Part1] then
+            seen[d.Part1] = true
+            table.insert(out, { name = d.Part1.Name, motor = d, part = d.Part1 })
+        end
+    end
+    table.sort(out, function(a,b) return a.name < b.name end)
+    return out
+end
+
+local function _detectRig(char)
+    if not char then return "?" end
+    if char:FindFirstChild("UpperTorso") then return "R15" end
+    if char:FindFirstChild("Torso") then return "R6" end
+    if char:FindFirstChild("HumanoidRootPart") then return "Custom" end
+    return "?"
+end
 
 local function _limbRestoreStretch()
     local S = _G.__SeigeLimb
