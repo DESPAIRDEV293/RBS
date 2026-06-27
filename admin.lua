@@ -12971,7 +12971,7 @@ _G.__SeigeFlash = _G.__SeigeFlash or {
     mode     = "camera",     -- "camera" or "mouse"
     fx       = true,         -- brief blink VFX
     sound    = true,         -- play blink SFX
-    soundId  = "rbxassetid://127115086296756",
+    soundId  = "rbxasset://sounds/electronicpingshort.wav",
     volume   = 1.0,
     _conn    = nil,
 }
@@ -12982,15 +12982,18 @@ do
     F.mode     = (F.mode == "mouse") and "mouse" or "camera"
     if F.fx == nil then F.fx = true end
     if F.sound == nil then F.sound = true end
-    F.soundId  = "rbxassetid://127115086296756"
+    if not F.soundId or F.soundId == "" or F.soundId == "rbxassetid://127115086296756" then
+        F.soundId = "rbxasset://sounds/electronicpingshort.wav"
+    end
     F.volume   = tonumber(F.volume) or 1.0
 end
 
 local function _soundContentId(raw)
     raw = tostring(raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if raw:sub(1, 11) == "rbxasset://" then return raw end
     local id = raw:match("rbxassetid://(%d+)") or raw:match("[?&]id=(%d+)") or raw:match("(%d+)")
     if id then return "rbxassetid://" .. id end
-    return raw ~= "" and raw or "rbxassetid://127115086296756"
+    return raw ~= "" and raw or "rbxasset://sounds/electronicpingshort.wav"
 end
 
 local _lastFlashSoundWarn = 0
@@ -13026,9 +13029,22 @@ local function _playFlashSound(parentPart)
         pcall(function() contentProvider:PreloadAsync({ s }) end)
         playNow()
         task.delay(1.5, function()
-            if s and s.Parent and s.TimeLength == 0 and os.clock() - _lastFlashSoundWarn > 8 then
-                _lastFlashSoundWarn = os.clock()
-                notify("Flashstep sound couldn't load. The audio asset may be private or not allowed in this game.", "warn")
+            if s and s.Parent and s.TimeLength == 0 then
+                -- Asset failed to load (private / region-blocked / not allowed in this experience).
+                -- Silently swap to the always-bundled built-in click so the player still hears feedback.
+                pcall(function() s:Stop() end)
+                local fb = Instance.new("Sound")
+                fb.Name = "__SeigeFlashstepSFX_FB"
+                fb.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+                fb.Volume = s.Volume
+                fb.Parent = parentPart or soundService
+                pcall(function() soundService:PlayLocalSound(fb) end)
+                debris:AddItem(fb, 4)
+                pcall(function() s:Destroy() end)
+                if os.clock() - _lastFlashSoundWarn > 30 then
+                    _lastFlashSoundWarn = os.clock()
+                    notify("Flashstep: custom sound asset blocked here — using built-in fallback.", "warn")
+                end
             end
         end)
     end)
