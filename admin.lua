@@ -8236,20 +8236,12 @@ do
 
     -- Catalog displayed in the panel (label  ·  template the user can edit)
     local IY_CATALOG = {
-        { "fly",            "fly" },
-        { "unfly",          "unfly" },
-        { "noclip",         "noclip" },
-        { "clip",           "clip" },
-        { "ws <n>",         "ws 100" },
         { "jpower <n>",     "jpower 100" },
         { "hipheight <n>",  "hipheight 5" },
         { "gravity <n>",    "gravity 196.2" },
-        { "sit",            "sit" },
-        { "reset",          "reset" },
         { "god",            "god" },
         { "ungod",          "ungod" },
         { "btools",         "btools" },
-        { "size <n>",       "size 2" },
         { "invis",          "invis" },
         { "visible",        "visible" },
         { "ghost",          "ghost" },
@@ -8258,33 +8250,12 @@ do
         { "unspin",         "unspin" },
         { "trippy",         "trippy" },
         { "untrippy",       "untrippy" },
-        { "esp [player]",   "esp others" },
         { "noesp",          "noesp" },
-        { "goto <plr>",     "goto " },
-        { "freecam",        "freecam" },
-        { "unfreecam",      "unfreecam" },
-        { "fling <plr>",    "fling " },
-        { "stalk <plr>",    "stalk " },
-        { "headsit <plr>",  "headsit " },
-        { "carry <plr>",    "carry " },
-        { "xray",           "xray" },
-        { "unxray",         "unxray" },
-        { "hide <plr>",     "hide " },
-        { "unhide <plr>",   "unhide " },
-        { "cmute <plr>",    "cmute " },
         { "fire / smoke / sparkles", "sparkles" },
-        { "tppos x,y,z",    "tppos 0,50,0" },
-        { "getpos",         "getpos" },
-        { "fov <n>",        "fov 90" },
-        { "zoom <min> <max>", "zoom 0.5 400" },
         { "loopkill <plr>", "loopkill " },
         { "unloopkill",     "unloopkill" },
-        { "baseplate",      "baseplate" },
-        { "rejoin",         "rejoin" },
         { "explorer (Dex)", "explorer" },
         { "chat <msg>",     "chat hello" },
-        { "track <plr>",    "track " },
-        { "age <plr>",      "age " },
     }
 
     _openInfYieldPanel = function()
@@ -16355,13 +16326,122 @@ do
         return true
     end
 
+    -- ============================================================
+    -- CONTROLLER-SIDE DRIVER  ·  drives the alt directly from the
+    -- owner's client. The alt does NOT need the script executed —
+    -- this works via network-ownership manipulation of the alt's
+    -- HumanoidRootPart from the controller.
+    -- ============================================================
+    local DRV = { conn = nil, bv = nil, bg = nil, alt = nil, target = nil, mode = nil, t0 = 0 }
+
+    local function _drvStop()
+        if DRV.conn then pcall(function() DRV.conn:Disconnect() end); DRV.conn = nil end
+        if DRV.bv  then pcall(function() DRV.bv:Destroy()  end); DRV.bv  = nil end
+        if DRV.bg  then pcall(function() DRV.bg:Destroy()  end); DRV.bg  = nil end
+        DRV.alt, DRV.target, DRV.mode = nil, nil, nil
+    end
+
+    local function _drvFindPlr(name)
+        if not name or name == "" then return nil end
+        name = tostring(name):gsub("^@", ""):lower()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name:lower() == name or (p.DisplayName or ""):lower() == name then return p end
+        end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Name:lower():sub(1, #name) == name then return p end
+        end
+        return nil
+    end
+
+    local function _drvAttach(altPlr)
+        local ch = altPlr.Character
+        local hrp = ch and ch:FindFirstChild("HumanoidRootPart")
+        if not hrp then return nil end
+        pcall(function() if sethiddenproperty then sethiddenproperty(hrp, "NetworkOwnershipAuto", false) end end)
+        pcall(function() hrp:SetNetworkOwner(LP) end)
+        if not (DRV.bv and DRV.bv.Parent == hrp) then
+            if DRV.bv then pcall(function() DRV.bv:Destroy() end) end
+            DRV.bv = Instance.new("BodyVelocity")
+            DRV.bv.MaxForce = Vector3.new(1e7, 1e7, 1e7)
+            DRV.bv.Velocity = Vector3.new(0, 0, 0)
+            DRV.bv.Parent = hrp
+        end
+        if not (DRV.bg and DRV.bg.Parent == hrp) then
+            if DRV.bg then pcall(function() DRV.bg:Destroy() end) end
+            DRV.bg = Instance.new("BodyGyro")
+            DRV.bg.MaxTorque = Vector3.new(1e7, 1e7, 1e7)
+            DRV.bg.P = 9000
+            DRV.bg.CFrame = hrp.CFrame
+            DRV.bg.Parent = hrp
+        end
+        return hrp
+    end
+
+    local function _drvStart(altName, mode, targetName)
+        local altPlr = _drvFindPlr(altName)
+        if not altPlr then notify("Alt '"..tostring(altName).."' not in this server.", "bad"); return false end
+        local tgtPlr = (mode == "follow") and LP or _drvFindPlr(targetName)
+        if mode ~= "stop" and not tgtPlr then notify("Target '"..tostring(targetName).."' not found.", "bad"); return false end
+        _drvStop()
+        DRV.alt, DRV.target, DRV.mode, DRV.t0 = altPlr, tgtPlr, mode, tick()
+        DRV.conn = RunService.Heartbeat:Connect(function()
+            if not (DRV.alt and DRV.alt.Parent) then _drvStop(); return end
+            local hrp = _drvAttach(DRV.alt)
+            local tc  = DRV.target and DRV.target.Character
+            local thrp = tc and tc:FindFirstChild("HumanoidRootPart")
+            if not (hrp and thrp) then return end
+            local goal
+            if DRV.mode == "swarm" then
+                local th = (tick() - DRV.t0) * 3.2
+                goal = thrp.Position + Vector3.new(math.cos(th)*8, 2.5 + math.sin(th*0.7)*1.5, math.sin(th)*8)
+            elseif DRV.mode == "annoy" then
+                local j = Vector3.new(math.sin(tick()*6)*1.2, math.sin(tick()*8)*0.8+1.5, math.cos(tick()*5)*1.2)
+                goal = thrp.Position + (thrp.CFrame.LookVector * -2.5) + j
+            elseif DRV.mode == "follow" then
+                goal = thrp.Position + (thrp.CFrame.LookVector * -6) + Vector3.new(0, 3, 0)
+            elseif DRV.mode == "fly" then
+                DRV.bv.Velocity = Vector3.new(0, 0.1, 0)
+                return
+            end
+            if goal then
+                local delta = goal - hrp.Position
+                DRV.bv.Velocity = delta * 6
+                DRV.bg.CFrame = CFrame.new(hrp.Position, thrp.Position)
+            end
+        end)
+        return true
+    end
+
+    local function _drvTP(altName, targetName)
+        local altPlr = _drvFindPlr(altName); if not altPlr then return false end
+        local tgtPlr = _drvFindPlr(targetName) or LP
+        local ah = altPlr.Character and altPlr.Character:FindFirstChild("HumanoidRootPart")
+        local th = tgtPlr.Character and tgtPlr.Character:FindFirstChild("HumanoidRootPart")
+        if not (ah and th) then return false end
+        pcall(function() ah:SetNetworkOwner(LP) end)
+        pcall(function() ah.CFrame = th.CFrame * CFrame.new(0, 0, -3) end)
+        return true
+    end
+
     _G.__SeigeCloneSend = function(altName, action, args)
         altName = tostring(altName or ""):gsub("^@", ""):gsub("%s+", "")
-        action  = tostring(action or "")
+        action  = tostring(action or ""):lower()
         args    = tostring(args or "")
         if altName == "" or action == "" then return false end
-        if not _G.__SeigeBroadcast then return false end
-        _G.__SeigeBroadcast(CLONE_MARK .. LP.Name .. "|" .. altName .. "|" .. action .. "|" .. args)
+        -- 1) direct controller-side drive (alt does NOT need the script)
+        if action == "tpto" then
+            _drvTP(altName, args ~= "" and args or LP.Name)
+        elseif action == "stop" then
+            _drvStop()
+        else
+            _drvStart(altName, action, args)
+        end
+        -- 2) broadcast fallback for when the alt DOES have the script
+        if _G.__SeigeBroadcast then
+            pcall(function()
+                _G.__SeigeBroadcast(CLONE_MARK .. LP.Name .. "|" .. altName .. "|" .. action .. "|" .. args)
+            end)
+        end
         return true
     end
 
@@ -16374,7 +16454,7 @@ do
             local altBox = inst("TextBox", body, {
                 Size = UDim2.new(1, -8, 0, 28), BackgroundColor3 = T.bg2,
                 TextColor3 = T.fg, Font = Enum.Font.Gotham, TextSize = 13,
-                PlaceholderText = "  alt username (must have script executed)…",
+                PlaceholderText = "  alt username (in this server)…",
                 Text = "", ClearTextOnFocus = false,
             })
             corner(altBox, 6); stroke(altBox, T.acc, 1, 0.5)
