@@ -15425,11 +15425,11 @@ end
 
 cmdHandlers["key"] = function()
     local role = (_G.__SeigeMyRole and _G.__SeigeMyRole()) or nil
-    if role ~= "owner" and role ~= "admin" and role ~= "nt" and role ~= "staff" then
+    if role ~= "owner" and role ~= "admin" and role ~= "staff" then
         if _showStaffWarning then
-            _showStaffWarning("The !key command is restricted to staff, NT, admin, and owner.")
+            _showStaffWarning("The !key command is restricted to staff, admin, and owner.")
         end
-        notify("!key is staff-only.", "bad")
+        notify("!key is staff/admin/owner only.", "bad")
         return
     end
     notify("Fetching tag sync key…", "good")
