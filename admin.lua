@@ -3784,8 +3784,13 @@ local function refreshBill(p)
                 -- Force a reset before reassigning so identical-URL refreshes
                 -- still re-fetch; lift ZIndex above the bg fill + ring layers
                 -- (but stay below avatar/labels at z=10) and stretch to fill.
+                -- Fill images must go through the same resolver as tag icons.
+                -- Raw Roblox asset IDs / Creator Hub image wrapper IDs often
+                -- render blank when assigned directly as rbxassetid://, while
+                -- resolveIconUrl can turn them into a usable texture/thumb URI.
+                local fillUrl = resolveIconUrl(fill.url) or fill.url
                 pcall(function() e.bgImg.Image = "" end)
-                e.bgImg.Image             = fill.url
+                e.bgImg.Image             = fillUrl
                 e.bgImg.ImageTransparency = 0
                 e.bgImg.BackgroundTransparency = 1
                 e.bgImg.Size              = UDim2.new(1, 0, 1, 0)
