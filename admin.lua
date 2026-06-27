@@ -701,10 +701,15 @@ end
 
 ------------------------------------------------------- LOAD SCREEN
 local function showLoadScreen()
+    -- Welcome screen palette: pure black + crimson red
+    local CRIMSON  = Color3.fromRGB(220, 20, 60)
+    local CRIMSON2 = Color3.fromRGB(140, 10, 35)
+    local BLACK    = Color3.fromRGB(0, 0, 0)
+
     local ls = inst("Frame", Root, {
         Name = "LoadScreen",
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Color3.fromRGB(6, 7, 12),
+        BackgroundColor3 = BLACK,
         BackgroundTransparency = 0,
         BorderSizePixel = 0,
         ZIndex = 500,
@@ -712,59 +717,95 @@ local function showLoadScreen()
     inst("UIGradient", ls, {
         Rotation = 135,
         Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(14, 16, 26)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(8, 9, 16)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(4, 5, 10)),
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 0, 4)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(8, 0, 2)),
+            ColorSequenceKeypoint.new(1, BLACK),
         },
     })
 
-    -- subtle vignette glow blob behind the card
+    -- crimson vignette glow behind the card
     local glow = inst("Frame", ls, {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.new(0.5, 0, 0.5, 0),
-        Size = UDim2.new(0, 700, 0, 700),
-        BackgroundColor3 = T.acc,
-        BackgroundTransparency = 0.85,
+        Size = UDim2.new(0, 760, 0, 760),
+        BackgroundColor3 = CRIMSON,
+        BackgroundTransparency = 0.78,
         BorderSizePixel = 0,
         ZIndex = 500,
     })
     corner(glow, 9999)
     inst("UIGradient", glow, {
         Transparency = NumberSequence.new{
-            NumberSequenceKeypoint.new(0, 0.75),
-            NumberSequenceKeypoint.new(0.5, 0.9),
+            NumberSequenceKeypoint.new(0, 0.65),
+            NumberSequenceKeypoint.new(0.5, 0.88),
             NumberSequenceKeypoint.new(1, 1),
         },
         Color = ColorSequence.new{
-            ColorSequenceKeypoint.new(0, T.acc),
-            ColorSequenceKeypoint.new(1, T.acc2),
+            ColorSequenceKeypoint.new(0, CRIMSON),
+            ColorSequenceKeypoint.new(1, CRIMSON2),
         },
         Rotation = 0,
     })
 
-    -- floating particles
-    for i = 1, 18 do
+    -- floating particles (denser crimson rain)
+    for i = 1, 70 do
+        local isEmber = (i % 4 == 0)
+        local sz = isEmber and math.random(3, 6) or math.random(1, 3)
         local p = inst("Frame", ls, {
             AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(math.random(), 0, 1 + math.random() * 0.2, 0),
-            Size = UDim2.new(0, math.random(2, 4), 0, math.random(2, 4)),
-            BackgroundColor3 = (i % 3 == 0) and T.acc2 or T.acc,
-            BackgroundTransparency = 0.5 + math.random() * 0.3,
+            Position = UDim2.new(math.random(), 0, 1 + math.random() * 0.3, 0),
+            Size = UDim2.new(0, sz, 0, sz),
+            BackgroundColor3 = isEmber and CRIMSON or CRIMSON2,
+            BackgroundTransparency = 0.25 + math.random() * 0.55,
             BorderSizePixel = 0,
             ZIndex = 500,
         })
         corner(p, 9999)
         task.spawn(function()
             while p.Parent do
-                local dur = 4 + math.random() * 4
+                local dur = 2.5 + math.random() * 5
                 TweenService:Create(p, TweenInfo.new(dur, Enum.EasingStyle.Linear), {
                     Position = UDim2.new(math.random(), 0, -0.2, 0),
+                    BackgroundTransparency = 0.9,
                 }):Play()
                 task.wait(dur)
                 p.Position = UDim2.new(math.random(), 0, 1.1, 0)
+                p.BackgroundTransparency = 0.25 + math.random() * 0.55
             end
         end)
     end
+
+    -- bigger drifting ember sparks
+    for i = 1, 14 do
+        local s = inst("Frame", ls, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(math.random(), 0, math.random(), 0),
+            Size = UDim2.new(0, math.random(6, 10), 0, math.random(6, 10)),
+            BackgroundColor3 = CRIMSON,
+            BackgroundTransparency = 0.6,
+            BorderSizePixel = 0,
+            ZIndex = 500,
+        })
+        corner(s, 9999)
+        inst("UIGradient", s, {
+            Transparency = NumberSequence.new{
+                NumberSequenceKeypoint.new(0, 0.2),
+                NumberSequenceKeypoint.new(1, 1),
+            },
+            Color = ColorSequence.new(CRIMSON, CRIMSON2),
+        })
+        task.spawn(function()
+            while s.Parent do
+                local dur = 5 + math.random() * 5
+                TweenService:Create(s, TweenInfo.new(dur, Enum.EasingStyle.Sine), {
+                    Position = UDim2.new(math.random(), 0, math.random() * 0.4, 0),
+                }):Play()
+                task.wait(dur)
+            end
+        end)
+    end
+
+
 
     local card = inst("Frame", ls, {
         AnchorPoint = Vector2.new(0.5, 0.5),
