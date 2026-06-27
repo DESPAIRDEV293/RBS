@@ -7950,7 +7950,7 @@ end)
 do
     local reanimBtn = button(pgCmds, "Reanim  —  launch ROT animation GUI", function()
         if not _canUseReanim() then
-            _showStaffWarning("You're not staff. The Reanim GUI is restricted to owner, admin, and NT team only.")
+            _showStaffWarning("Reanim is locked. It requires an admin-tier key OR an owner/admin/NT role. Normal 24h keys cannot use Reanim.")
             return
         end
         _runCmd("!reanim")
@@ -15147,7 +15147,7 @@ end
 -- username (handled inside reanim.lua). Available to every script user.
 cmdHandlers["reanim"] = function()
     if not _canUseReanim() then
-        _showStaffWarning("You're not staff. The Reanim GUI is restricted to owner, admin, and NT team only.")
+        _showStaffWarning("Reanim is locked. It requires an admin-tier key OR an owner/admin/NT role. Normal 24h keys cannot use Reanim.")
         notify("Reanim is staff-only.", "bad")
         return
     end
