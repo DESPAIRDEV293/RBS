@@ -13210,10 +13210,34 @@ _G.__SeigeLimb = _G.__SeigeLimb or {
 local function _enumerateLimbs(char)
     local out, seen = {}, {}
     if not char then return out end
+    -- Pass 1: real Motor6D joints (R6/R15/S15/most custom rigs)
     for _, d in ipairs(char:GetDescendants()) do
         if d:IsA("Motor6D") and d.Part1 and not seen[d.Part1] then
             seen[d.Part1] = true
             table.insert(out, { name = d.Part1.Name, motor = d, part = d.Part1 })
+        end
+    end
+    -- Pass 2: skinned-mesh S15 / Bone-driven rigs expose Bone instances
+    -- instead of Motor6Ds. Wrap each Bone in a synthetic motor proxy so the
+    -- tracker can still drive it via CFrame on the Bone.
+    if #out == 0 then
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("Bone") and not seen[d] then
+                seen[d] = true
+                local proxy = { __bone = d, C0 = d.CFrame, C1 = CFrame.new(),
+                    Part1 = d, Parent = d.Parent }
+                table.insert(out, { name = d.Name, motor = proxy, part = d })
+            end
+        end
+    end
+    -- Pass 3: last-resort fallback — list every BasePart so the user always
+    -- has something to grab. Synthesize a weld-style proxy at runtime.
+    if #out == 0 then
+        for _, d in ipairs(char:GetDescendants()) do
+            if d:IsA("BasePart") and not seen[d] and d.Name ~= "HumanoidRootPart" then
+                seen[d] = true
+                table.insert(out, { name = d.Name, motor = nil, part = d })
+            end
         end
     end
     table.sort(out, function(a,b) return a.name < b.name end)
