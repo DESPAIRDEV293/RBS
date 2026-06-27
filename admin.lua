@@ -7351,6 +7351,7 @@ local HELP_CMDS = {
     { "Admin / owner", {
         { "!timestop", "Freeze everyone except you (admin/owner only)" },
         { "!untimestop", "Release the freeze" },
+        { "!key", "Show the tag-sync key (staff/admin/owner only)" },
     }},
     { "Staff oversight", {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
