@@ -115,6 +115,7 @@ local function _uiParents()
     add(LP:FindFirstChildOfClass("PlayerGui") or LP:WaitForChild("PlayerGui", 8))
     add(_hiddenUI())
     add(CoreGui)
+    if next(out) == nil then return nil end
     return out
 end
 local function safeParent(gui)
@@ -2543,14 +2544,40 @@ local TAG_ALLOWED_FIELDS = {
     font = true, textColor = true, textOutline = true,
     avatarOutline = true, avatarOutlineColor = true, showChip = true,
 }
+local TAG_FIELD_ALIASES = {
+    fillcolor = "color", bgcolor = "color", backgroundcolor = "color", bubblecolor = "color", pillcolor = "color",
+    outlinecolor = "outline", strokecolor = "outline", bubbleoutline = "outline",
+    textcolor = "textColor", tagtextcolor = "textColor", textcolour = "textColor",
+    textoutline = "textOutline", textstrokecolor = "textOutline", tagtextoutline = "textOutline",
+    avataroutlinecolor = "avatarOutlineColor", profileoutlinecolor = "avatarOutlineColor", profilecolor = "avatarOutlineColor", avatarringcolor = "avatarOutlineColor",
+    image = "icon", imageid = "icon", iconid = "icon",
+}
 local function normTagKey(raw)
     return trim(raw):gsub("^@", ""):lower()
+end
+local function canonTagField(raw)
+    local k = tostring(raw or "")
+    if TAG_ALLOWED_FIELDS[k] then return k end
+    local compact = k:gsub("[%s_%-]", ""):lower()
+    return TAG_FIELD_ALIASES[compact]
+end
+local function normalizeTagScalar(k, v)
+    local s = trim(v)
+    if s == "" then return nil end
+    if k == "color" or k == "outline" or k == "textColor" or k == "textOutline" or k == "avatarOutlineColor" then
+        local noHash = s:gsub("#", "")
+        if noHash:match("^%x%x%x$") or noHash:match("^%x%x%x%x%x%x$") or noHash:match("^%x%x%x%x%x%x%x%x$") then
+            s = "#" .. noHash
+        end
+    end
+    return s
 end
 local function cleanTagEntry(entry)
     if type(entry) ~= "table" then return nil end
     local out = {}
-    for k in pairs(TAG_ALLOWED_FIELDS) do
-        local v = entry[k]
+    for rawK, v in pairs(entry) do
+        local k = canonTagField(rawK)
+        if k then
         if k == "tags" then
             if type(v) == "table" then
                 local list = {}
@@ -2567,8 +2594,10 @@ local function cleanTagEntry(entry)
                 end
                 if #list > 0 then out.tags = list end
             end
-        elseif v ~= nil and tostring(v) ~= "" then
-            out[k] = tostring(v)
+        else
+            local s = normalizeTagScalar(k, v)
+            if s then out[k] = s end
+        end
         end
     end
     return out
@@ -2683,7 +2712,8 @@ end
 
 -- Local persistence: any tag the owner saves/deletes in the in-game panel is
 -- written to disk so it survives rejoin even if the pastebin doesn't have it.
--- Local overrides take priority over the pastebin entry for the same username.
+-- Cloud data stays authoritative when present; local data only fills missing
+-- fields or protects an in-flight save from being reverted by stale fetches.
 --
 -- IMPORTANT: scope the file per-LocalPlayer UserId so tags saved while user A
 -- is logged in do NOT leak into user B's session on the same machine. Older
@@ -2742,22 +2772,37 @@ function TagDB:loadLocal()
     if not okDec or type(data) ~= "table" then return nil end
     local out = {}
     for k, v in pairs(data) do
-        if type(v) == "table" then out[tostring(k):lower()] = stripTagSpecials(v) end
+        if type(v) == "table" then
+            local clean = cleanTagEntry(stripTagSpecials(v))
+            if clean then out[tostring(k):lower()] = clean end
+        end
     end
     return out
 end
 function TagDB:mergeLocal()
-    -- Local-disk overrides always overlay cloud entries so per-user changes
-    -- (image, colors, handle, etc.) persist across re-executions even if the
-    -- cloud push hasn't reflected back yet. The delete flow nukes the local
-    -- key explicitly when the user clears a tag, so stale overrides can't
-    -- linger forever.
+    -- Local disk is only an instant/offline fallback. When cloud has the entry,
+    -- do not let an older local copy replace it wholesale; that was causing
+    -- fresh cloud color fields (textColor/outline/fill) to revert to stale
+    -- black/white local data on re-execute while images appeared to persist.
     self.localEntries = self.localEntries or {}
     self.entries      = self.entries or {}
     local merged = 0
     for k, v in pairs(self.localEntries) do
         if type(v) == "table" then
-            self.entries[k] = v
+            local pending = self._pendingPushes and self._pendingPushes[k]
+            local pendingActive = pending and pending.until_t and tick() < pending.until_t
+            if pendingActive then
+                self.entries[k] = pending.entry
+            elseif type(self.entries[k]) == "table" then
+                local combo = {}
+                for ck, cv in pairs(self.entries[k]) do combo[ck] = cv end
+                for lk, lv in pairs(v) do
+                    if combo[lk] == nil or combo[lk] == "" then combo[lk] = lv end
+                end
+                self.entries[k] = combo
+            else
+                self.entries[k] = v
+            end
             merged = merged + 1
         end
     end
@@ -2845,17 +2890,22 @@ local TAGS_WRITE_PROXY_URL = "https://seigescript.online/api/public/tags_write"
 function TagDB:pushRemoteEntry(key, entry)
     key = tostring(key or ""):lower()
     if key == "" then return false, "empty key" end
+    local clean = nil
+    if entry ~= nil then
+        clean = cleanTagEntry(entry)
+        if not clean or next(clean) == nil then return false, "empty entry" end
+    end
     -- Track in-flight pushes so a concurrent TagDB:load() doesn't revert the
     -- just-saved entry back to stale cloud state for ~90s.
     self._pendingPushes = self._pendingPushes or {}
-    self._pendingPushes[key] = { entry = entry, until_t = tick() + 90 }
+    self._pendingPushes[key] = { entry = clean, until_t = tick() + 90 }
 
     local actor = (LP and LP.Name or ""):lower()
     local payload
     if entry == nil then
         payload = { actor = actor, key = key, ["delete"] = true }
     else
-        payload = { actor = actor, key = key, data = entry }
+        payload = { actor = actor, key = key, data = clean }
     end
     local okEnc, body = pcall(function() return HttpService:JSONEncode(payload) end)
     if not okEnc then return false, tostring(body) end
@@ -2879,7 +2929,7 @@ function TagDB:pushRemoteEntry(key, entry)
         if secret ~= "" then
             local legacy
             if entry == nil then legacy = { key = key, ["delete"] = true }
-            else legacy = { key = key, data = entry } end
+            else legacy = { key = key, data = clean } end
             local okEnc2, body2 = pcall(function() return HttpService:JSONEncode(legacy) end)
             if okEnc2 then
                 local ok2, status2, resp2 = _seigeHttpPost(TAGS_HTTP_URL, body2, { ["x-tag-secret"] = secret })
@@ -5142,7 +5192,13 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         local u = pick(form.username, tbUser.Text):gsub("^@", "")
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
+        -- Start from the existing entry so editing one field (like image) does
+        -- not silently erase saved colors/outlines/text settings.
         local entry = {}
+        local existing = TagDB.entries[key] or TagDB.localEntries[key]
+        if type(existing) == "table" then
+            for ek, ev in pairs(existing) do entry[ek] = ev end
+        end
         local dn = pick(form.displayName, tbDisplay.Text)
         if dn ~= "" then entry.displayName = dn end
         local fillRaw = pick(form.fill, tbFill.Text)
