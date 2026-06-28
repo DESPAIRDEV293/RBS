@@ -7550,6 +7550,8 @@ local HELP_CMDS = {
         { "!fakeclone <user>", "Spawn a local-only visual clone (no script needed on alt) — uses your equipped animations" },
         { "!clonefly",      "Make the active clone (real or fake) fly / hover" },
         { "!clonedouble",   "OWNER · split your current fake clone — spawns another copy" },
+        { "!roam",          "OWNER · clone roams the server on its own (opens walkspeed panel via !clonews)" },
+        { "!clonews",       "OWNER · open Clone Walkspeed slider" },
     }},
     { "Staff oversight", {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
@@ -13598,6 +13600,9 @@ local function _fcUpdateAnimation(state, mode, distance)
     if _G.__SeigeCloneReanimActive then return end -- reanim mirror takes over
     if mode == "fly" then
         _fcPlayAnim(state, "fall", 0.85)
+    elseif mode == "roam" then
+        local ws = _G.__SeigeCloneWalkSpeed or 6
+        _fcPlayAnim(state, "walk", math.clamp(ws / 8, 0.45, 1.6))
     elseif mode == "swarm" or mode == "annoy" then
         _fcPlayAnim(state, "run", 1.2)
     elseif (distance or 0) > 3 then
@@ -13655,6 +13660,15 @@ local function _fcSpawn(userId, displayName)
     _fcPlayAnim(F, "idle", 1)
     return true
 end
+
+-- ===== Clone roam (wander) shared state =====
+_G.__SeigeCloneWalkSpeed = _G.__SeigeCloneWalkSpeed or 6
+local function _cloneRoamPick(origin)
+    local ang = math.random() * math.pi * 2
+    local rad = 25 + math.random() * 55
+    return (origin or Vector3.new()) + Vector3.new(math.cos(ang) * rad, 0, math.sin(ang) * rad)
+end
+
 local function _fcLoop()
     local F = _G.__SeigeFakeClone
     if F.conn then pcall(function() F.conn:Disconnect() end) end
@@ -13675,6 +13689,16 @@ local function _fcLoop()
             -- stable glide/hover formation; no physics bounce or vertical bobbing
             local pos = (myHRP.CFrame * CFrame.new(4, 5, 5)).Position
             goal = CFrame.new(pos, myHRP.Position + Vector3.new(0, 2.5, 0))
+        elseif F2.mode == "roam" then
+            if not F2.roamGoal or (F2.roamGoal - F2.hrp.Position).Magnitude < 3 then
+                F2.roamGoal = _cloneRoamPick(F2.hrp.Position)
+            end
+            local toGoal = F2.roamGoal - F2.hrp.Position
+            local dir = (toGoal.Magnitude > 0.01) and toGoal.Unit or F2.hrp.CFrame.LookVector
+            local ws = _G.__SeigeCloneWalkSpeed or 6
+            local step = math.min(toGoal.Magnitude, ws * dt)
+            local newPos = F2.hrp.Position + Vector3.new(dir.X, 0, dir.Z) * step
+            goal = CFrame.new(newPos, newPos + Vector3.new(dir.X, 0, dir.Z))
         elseif F2.mode == "follow" and myHRP then
             local back = myHRP.CFrame * CFrame.new(0, 1, 6)
             goal = back
@@ -13692,7 +13716,9 @@ local function _fcLoop()
             local cur = F2.hrp.CFrame
             _fcStabilizeModel(F2.model)
             _fcUpdateAnimation(F2, F2.mode, (goal.Position - cur.Position).Magnitude)
-            local k = (F2.mode == "mirror") and math.clamp(dt * 22, 0, 1) or math.clamp(dt * 6, 0, 1)
+            local k = (F2.mode == "mirror") and math.clamp(dt * 22, 0, 1)
+                or (F2.mode == "roam") and 1
+                or math.clamp(dt * 6, 0, 1)
             local lerped = cur:Lerp(goal, k)
             pcall(function() F2.model:PivotTo(lerped) end) 
         else
@@ -13818,6 +13844,16 @@ local function _fcSpawnExtra()
             local row = 1 + math.floor((idx - 1) / 2)
             local off = Vector3.new(side * (4 + row * 2), 5 + row * 0.6, 5 + row * 2)
             goal = CFrame.new(myHRP.Position + off, myHRP.Position + Vector3.new(0,3,0))
+        elseif mode == "roam" then
+            if not E.roamGoal or (E.roamGoal - E.hrp.Position).Magnitude < 3 then
+                E.roamGoal = _cloneRoamPick(E.hrp.Position)
+            end
+            local toGoal = E.roamGoal - E.hrp.Position
+            local dir = (toGoal.Magnitude > 0.01) and toGoal.Unit or E.hrp.CFrame.LookVector
+            local ws = _G.__SeigeCloneWalkSpeed or 6
+            local step = math.min(toGoal.Magnitude, ws * dt)
+            local newPos = E.hrp.Position + Vector3.new(dir.X, 0, dir.Z) * step
+            goal = CFrame.new(newPos, newPos + Vector3.new(dir.X, 0, dir.Z))
         elseif mode == "follow" and myHRP then
             local sideOff = (idx % 2 == 0) and -3 or 3
             goal = myHRP.CFrame * CFrame.new(sideOff * (1 + math.floor(idx/2)), 1, 6)
@@ -13834,7 +13870,9 @@ local function _fcSpawnExtra()
         if goal then
             _fcStabilizeModel(E.model)
             _fcUpdateAnimation(E, mode, (goal.Position - E.hrp.Position).Magnitude)
-            local k = (mode == "mirror") and math.clamp(dt * 22, 0, 1) or math.clamp(dt * 6, 0, 1)
+            local k = (mode == "mirror") and math.clamp(dt * 22, 0, 1)
+                or (mode == "roam") and 1
+                or math.clamp(dt * 6, 0, 1)
             local lerped = E.hrp.CFrame:Lerp(goal, k)
             pcall(function() E.model:PivotTo(lerped) end)
         else
@@ -13874,6 +13912,49 @@ cmdHandlers["clonefly"] = function()
     if did then notify("Clone flying / hovering", "good")
     else notify("No active clone — use !clone or !fakeclone", "warn") end
 end
+
+-- ===== Clone roam + walkspeed commands =====
+cmdHandlers["fcroam"] = function()
+    if not _cloneOwnerGate("!fcroam") then return end
+    if not (_G.__SeigeFakeClone and _G.__SeigeFakeClone.model) then
+        notify("Spawn a fake clone first: !fakeclone <user>", "warn"); return
+    end
+    _G.__SeigeFakeClone.mode = "roam"
+    _G.__SeigeFakeClone.target = nil
+    _G.__SeigeFakeClone.roamGoal = nil
+    _G.__SeigeFakeClone.t0 = tick()
+    for _, E in ipairs(_G.__SeigeFakeCloneExtras or {}) do E.roamGoal = nil end
+    if type(_fcLoop) == "function" then _fcLoop() end
+    notify("Fake clone roaming (walkspeed " .. (_G.__SeigeCloneWalkSpeed or 6) .. ")", "good")
+end
+cmdHandlers["croam"] = function()
+    if not _cloneOwnerGate("!croam") then return end
+    if not _G.__SeigeCloneSend then notify("Clone channel not ready", "warn"); return end
+    _G.__SeigeCloneSend("WSPEED", tostring(_G.__SeigeCloneWalkSpeed or 6))
+    _G.__SeigeCloneSend("ROAM", "")
+    notify("Real clone roaming", "good")
+end
+cmdHandlers["roam"] = function()
+    if not _cloneOwnerGate("!roam") then return end
+    local did = false
+    if _G.__SeigeFakeClone and _G.__SeigeFakeClone.model then cmdHandlers["fcroam"](); did = true end
+    if _G.__SeigeCloneSend then pcall(function() cmdHandlers["croam"]() end); did = true end
+    if not did then notify("No active clone — use !clone or !fakeclone", "warn") end
+end
+
+local function _openCloneWalkspeedPanel()
+    _openPanel("clonews", "Clone Walkspeed", 360, function(body)
+        label(body, "How fast roaming clones walk (studs/sec)")
+        slider(body, "Walkspeed", 1, 30, _G.__SeigeCloneWalkSpeed or 6, function(v)
+            _G.__SeigeCloneWalkSpeed = v
+            if _G.__SeigeCloneSend then pcall(function() _G.__SeigeCloneSend("WSPEED", tostring(v)) end) end
+        end)
+        label(body, "Default 6 = slow stroll. 16 = normal Roblox walk. 30 = sprint.")
+    end)
+end
+cmdHandlers["clonews"]    = function() _openCloneWalkspeedPanel() end
+cmdHandlers["clonespeed"] = function() _openCloneWalkspeedPanel() end
+
 
 -- ===== !cmirror / !fcmirror / !clonemirror · clone copies your every move =====
 cmdHandlers["cmirror"] = function()
@@ -13929,6 +14010,7 @@ local function _openClonePanel()
         button(body, "Mirror me  ·  real clone copies your every move", function()
             if _G.__SeigeCloneSend then _G.__SeigeCloneSend("MIRROR", LP.Name); notify("Clone mirroring you", "good") end
         end)
+        button(body, "Roam server  ·  real clone wanders on its own", function() cmdHandlers["croam"]() end)
 
         label(body, "Fake clone  ·  local-only visual copy (no alt needed)")
         textbox(body, "Spawn fake clone — enter any username", function(v)
@@ -13948,11 +14030,14 @@ local function _openClonePanel()
         button(body, "Remove fake clone", function() cmdHandlers["unfakeclone"]() end)
         button(body, "Double the fake clone  ·  !clonedouble", function() cmdHandlers["clonedouble"]() end)
         button(body, "Mirror me (fake)  ·  copies your every move", function() cmdHandlers["fcmirror"]() end)
+        button(body, "Roam server (fake)  ·  wander slowly on its own", function() cmdHandlers["fcroam"]() end)
 
 
         label(body, "Universal")
         button(body, "!clonefly  ·  fly whichever clone is active", function() cmdHandlers["clonefly"]() end)
         button(body, "!clonemirror  ·  mirror you on whichever clone is active", function() cmdHandlers["clonemirror"]() end)
+        button(body, "!roam  ·  roam whichever clone is active", function() cmdHandlers["roam"]() end)
+        button(body, "Clone walkspeed  ·  open speed slider", function() _openCloneWalkspeedPanel() end)
     end)
 end
 _G.__SeigeOpenClonePanel = _openClonePanel
@@ -15024,6 +15109,13 @@ local function playAnimId(arg)
         animator = hum:FindFirstChildOfClass("Animator")
     end
 
+    -- Soft-stop any previously-playing reanim track on the local player
+    -- so animation switches don't stack/queue (was causing FPS dips & lag).
+    for _, tr in ipairs(_G.__ReanimTracks) do
+        pcall(function() tr:Stop(0.08); tr:Destroy() end)
+    end
+    _G.__ReanimTracks = {}
+
     local function loadAndPlay(animationId)
         local anim = Instance.new("Animation"); anim.AnimationId = animationId
         local track = animator and animator:LoadAnimation(anim) or hum:LoadAnimation(anim)
@@ -15195,6 +15287,11 @@ local function playKeyframeData(raw, speed)
     if not data then notify("Anim parse error: " .. tostring(perr), "bad"); return end
     if not _G.__ReanimActive then startReanim() end
     local hum = getHum(); if not hum then notify("No humanoid", "bad"); return end
+    -- Soft-stop previous tracks so switching animations doesn't lag
+    for _, tr in ipairs(_G.__ReanimTracks) do
+        pcall(function() tr:Stop(0.08); tr:Destroy() end)
+    end
+    _G.__ReanimTracks = {}
     local ks = buildKeyframeSequence(data)
     local okReg, hash = pcall(function()
         return game:GetService("KeyframeSequenceProvider"):RegisterKeyframeSequence(ks)
@@ -17928,12 +18025,21 @@ end)()
                     bg.CFrame = target
                 end
                 return
+            elseif CLONE.mode == "roam" then
+                if not CLONE.roamGoal or (Vector3.new(CLONE.roamGoal.X, hrp.Position.Y, CLONE.roamGoal.Z) - hrp.Position).Magnitude < 3 then
+                    local ang = math.random() * math.pi * 2
+                    local rad = 25 + math.random() * 55
+                    CLONE.roamGoal = hrp.Position + Vector3.new(math.cos(ang) * rad, 0, math.sin(ang) * rad)
+                end
+                goal = CLONE.roamGoal
+                lookAt = CLONE.roamGoal
             end
 
             if goal then
                 local delta = (goal - hrp.Position)
                 local dist = delta.Magnitude
-                local speed = math.clamp(dist * 4, 0, 80)
+                local cap = (CLONE.mode == "roam") and (_G.__SeigeCloneWalkSpeed or 6) or 80
+                local speed = math.clamp(dist * 4, 0, cap)
                 local dir = (dist > 0.05) and (delta.Unit * speed) or Vector3.new()
                 bv.Velocity = dir
                 if lookAt then
@@ -17977,6 +18083,11 @@ end)()
             CLONE.mode = "swarm"; CLONE.target = arg; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
         elseif verb == "MIRROR" then
             CLONE.mode = "mirror"; CLONE.target = nil; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "ROAM" then
+            CLONE.mode = "roam"; CLONE.target = nil; CLONE.roamGoal = nil; CLONE.t0 = tick()
+            _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "WSPEED" then
+            local n = tonumber(arg); if n then _G.__SeigeCloneWalkSpeed = math.clamp(n, 1, 60) end
         elseif verb == "TP" then
             local p = Players:FindFirstChild(arg or "")
             local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
