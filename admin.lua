@@ -17100,11 +17100,11 @@ if panels.Profile then panels.Profile.frame.Visible = true end
                 })
                 corner(row, 8)
                 local imgs = tr.album and tr.album.images
-                inst("ImageLabel", row, {
+                local thumb = inst("ImageLabel", row, {
                     Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 4, 0, 4),
                     BackgroundTransparency = 1, ZIndex = 32,
-                    Image = (imgs and imgs[#imgs] and imgs[#imgs].url) or "",
                 })
+                _loadArt(thumb, (imgs and imgs[#imgs] and imgs[#imgs].url) or "")
                 inst("TextLabel", row, {
                     Size = UDim2.new(1, -50, 0, 18), Position = UDim2.new(0, 44, 0, 3),
                     BackgroundTransparency = 1, Text = tr.name or "?",
