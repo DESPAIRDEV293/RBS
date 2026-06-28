@@ -7420,6 +7420,13 @@ local HELP_CMDS = {
         { "!cstop",         "Clone stops moving (hovers in place)" },
         { "!swarm <user>",  "Clone orbits the target user while flying" },
         { "!annoy <user>",  "Clone flies and follows the target user around" },
+        { "!fakeclone <user>", "Local-only visual clone of a user (alt does NOT need script)" },
+        { "!unfakeclone",   "Remove the local fake clone" },
+        { "!fcfollow",      "Fake clone follows you" },
+        { "!fcswarm <user>","Fake clone orbits target" },
+        { "!fcannoy <user>","Fake clone chases target" },
+        { "!fcstop",        "Fake clone holds position" },
+        { "!fctp",          "Teleport fake clone to you" },
     }},
     { "Staff oversight", {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
