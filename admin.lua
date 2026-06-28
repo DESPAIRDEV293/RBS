@@ -15017,6 +15017,7 @@ local function playAnimId(arg)
             local ok2, tr = pcall(loadAndPlay, hash)
             if ok2 and typeof(tr) == "Instance" then
                 table.insert(_G.__ReanimTracks, tr)
+                if _G.__SeigeCloneMirrorPlay then pcall(_G.__SeigeCloneMirrorPlay, hash, speed, true) end
                 notify("Playing KFS " .. idNum .. " @x" .. speed, "good"); return
             end
         end
