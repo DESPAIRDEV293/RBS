@@ -16424,6 +16424,161 @@ end)()
         return true
     end
 
+    -- =============================================================
+    -- CLONE CONTROL (owner-only sender). The local player is the
+    -- "clone" if a previous DESIGNATE marker named them. The clone
+    -- listens for follow / swarm / annoy / tp / stop / release verbs
+    -- and drives its character with BodyVelocity + BodyGyro flight.
+    -- =============================================================
+    _G.__SeigeCloneSend = function(verb, arg)
+        if not _isOwnerLocal() then return false, "owner only" end
+        verb = tostring(verb or "")
+        arg  = tostring(arg or "")
+        broadcast(CLONE_MARK .. LP.Name .. "|" .. verb .. "|" .. arg)
+        return true
+    end
+
+    -- Per-client clone state machine.
+    local CLONE = _G.__SeigeCloneState or { owner = nil, mode = "idle", target = nil, t0 = 0 }
+    _G.__SeigeCloneState = CLONE
+
+    local function _cloneCleanup()
+        if CLONE.conn then pcall(function() CLONE.conn:Disconnect() end); CLONE.conn = nil end
+        local char = LP.Character
+        if char then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                for _, n in ipairs({"SeigeCloneBV","SeigeCloneBG"}) do
+                    local o = hrp:FindFirstChild(n); if o then pcall(function() o:Destroy() end) end
+                end
+            end
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then pcall(function() hum.PlatformStand = false end) end
+        end
+    end
+
+    local function _cloneEngageFlight()
+        local char = LP.Character or LP.CharacterAdded:Wait()
+        local hrp = char:WaitForChild("HumanoidRootPart", 4)
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hrp then return nil end
+        if hum then pcall(function() hum.PlatformStand = true end) end
+        local bv = hrp:FindFirstChild("SeigeCloneBV") or Instance.new("BodyVelocity")
+        bv.Name = "SeigeCloneBV"; bv.MaxForce = Vector3.new(1e6,1e6,1e6); bv.P = 1e4; bv.Velocity = Vector3.new(); bv.Parent = hrp
+        local bg = hrp:FindFirstChild("SeigeCloneBG") or Instance.new("BodyGyro")
+        bg.Name = "SeigeCloneBG"; bg.MaxTorque = Vector3.new(1e6,1e6,1e6); bg.P = 1e4; bg.D = 500; bg.CFrame = hrp.CFrame; bg.Parent = hrp
+        return hrp, bv, bg
+    end
+
+    local function _cloneStartLoop()
+        if CLONE.conn then pcall(function() CLONE.conn:Disconnect() end) end
+        local RS = game:GetService("RunService")
+        CLONE.t0 = tick()
+        CLONE.conn = RS.Heartbeat:Connect(function(dt)
+            if CLONE.mode == "idle" or CLONE.mode == "released" then return end
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            local bv = hrp:FindFirstChild("SeigeCloneBV")
+            local bg = hrp:FindFirstChild("SeigeCloneBG")
+            if not (bv and bg) then hrp, bv, bg = _cloneEngageFlight(); if not bv then return end end
+
+            local function findP(n)
+                if not n or n == "" then return nil end
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p.Name:lower() == n:lower() then return p end
+                end
+                return nil
+            end
+
+            if CLONE.mode == "stop" then
+                bv.Velocity = Vector3.new(0, 0, 0)
+                return
+            end
+
+            local goal, lookAt
+            if CLONE.mode == "follow" then
+                local p = findP(CLONE.owner); local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                if th then goal = th.Position + (th.CFrame.LookVector * -6) + Vector3.new(0, 2, 0); lookAt = th.Position end
+            elseif CLONE.mode == "annoy" then
+                local p = findP(CLONE.target); local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                if th then
+                    local phase = (tick() - CLONE.t0) * 3
+                    local off = Vector3.new(math.cos(phase) * 3.5, math.sin(phase*1.7) * 1.8 + 1.5, math.sin(phase) * 3.5)
+                    goal = th.Position + off; lookAt = th.Position
+                end
+            elseif CLONE.mode == "swarm" then
+                local p = findP(CLONE.target); local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                if th then
+                    local phase = (tick() - CLONE.t0) * 2.4
+                    local r = 9
+                    goal = th.Position + Vector3.new(math.cos(phase) * r, 4 + math.sin(phase * 2) * 1.5, math.sin(phase) * r)
+                    lookAt = th.Position
+                end
+            end
+
+            if goal then
+                local delta = (goal - hrp.Position)
+                local dist = delta.Magnitude
+                local speed = math.clamp(dist * 4, 0, 80)
+                local dir = (dist > 0.05) and (delta.Unit * speed) or Vector3.new()
+                bv.Velocity = dir
+                if lookAt then
+                    bg.CFrame = CFrame.new(hrp.Position, Vector3.new(lookAt.X, hrp.Position.Y, lookAt.Z))
+                end
+            else
+                -- target gone — hover
+                bv.Velocity = Vector3.new(0, 0, 0)
+            end
+        end)
+    end
+
+    _G.__SeigeCloneApply = function(senderName, verb, arg)
+        if verb == "DESIGNATE" then
+            local me = LP.Name:lower()
+            if (arg or ""):lower() == me then
+                CLONE.owner = senderName
+                CLONE.mode  = "stop"
+                CLONE.target = nil
+                _cloneEngageFlight(); _cloneStartLoop()
+                notify("You are now @" .. senderName .. "'s clone", "warn")
+            elseif CLONE.owner and CLONE.owner == senderName then
+                -- owner re-designated someone else → release us
+                CLONE.owner = nil; CLONE.mode = "released"; _cloneCleanup()
+            end
+            return
+        end
+        -- All other verbs require we already be this sender's clone
+        if not (CLONE.owner and senderName and CLONE.owner:lower() == senderName:lower()) then return end
+        if verb == "RELEASE" then
+            CLONE.owner = nil; CLONE.mode = "released"; CLONE.target = nil
+            _cloneCleanup()
+            notify("Clone released by @" .. senderName, "warn")
+        elseif verb == "STOP" then
+            CLONE.mode = "stop"; CLONE.target = nil; _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "FOLLOW" then
+            CLONE.mode = "follow"; CLONE.target = nil; _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "ANNOY" then
+            CLONE.mode = "annoy"; CLONE.target = arg; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "SWARM" then
+            CLONE.mode = "swarm"; CLONE.target = arg; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "TP" then
+            local p = Players:FindFirstChild(arg or "")
+            local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if th and hrp then pcall(function() hrp.CFrame = th.CFrame + Vector3.new(0, 0, -3) end) end
+        end
+    end
+
+    -- Re-attach flight when the clone respawns mid-session
+    LP.CharacterAdded:Connect(function()
+        task.wait(0.6)
+        if CLONE.owner and CLONE.mode and CLONE.mode ~= "released" and CLONE.mode ~= "idle" then
+            _cloneEngageFlight(); _cloneStartLoop()
+        end
+    end)
+
+
+
 
     -- Local helpers (effects applied when WE are the target)
     local function _ourHRP()
