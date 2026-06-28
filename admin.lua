@@ -10605,6 +10605,75 @@ do
 end
 
 
+section(pgConfig, "Panel Movement")
+label(pgConfig, "When on, popup panels (player, command panels, etc) gently float and grow slightly on hover.")
+_G.__SeigePanelFloat = _G.__SeigePanelFloat or false
+do
+    local floatBase = setmetatable({}, { __mode = "k" })
+    local hoverBound = setmetatable({}, { __mode = "k" })
+    local applying = false
+
+    local function _ensureRegistered(win)
+        if not win or floatBase[win] then return end
+        floatBase[win] = { pos = win.Position, size = win.Size }
+        win:GetPropertyChangedSignal("Position"):Connect(function()
+            if not applying then floatBase[win].pos = win.Position end
+        end)
+        win:GetPropertyChangedSignal("Size"):Connect(function()
+            if not applying then floatBase[win].size = win.Size end
+        end)
+    end
+
+    local function _bindHover(win)
+        if not win or hoverBound[win] then return end
+        hoverBound[win] = true
+        win.MouseEnter:Connect(function()
+            if not _G.__SeigePanelFloat then return end
+            local b = floatBase[win]; if not b then return end
+            applying = true
+            local s = b.size
+            win.Size = UDim2.new(s.X.Scale, s.X.Offset + 6, s.Y.Scale, s.Y.Offset + 6)
+            applying = false
+        end)
+        win.MouseLeave:Connect(function()
+            local b = floatBase[win]; if not b then return end
+            applying = true; win.Size = b.size; applying = false
+        end)
+    end
+
+    RunService.Heartbeat:Connect(function()
+        if not _G.__SeigePanelFloat then return end
+        if not _G.__SeigePopupPanels then return end
+        local t = tick()
+        applying = true
+        for win, _ in pairs(_G.__SeigePopupPanels) do
+            if win and win.Parent then
+                _ensureRegistered(win); _bindHover(win)
+                local b = floatBase[win]
+                local off = math.sin(t * 1.4 + (b.pos.X.Offset * 0.01)) * 3
+                local p = b.pos
+                win.Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, p.Y.Offset + off)
+            else
+                _G.__SeigePopupPanels[win] = nil
+                floatBase[win] = nil
+            end
+        end
+        applying = false
+    end)
+
+    toggle(pgConfig, "Float & hover panels", _G.__SeigePanelFloat == true, function(v)
+        _G.__SeigePanelFloat = v
+        if not v then
+            -- restore base positions
+            for win, b in pairs(floatBase) do
+                if win and win.Parent then pcall(function() win.Position = b.pos; win.Size = b.size end) end
+            end
+        end
+        if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
+        notify("Panel movement " .. (v and "enabled" or "disabled"), "good")
+    end)
+end
+
 section(pgConfig, "About")
 label(pgConfig, "seige.lol admin")
 label(pgConfig, "Build " .. ADMIN_BUILD)
