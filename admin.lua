@@ -15107,6 +15107,13 @@ local function playAnimId(arg)
         animator = hum:FindFirstChildOfClass("Animator")
     end
 
+    -- Soft-stop any previously-playing reanim track on the local player
+    -- so animation switches don't stack/queue (was causing FPS dips & lag).
+    for _, tr in ipairs(_G.__ReanimTracks) do
+        pcall(function() tr:Stop(0.08); tr:Destroy() end)
+    end
+    _G.__ReanimTracks = {}
+
     local function loadAndPlay(animationId)
         local anim = Instance.new("Animation"); anim.AnimationId = animationId
         local track = animator and animator:LoadAnimation(anim) or hum:LoadAnimation(anim)
