@@ -16737,17 +16737,54 @@ if panels.Profile then panels.Profile.frame.Visible = true end
             notify("Spotify auth URL copied — paste in your browser", "good")
         end)
     else
-        section(pgSpotify, "How to connect")
-        label(pgSpotify, "1.  Make sure Spotify (any plan; Premium required for playback control) is OPEN on a device — phone, desktop, or web player.")
-        label(pgSpotify, "2.  Click 'Open token helper' below. It copies the Spotify Web API console URL to your clipboard.")
-        label(pgSpotify, "3.  In your browser, paste the URL, then click 'Get Token' on that page. Check the scopes: user-read-playback-state, user-modify-playback-state, user-read-currently-playing.")
-        label(pgSpotify, "4.  Click 'Request Token', log into Spotify, copy the long token that starts with BQ…")
-        label(pgSpotify, "5.  Paste it into the box below. Press Connect. The fancy player appears once verified.")
-        label(pgSpotify, "Note: Spotify tokens expire after 1 hour. Just grab a new one and paste again — your settings stay saved.")
+        section(pgSpotify, "How to connect (auto)")
+        label(pgSpotify, "1.  Open the Spotify Developer Dashboard, create an app, and add this redirect URI: https://seigescript.online/spotify-connect")
+        label(pgSpotify, "2.  Press 'Connect Spotify' below — it copies a one-time link to your clipboard.")
+        label(pgSpotify, "3.  Paste the link into your browser, enter your Client ID + Secret, click Login, and approve.")
+        label(pgSpotify, "4.  The page bounces back and the token is auto-loaded into this script. The player window opens by itself.")
+        label(pgSpotify, "Tokens expire after ~1 hour — click Connect Spotify again to refresh. Your settings stay saved.")
 
-        button(pgSpotify, "📋  Copy token helper URL", function()
-            if setclipboard then pcall(setclipboard, "https://developer.spotify.com/console/get-current-user/") end
-            notify("URL copied — paste into browser, then click 'Get Token'", "good")
+        local pairUrlLabel = label(pgSpotify, "No connect link generated yet.")
+
+        button(pgSpotify, "🎧  Connect Spotify (auto)", function()
+            local function rnd4()
+                local s = ""; for _ = 1, 4 do s = s .. string.char(math.random(65, 90)) end; return s
+            end
+            local pair = rnd4() .. "-" .. rnd4()
+            local url = "https://seigescript.online/spotify-connect?pair=" .. pair
+            if setclipboard then pcall(setclipboard, url) end
+            pcall(function() if pairUrlLabel and pairUrlLabel.set then pairUrlLabel:set("Link copied: " .. url) end end)
+            notify("Spotify connect link copied — paste in browser", "good")
+
+            task.spawn(function()
+                local deadline = os.time() + 600
+                while os.time() < deadline do
+                    task.wait(3)
+                    local ok, body = pcall(function()
+                        return game:HttpGetAsync("https://seigescript.online/api/public/spotify_drop?code=" .. pair)
+                    end)
+                    if ok and type(body) == "string" and body:find('"access_token"', 1, true) then
+                        local good, data = pcall(function() return HttpService:JSONDecode(body) end)
+                        if good and data and type(data.access_token) == "string" then
+                            token = data.access_token
+                            pcall(function() if writefile then writefile("seige_spotify.txt", token) end end)
+                            notify("Spotify token auto-loaded ✓", "good")
+                            if _G.__SeigeSpotifyAutoConnect then
+                                pcall(_G.__SeigeSpotifyAutoConnect, token)
+                            end
+                            return
+                        end
+                    end
+                end
+                notify("Spotify connect timed out — try again", "bad")
+            end)
+        end)
+
+        button(pgSpotify, "📋  Copy connect link again", function()
+            local txt = pairUrlLabel and pairUrlLabel.text or nil
+            local link = typeof(txt) == "string" and txt:match("(https://[%w%./%?=&%-]+)") or nil
+            if link and setclipboard then pcall(setclipboard, link); notify("Link copied", "good")
+            else notify("Press 'Connect Spotify' first", "bad") end
         end)
     end
 
