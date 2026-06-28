@@ -13,7 +13,7 @@ function trim(value: unknown): string {
 function cleanEntry(entry: Record<string, unknown>): TagEntry | null {
   const allowed = [
     "displayName", "color", "icon", "textFx", "customText", "customHandle",
-    "outline", "font", "textColor", "textOutline", "avatarOutline", "showChip",
+    "outline", "font", "textColor", "textOutline", "avatarOutline", "avatarOutlineColor", "showChip",
   ];
   const out: TagEntry = {};
   for (const key of allowed) {
