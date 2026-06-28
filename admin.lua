@@ -4222,6 +4222,61 @@ local function refreshBill(p)
 
     end
 
+    -- Auto-contrast: when the user hasn't picked an explicit textColor, pick
+    -- black or white text based on the effective bubble luminance so the
+    -- inner text stays legible as bg color / opacity / fill changes.
+    if not textOverride then
+        local function lum(c) return 0.2126*c.R + 0.7152*c.G + 0.0722*c.B end
+        local eff
+        if e.bgImg and e.bgImg.Visible then
+            -- image fill: assume dark base underlay
+            eff = Color3.fromRGB(14, 14, 18)
+        elseif e.bgGrad and e.bgGrad.Enabled then
+            local kps = e.bgGrad.Color and e.bgGrad.Color.Keypoints
+            if kps and #kps > 0 then
+                local r, g, b = 0, 0, 0
+                for _, k in ipairs(kps) do r = r + k.Value.R; g = g + k.Value.G; b = b + k.Value.B end
+                local n = #kps
+                eff = Color3.new(r/n, g/n, b/n)
+            else
+                eff = e.bg.BackgroundColor3
+            end
+        else
+            eff = e.bg.BackgroundColor3
+        end
+        if eff then
+            local L = lum(eff)
+            -- factor in pill transparency: if bubble is see-through, lean toward
+            -- light text so the world (typically bright sky) doesn't wash it out.
+            local alpha = 1 - (e.bg.BackgroundTransparency or 0)
+            local effL = L * alpha + 0.55 * (1 - alpha)
+            local autoText
+            if effL > 0.62 then
+                autoText = Color3.fromRGB(12, 12, 16)
+            else
+                autoText = Color3.fromRGB(238, 238, 244)
+            end
+            local autoSub
+            if effL > 0.62 then
+                autoSub = Color3.fromRGB(55, 55, 70)
+            else
+                autoSub = Color3.fromRGB(190, 190, 205)
+            end
+            -- Only override when the user hasn't set a custom chip/text color
+            -- (hasCustomColor uses chipColor for text, leave that intact).
+            if not hasCustomColor then
+                nameColor   = autoText
+                handleColor = autoSub
+                statColor   = autoText
+                if e.name   then e.name.TextColor3   = nameColor   end
+                if e.handle then e.handle.TextColor3 = handleColor end
+                if e.stat   then e.stat.TextColor3   = statColor   end
+            end
+        end
+    end
+
+
+
     -- Tag aura overlay: LOCAL-only visual that wraps the pill bubble. Off by
     -- default. User picks via Config → Tag Auras. Only applies to LP's own
     -- bubble and only when LP actually has a tag entry.
