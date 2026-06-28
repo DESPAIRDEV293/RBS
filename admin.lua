@@ -4927,7 +4927,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             if fx == "typewriter" or fx == "type" then label = "Typewriter"
             elseif fx == "glitch" then label = "Glitch"
             elseif fx == "floating" or fx == "float" then label = "Floating"
-            elseif fx == "floating" or fx == "float" then label = "Floating"
             elseif fx == "zerograv" or fx == "zero-grav" or fx == "zerog" then label = "Zerograv"
             elseif fx == "wave" then label = "Wave"
             elseif fx == "shake" then label = "Shake" end
