@@ -2770,7 +2770,10 @@ function TagDB:loadLocal()
     if not okDec or type(data) ~= "table" then return nil end
     local out = {}
     for k, v in pairs(data) do
-        if type(v) == "table" then out[tostring(k):lower()] = stripTagSpecials(v) end
+        if type(v) == "table" then
+            local clean = cleanTagEntry(stripTagSpecials(v))
+            if clean then out[tostring(k):lower()] = clean end
+        end
     end
     return out
 end
@@ -5187,7 +5190,13 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         local u = pick(form.username, tbUser.Text):gsub("^@", "")
         if u == "" then notify("Username required", "bad"); return end
         local key = u:lower()
+        -- Start from the existing entry so editing one field (like image) does
+        -- not silently erase saved colors/outlines/text settings.
         local entry = {}
+        local existing = TagDB.entries[key] or TagDB.localEntries[key]
+        if type(existing) == "table" then
+            for ek, ev in pairs(existing) do entry[ek] = ev end
+        end
         local dn = pick(form.displayName, tbDisplay.Text)
         if dn ~= "" then entry.displayName = dn end
         local fillRaw = pick(form.fill, tbFill.Text)
