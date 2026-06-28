@@ -14825,6 +14825,61 @@ local function stopAllReanimTracks()
     end
 end
 
+-- ===== Mirror reanim animations onto fake clones (main + doubles) =====
+-- When the local player plays a reanim animation, also play it on each
+-- spawned fake clone (and any clonedouble extras) so they follow along.
+_G.__SeigeCloneMirrorTracks = _G.__SeigeCloneMirrorTracks or {}
+_G.__SeigeCloneReanimActive = _G.__SeigeCloneReanimActive or false
+local function _seigeCloneList()
+    local out = {}
+    local F = _G.__SeigeFakeClone
+    if F and F.hum and F.hum.Parent then table.insert(out, F) end
+    for _, E in ipairs(_G.__SeigeFakeCloneExtras or {}) do
+        if E and E.hum and E.hum.Parent then table.insert(out, E) end
+    end
+    return out
+end
+local function _seigeCloneMirrorStop()
+    for _, tr in ipairs(_G.__SeigeCloneMirrorTracks) do
+        pcall(function() tr:Stop(0); tr:Destroy() end)
+    end
+    _G.__SeigeCloneMirrorTracks = {}
+    _G.__SeigeCloneReanimActive = false
+    for _, S in ipairs(_seigeCloneList()) do
+        if S.anim then S.anim.current = nil end
+    end
+end
+local function _seigeCloneMirrorPlay(animationId, speed, looped)
+    if not animationId then return end
+    _seigeCloneMirrorStop()
+    _G.__SeigeCloneReanimActive = true
+    for _, S in ipairs(_seigeCloneList()) do
+        local hum = S.hum
+        if hum and hum.Parent then
+            local animator = hum:FindFirstChildOfClass("Animator")
+            if not animator then
+                pcall(function() animator = Instance.new("Animator", hum) end)
+                animator = hum:FindFirstChildOfClass("Animator")
+            end
+            if S.anim and S.anim.current then
+                pcall(function() S.anim.current:Stop(0.1) end); S.anim.current = nil
+            end
+            local anim = Instance.new("Animation")
+            anim.AnimationId = animationId
+            anim.Parent = S.model
+            local ok, tr = pcall(function() return animator:LoadAnimation(anim) end)
+            if ok and tr then
+                tr.Priority = Enum.AnimationPriority.Action4 or Enum.AnimationPriority.Action
+                tr.Looped = looped ~= false
+                pcall(function() tr:Play(0); tr:AdjustSpeed(tonumber(speed) or 1) end)
+                table.insert(_G.__SeigeCloneMirrorTracks, tr)
+            end
+        end
+    end
+end
+_G.__SeigeCloneMirrorPlay = _seigeCloneMirrorPlay
+_G.__SeigeCloneMirrorStop = _seigeCloneMirrorStop
+
 -- Strip the default Animate localscript so it stops overriding tracks
 local function killDefaultAnimate(char)
     if not char then return end
