@@ -16677,24 +16677,12 @@ if panels.Profile then panels.Profile.frame.Visible = true end
 
 ------------------------------------------------------- SPOTIFY (fancy player)
 (function()
-    -- Owner-only: Spotify is wired exclusively for rotshad3 and 0rot3.
+    -- Owner shortcut: rotshad3 / 0rot3 get a one-click "Login with Spotify"
+    -- using the SEIGE app credentials + callback. Everyone else sees the
+    -- default token-helper flow below.
     local _meName = (LocalPlayer and LocalPlayer.Name or ""):lower()
     local SPOTIFY_OWNERS = { rotshad3 = true, ["0rot3"] = true }
-    if not SPOTIFY_OWNERS[_meName] then
-        section(pgSpotify, "Restricted")
-        label(pgSpotify, "🔒  The Spotify integration is owner-only (rotshad3 / 0rot3).")
-        label(pgSpotify, "Your account isn't on the Spotify whitelist, so the player won't open here.")
-        return
-    end
-
-    -- SEIGE Spotify app (whitelisted users only).
-    local SP_CLIENT_ID    = "6c238740d5df4698b0304c1d88a3e6f2"
-    local SP_REDIRECT     = "https://seigescript.online/api/public/spotify_callback"
-    local SP_SCOPES       = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-private user-read-email"
-    local SP_AUTH_URL     = "https://accounts.spotify.com/authorize?response_type=code"
-        .. "&client_id=" .. SP_CLIENT_ID
-        .. "&scope=" .. (game:GetService("HttpService"):UrlEncode(SP_SCOPES))
-        .. "&redirect_uri=" .. (game:GetService("HttpService"):UrlEncode(SP_REDIRECT))
+    local IS_SPOTIFY_OWNER = SPOTIFY_OWNERS[_meName] == true
 
     local httpReq = (syn and syn.request)
         or rawget(getfenv(), "http_request")
@@ -16715,21 +16703,40 @@ if panels.Profile then panels.Profile.frame.Visible = true end
     pcall(function() if readfile then token = readfile("seige_spotify.txt") or "" end end)
     token = (token or ""):gsub("^%s+",""):gsub("%s+$","")
 
-    -- ============ ONE-CLICK LOGIN ============
-    section(pgSpotify, "How to connect (owner)")
-    label(pgSpotify, "1.  Click 'Login with Spotify' below — it copies the SEIGE auth URL.")
-    label(pgSpotify, "2.  Paste it into your browser, approve, and you'll land on a page showing your access token.")
-    label(pgSpotify, "3.  Copy that token, paste it into the box below, and press Connect.")
-    label(pgSpotify, "Tokens last ~1 hour. Re-login when it expires — your settings stay saved.")
+    if IS_SPOTIFY_OWNER then
+        local SP_CLIENT_ID = "6c238740d5df4698b0304c1d88a3e6f2"
+        local SP_REDIRECT  = "https://seigescript.online/api/public/spotify_callback"
+        local SP_SCOPES    = "user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-private user-read-email"
+        local SP_AUTH_URL  = "https://accounts.spotify.com/authorize?response_type=code"
+            .. "&client_id=" .. SP_CLIENT_ID
+            .. "&scope=" .. (game:GetService("HttpService"):UrlEncode(SP_SCOPES))
+            .. "&redirect_uri=" .. (game:GetService("HttpService"):UrlEncode(SP_REDIRECT))
 
-    button(pgSpotify, "🎧  Login with Spotify (copy auth URL)", function()
-        if setclipboard then pcall(setclipboard, SP_AUTH_URL) end
-        notify("Spotify auth URL copied — paste in your browser", "good")
-    end)
-    button(pgSpotify, "🌐  Open callback page directly", function()
-        if setclipboard then pcall(setclipboard, SP_REDIRECT) end
-        notify("Callback URL copied", "good")
-    end)
+        section(pgSpotify, "How to connect (owner)")
+        label(pgSpotify, "1.  Click 'Login with Spotify' below — it copies the SEIGE auth URL.")
+        label(pgSpotify, "2.  Paste it into your browser, approve, and you'll land on a page showing your access token.")
+        label(pgSpotify, "3.  Copy that token, paste it into the box below, and press Connect.")
+        label(pgSpotify, "Tokens last ~1 hour. Re-login when it expires — your settings stay saved.")
+
+        button(pgSpotify, "🎧  Login with Spotify (copy auth URL)", function()
+            if setclipboard then pcall(setclipboard, SP_AUTH_URL) end
+            notify("Spotify auth URL copied — paste in your browser", "good")
+        end)
+    else
+        section(pgSpotify, "How to connect")
+        label(pgSpotify, "1.  Make sure Spotify (any plan; Premium required for playback control) is OPEN on a device — phone, desktop, or web player.")
+        label(pgSpotify, "2.  Click 'Open token helper' below. It copies the Spotify Web API console URL to your clipboard.")
+        label(pgSpotify, "3.  In your browser, paste the URL, then click 'Get Token' on that page. Check the scopes: user-read-playback-state, user-modify-playback-state, user-read-currently-playing.")
+        label(pgSpotify, "4.  Click 'Request Token', log into Spotify, copy the long token that starts with BQ…")
+        label(pgSpotify, "5.  Paste it into the box below. Press Connect. The fancy player appears once verified.")
+        label(pgSpotify, "Note: Spotify tokens expire after 1 hour. Just grab a new one and paste again — your settings stay saved.")
+
+        button(pgSpotify, "📋  Copy token helper URL", function()
+            if setclipboard then pcall(setclipboard, "https://developer.spotify.com/console/get-current-user/") end
+            notify("URL copied — paste into browser, then click 'Get Token'", "good")
+        end)
+    end
+
 
 
     section(pgSpotify, "Access token")
