@@ -15285,6 +15285,11 @@ local function playKeyframeData(raw, speed)
     if not data then notify("Anim parse error: " .. tostring(perr), "bad"); return end
     if not _G.__ReanimActive then startReanim() end
     local hum = getHum(); if not hum then notify("No humanoid", "bad"); return end
+    -- Soft-stop previous tracks so switching animations doesn't lag
+    for _, tr in ipairs(_G.__ReanimTracks) do
+        pcall(function() tr:Stop(0.08); tr:Destroy() end)
+    end
+    _G.__ReanimTracks = {}
     local ks = buildKeyframeSequence(data)
     local okReg, hash = pcall(function()
         return game:GetService("KeyframeSequenceProvider"):RegisterKeyframeSequence(ks)
