@@ -14,6 +14,43 @@ function json(body: unknown, status = 200) {
   });
 }
 
+const ALLOWED_FIELDS = new Set([
+  "displayName",
+  "color",
+  "icon",
+  "tags",
+  "textFx",
+  "customText",
+  "customHandle",
+  "outline",
+  "font",
+  "textColor",
+  "textOutline",
+  "avatarOutline",
+  "avatarOutlineColor",
+  "showChip",
+]);
+
+function cleanTagData(input: Record<string, unknown>) {
+  const out: Record<string, string | string[]> = {};
+  for (const [field, value] of Object.entries(input)) {
+    if (!ALLOWED_FIELDS.has(field)) continue;
+    if (field === "tags") {
+      const tags = Array.isArray(value)
+        ? value.map((v) => String(v ?? "").trim()).filter(Boolean)
+        : String(value ?? "")
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean);
+      if (tags.length) out.tags = tags;
+      continue;
+    }
+    const text = String(value ?? "").trim();
+    if (text) out[field] = text;
+  }
+  return out;
+}
+
 export const Route = createFileRoute("/api/public/tags")({
   server: {
     handlers: {
@@ -68,9 +105,14 @@ export const Route = createFileRoute("/api/public/tags")({
           return json({ error: "data must be an object" }, 400);
         }
 
+        const clean = cleanTagData(body.data as Record<string, unknown>);
+        if (Object.keys(clean).length === 0) {
+          return json({ error: "data has no valid tag fields" }, 400);
+        }
+
         const { error } = await supabaseAdmin
           .from("tag_entries")
-          .upsert({ key: rawKey, data: body.data }, { onConflict: "key" });
+          .upsert({ key: rawKey, data: clean }, { onConflict: "key" });
         if (error) return json({ error: error.message }, 500);
         return json({ ok: true, key: rawKey });
       },
