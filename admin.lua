@@ -13684,6 +13684,16 @@ local function _fcLoop()
             -- stable glide/hover formation; no physics bounce or vertical bobbing
             local pos = (myHRP.CFrame * CFrame.new(4, 5, 5)).Position
             goal = CFrame.new(pos, myHRP.Position + Vector3.new(0, 2.5, 0))
+        elseif F2.mode == "roam" then
+            if not F2.roamGoal or (F2.roamGoal - F2.hrp.Position).Magnitude < 3 then
+                F2.roamGoal = _cloneRoamPick(F2.hrp.Position)
+            end
+            local toGoal = F2.roamGoal - F2.hrp.Position
+            local dir = (toGoal.Magnitude > 0.01) and toGoal.Unit or F2.hrp.CFrame.LookVector
+            local ws = _G.__SeigeCloneWalkSpeed or 6
+            local step = math.min(toGoal.Magnitude, ws * dt)
+            local newPos = F2.hrp.Position + Vector3.new(dir.X, 0, dir.Z) * step
+            goal = CFrame.new(newPos, newPos + Vector3.new(dir.X, 0, dir.Z))
         elseif F2.mode == "follow" and myHRP then
             local back = myHRP.CFrame * CFrame.new(0, 1, 6)
             goal = back
