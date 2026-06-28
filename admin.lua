@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-28-clonepanel"
+local ADMIN_BUILD = "2026-06-28-fakeclone-animfly"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -13208,6 +13208,9 @@ _G.__SeigeFakeCloneExtras = _G.__SeigeFakeCloneExtras or {}
 local function _fcCleanupExtras()
     for _, E in ipairs(_G.__SeigeFakeCloneExtras) do
         if E.conn then pcall(function() E.conn:Disconnect() end) end
+        if E.anim and E.anim.tracks then
+            for _, tr in pairs(E.anim.tracks) do pcall(function() tr:Stop(0) end) end
+        end
         if E.model then pcall(function() E.model:Destroy() end) end
     end
     _G.__SeigeFakeCloneExtras = {}
@@ -13215,9 +13218,124 @@ end
 local function _fcCleanup()
     local F = _G.__SeigeFakeClone
     if F.conn then pcall(function() F.conn:Disconnect() end); F.conn = nil end
+    if F.anim and F.anim.tracks then
+        for _, tr in pairs(F.anim.tracks) do pcall(function() tr:Stop(0) end) end
+    end
     if F.model then pcall(function() F.model:Destroy() end) end
-    F.model, F.hum, F.hrp, F.target, F.userId = nil, nil, nil, nil, nil
+    F.model, F.hum, F.hrp, F.target, F.userId, F.anim = nil, nil, nil, nil, nil, nil
     _fcCleanupExtras()
+end
+local FC_DEFAULT_ANIMS = {
+    idle = "rbxassetid://507766388",
+    walk = "rbxassetid://507777826",
+    run  = "rbxassetid://507767714",
+    jump = "rbxassetid://507765000",
+    fall = "rbxassetid://507767968",
+}
+local function _fcAnimId(v)
+    local s = tostring(v or ""):gsub("%s+", "")
+    if s == "" or s == "0" then return nil end
+    if s:match("^rbxassetid://%d+$") then return s end
+    local id = s:match("(%d+)")
+    return id and ("rbxassetid://" .. id) or nil
+end
+local function _fcFirstAnimationId(root)
+    if not root then return nil end
+    for _, d in ipairs(root:GetDescendants()) do
+        if d:IsA("Animation") then
+            local id = _fcAnimId(d.AnimationId)
+            if id then return id end
+        end
+    end
+    return nil
+end
+local function _fcLocalAnimationSet()
+    local ids = {}
+    local myChar = LP.Character
+    local animate = myChar and myChar:FindFirstChild("Animate")
+    local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
+    local desc
+    pcall(function() if myHum then desc = myHum:GetAppliedDescription() end end)
+    if not desc then pcall(function() desc = Players:GetHumanoidDescriptionFromUserId(LP.UserId) end) end
+    local function fromAnimate(name)
+        return animate and _fcFirstAnimationId(animate:FindFirstChild(name)) or nil
+    end
+    local function fromDesc(prop)
+        if not desc then return nil end
+        local ok, value = pcall(function() return desc[prop] end)
+        return ok and _fcAnimId(value) or nil
+    end
+    ids.idle = fromAnimate("idle") or fromDesc("IdleAnimation") or FC_DEFAULT_ANIMS.idle
+    ids.walk = fromAnimate("walk") or fromDesc("WalkAnimation") or FC_DEFAULT_ANIMS.walk
+    ids.run  = fromAnimate("run")  or fromDesc("RunAnimation")  or ids.walk or FC_DEFAULT_ANIMS.run
+    ids.jump = fromAnimate("jump") or fromDesc("JumpAnimation") or FC_DEFAULT_ANIMS.jump
+    ids.fall = fromAnimate("fall") or fromDesc("FallAnimation") or FC_DEFAULT_ANIMS.fall
+    return ids
+end
+local function _fcStabilizeModel(model)
+    local root = model and model:FindFirstChild("HumanoidRootPart")
+    for _, d in ipairs(model:GetDescendants()) do
+        if d:IsA("BasePart") then
+            d.CanCollide = false
+            d.CanTouch = false
+            d.Massless = true
+            d.AssemblyLinearVelocity = Vector3.zero
+            d.AssemblyAngularVelocity = Vector3.zero
+            d.Anchored = (d == root)
+        end
+    end
+end
+local function _fcInstallAnimations(state)
+    if not state or not state.model or not state.hum then return end
+    local hum = state.hum
+    local animator = hum:FindFirstChildOfClass("Animator")
+    if not animator then
+        animator = Instance.new("Animator")
+        animator.Parent = hum
+    end
+    local ids = _fcLocalAnimationSet()
+    local tracks, objects = {}, {}
+    for name, id in pairs(ids) do
+        local anim = Instance.new("Animation")
+        anim.Name = "SeigeFakeClone_" .. name
+        anim.AnimationId = id
+        anim.Parent = state.model
+        table.insert(objects, anim)
+        local ok, tr = pcall(function() return animator:LoadAnimation(anim) end)
+        if ok and tr then
+            tr.Looped = (name ~= "jump")
+            tr.Priority = (name == "idle") and Enum.AnimationPriority.Idle or Enum.AnimationPriority.Movement
+            tracks[name] = tr
+        end
+    end
+    state.anim = { tracks = tracks, objects = objects, current = nil }
+end
+local function _fcPlayAnim(state, name, speed)
+    local A = state and state.anim
+    if not A or not A.tracks then return end
+    local tr = A.tracks[name] or A.tracks.idle
+    if not tr then return end
+    if A.current ~= tr then
+        if A.current then pcall(function() A.current:Stop(0.15) end) end
+        A.current = tr
+        pcall(function() tr:Play(0.15, 1, speed or 1) end)
+    else
+        pcall(function() tr:AdjustSpeed(speed or 1) end)
+    end
+end
+local function _fcUpdateAnimation(state, mode, distance)
+    if not state or not state.hum then return end
+    if mode == "fly" then
+        _fcPlayAnim(state, "fall", 0.85)
+    elseif mode == "swarm" or mode == "annoy" then
+        _fcPlayAnim(state, "run", 1.2)
+    elseif (distance or 0) > 3 then
+        _fcPlayAnim(state, "run", math.clamp((distance or 3) / 8, 0.8, 1.8))
+    elseif (distance or 0) > 0.35 then
+        _fcPlayAnim(state, "walk", 0.9)
+    else
+        _fcPlayAnim(state, "idle", 1)
+    end
 end
 local function _fcSpawn(userId, displayName)
     _fcCleanup()
@@ -13249,26 +13367,21 @@ local function _fcSpawn(userId, displayName)
         tl.TextColor3 = Color3.fromRGB(255,80,80); tl.Text = "FAKE · " .. tostring(displayName or "?")
         bb.Parent = head
     end
-    if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
-    -- Copy the local player's Animate LocalScript + AnimationIds so the
-    -- fake clone plays the same idle/walk/run/jump anims the user has equipped.
-    pcall(function()
-        local myChar = LP.Character
-        local myAnimate = myChar and myChar:FindFirstChild("Animate")
-        local oldAnimate = model:FindFirstChild("Animate")
-        if oldAnimate then oldAnimate:Destroy() end
-        if myAnimate then
-            local copy = myAnimate:Clone()
-            copy.Disabled = false
-            copy.Parent = model
-        end
-    end)
+    if hum then
+        hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+        pcall(function() hum:ChangeState(Enum.HumanoidStateType.Physics) end)
+    end
+    local oldAnimate = model:FindFirstChild("Animate")
+    if oldAnimate then oldAnimate:Destroy() end
+    _fcStabilizeModel(model)
     F.model = model
     F.hum   = hum
     F.hrp   = model:FindFirstChild("HumanoidRootPart")
     F.sourceName = tostring(displayName or userId)
     F.userId = userId
     F.t0 = tick()
+    _fcInstallAnimations(F)
+    _fcPlayAnim(F, "idle", 1)
     return true
 end
 local function _fcLoop()
@@ -13285,11 +13398,9 @@ local function _fcLoop()
         if F2.mode == "stop" then
             goal = F2.hrp.CFrame
         elseif F2.mode == "fly" and myHRP then
-            -- gentle hovering circle above the user
-            local r = 5
-            local ang = t * 1.4
-            local off = Vector3.new(math.cos(ang)*r, 6 + math.sin(t*2)*1.2, math.sin(ang)*r)
-            goal = CFrame.new(myHRP.Position + off, myHRP.Position + Vector3.new(0, 3, 0))
+            -- stable glide/hover formation; no physics bounce or vertical bobbing
+            local pos = (myHRP.CFrame * CFrame.new(4, 5, 5)).Position
+            goal = CFrame.new(pos, myHRP.Position + Vector3.new(0, 2.5, 0))
         elseif F2.mode == "follow" and myHRP then
             local back = myHRP.CFrame * CFrame.new(0, 1, 6)
             goal = back
@@ -13299,14 +13410,18 @@ local function _fcLoop()
                 local radius = (F2.mode == "annoy") and 3.5 or 7
                 local speed  = (F2.mode == "annoy") and 6.0 or 2.5
                 local ang = t * speed
-                local off = Vector3.new(math.cos(ang)*radius, math.sin(t*2)*1.5 + 2, math.sin(ang)*radius)
+                local off = Vector3.new(math.cos(ang)*radius, 2.5, math.sin(ang)*radius)
                 goal = CFrame.new(thrp.Position + off, thrp.Position)
             end
         end
         if goal then
             local cur = F2.hrp.CFrame
+            _fcStabilizeModel(F2.model)
+            _fcUpdateAnimation(F2, F2.mode, (goal.Position - cur.Position).Magnitude)
             local lerped = cur:Lerp(goal, math.clamp(dt * 6, 0, 1))
             pcall(function() F2.model:PivotTo(lerped) end) 
+        else
+            _fcUpdateAnimation(F2, F2.mode, 0)
         end
     end)
 end
@@ -13395,16 +13510,18 @@ local function _fcSpawnExtra()
         tl.Text = "FAKE x" .. (idx+1) .. " · " .. tostring(F.sourceName)
         bb.Parent = head
     end
-    if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
-    pcall(function()
-        local myAnimate = LP.Character and LP.Character:FindFirstChild("Animate")
-        local oldA = model:FindFirstChild("Animate"); if oldA then oldA:Destroy() end
-        if myAnimate then local c = myAnimate:Clone(); c.Disabled = false; c.Parent = model end
-    end)
+    if hum then
+        hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+        pcall(function() hum:ChangeState(Enum.HumanoidStateType.Physics) end)
+    end
+    local oldA = model:FindFirstChild("Animate"); if oldA then oldA:Destroy() end
+    _fcStabilizeModel(model)
     local E = {
         model = model, hum = hum, hrp = model:FindFirstChild("HumanoidRootPart"),
-        t0 = tick(), phase = math.random() * math.pi * 2, conn = nil,
+        t0 = tick(), phase = math.random() * math.pi * 2, conn = nil, anim = nil,
     }
+    _fcInstallAnimations(E)
+    _fcPlayAnim(E, "idle", 1)
     local RS = game:GetService("RunService")
     E.conn = RS.Heartbeat:Connect(function(dt)
         if not E.model or not E.hrp or not E.hrp.Parent then return end
@@ -13417,9 +13534,9 @@ local function _fcSpawnExtra()
         if mode == "stop" then
             goal = E.hrp.CFrame
         elseif mode == "fly" and myHRP then
-            local r = 5 + idx * 1.5
-            local ang = t * 1.4 + E.phase
-            local off = Vector3.new(math.cos(ang)*r, 6 + math.sin(t*2)*1.2, math.sin(ang)*r)
+            local side = (idx % 2 == 0) and -1 or 1
+            local row = 1 + math.floor((idx - 1) / 2)
+            local off = Vector3.new(side * (4 + row * 2), 5 + row * 0.6, 5 + row * 2)
             goal = CFrame.new(myHRP.Position + off, myHRP.Position + Vector3.new(0,3,0))
         elseif mode == "follow" and myHRP then
             local sideOff = (idx % 2 == 0) and -3 or 3
@@ -13430,13 +13547,17 @@ local function _fcSpawnExtra()
                 local radius = (mode == "annoy") and 3.5 or 7
                 local speed  = (mode == "annoy") and 6.0 or 2.5
                 local ang = t * speed + E.phase
-                local off = Vector3.new(math.cos(ang)*radius, math.sin(t*2)*1.5 + 2, math.sin(ang)*radius)
+                local off = Vector3.new(math.cos(ang)*radius, 2.5 + (idx * 0.15), math.sin(ang)*radius)
                 goal = CFrame.new(thrp.Position + off, thrp.Position)
             end
         end
         if goal then
+            _fcStabilizeModel(E.model)
+            _fcUpdateAnimation(E, mode, (goal.Position - E.hrp.Position).Magnitude)
             local lerped = E.hrp.CFrame:Lerp(goal, math.clamp(dt * 6, 0, 1))
             pcall(function() E.model:PivotTo(lerped) end)
+        else
+            _fcUpdateAnimation(E, mode, 0)
         end
     end)
     table.insert(_G.__SeigeFakeCloneExtras, E)
