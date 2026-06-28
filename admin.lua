@@ -3844,17 +3844,7 @@ local function refreshBill(p)
                     end
                 end)
             end
-        elseif fx == "rainbow" then
-            task.spawn(function()
-                local t0 = tick()
-                while alive() and e.name and e.name.Parent do
-                    local h = (tick() - t0) * 0.4 % 1
-                    local c = Color3.fromHSV(h, 0.85, 1)
-                    if e.name   then e.name.TextColor3   = c end
-                    if e.handle then e.handle.TextColor3 = c end
-                    task.wait(0.05)
-                end
-            end)
+        -- (rainbow text effect removed)
         elseif fx == "floating" or fx == "float" then
             for i, t in ipairs(targets) do
                 task.spawn(function()
