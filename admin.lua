@@ -17017,8 +17017,10 @@ if panels.Profile then panels.Profile.frame.Visible = true end
 
 
 
-    button(pgSpotify, "🔌  Connect / verify token", function()
-        if token == "" then notify("Paste a token first", "bad"); return end
+    local function _doConnect(tk)
+        tk = tk or token
+        if not tk or tk == "" then notify("Paste a token first", "bad"); return end
+        token = tk
         local status, body = spReq("GET", "/me", token)
         if status == 200 then
             local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
@@ -17033,7 +17035,10 @@ if panels.Profile then panels.Profile.frame.Visible = true end
             connStatus:set("❌  Auth failed (" .. tostring(status) .. ")")
             notify("Token rejected (" .. tostring(status) .. ")", "bad")
         end
-    end)
+    end
+    _G.__SeigeSpotifyAutoConnect = _doConnect
+
+    button(pgSpotify, "🔌  Connect / verify token", function() _doConnect(token) end)
 
     button(pgSpotify, "🎵  Open music player window", function()
         if token == "" then notify("Paste & connect a token first", "bad"); return end
