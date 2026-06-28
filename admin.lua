@@ -13470,6 +13470,9 @@ end
 
 -- ===== Clone Control panel (single place for every clone command) =====
 local function _openClonePanel()
+    if not _isOwnerLocal() then
+        notify("Clone Control is owner-only", "bad"); return
+    end
     _openPanel("clone", "Clone Control  ·  real + fake", 520, function(body)
         label(body, "Real clone  ·  requires the alt to also run this script")
         textbox(body, "Designate clone — enter alt username", function(v)
