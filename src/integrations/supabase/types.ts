@@ -77,6 +77,30 @@ export type Database = {
         }
         Relationships: []
       }
+      spotify_drops: {
+        Row: {
+          access_token: string
+          code: string
+          created_at: string
+          expires_in: number | null
+          refresh_token: string | null
+        }
+        Insert: {
+          access_token: string
+          code: string
+          created_at?: string
+          expires_in?: number | null
+          refresh_token?: string | null
+        }
+        Update: {
+          access_token?: string
+          code?: string
+          created_at?: string
+          expires_in?: number | null
+          refresh_token?: string | null
+        }
+        Relationships: []
+      }
       tag_entries: {
         Row: {
           created_at: string
