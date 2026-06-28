@@ -13284,6 +13284,12 @@ local function _fcLoop()
         local goal
         if F2.mode == "stop" then
             goal = F2.hrp.CFrame
+        elseif F2.mode == "fly" and myHRP then
+            -- gentle hovering circle above the user
+            local r = 5
+            local ang = t * 1.4
+            local off = Vector3.new(math.cos(ang)*r, 6 + math.sin(t*2)*1.2, math.sin(ang)*r)
+            goal = CFrame.new(myHRP.Position + off, myHRP.Position + Vector3.new(0, 3, 0))
         elseif F2.mode == "follow" and myHRP then
             local back = myHRP.CFrame * CFrame.new(0, 1, 6)
             goal = back
