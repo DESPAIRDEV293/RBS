@@ -13507,9 +13507,8 @@ local function _openClonePanel()
         textbox(body, "Fake swarm target", function(v) cmdHandlers["fcswarm"](v) end)
         textbox(body, "Fake annoy target", function(v) cmdHandlers["fcannoy"](v) end)
         button(body, "Remove fake clone", function() cmdHandlers["unfakeclone"]() end)
-
-        label(body, "Universal")
         button(body, "Double the fake clone  ·  !clonedouble", function() cmdHandlers["clonedouble"]() end)
+
 
         label(body, "Universal")
         button(body, "!clonefly  ·  fly whichever clone is active", function() cmdHandlers["clonefly"]() end)
