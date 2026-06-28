@@ -17127,7 +17127,7 @@ if panels.Profile then panels.Profile.frame.Visible = true end
                             if ok and d and d.item then
                                 hasTrack = true
                                 isPlaying = d.is_playing and true or false
-                                if btnPlay then btnPlay.Text = isPlaying and "❚❚" or "▶" end
+                                if btnPlay then btnPlay.Image = isPlaying and ICON_PAUSE or ICON_PLAY end
                                 local artist = (d.item.artists and d.item.artists[1] and d.item.artists[1].name) or "?"
                                 if titleLbl then titleLbl.Text = d.item.name or "?" end
                                 if artistLbl then artistLbl.Text = artist end
