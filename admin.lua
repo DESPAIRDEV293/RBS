@@ -2711,7 +2711,8 @@ end
 
 -- Local persistence: any tag the owner saves/deletes in the in-game panel is
 -- written to disk so it survives rejoin even if the pastebin doesn't have it.
--- Local overrides take priority over the pastebin entry for the same username.
+-- Cloud data stays authoritative when present; local data only fills missing
+-- fields or protects an in-flight save from being reverted by stale fetches.
 --
 -- IMPORTANT: scope the file per-LocalPlayer UserId so tags saved while user A
 -- is logged in do NOT leak into user B's session on the same machine. Older
@@ -2927,7 +2928,7 @@ function TagDB:pushRemoteEntry(key, entry)
         if secret ~= "" then
             local legacy
             if entry == nil then legacy = { key = key, ["delete"] = true }
-            else legacy = { key = key, data = entry } end
+            else legacy = { key = key, data = clean } end
             local okEnc2, body2 = pcall(function() return HttpService:JSONEncode(legacy) end)
             if okEnc2 then
                 local ok2, status2, resp2 = _seigeHttpPost(TAGS_HTTP_URL, body2, { ["x-tag-secret"] = secret })
