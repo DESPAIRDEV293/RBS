@@ -13918,10 +13918,12 @@ local function _openClonePanel()
         textbox(body, "Fake annoy target", function(v) cmdHandlers["fcannoy"](v) end)
         button(body, "Remove fake clone", function() cmdHandlers["unfakeclone"]() end)
         button(body, "Double the fake clone  ·  !clonedouble", function() cmdHandlers["clonedouble"]() end)
+        button(body, "Mirror me (fake)  ·  copies your every move", function() cmdHandlers["fcmirror"]() end)
 
 
         label(body, "Universal")
         button(body, "!clonefly  ·  fly whichever clone is active", function() cmdHandlers["clonefly"]() end)
+        button(body, "!clonemirror  ·  mirror you on whichever clone is active", function() cmdHandlers["clonemirror"]() end)
     end)
 end
 _G.__SeigeOpenClonePanel = _openClonePanel
