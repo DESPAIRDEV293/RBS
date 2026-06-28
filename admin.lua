@@ -16681,8 +16681,13 @@ if panels.Profile then panels.Profile.frame.Visible = true end
     -- using the SEIGE app credentials + callback. Everyone else sees the
     -- default token-helper flow below.
     local _meName = (LocalPlayer and LocalPlayer.Name or ""):lower()
-    local SPOTIFY_OWNERS = { rotshad3 = true, ["0rot3"] = true }
+    local _meDisp = (LocalPlayer and LocalPlayer.DisplayName or ""):lower()
+    local _meId   = LocalPlayer and LocalPlayer.UserId or 0
+    local SPOTIFY_OWNERS = { rotshad3 = true, ["0rot3"] = true, ["0r0t3"] = true }
+    local SPOTIFY_OWNER_IDS = { } -- add UserIds here if needed
     local IS_SPOTIFY_OWNER = SPOTIFY_OWNERS[_meName] == true
+        or SPOTIFY_OWNERS[_meDisp] == true
+        or SPOTIFY_OWNER_IDS[_meId] == true
 
     local httpReq = (syn and syn.request)
         or rawget(getfenv(), "http_request")
