@@ -2541,7 +2541,7 @@ local TAG_ALLOWED_FIELDS = {
     displayName = true, color = true, icon = true, tags = true,
     textFx = true, customText = true, customHandle = true, outline = true,
     font = true, textColor = true, textOutline = true,
-    avatarOutline = true, showChip = true,
+    avatarOutline = true, avatarOutlineColor = true, showChip = true,
 }
 local function normTagKey(raw)
     return trim(raw):gsub("^@", ""):lower()
