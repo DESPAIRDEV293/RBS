@@ -13251,6 +13251,19 @@ local function _fcSpawn(userId, displayName)
         bb.Parent = head
     end
     if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
+    -- Copy the local player's Animate LocalScript + AnimationIds so the
+    -- fake clone plays the same idle/walk/run/jump anims the user has equipped.
+    pcall(function()
+        local myChar = LP.Character
+        local myAnimate = myChar and myChar:FindFirstChild("Animate")
+        local oldAnimate = model:FindFirstChild("Animate")
+        if oldAnimate then oldAnimate:Destroy() end
+        if myAnimate then
+            local copy = myAnimate:Clone()
+            copy.Disabled = false
+            copy.Parent = model
+        end
+    end)
     F.model = model
     F.hum   = hum
     F.hrp   = model:FindFirstChild("HumanoidRootPart")
