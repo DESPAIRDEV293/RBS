@@ -14813,6 +14813,7 @@ _G.__ReanimAnimateSrc = _G.__ReanimAnimateSrc or nil   -- saved clone of Animate
 local function stopAllReanimTracks()
     for _, tr in ipairs(_G.__ReanimTracks) do pcall(function() tr:Stop(0); tr:Destroy() end) end
     _G.__ReanimTracks = {}
+    if _G.__SeigeCloneMirrorStop then pcall(_G.__SeigeCloneMirrorStop) end
     local h = getHum()
     if h then
         local animator = h:FindFirstChildOfClass("Animator")
