@@ -13163,7 +13163,11 @@ end
 cmdHandlers["clone"] = function(arg)
     if not _cloneOwnerGate("!clone") then return end
     local t = tostring(arg or ""):gsub("^@", ""):gsub("%s+", "")
-    if t == "" then notify("Usage: !clone <user>", "warn"); return end
+    if t == "" then
+        if type(_G.__SeigeOpenClonePanel) == "function" then _G.__SeigeOpenClonePanel()
+        else notify("Clone panel not ready", "warn") end
+        return
+    end
     _G.__SeigeCloneSend("DESIGNATE", t)
     notify("Clone designated: @" .. t .. " — idle/hover until you issue a command", "good")
 end
