@@ -7536,6 +7536,9 @@ button(pgCmds, "!track <player>  —  arrow + distance (staff)", function() _ope
 
 -- Clone control (owner only) — single entry that opens the full panel
 button(pgCmds, "!clone  —  open Clone Control panel (owner)", function()
+    if not (LP.Name == OWNER_NAME or _isCoOwner(LP.Name)) then
+        notify("Clone Control is owner-only", "bad"); return
+    end
     if type(_G.__SeigeOpenClonePanel) == "function" then _G.__SeigeOpenClonePanel()
     else notify("Clone panel not ready yet", "warn") end
 end)
