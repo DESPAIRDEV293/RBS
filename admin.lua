@@ -13668,6 +13668,9 @@ local function _fcLoop()
         local goal
         if F2.mode == "stop" then
             goal = F2.hrp.CFrame
+        elseif F2.mode == "mirror" and myHRP then
+            -- copy the owner's exact pose, just offset to the side so we don't clip
+            goal = myHRP.CFrame * CFrame.new(3, 0, 0)
         elseif F2.mode == "fly" and myHRP then
             -- stable glide/hover formation; no physics bounce or vertical bobbing
             local pos = (myHRP.CFrame * CFrame.new(4, 5, 5)).Position
