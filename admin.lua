@@ -13964,11 +13964,18 @@ local function _fcSpawnExtra()
         if goal then
             _fcStabilizeModel(E.model)
             _fcUpdateAnimation(E, mode, (goal.Position - E.hrp.Position).Magnitude)
-            local k = (mode == "mirror") and math.clamp(dt * 22, 0, 1)
-                or (mode == "roam") and 1
-                or math.clamp(dt * 6, 0, 1)
-            local lerped = E.hrp.CFrame:Lerp(goal, k)
-            pcall(function() E.model:PivotTo(lerped) end)
+            local target
+            if mode == "mirror" then
+                target = goal
+            elseif mode == "roam" then
+                target = goal
+            else
+                target = E.hrp.CFrame:Lerp(goal, math.clamp(dt * 6, 0, 1))
+            end
+            local okPivot = pcall(function() E.model:PivotTo(target) end)
+            if not okPivot or mode == "mirror" then
+                pcall(function() E.hrp.CFrame = target end)
+            end
         else
             _fcUpdateAnimation(E, mode, 0)
         end
