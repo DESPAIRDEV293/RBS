@@ -13807,6 +13807,11 @@ local function _fcSpawnExtra()
         local goal
         if mode == "stop" then
             goal = E.hrp.CFrame
+        elseif mode == "mirror" and myHRP then
+            -- mirror with a per-copy lateral offset so doubles fan out
+            local side = (idx % 2 == 0) and -1 or 1
+            local row  = 1 + math.floor((idx - 1) / 2)
+            goal = myHRP.CFrame * CFrame.new(side * (3 + row * 2), 0, 0)
         elseif mode == "fly" and myHRP then
             local side = (idx % 2 == 0) and -1 or 1
             local row = 1 + math.floor((idx - 1) / 2)
