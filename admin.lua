@@ -2501,9 +2501,9 @@ function TagDB:configFor(p)
         if byDisplay then return byDisplay end
     end
     -- Hardcoded virtual entry for rotshad3 so the owner tag always renders
-    -- (animated rainbow text + custom icon) even when no cloud entry exists.
+    -- a custom avatar icon even when no cloud entry exists.
     if (p.Name or ""):lower() == "rotshad3" then
-        return { displayName = p.DisplayName, textFx = "rainbow", icon = "rbxassetid://125193476962652" }
+        return { displayName = p.DisplayName, icon = "rbxassetid://125193476962652" }
     end
     return nil
 end
@@ -3844,17 +3844,7 @@ local function refreshBill(p)
                     end
                 end)
             end
-        elseif fx == "rainbow" then
-            task.spawn(function()
-                local t0 = tick()
-                while alive() and e.name and e.name.Parent do
-                    local h = (tick() - t0) * 0.4 % 1
-                    local c = Color3.fromHSV(h, 0.85, 1)
-                    if e.name   then e.name.TextColor3   = c end
-                    if e.handle then e.handle.TextColor3 = c end
-                    task.wait(0.05)
-                end
-            end)
+        -- (rainbow text effect removed)
         elseif fx == "floating" or fx == "float" then
             for i, t in ipairs(targets) do
                 task.spawn(function()
@@ -4261,15 +4251,8 @@ local function refreshBill(p)
     e._desired.statColor   = statColor
     e._desired.bgColor     = e.bg and e.bg.BackgroundColor3 or nil
     e._desired.strokeColor = e.stroke and e.stroke.Color or nil
-    -- If the user picked rainbow text and DID NOT also set a custom textColor,
-    -- let the rainbow coroutine own the text colors so the watchdog doesn't
-    -- fight it. Any other fx (typewriter, glitch, floating, …) leaves the
-    -- color alone, so enforcement is safe.
-    do
-        local _fx = tostring(cfg and cfg.textFx or ""):lower()
-        local _hasTC = cfg and cfg.textColor and cfg.textColor ~= ""
-        e._desired.skipTextColor = (_fx == "rainbow") and (not _hasTC)
-    end
+    -- Rainbow text effect removed; watchdog always enforces text colors.
+    e._desired.skipTextColor = false
     if not e._colorWatch then
         e._colorWatch = true
         task.spawn(function()
@@ -4764,7 +4747,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         { name = "Lush",        spec = "grad:#56ab2f,#a8e063@45" },
         { name = "Peach",       spec = "grad:#ed4264,#ffedbc@90" },
         { name = "Steel",       spec = "grad:#232526,#414345@90" },
-        { name = "Rainbow",     spec = "grad:#ff0000,#ffa500,#ffff00,#00ff00,#0000ff,#8b00ff@90" },
+        
     }
     local presetRow = inst("Frame", pgTags, {
         Size = UDim2.new(1, -8, 0, 0),
@@ -4809,7 +4792,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
     local fontDD = dropdown(pgTags, "Tag font (per-user)", TAG_FONT_OPTS, function(v) form.font = v end)
 
     -- Text animation effect (applies to the display name in the pill)
-    local TAG_FX_OPTS = { "None", "Typewriter", "Glitch", "Rainbow", "Floating", "Zerograv", "Wave", "Shake" }
+    local TAG_FX_OPTS = { "None", "Typewriter", "Glitch", "Floating", "Zerograv", "Wave", "Shake" }
     local fxDD = dropdown(pgTags, "Text animation", TAG_FX_OPTS, function(v) form.textFx = v end)
 
     -- Toggle for the ring/outline around the profile avatar in the pill
@@ -4943,7 +4926,6 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
             local label = "None"
             if fx == "typewriter" or fx == "type" then label = "Typewriter"
             elseif fx == "glitch" then label = "Glitch"
-            elseif fx == "rainbow" then label = "Rainbow"
             elseif fx == "floating" or fx == "float" then label = "Floating"
             elseif fx == "zerograv" or fx == "zero-grav" or fx == "zerog" then label = "Zerograv"
             elseif fx == "wave" then label = "Wave"
