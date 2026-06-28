@@ -13124,6 +13124,63 @@ cmdHandlers["unwalkonair"] = function() _G.__SeigeWoAStop() end
 cmdHandlers["airwalk"]     = cmdHandlers["walkonair"]
 cmdHandlers["unairwalk"]   = cmdHandlers["unwalkonair"]
 
+-- ============================================================
+-- CLONE CONTROL (owner only) · designate an alt account as
+-- a personal "clone" and remote-control it via SeigeMsg markers.
+-- The clone must also be running this script for commands to
+-- take effect (it receives the marker and executes locally).
+-- ============================================================
+local function _cloneOwnerGate(name)
+    if not _isOwnerLocal() then
+        notify(tostring(name) .. " is owner-only", "bad"); return false
+    end
+    if not _G.__SeigeCloneSend then
+        notify("Clone channel not ready yet — try again in a sec", "warn"); return false
+    end
+    return true
+end
+cmdHandlers["clone"] = function(arg)
+    if not _cloneOwnerGate("!clone") then return end
+    local t = tostring(arg or ""):gsub("^@", ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !clone <user>", "warn"); return end
+    _G.__SeigeCloneSend("DESIGNATE", t)
+    notify("Clone designated: @" .. t .. " — idle/hover until you issue a command", "good")
+end
+cmdHandlers["unclone"] = function()
+    if not _cloneOwnerGate("!unclone") then return end
+    _G.__SeigeCloneSend("RELEASE", "")
+    notify("Clone released", "good")
+end
+cmdHandlers["clonetp"] = function()
+    if not _cloneOwnerGate("!clonetp") then return end
+    _G.__SeigeCloneSend("TP", LP.Name)
+    notify("Clone teleporting to you", "good")
+end
+cmdHandlers["cfollow"] = function()
+    if not _cloneOwnerGate("!cfollow") then return end
+    _G.__SeigeCloneSend("FOLLOW", LP.Name)
+    notify("Clone following you", "good")
+end
+cmdHandlers["cstop"] = function()
+    if not _cloneOwnerGate("!cstop") then return end
+    _G.__SeigeCloneSend("STOP", "")
+    notify("Clone hovering in place", "good")
+end
+cmdHandlers["swarm"] = function(arg)
+    if not _cloneOwnerGate("!swarm") then return end
+    local t = tostring(arg or ""):gsub("^@", ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !swarm <user>", "warn"); return end
+    _G.__SeigeCloneSend("SWARM", t)
+    notify("Clone swarming @" .. t, "good")
+end
+cmdHandlers["annoy"] = function(arg)
+    if not _cloneOwnerGate("!annoy") then return end
+    local t = tostring(arg or ""):gsub("^@", ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !annoy <user>", "warn"); return end
+    _G.__SeigeCloneSend("ANNOY", t)
+    notify("Clone annoying @" .. t, "good")
+end
+
 -- ===== !flashstep · blink teleport (camera dir OR mouse hover) =====
 _G.__SeigeFlash = _G.__SeigeFlash or {
     on       = false,
