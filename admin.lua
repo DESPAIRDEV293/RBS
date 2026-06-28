@@ -16355,6 +16355,7 @@ end)()
     local PM_MARK     = "\226\159\166SEIGE-PM\226\159\167"      -- <target>|<sender>|<msg>
     local ALERT_MARK  = "\226\159\166SEIGE-ALERT\226\159\167"   -- <sender>|<msg>
     local KILL_MARK   = "\226\159\166SEIGE-KILL\226\159\167"    -- 1|0  (owner-only sender)
+    local CLONE_MARK  = "\226\159\166SEIGE-CLONE\226\159\167"   -- <ownerName>|<verb>|<arg>  (owner-only sender)
 
     local function _cleanName(s)
         return tostring(s or ""):gsub("^@", ""):gsub("^%s+", ""):gsub("%s+$", "")
