@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-28-spotify-bridge"
+local ADMIN_BUILD = "2026-06-28-spotify-library"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -16948,19 +16948,39 @@ if panels.Profile then panels.Profile.frame.Visible = true end
             TextXAlignment = Enum.TextXAlignment.Right,
         })
 
-        local function transport(parent, glyph, x, size)
-            local b = inst("TextButton", parent, {
+        -- Roblox built-in material icon asset IDs (free, no upload needed)
+        local ICON_PLAY  = "rbxassetid://6026663719"
+        local ICON_PAUSE = "rbxassetid://6026663699"
+        local ICON_PREV  = "rbxassetid://6026663716"
+        local ICON_NEXT  = "rbxassetid://6026663717"
+        local ICON_LIB   = "rbxassetid://6026568240"
+
+        local function transport(parent, icon, glyph, x, size)
+            local b = inst("ImageButton", parent, {
                 Size = UDim2.new(0, size, 0, size),
                 Position = UDim2.new(0.5, x - size/2, 0, 392),
-                BackgroundTransparency = 1, AutoButtonColor = false,
-                Text = glyph, Font = Enum.Font.GothamBold,
-                TextSize = size - 8, TextColor3 = T.text,
+                BackgroundTransparency = 1, AutoButtonColor = true,
+                Image = icon, ImageColor3 = T.text,
+                ScaleType = Enum.ScaleType.Fit,
             })
-            return b
+            -- glyph fallback shown if image fails to load
+            local fb = inst("TextLabel", b, {
+                Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1,
+                Text = glyph, Font = Enum.Font.GothamBold,
+                TextSize = size - 8, TextColor3 = T.text, Visible = false,
+            })
+            b:GetPropertyChangedSignal("IsLoaded"):Connect(function()
+                fb.Visible = not b.IsLoaded
+            end)
+            return b, fb
         end
-        local btnPrev = transport(playerWin, "⏮", -70, 32)
-        btnPlay = transport(playerWin, "▶", 0, 42)
-        local btnNext = transport(playerWin, "⏭", 70, 32)
+        local btnPrev = transport(playerWin, ICON_PREV, "⏮", -70, 32)
+        local _bp, _fbp
+        _bp, _fbp = transport(playerWin, ICON_PLAY, "▶", 0, 42)
+        btnPlay = _bp
+        btnPlay:SetAttribute("_glyph", "▶")
+        local _playFb = _fbp
+        local btnNext = transport(playerWin, ICON_NEXT, "⏭", 70, 32)
 
         btnPrev.MouseButton1Click:Connect(function()
             if token == "" then notify("Connect first", "bad"); return end
@@ -16976,6 +16996,124 @@ if panels.Profile then panels.Profile.frame.Visible = true end
             else spReq("PUT", "/me/player/play", token) end
         end)
 
+        ---------- Library panel (recently played) ----------
+        local libOpen = false
+        local libPanel = inst("Frame", playerWin, {
+            Size = UDim2.new(1, -32, 0, 300),
+            Position = UDim2.new(0, 16, 1, -316),
+            BackgroundColor3 = Color3.fromRGB(16, 6, 10),
+            BackgroundTransparency = 0.05, BorderSizePixel = 0,
+            Visible = false, ZIndex = 30,
+        })
+        corner(libPanel, 14); stroke(libPanel, Color3.fromRGB(120, 30, 50), 1.2, 0.2)
+        inst("TextLabel", libPanel, {
+            Size = UDim2.new(1, -20, 0, 22), Position = UDim2.new(0, 12, 0, 8),
+            BackgroundTransparency = 1, Text = "Recently Played",
+            Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 31,
+        })
+        local libClose = inst("TextButton", libPanel, {
+            Size = UDim2.new(0, 26, 0, 22), Position = UDim2.new(1, -32, 0, 8),
+            BackgroundTransparency = 1, Text = "✕",
+            Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = T.text,
+            ZIndex = 31,
+        })
+        local libList = inst("ScrollingFrame", libPanel, {
+            Size = UDim2.new(1, -16, 1, -44),
+            Position = UDim2.new(0, 8, 0, 36),
+            BackgroundTransparency = 1, BorderSizePixel = 0,
+            ScrollBarThickness = 4, CanvasSize = UDim2.new(0,0,0,0),
+            ZIndex = 31,
+        })
+        local libLayout = inst("UIListLayout", libList, {
+            Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder,
+        })
+        libLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            libList.CanvasSize = UDim2.new(0, 0, 0, libLayout.AbsoluteContentSize.Y + 8)
+        end)
+
+        local function _loadLibrary()
+            for _, c in ipairs(libList:GetChildren()) do
+                if c:IsA("TextButton") then c:Destroy() end
+            end
+            if token == "" then
+                inst("TextLabel", libList, { Size = UDim2.new(1,0,0,28), BackgroundTransparency=1,
+                    Text = "Connect a token first", Font = Enum.Font.Gotham, TextSize = 12,
+                    TextColor3 = Color3.fromRGB(200,160,170), ZIndex = 31 })
+                return
+            end
+            local s, b = spReq("GET", "/me/player/recently-played?limit=20", token)
+            if s ~= 200 or not b then
+                inst("TextLabel", libList, { Size = UDim2.new(1,0,0,28), BackgroundTransparency=1,
+                    Text = "Couldn't load library (" .. tostring(s) .. ")", Font = Enum.Font.Gotham,
+                    TextSize = 12, TextColor3 = Color3.fromRGB(220,120,130), ZIndex = 31 })
+                return
+            end
+            local ok, d = pcall(function() return HttpService:JSONDecode(b) end)
+            if not ok or not d or not d.items then return end
+            for i, it in ipairs(d.items) do
+                local tr = it.track; if not tr then continue end
+                local artist = (tr.artists and tr.artists[1] and tr.artists[1].name) or "?"
+                local row = inst("TextButton", libList, {
+                    Size = UDim2.new(1, -4, 0, 42),
+                    BackgroundColor3 = Color3.fromRGB(28, 10, 16),
+                    BackgroundTransparency = 0.15, BorderSizePixel = 0,
+                    AutoButtonColor = true, Text = "", ZIndex = 31, LayoutOrder = i,
+                })
+                corner(row, 8)
+                local imgs = tr.album and tr.album.images
+                inst("ImageLabel", row, {
+                    Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 4, 0, 4),
+                    BackgroundTransparency = 1, ZIndex = 32,
+                    Image = (imgs and imgs[#imgs] and imgs[#imgs].url) or "",
+                })
+                inst("TextLabel", row, {
+                    Size = UDim2.new(1, -50, 0, 18), Position = UDim2.new(0, 44, 0, 3),
+                    BackgroundTransparency = 1, Text = tr.name or "?",
+                    Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+                    TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+                    ZIndex = 32,
+                })
+                inst("TextLabel", row, {
+                    Size = UDim2.new(1, -50, 0, 14), Position = UDim2.new(0, 44, 0, 22),
+                    BackgroundTransparency = 1, Text = artist,
+                    Font = Enum.Font.Gotham, TextSize = 11,
+                    TextColor3 = Color3.fromRGB(210, 170, 180),
+                    TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+                    ZIndex = 32,
+                })
+                local uri = tr.uri
+                row.MouseButton1Click:Connect(function()
+                    if not uri then return end
+                    local body = HttpService:JSONEncode({ uris = { uri } })
+                    local code = spReq("PUT", "/me/player/play", token, body)
+                    if code and code >= 200 and code < 300 then
+                        notify("Playing: " .. (tr.name or "?"), "good")
+                    else
+                        notify("Open Spotify on a device first (" .. tostring(code) .. ")", "bad")
+                    end
+                end)
+            end
+        end
+
+        local btnLib = inst("ImageButton", bar, {
+            Size = UDim2.new(0, 26, 0, 26), Position = UDim2.new(1, -78, 0, 11),
+            BackgroundTransparency = 1, AutoButtonColor = true,
+            Image = ICON_LIB, ImageColor3 = T.text, ScaleType = Enum.ScaleType.Fit,
+        })
+        inst("TextLabel", btnLib, {
+            Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "≣",
+            Font = Enum.Font.GothamBold, TextSize = 20, TextColor3 = T.text, Visible = false,
+        })
+        btnLib.MouseButton1Click:Connect(function()
+            libOpen = not libOpen
+            libPanel.Visible = libOpen
+            if libOpen then _loadLibrary() end
+        end)
+        libClose.MouseButton1Click:Connect(function()
+            libOpen = false; libPanel.Visible = false
+        end)
+
         if not refreshRunning then
             refreshRunning = true
             task.spawn(function()
@@ -16989,7 +17127,7 @@ if panels.Profile then panels.Profile.frame.Visible = true end
                             if ok and d and d.item then
                                 hasTrack = true
                                 isPlaying = d.is_playing and true or false
-                                if btnPlay then btnPlay.Text = isPlaying and "❚❚" or "▶" end
+                                if btnPlay then btnPlay.Image = isPlaying and ICON_PAUSE or ICON_PLAY end
                                 local artist = (d.item.artists and d.item.artists[1] and d.item.artists[1].name) or "?"
                                 if titleLbl then titleLbl.Text = d.item.name or "?" end
                                 if artistLbl then artistLbl.Text = artist end
@@ -17012,7 +17150,7 @@ if panels.Profile then panels.Profile.frame.Visible = true end
                             -- Connected but Spotify reports no active playback (204 or empty body).
                             if titleLbl then titleLbl.Text = "Nothing playing" end
                             if artistLbl then artistLbl.Text = "Start a song on any Spotify device" end
-                            if btnPlay then btnPlay.Text = "▶" end
+                            if btnPlay then btnPlay.Image = ICON_PLAY end
                             isPlaying = false
                         end
                     else
