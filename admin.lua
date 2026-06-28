@@ -13595,6 +13595,7 @@ local function _fcPlayAnim(state, name, speed)
 end
 local function _fcUpdateAnimation(state, mode, distance)
     if not state or not state.hum then return end
+    if _G.__SeigeCloneReanimActive then return end -- reanim mirror takes over
     if mode == "fly" then
         _fcPlayAnim(state, "fall", 0.85)
     elseif mode == "swarm" or mode == "annoy" then
