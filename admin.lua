@@ -17964,12 +17964,21 @@ end)()
                     bg.CFrame = target
                 end
                 return
+            elseif CLONE.mode == "roam" then
+                if not CLONE.roamGoal or (Vector3.new(CLONE.roamGoal.X, hrp.Position.Y, CLONE.roamGoal.Z) - hrp.Position).Magnitude < 3 then
+                    local ang = math.random() * math.pi * 2
+                    local rad = 25 + math.random() * 55
+                    CLONE.roamGoal = hrp.Position + Vector3.new(math.cos(ang) * rad, 0, math.sin(ang) * rad)
+                end
+                goal = CLONE.roamGoal
+                lookAt = CLONE.roamGoal
             end
 
             if goal then
                 local delta = (goal - hrp.Position)
                 local dist = delta.Magnitude
-                local speed = math.clamp(dist * 4, 0, 80)
+                local cap = (CLONE.mode == "roam") and (_G.__SeigeCloneWalkSpeed or 6) or 80
+                local speed = math.clamp(dist * 4, 0, cap)
                 local dir = (dist > 0.05) and (delta.Unit * speed) or Vector3.new()
                 bv.Velocity = dir
                 if lookAt then
