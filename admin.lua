@@ -13323,18 +13323,22 @@ cmdHandlers["fakeclone"] = function(arg)
     notify("Fake clone of @" .. tostring(dname) .. " spawned (local-only)", "good")
 end
 cmdHandlers["unfakeclone"] = function()
+    if not _cloneOwnerGate("!unfakeclone") then return end
     _fcCleanup(); notify("Fake clone removed", "good")
 end
 cmdHandlers["fcfollow"] = function()
+    if not _cloneOwnerGate("!fcfollow") then return end
     if not _G.__SeigeFakeClone.model then notify("No fake clone — use !fakeclone <user>", "warn"); return end
     _G.__SeigeFakeClone.mode = "follow"; _G.__SeigeFakeClone.target = nil
     notify("Fake clone following you", "good")
 end
 cmdHandlers["fcstop"] = function()
+    if not _cloneOwnerGate("!fcstop") then return end
     if not _G.__SeigeFakeClone.model then return end
     _G.__SeigeFakeClone.mode = "stop"; notify("Fake clone holding position", "good")
 end
 cmdHandlers["fctp"] = function()
+    if not _cloneOwnerGate("!fctp") then return end
     local F = _G.__SeigeFakeClone
     if not F.model then notify("No fake clone active", "warn"); return end
     local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
@@ -13342,6 +13346,7 @@ cmdHandlers["fctp"] = function()
     notify("Fake clone teleported to you", "good")
 end
 cmdHandlers["fcswarm"] = function(arg)
+    if not _cloneOwnerGate("!fcswarm") then return end
     if not _G.__SeigeFakeClone.model then notify("Spawn one first: !fakeclone <user>", "warn"); return end
     local t = tostring(arg or ""):gsub("^@",""):gsub("%s+","")
     local p = findPlr(t); if not p then notify("Swarm target not found", "warn"); return end
