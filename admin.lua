@@ -16688,6 +16688,8 @@ if panels.Profile then panels.Profile.frame.Visible = true end
     local IS_SPOTIFY_OWNER = SPOTIFY_OWNERS[_meName] == true
         or SPOTIFY_OWNERS[_meDisp] == true
         or SPOTIFY_OWNER_IDS[_meId] == true
+        or (typeof(OWNER_NAME) == "string" and _meName == OWNER_NAME:lower())
+        or (type(isOwner) == "function" and pcall(isOwner, LocalPlayer) and isOwner(LocalPlayer))
 
     local httpReq = (syn and syn.request)
         or rawget(getfenv(), "http_request")
