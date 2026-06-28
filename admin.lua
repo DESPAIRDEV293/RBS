@@ -17192,7 +17192,7 @@ if panels.Profile then panels.Profile.frame.Visible = true end
                                 local imgs = d.item.album and d.item.album.images
                                 local imgUrl = imgs and imgs[1] and imgs[1].url
                                 if imgUrl and imgUrl ~= lastArt and art then
-                                    art.Image = imgUrl
+                                    _loadArt(art, imgUrl)
                                     lastArt = imgUrl
                                 end
                             end
