@@ -18007,10 +18007,12 @@ do
         if t then pcall(function() t.bg:Destroy() end); tracked[plr] = nil end
     end
 
+    local hbConn
     _G.__SeigeHeadStatsCleanup = function()
         for plr, _ in pairs(tracked) do destroyFor(plr) end
         tracked = {}
         for plr, c in pairs(conns) do pcall(function() c:Disconnect() end); conns[plr] = nil end
+        if hbConn then pcall(function() hbConn:Disconnect() end); hbConn = nil end
     end
 
     local function ensureGui(plr)
@@ -18020,12 +18022,9 @@ do
         local char = plr.Character or plr.CharacterAdded:Wait()
         local head = char:FindFirstChild("Head") or char:WaitForChild("Head", 5)
         if not head then return nil end
-
-        -- remove any stray prior tag on this head (defensive against duplicates)
         for _, c in ipairs(head:GetChildren()) do
             if c.Name == "SeigeHeadStat" then pcall(function() c:Destroy() end) end
         end
-
         local bg = Instance.new("BillboardGui")
         bg.Name = "SeigeHeadStat"
         bg.Adornee = head
@@ -18035,7 +18034,6 @@ do
         bg.MaxDistance = 220
         bg.LightInfluence = 0
         bg.ResetOnSpawn = false
-
         local card = Instance.new("Frame", bg)
         card.Size = UDim2.new(1, 0, 1, 0)
         card.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
@@ -18044,14 +18042,12 @@ do
         local cc = Instance.new("UICorner", card); cc.CornerRadius = UDim.new(1, 0)
         local st = Instance.new("UIStroke", card)
         st.Color = Color3.fromRGB(80, 220, 255); st.Thickness = 1; st.Transparency = 0.55
-
         local dot = Instance.new("Frame", card)
         dot.Size = UDim2.new(0, 6, 0, 6)
         dot.Position = UDim2.new(0, 7, 0.5, -3)
         dot.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
         dot.BorderSizePixel = 0
         local dc = Instance.new("UICorner", dot); dc.CornerRadius = UDim.new(1, 0)
-
         local pingLbl = Instance.new("TextLabel", card)
         pingLbl.BackgroundTransparency = 1
         pingLbl.Size = UDim2.new(0, 34, 1, 0)
@@ -18061,7 +18057,6 @@ do
         pingLbl.TextXAlignment = Enum.TextXAlignment.Left
         pingLbl.TextColor3 = Color3.fromRGB(230, 240, 255)
         pingLbl.Text = "--"
-
         local nameLbl = Instance.new("TextLabel", card)
         nameLbl.BackgroundTransparency = 1
         nameLbl.Size = UDim2.new(1, -55, 1, 0)
@@ -18072,9 +18067,7 @@ do
         nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
         nameLbl.TextColor3 = Color3.fromRGB(190, 205, 230)
         nameLbl.Text = "@" .. plr.Name
-
         bg.Parent = game:GetService("CoreGui")
-
         samples[plr] = samples[plr] or {}
         local entry = { bg = bg, pingLbl = pingLbl, dot = dot, plr = plr }
         tracked[plr] = entry
@@ -18085,7 +18078,7 @@ do
         local t = tracked[plr]; if not t or not t.bg.Parent then return end
         local ms = readPing(plr)
         local col = pingColor(ms)
-        t.pingLbl.Text = tostring(ms) .. "ms"
+        t.pingLbl.Text = (ms > 0) and (tostring(ms) .. "ms") or "--"
         t.pingLbl.TextColor3 = col
         t.dot.BackgroundColor3 = col
     end
@@ -18093,7 +18086,7 @@ do
     local function attach(plr)
         if plr == lp then return end
         if _G.__SeigeHeadStatsOn ~= true then return end
-        if conns[plr] then return end -- already attached, prevent duplicate handlers
+        if conns[plr] then return end
         conns[plr] = plr.CharacterAdded:Connect(function()
             destroyFor(plr)
             if _G.__SeigeHeadStatsOn == false then return end
@@ -18109,7 +18102,6 @@ do
         end
     end
 
-    -- Default OFF; only attach if user enabled in Config.
     if _G.__SeigeHeadStatsOn == true then
         for _, p in ipairs(Players:GetPlayers()) do attach(p) end
     end
@@ -18120,9 +18112,17 @@ do
         samples[p] = nil
     end)
 
-    RunService.Heartbeat:Connect(function()
-        for plr, _ in pairs(tracked) do
-            if plr.Parent then pcall(sampleTick, plr) end
+    -- Throttled sampler: ~10Hz, only when head stats are visible. Previously
+    -- this ran every Heartbeat (~60Hz) for every player which was a measurable
+    -- per-frame cost even with no tags visible.
+    task.spawn(function()
+        while true do
+            if _G.__SeigeHeadStatsOn == true then
+                for plr, _ in pairs(tracked) do
+                    if plr.Parent then pcall(sampleTick, plr) end
+                end
+            end
+            task.wait(0.1)
         end
     end)
 
