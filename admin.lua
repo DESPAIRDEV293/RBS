@@ -13598,6 +13598,9 @@ local function _fcUpdateAnimation(state, mode, distance)
     if _G.__SeigeCloneReanimActive then return end -- reanim mirror takes over
     if mode == "fly" then
         _fcPlayAnim(state, "fall", 0.85)
+    elseif mode == "roam" then
+        local ws = _G.__SeigeCloneWalkSpeed or 6
+        _fcPlayAnim(state, "walk", math.clamp(ws / 8, 0.45, 1.6))
     elseif mode == "swarm" or mode == "annoy" then
         _fcPlayAnim(state, "run", 1.2)
     elseif (distance or 0) > 3 then
