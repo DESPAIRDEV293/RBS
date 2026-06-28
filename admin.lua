@@ -17150,7 +17150,7 @@ if panels.Profile then panels.Profile.frame.Visible = true end
                             -- Connected but Spotify reports no active playback (204 or empty body).
                             if titleLbl then titleLbl.Text = "Nothing playing" end
                             if artistLbl then artistLbl.Text = "Start a song on any Spotify device" end
-                            if btnPlay then btnPlay.Text = "▶" end
+                            if btnPlay then btnPlay.Image = ICON_PLAY end
                             isPlaying = false
                         end
                     else
