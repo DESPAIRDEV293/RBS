@@ -14993,6 +14993,7 @@ local function playAnimId(arg)
     local ok, track = pcall(loadAndPlay, assetUri)
     if ok and typeof(track) == "Instance" then
         table.insert(_G.__ReanimTracks, track)
+        if _G.__SeigeCloneMirrorPlay then pcall(_G.__SeigeCloneMirrorPlay, assetUri, speed, true) end
         notify("Playing " .. assetUri .. " @x" .. speed, "good"); return
     end
 
