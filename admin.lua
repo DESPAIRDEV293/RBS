@@ -4747,7 +4747,7 @@ if LP.Name == OWNER_NAME or _G.__SeigeMyRole() then (function()
         { name = "Lush",        spec = "grad:#56ab2f,#a8e063@45" },
         { name = "Peach",       spec = "grad:#ed4264,#ffedbc@90" },
         { name = "Steel",       spec = "grad:#232526,#414345@90" },
-        { name = "Rainbow",     spec = "grad:#ff0000,#ffa500,#ffff00,#00ff00,#0000ff,#8b00ff@90" },
+        
     }
     local presetRow = inst("Frame", pgTags, {
         Size = UDim2.new(1, -8, 0, 0),
