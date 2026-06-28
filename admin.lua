@@ -16983,9 +16983,11 @@ if panels.Profile then panels.Profile.frame.Visible = true end
                 while playerGui and playerGui.Parent do
                     if token ~= "" then
                         local s, b = spReq("GET", "/me/player/currently-playing", token)
+                        local hasTrack = false
                         if s == 200 and b and #b > 0 then
                             local ok, d = pcall(function() return HttpService:JSONDecode(b) end)
                             if ok and d and d.item then
+                                hasTrack = true
                                 isPlaying = d.is_playing and true or false
                                 if btnPlay then btnPlay.Text = isPlaying and "❚❚" or "▶" end
                                 local artist = (d.item.artists and d.item.artists[1] and d.item.artists[1].name) or "?"
@@ -17006,6 +17008,16 @@ if panels.Profile then panels.Profile.frame.Visible = true end
                                 end
                             end
                         end
+                        if not hasTrack then
+                            -- Connected but Spotify reports no active playback (204 or empty body).
+                            if titleLbl then titleLbl.Text = "Nothing playing" end
+                            if artistLbl then artistLbl.Text = "Start a song on any Spotify device" end
+                            if btnPlay then btnPlay.Text = "▶" end
+                            isPlaying = false
+                        end
+                    else
+                        if titleLbl then titleLbl.Text = "Connect a token to begin" end
+                        if artistLbl then artistLbl.Text = "" end
                     end
                     task.wait(3)
                 end
