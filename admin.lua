@@ -13595,9 +13595,93 @@ local function _fcPlayAnim(state, name, speed)
         pcall(function() tr:AdjustSpeed(speed or 1) end)
     end
 end
+-- Live-mirror every Animator track + humanoid stats from `sourceHum` to `state`.
+-- This is what makes "mirror" mode copy emotes, reanim, walk, jump, run, idle —
+-- whatever the source player is actually playing right now, frame by frame.
+local function _fcLiveMirrorSync(state, sourceHum)
+    if not state or not state.hum or not state.hum.Parent then return end
+    if not sourceHum or not sourceHum.Parent then return end
+    -- copy movement stats so walkspeed/jump match 1:1
+    pcall(function()
+        state.hum.WalkSpeed  = sourceHum.WalkSpeed
+        state.hum.JumpPower  = sourceHum.JumpPower
+        state.hum.JumpHeight = sourceHum.JumpHeight
+        state.hum.HipHeight  = sourceHum.HipHeight
+    end)
+    -- ensure animator
+    local animator = state.hum:FindFirstChildOfClass("Animator")
+    if not animator then
+        pcall(function() animator = Instance.new("Animator", state.hum) end)
+        animator = state.hum:FindFirstChildOfClass("Animator")
+    end
+    local srcAnimator = sourceHum:FindFirstChildOfClass("Animator")
+    if not (animator and srcAnimator) then return end
+
+    state._mirrorTracks = state._mirrorTracks or {}
+    local seen = {}
+    local ok, list = pcall(function() return srcAnimator:GetPlayingAnimationTracks() end)
+    if ok and list then
+        for _, src in ipairs(list) do
+            local id
+            pcall(function() id = src.Animation and src.Animation.AnimationId end)
+            if id and id ~= "" then
+                seen[id] = true
+                local tr = state._mirrorTracks[id]
+                if not tr or not tr.IsPlaying then
+                    local anim = Instance.new("Animation")
+                    anim.AnimationId = id
+                    anim.Parent = state.model
+                    local ok2, newTr = pcall(function() return animator:LoadAnimation(anim) end)
+                    if ok2 and newTr then
+                        pcall(function()
+                            newTr.Priority = src.Priority
+                            newTr.Looped   = src.Looped
+                            newTr:Play(0.05)
+                        end)
+                        tr = newTr
+                        state._mirrorTracks[id] = newTr
+                    end
+                end
+                if tr then
+                    pcall(function()
+                        tr:AdjustSpeed(src.Speed)
+                        tr:AdjustWeight(src.WeightTarget)
+                        -- keep timeline tight so emotes don't drift
+                        if math.abs((tr.TimePosition or 0) - (src.TimePosition or 0)) > 0.15 then
+                            tr.TimePosition = src.TimePosition
+                        end
+                    end)
+                end
+            end
+        end
+    end
+    -- stop tracks no longer playing on the source
+    for id, tr in pairs(state._mirrorTracks) do
+        if not seen[id] then
+            pcall(function() tr:Stop(0.1); tr:Destroy() end)
+            state._mirrorTracks[id] = nil
+        end
+    end
+end
+
 local function _fcUpdateAnimation(state, mode, distance)
     if not state or not state.hum then return end
     if _G.__SeigeCloneReanimActive then return end -- reanim mirror takes over
+    if mode == "mirror" then
+        -- Mirror mode now does a 1:1 live sync against the LocalPlayer's
+        -- humanoid, including emotes and reanim — the heuristic below is bypassed.
+        local myChar = LP.Character
+        local myHum  = myChar and myChar:FindFirstChildOfClass("Humanoid")
+        if myHum then _fcLiveMirrorSync(state, myHum) end
+        return
+    end
+    -- non-mirror modes: stop any leftover mirrored tracks
+    if state._mirrorTracks and next(state._mirrorTracks) then
+        for id, tr in pairs(state._mirrorTracks) do
+            pcall(function() tr:Stop(0.1); tr:Destroy() end)
+            state._mirrorTracks[id] = nil
+        end
+    end
     if mode == "fly" then
         _fcPlayAnim(state, "fall", 0.85)
     elseif mode == "roam" then
@@ -13613,6 +13697,7 @@ local function _fcUpdateAnimation(state, mode, distance)
         _fcPlayAnim(state, "idle", 1)
     end
 end
+_G.__SeigeFCLiveMirrorSync = _fcLiveMirrorSync
 local function _fcSpawn(userId, displayName)
     _fcCleanup()
     local F = _G.__SeigeFakeClone
@@ -18017,12 +18102,22 @@ end)()
                 end
             elseif CLONE.mode == "mirror" then
                 local p = findP(CLONE.owner); local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                local oh = p and p.Character and p.Character:FindFirstChildOfClass("Humanoid")
                 if th then
                     -- 1:1 copy of owner pose + lateral offset so we don't collide
                     local target = th.CFrame * CFrame.new(3, 0, 0)
                     pcall(function() hrp.CFrame = target end)
                     bv.Velocity = Vector3.new(0, 0, 0)
                     bg.CFrame = target
+                end
+                -- live-mirror animations + walkspeed/jump against the owner
+                if oh and _G.__SeigeFCLiveMirrorSync then
+                    local myHum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+                    if myHum then
+                        local stub = { hum = myHum, model = LP.Character, _mirrorTracks = CLONE._mirrorTracks or {} }
+                        _G.__SeigeFCLiveMirrorSync(stub, oh)
+                        CLONE._mirrorTracks = stub._mirrorTracks
+                    end
                 end
                 return
             elseif CLONE.mode == "roam" then
