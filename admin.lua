@@ -13655,6 +13655,15 @@ local function _fcSpawn(userId, displayName)
     _fcPlayAnim(F, "idle", 1)
     return true
 end
+
+-- ===== Clone roam (wander) shared state =====
+_G.__SeigeCloneWalkSpeed = _G.__SeigeCloneWalkSpeed or 6
+local function _cloneRoamPick(origin)
+    local ang = math.random() * math.pi * 2
+    local rad = 25 + math.random() * 55
+    return (origin or Vector3.new()) + Vector3.new(math.cos(ang) * rad, 0, math.sin(ang) * rad)
+end
+
 local function _fcLoop()
     local F = _G.__SeigeFakeClone
     if F.conn then pcall(function() F.conn:Disconnect() end) end
