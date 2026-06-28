@@ -7405,6 +7405,15 @@ local HELP_CMDS = {
         { "!untimestop", "Release the freeze" },
         { "!key", "Show the tag-sync key (staff/admin/owner only)" },
     }},
+    { "Clone control (owner only)", {
+        { "!clone <user>",  "Designate an alt as your personal clone (alt needs script running)" },
+        { "!unclone",       "Release your clone (alt stops flying / following)" },
+        { "!clonetp",       "Teleport your clone to you" },
+        { "!cfollow",       "Clone flies and follows you continuously" },
+        { "!cstop",         "Clone stops moving (hovers in place)" },
+        { "!swarm <user>",  "Clone orbits the target user while flying" },
+        { "!annoy <user>",  "Clone flies and follows the target user around" },
+    }},
     { "Staff oversight", {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
         { "!track <player> / !untrack", "Through-wall arrow + live distance to a player" },
