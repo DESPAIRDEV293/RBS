@@ -13897,6 +13897,9 @@ local function _openClonePanel()
             if _G.__SeigeCloneSend then _G.__SeigeCloneSend("ANNOY", v); notify("Clone annoying @" .. v, "good") end
         end)
         button(body, "Release clone", function() if _G.__SeigeCloneSend then _G.__SeigeCloneSend("RELEASE", ""); notify("Clone released", "good") end end)
+        button(body, "Mirror me  ·  real clone copies your every move", function()
+            if _G.__SeigeCloneSend then _G.__SeigeCloneSend("MIRROR", LP.Name); notify("Clone mirroring you", "good") end
+        end)
 
         label(body, "Fake clone  ·  local-only visual copy (no alt needed)")
         textbox(body, "Spawn fake clone — enter any username", function(v)
