@@ -16825,24 +16825,62 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         playerWin = inst("Frame", playerGui, {
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 460, 0, 460),
-            BackgroundColor3 = Color3.fromRGB(10, 4, 6),
+            Size = UDim2.new(0, 460, 0, 480),
+            BackgroundColor3 = Color3.fromRGB(10, 10, 12),
             BackgroundTransparency = _trans, BorderSizePixel = 0,
         })
-        corner(playerWin, 18); stroke(playerWin, Color3.fromRGB(70, 25, 35), 1.2, 0.25)
+        corner(playerWin, 18); stroke(playerWin, Color3.fromRGB(60, 60, 70), 1.2, 0.25)
+        -- shiny black gradient
+        inst("UIGradient", playerWin, {
+            Rotation = 110,
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0,    Color3.fromRGB(28, 28, 34)),
+                ColorSequenceKeypoint.new(0.45, Color3.fromRGB(10, 10, 12)),
+                ColorSequenceKeypoint.new(0.55, Color3.fromRGB(6, 6, 8)),
+                ColorSequenceKeypoint.new(1,    Color3.fromRGB(20, 20, 26)),
+            }),
+        })
         _G.__SeigePopupPanels = _G.__SeigePopupPanels or {}
         _G.__SeigePopupPanels[playerWin] = true
         playerWin.AncestryChanged:Connect(function(_, p)
             if not p and _G.__SeigePopupPanels then _G.__SeigePopupPanels[playerWin] = nil end
         end)
 
-        -- red radial glow
+        -- soft red glow accent on top
         inst("ImageLabel", playerWin, {
             Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
             Image = "rbxasset://textures/ui/Controls/RadialGradient.png",
-            ImageColor3 = Color3.fromRGB(180, 20, 40),
-            ImageTransparency = 0.55, ScaleType = Enum.ScaleType.Fit,
+            ImageColor3 = Color3.fromRGB(180, 30, 60),
+            ImageTransparency = 0.78, ScaleType = Enum.ScaleType.Fit,
         })
+
+        -- ====== album-art loader (handles Spotify https URLs) ======
+        local _albumCache = {}
+        local function _loadArt(label, url)
+            if not label or not url or url == "" then return end
+            if label:GetAttribute("_lastUrl") == url then return end
+            label:SetAttribute("_lastUrl", url)
+            if _albumCache[url] then
+                pcall(function() label.Image = _albumCache[url] end); return
+            end
+            -- try direct (modern engines / some executors accept https)
+            pcall(function() label.Image = url end)
+            task.spawn(function()
+                task.wait(0.5)
+                if label.IsLoaded then _albumCache[url] = url; return end
+                if not (writefile and getcustomasset and game.HttpGet) then return end
+                local ok, body = pcall(function() return game:HttpGet(url) end)
+                if not ok or not body or #body < 64 then return end
+                local fname = "seige_album_" .. tostring(math.random(1, 1e9)) .. ".png"
+                local okW = pcall(writefile, fname, body); if not okW then return end
+                local okA, asset = pcall(getcustomasset, fname)
+                if okA and asset then
+                    _albumCache[url] = asset
+                    pcall(function() label.Image = asset end)
+                end
+            end)
+        end
+        _G.__SeigeLoadArt = _loadArt
 
         -- Drag handle (top bar)
         local bar = inst("Frame", playerWin, {
