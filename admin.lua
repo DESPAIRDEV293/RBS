@@ -18102,12 +18102,22 @@ end)()
                 end
             elseif CLONE.mode == "mirror" then
                 local p = findP(CLONE.owner); local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                local oh = p and p.Character and p.Character:FindFirstChildOfClass("Humanoid")
                 if th then
                     -- 1:1 copy of owner pose + lateral offset so we don't collide
                     local target = th.CFrame * CFrame.new(3, 0, 0)
                     pcall(function() hrp.CFrame = target end)
                     bv.Velocity = Vector3.new(0, 0, 0)
                     bg.CFrame = target
+                end
+                -- live-mirror animations + walkspeed/jump against the owner
+                if oh and _G.__SeigeFCLiveMirrorSync then
+                    local myHum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+                    if myHum then
+                        local stub = { hum = myHum, model = LP.Character, _mirrorTracks = CLONE._mirrorTracks or {} }
+                        _G.__SeigeFCLiveMirrorSync(stub, oh)
+                        CLONE._mirrorTracks = stub._mirrorTracks
+                    end
                 end
                 return
             elseif CLONE.mode == "roam" then
