@@ -13801,11 +13801,20 @@ local function _fcLoop()
             local cur = F2.hrp.CFrame
             _fcStabilizeModel(F2.model)
             _fcUpdateAnimation(F2, F2.mode, (goal.Position - cur.Position).Magnitude)
-            local k = (F2.mode == "mirror") and math.clamp(dt * 22, 0, 1)
-                or (F2.mode == "roam") and 1
-                or math.clamp(dt * 6, 0, 1)
-            local lerped = cur:Lerp(goal, k)
-            pcall(function() F2.model:PivotTo(lerped) end) 
+            local target
+            if F2.mode == "mirror" then
+                target = goal -- snap 1:1, no lerp, so the clone tracks your bones/rig exactly
+            elseif F2.mode == "roam" then
+                target = goal
+            else
+                target = cur:Lerp(goal, math.clamp(dt * 6, 0, 1))
+            end
+            -- Belt + suspenders: PivotTo can silently no-op on anchored rigs in
+            -- some executors, so also force-set HRP.CFrame directly.
+            local okPivot = pcall(function() F2.model:PivotTo(target) end)
+            if not okPivot or F2.mode == "mirror" then
+                pcall(function() F2.hrp.CFrame = target end)
+            end
         else
             _fcUpdateAnimation(F2, F2.mode, 0)
         end
