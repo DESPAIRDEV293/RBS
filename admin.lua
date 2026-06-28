@@ -13911,6 +13911,49 @@ cmdHandlers["clonefly"] = function()
     else notify("No active clone — use !clone or !fakeclone", "warn") end
 end
 
+-- ===== Clone roam + walkspeed commands =====
+cmdHandlers["fcroam"] = function()
+    if not _cloneOwnerGate("!fcroam") then return end
+    if not (_G.__SeigeFakeClone and _G.__SeigeFakeClone.model) then
+        notify("Spawn a fake clone first: !fakeclone <user>", "warn"); return
+    end
+    _G.__SeigeFakeClone.mode = "roam"
+    _G.__SeigeFakeClone.target = nil
+    _G.__SeigeFakeClone.roamGoal = nil
+    _G.__SeigeFakeClone.t0 = tick()
+    for _, E in ipairs(_G.__SeigeFakeCloneExtras or {}) do E.roamGoal = nil end
+    if type(_fcLoop) == "function" then _fcLoop() end
+    notify("Fake clone roaming (walkspeed " .. (_G.__SeigeCloneWalkSpeed or 6) .. ")", "good")
+end
+cmdHandlers["croam"] = function()
+    if not _cloneOwnerGate("!croam") then return end
+    if not _G.__SeigeCloneSend then notify("Clone channel not ready", "warn"); return end
+    _G.__SeigeCloneSend("WSPEED", tostring(_G.__SeigeCloneWalkSpeed or 6))
+    _G.__SeigeCloneSend("ROAM", "")
+    notify("Real clone roaming", "good")
+end
+cmdHandlers["roam"] = function()
+    if not _cloneOwnerGate("!roam") then return end
+    local did = false
+    if _G.__SeigeFakeClone and _G.__SeigeFakeClone.model then cmdHandlers["fcroam"](); did = true end
+    if _G.__SeigeCloneSend then pcall(function() cmdHandlers["croam"]() end); did = true end
+    if not did then notify("No active clone — use !clone or !fakeclone", "warn") end
+end
+
+local function _openCloneWalkspeedPanel()
+    _openPanel("clonews", "Clone Walkspeed", 360, function(body)
+        label(body, "How fast roaming clones walk (studs/sec)")
+        slider(body, "Walkspeed", 1, 30, _G.__SeigeCloneWalkSpeed or 6, function(v)
+            _G.__SeigeCloneWalkSpeed = v
+            if _G.__SeigeCloneSend then pcall(function() _G.__SeigeCloneSend("WSPEED", tostring(v)) end) end
+        end)
+        label(body, "Default 6 = slow stroll. 16 = normal Roblox walk. 30 = sprint.")
+    end)
+end
+cmdHandlers["clonews"]    = function() _openCloneWalkspeedPanel() end
+cmdHandlers["clonespeed"] = function() _openCloneWalkspeedPanel() end
+
+
 -- ===== !cmirror / !fcmirror / !clonemirror · clone copies your every move =====
 cmdHandlers["cmirror"] = function()
     if not _cloneOwnerGate("!cmirror") then return end
