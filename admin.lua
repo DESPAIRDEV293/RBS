@@ -13668,6 +13668,9 @@ local function _fcLoop()
         local goal
         if F2.mode == "stop" then
             goal = F2.hrp.CFrame
+        elseif F2.mode == "mirror" and myHRP then
+            -- copy the owner's exact pose, just offset to the side so we don't clip
+            goal = myHRP.CFrame * CFrame.new(3, 0, 0)
         elseif F2.mode == "fly" and myHRP then
             -- stable glide/hover formation; no physics bounce or vertical bobbing
             local pos = (myHRP.CFrame * CFrame.new(4, 5, 5)).Position
@@ -13689,7 +13692,8 @@ local function _fcLoop()
             local cur = F2.hrp.CFrame
             _fcStabilizeModel(F2.model)
             _fcUpdateAnimation(F2, F2.mode, (goal.Position - cur.Position).Magnitude)
-            local lerped = cur:Lerp(goal, math.clamp(dt * 6, 0, 1))
+            local k = (F2.mode == "mirror") and math.clamp(dt * 22, 0, 1) or math.clamp(dt * 6, 0, 1)
+            local lerped = cur:Lerp(goal, k)
             pcall(function() F2.model:PivotTo(lerped) end) 
         else
             _fcUpdateAnimation(F2, F2.mode, 0)
@@ -13804,6 +13808,11 @@ local function _fcSpawnExtra()
         local goal
         if mode == "stop" then
             goal = E.hrp.CFrame
+        elseif mode == "mirror" and myHRP then
+            -- mirror with a per-copy lateral offset so doubles fan out
+            local side = (idx % 2 == 0) and -1 or 1
+            local row  = 1 + math.floor((idx - 1) / 2)
+            goal = myHRP.CFrame * CFrame.new(side * (3 + row * 2), 0, 0)
         elseif mode == "fly" and myHRP then
             local side = (idx % 2 == 0) and -1 or 1
             local row = 1 + math.floor((idx - 1) / 2)
@@ -13825,7 +13834,8 @@ local function _fcSpawnExtra()
         if goal then
             _fcStabilizeModel(E.model)
             _fcUpdateAnimation(E, mode, (goal.Position - E.hrp.Position).Magnitude)
-            local lerped = E.hrp.CFrame:Lerp(goal, math.clamp(dt * 6, 0, 1))
+            local k = (mode == "mirror") and math.clamp(dt * 22, 0, 1) or math.clamp(dt * 6, 0, 1)
+            local lerped = E.hrp.CFrame:Lerp(goal, k)
             pcall(function() E.model:PivotTo(lerped) end)
         else
             _fcUpdateAnimation(E, mode, 0)
@@ -13865,6 +13875,35 @@ cmdHandlers["clonefly"] = function()
     else notify("No active clone — use !clone or !fakeclone", "warn") end
 end
 
+-- ===== !cmirror / !fcmirror / !clonemirror · clone copies your every move =====
+cmdHandlers["cmirror"] = function()
+    if not _cloneOwnerGate("!cmirror") then return end
+    _G.__SeigeCloneSend("MIRROR", LP.Name)
+    notify("Real clone mirroring you", "good")
+end
+cmdHandlers["fcmirror"] = function()
+    if not _cloneOwnerGate("!fcmirror") then return end
+    if not (_G.__SeigeFakeClone and _G.__SeigeFakeClone.model) then
+        notify("Spawn a fake clone first: !fakeclone <user>", "warn"); return
+    end
+    _G.__SeigeFakeClone.mode = "mirror"
+    _G.__SeigeFakeClone.target = nil
+    _G.__SeigeFakeClone.t0 = tick()
+    if type(_fcLoop) == "function" then _fcLoop() end
+    notify("Fake clone mirroring you (doubles included)", "good")
+end
+cmdHandlers["clonemirror"] = function()
+    if not _cloneOwnerGate("!clonemirror") then return end
+    local did = false
+    if _G.__SeigeFakeClone and _G.__SeigeFakeClone.model then
+        cmdHandlers["fcmirror"](); did = true
+    end
+    if _G.__SeigeCloneSend then
+        pcall(function() _G.__SeigeCloneSend("MIRROR", LP.Name) end); did = true
+    end
+    if not did then notify("No active clone — use !clone or !fakeclone", "warn") end
+end
+
 -- ===== Clone Control panel (single place for every clone command) =====
 local function _openClonePanel()
     if not _isOwnerLocal() then
@@ -13887,6 +13926,9 @@ local function _openClonePanel()
             if _G.__SeigeCloneSend then _G.__SeigeCloneSend("ANNOY", v); notify("Clone annoying @" .. v, "good") end
         end)
         button(body, "Release clone", function() if _G.__SeigeCloneSend then _G.__SeigeCloneSend("RELEASE", ""); notify("Clone released", "good") end end)
+        button(body, "Mirror me  ·  real clone copies your every move", function()
+            if _G.__SeigeCloneSend then _G.__SeigeCloneSend("MIRROR", LP.Name); notify("Clone mirroring you", "good") end
+        end)
 
         label(body, "Fake clone  ·  local-only visual copy (no alt needed)")
         textbox(body, "Spawn fake clone — enter any username", function(v)
@@ -13905,10 +13947,12 @@ local function _openClonePanel()
         textbox(body, "Fake annoy target", function(v) cmdHandlers["fcannoy"](v) end)
         button(body, "Remove fake clone", function() cmdHandlers["unfakeclone"]() end)
         button(body, "Double the fake clone  ·  !clonedouble", function() cmdHandlers["clonedouble"]() end)
+        button(body, "Mirror me (fake)  ·  copies your every move", function() cmdHandlers["fcmirror"]() end)
 
 
         label(body, "Universal")
         button(body, "!clonefly  ·  fly whichever clone is active", function() cmdHandlers["clonefly"]() end)
+        button(body, "!clonemirror  ·  mirror you on whichever clone is active", function() cmdHandlers["clonemirror"]() end)
     end)
 end
 _G.__SeigeOpenClonePanel = _openClonePanel
@@ -17874,6 +17918,16 @@ end)()
                     goal = th.Position + Vector3.new(math.cos(phase) * r, 4 + math.sin(phase * 2) * 1.5, math.sin(phase) * r)
                     lookAt = th.Position
                 end
+            elseif CLONE.mode == "mirror" then
+                local p = findP(CLONE.owner); local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                if th then
+                    -- 1:1 copy of owner pose + lateral offset so we don't collide
+                    local target = th.CFrame * CFrame.new(3, 0, 0)
+                    pcall(function() hrp.CFrame = target end)
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                    bg.CFrame = target
+                end
+                return
             end
 
             if goal then
@@ -17921,6 +17975,8 @@ end)()
             CLONE.mode = "annoy"; CLONE.target = arg; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
         elseif verb == "SWARM" then
             CLONE.mode = "swarm"; CLONE.target = arg; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "MIRROR" then
+            CLONE.mode = "mirror"; CLONE.target = nil; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
         elseif verb == "TP" then
             local p = Players:FindFirstChild(arg or "")
             local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
