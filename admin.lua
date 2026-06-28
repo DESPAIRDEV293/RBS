@@ -13365,6 +13365,70 @@ cmdHandlers["fcannoy"] = function(arg)
     _fcLoop(); notify("Fake clone annoying @" .. p.Name, "good")
 end
 
+-- ===== !clonefly · make the active clone fly/hover =====
+cmdHandlers["clonefly"] = function()
+    if not _cloneOwnerGate("!clonefly") then return end
+    local did = false
+    if _G.__SeigeFakeClone and _G.__SeigeFakeClone.model then
+        _G.__SeigeFakeClone.mode = "fly"
+        _G.__SeigeFakeClone.target = nil
+        _G.__SeigeFakeClone.t0 = tick()
+        if type(_fcLoop) == "function" then _fcLoop() end
+        did = true
+    end
+    if _G.__SeigeCloneSend then
+        -- Real-clone receivers don't have a FLY verb but STOP keeps
+        -- BodyVelocity/Gyro engaged so the alt hovers in the air.
+        pcall(function() _G.__SeigeCloneSend("STOP", "") end)
+        did = true
+    end
+    if did then notify("Clone flying / hovering", "good")
+    else notify("No active clone — use !clone or !fakeclone", "warn") end
+end
+
+-- ===== Clone Control panel (single place for every clone command) =====
+local function _openClonePanel()
+    _openPanel("clone", "Clone Control  ·  real + fake", 520, function(body)
+        label(body, "Real clone  ·  requires the alt to also run this script")
+        textbox(body, "Designate clone — enter alt username", function(v)
+            if not _G.__SeigeCloneSend then notify("Clone channel not ready", "warn"); return end
+            _G.__SeigeCloneSend("DESIGNATE", v)
+            notify("Clone designated: @" .. v, "good")
+        end)
+        button(body, "Follow me",      function() if _G.__SeigeCloneSend then _G.__SeigeCloneSend("FOLLOW", LP.Name); notify("Clone following you", "good") end end)
+        button(body, "Hover / stop",   function() if _G.__SeigeCloneSend then _G.__SeigeCloneSend("STOP", ""); notify("Clone hovering", "good") end end)
+        button(body, "Teleport to me", function() if _G.__SeigeCloneSend then _G.__SeigeCloneSend("TP", LP.Name); notify("Clone teleporting", "good") end end)
+        textbox(body, "Swarm target — username (orbits)", function(v)
+            if _G.__SeigeCloneSend then _G.__SeigeCloneSend("SWARM", v); notify("Clone swarming @" .. v, "good") end
+        end)
+        textbox(body, "Annoy target — username (chases)", function(v)
+            if _G.__SeigeCloneSend then _G.__SeigeCloneSend("ANNOY", v); notify("Clone annoying @" .. v, "good") end
+        end)
+        button(body, "Release clone", function() if _G.__SeigeCloneSend then _G.__SeigeCloneSend("RELEASE", ""); notify("Clone released", "good") end end)
+
+        label(body, "Fake clone  ·  local-only visual copy (no alt needed)")
+        textbox(body, "Spawn fake clone — enter any username", function(v)
+            cmdHandlers["fakeclone"](v)
+        end)
+        button(body, "Fly / hover (fake)", function()
+            if not _G.__SeigeFakeClone.model then notify("Spawn one first", "warn"); return end
+            _G.__SeigeFakeClone.mode = "fly"; _G.__SeigeFakeClone.target = nil
+            _G.__SeigeFakeClone.t0 = tick(); _fcLoop()
+            notify("Fake clone flying", "good")
+        end)
+        button(body, "Follow me (fake)",  function() cmdHandlers["fcfollow"]() end)
+        button(body, "Hold position (fake)", function() cmdHandlers["fcstop"]() end)
+        button(body, "Teleport to me (fake)", function() cmdHandlers["fctp"]() end)
+        textbox(body, "Fake swarm target", function(v) cmdHandlers["fcswarm"](v) end)
+        textbox(body, "Fake annoy target", function(v) cmdHandlers["fcannoy"](v) end)
+        button(body, "Remove fake clone", function() cmdHandlers["unfakeclone"]() end)
+
+        label(body, "Universal")
+        button(body, "!clonefly  ·  fly whichever clone is active", function() cmdHandlers["clonefly"]() end)
+    end)
+end
+_G.__SeigeOpenClonePanel = _openClonePanel
+
 
 
 -- ===== !flashstep · blink teleport (camera dir OR mouse hover) =====
