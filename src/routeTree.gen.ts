@@ -18,6 +18,7 @@ import { Route as ApiPublicTags_writeRouteImport } from './routes/api/public/tag
 import { Route as ApiPublicTagsRouteImport } from './routes/api/public/tags'
 import { Route as ApiPublicTag_sync_keyRouteImport } from './routes/api/public/tag_sync_key'
 import { Route as ApiPublicTag_groupsRouteImport } from './routes/api/public/tag_groups'
+import { Route as ApiPublicSpotify_callbackRouteImport } from './routes/api/public/spotify_callback'
 import { Route as ApiPublicRolesRouteImport } from './routes/api/public/roles'
 import { Route as ApiPublicReanimDotluaRouteImport } from './routes/api/public/reanim[.]lua'
 import { Route as ApiPublicPastebinRouteImport } from './routes/api/public/pastebin'
@@ -70,6 +71,12 @@ const ApiPublicTag_groupsRoute = ApiPublicTag_groupsRouteImport.update({
   path: '/api/public/tag_groups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSpotify_callbackRoute =
+  ApiPublicSpotify_callbackRouteImport.update({
+    id: '/api/public/spotify_callback',
+    path: '/api/public/spotify_callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicRolesRoute = ApiPublicRolesRouteImport.update({
   id: '/api/public/roles',
   path: '/api/public/roles',
@@ -112,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
+  '/api/public/spotify_callback': typeof ApiPublicSpotify_callbackRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
   '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
@@ -129,6 +137,7 @@ export interface FileRoutesByTo {
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
+  '/api/public/spotify_callback': typeof ApiPublicSpotify_callbackRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
   '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
@@ -147,6 +156,7 @@ export interface FileRoutesById {
   '/api/public/pastebin': typeof ApiPublicPastebinRoute
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
+  '/api/public/spotify_callback': typeof ApiPublicSpotify_callbackRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
   '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
     | '/api/public/roles'
+    | '/api/public/spotify_callback'
     | '/api/public/tag_groups'
     | '/api/public/tag_sync_key'
     | '/api/public/tags'
@@ -183,6 +194,7 @@ export interface FileRouteTypes {
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
     | '/api/public/roles'
+    | '/api/public/spotify_callback'
     | '/api/public/tag_groups'
     | '/api/public/tag_sync_key'
     | '/api/public/tags'
@@ -200,6 +212,7 @@ export interface FileRouteTypes {
     | '/api/public/pastebin'
     | '/api/public/reanim.lua'
     | '/api/public/roles'
+    | '/api/public/spotify_callback'
     | '/api/public/tag_groups'
     | '/api/public/tag_sync_key'
     | '/api/public/tags'
@@ -218,6 +231,7 @@ export interface RootRouteChildren {
   ApiPublicPastebinRoute: typeof ApiPublicPastebinRoute
   ApiPublicReanimDotluaRoute: typeof ApiPublicReanimDotluaRoute
   ApiPublicRolesRoute: typeof ApiPublicRolesRoute
+  ApiPublicSpotify_callbackRoute: typeof ApiPublicSpotify_callbackRoute
   ApiPublicTag_groupsRoute: typeof ApiPublicTag_groupsRoute
   ApiPublicTag_sync_keyRoute: typeof ApiPublicTag_sync_keyRoute
   ApiPublicTagsRoute: typeof ApiPublicTagsRoute
@@ -290,6 +304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTag_groupsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/spotify_callback': {
+      id: '/api/public/spotify_callback'
+      path: '/api/public/spotify_callback'
+      fullPath: '/api/public/spotify_callback'
+      preLoaderRoute: typeof ApiPublicSpotify_callbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/roles': {
       id: '/api/public/roles'
       path: '/api/public/roles'
@@ -346,6 +367,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPastebinRoute: ApiPublicPastebinRoute,
   ApiPublicReanimDotluaRoute: ApiPublicReanimDotluaRoute,
   ApiPublicRolesRoute: ApiPublicRolesRoute,
+  ApiPublicSpotify_callbackRoute: ApiPublicSpotify_callbackRoute,
   ApiPublicTag_groupsRoute: ApiPublicTag_groupsRoute,
   ApiPublicTag_sync_keyRoute: ApiPublicTag_sync_keyRoute,
   ApiPublicTagsRoute: ApiPublicTagsRoute,
