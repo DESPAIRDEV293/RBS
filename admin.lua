@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-28-fakeclone"
+local ADMIN_BUILD = "2026-06-28-clonepanel"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -7413,20 +7413,10 @@ local HELP_CMDS = {
         { "!key", "Show the tag-sync key (staff/admin/owner only)" },
     }},
     { "Clone control (owner only)", {
+        { "!clone",         "Open the Clone Control panel (real + fake clones, fly, swarm, annoy, tp, release)" },
         { "!clone <user>",  "Designate an alt as your personal clone (alt needs script running)" },
-        { "!unclone",       "Release your clone (alt stops flying / following)" },
-        { "!clonetp",       "Teleport your clone to you" },
-        { "!cfollow",       "Clone flies and follows you continuously" },
-        { "!cstop",         "Clone stops moving (hovers in place)" },
-        { "!swarm <user>",  "Clone orbits the target user while flying" },
-        { "!annoy <user>",  "Clone flies and follows the target user around" },
-        { "!fakeclone <user>", "Local-only visual clone of a user (alt does NOT need script)" },
-        { "!unfakeclone",   "Remove the local fake clone" },
-        { "!fcfollow",      "Fake clone follows you" },
-        { "!fcswarm <user>","Fake clone orbits target" },
-        { "!fcannoy <user>","Fake clone chases target" },
-        { "!fcstop",        "Fake clone holds position" },
-        { "!fctp",          "Teleport fake clone to you" },
+        { "!fakeclone <user>", "Spawn a local-only visual clone (no script needed on alt) — uses your equipped animations" },
+        { "!clonefly",      "Make the active clone (real or fake) fly / hover" },
     }},
     { "Staff oversight", {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
@@ -7544,21 +7534,11 @@ button(pgCmds, "!selflimbtrack  —  drive your own limb", function() _runCmd("!
 button(pgCmds, "!logs <player>  —  recent chat (staff)", function() _openCmd("!logs ") end)
 button(pgCmds, "!track <player>  —  arrow + distance (staff)", function() _openCmd("!track ") end)
 
--- Clone control (owner only)
-button(pgCmds, "!clone <user>  —  designate alt as clone (owner)",  function() _openCmd("!clone ") end)
-button(pgCmds, "!clonetp  —  bring clone to you (owner)",            function() _runCmd("!clonetp") end)
-button(pgCmds, "!cfollow  —  clone follows you (owner)",             function() _runCmd("!cfollow") end)
-button(pgCmds, "!cstop  —  clone hovers in place (owner)",           function() _runCmd("!cstop") end)
-button(pgCmds, "!swarm <user>  —  clone orbits target (owner)",      function() _openCmd("!swarm ") end)
-button(pgCmds, "!annoy <user>  —  clone chases target (owner)",      function() _openCmd("!annoy ") end)
-button(pgCmds, "!unclone  —  release clone (owner)",                 function() _runCmd("!unclone") end)
-button(pgCmds, "!fakeclone <user>  —  local-only visual clone (owner)", function() _openCmd("!fakeclone ") end)
-button(pgCmds, "!fcfollow  —  fake clone follows you (owner)",       function() _runCmd("!fcfollow") end)
-button(pgCmds, "!fcswarm <user>  —  fake clone orbits target (owner)", function() _openCmd("!fcswarm ") end)
-button(pgCmds, "!fcannoy <user>  —  fake clone chases target (owner)", function() _openCmd("!fcannoy ") end)
-button(pgCmds, "!fcstop  —  fake clone holds (owner)",               function() _runCmd("!fcstop") end)
-button(pgCmds, "!fctp  —  fake clone to you (owner)",                function() _runCmd("!fctp") end)
-button(pgCmds, "!unfakeclone  —  remove fake clone (owner)",         function() _runCmd("!unfakeclone") end)
+-- Clone control (owner only) — single entry that opens the full panel
+button(pgCmds, "!clone  —  open Clone Control panel (owner)", function()
+    if type(_G.__SeigeOpenClonePanel) == "function" then _G.__SeigeOpenClonePanel()
+    else notify("Clone panel not ready yet", "warn") end
+end)
 button(pgCmds, "!cmute <player>  —  silence locally (staff)", function() _openCmd("!cmute ") end)
 button(pgCmds, "!hide <player>  —  hide locally (staff)", function() _openCmd("!hide ") end)
 button(pgCmds, "!unhide <player>  —  unhide (staff)", function() _openCmd("!unhide ") end)
@@ -13163,7 +13143,11 @@ end
 cmdHandlers["clone"] = function(arg)
     if not _cloneOwnerGate("!clone") then return end
     local t = tostring(arg or ""):gsub("^@", ""):gsub("%s+", "")
-    if t == "" then notify("Usage: !clone <user>", "warn"); return end
+    if t == "" then
+        if type(_G.__SeigeOpenClonePanel) == "function" then _G.__SeigeOpenClonePanel()
+        else notify("Clone panel not ready", "warn") end
+        return
+    end
     _G.__SeigeCloneSend("DESIGNATE", t)
     notify("Clone designated: @" .. t .. " — idle/hover until you issue a command", "good")
 end
@@ -13251,6 +13235,19 @@ local function _fcSpawn(userId, displayName)
         bb.Parent = head
     end
     if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
+    -- Copy the local player's Animate LocalScript + AnimationIds so the
+    -- fake clone plays the same idle/walk/run/jump anims the user has equipped.
+    pcall(function()
+        local myChar = LP.Character
+        local myAnimate = myChar and myChar:FindFirstChild("Animate")
+        local oldAnimate = model:FindFirstChild("Animate")
+        if oldAnimate then oldAnimate:Destroy() end
+        if myAnimate then
+            local copy = myAnimate:Clone()
+            copy.Disabled = false
+            copy.Parent = model
+        end
+    end)
     F.model = model
     F.hum   = hum
     F.hrp   = model:FindFirstChild("HumanoidRootPart")
@@ -13271,6 +13268,12 @@ local function _fcLoop()
         local goal
         if F2.mode == "stop" then
             goal = F2.hrp.CFrame
+        elseif F2.mode == "fly" and myHRP then
+            -- gentle hovering circle above the user
+            local r = 5
+            local ang = t * 1.4
+            local off = Vector3.new(math.cos(ang)*r, 6 + math.sin(t*2)*1.2, math.sin(ang)*r)
+            goal = CFrame.new(myHRP.Position + off, myHRP.Position + Vector3.new(0, 3, 0))
         elseif F2.mode == "follow" and myHRP then
             local back = myHRP.CFrame * CFrame.new(0, 1, 6)
             goal = back
@@ -13341,6 +13344,70 @@ cmdHandlers["fcannoy"] = function(arg)
     _G.__SeigeFakeClone.target = p; _G.__SeigeFakeClone.mode = "annoy"
     _fcLoop(); notify("Fake clone annoying @" .. p.Name, "good")
 end
+
+-- ===== !clonefly · make the active clone fly/hover =====
+cmdHandlers["clonefly"] = function()
+    if not _cloneOwnerGate("!clonefly") then return end
+    local did = false
+    if _G.__SeigeFakeClone and _G.__SeigeFakeClone.model then
+        _G.__SeigeFakeClone.mode = "fly"
+        _G.__SeigeFakeClone.target = nil
+        _G.__SeigeFakeClone.t0 = tick()
+        if type(_fcLoop) == "function" then _fcLoop() end
+        did = true
+    end
+    if _G.__SeigeCloneSend then
+        -- Real-clone receivers don't have a FLY verb but STOP keeps
+        -- BodyVelocity/Gyro engaged so the alt hovers in the air.
+        pcall(function() _G.__SeigeCloneSend("STOP", "") end)
+        did = true
+    end
+    if did then notify("Clone flying / hovering", "good")
+    else notify("No active clone — use !clone or !fakeclone", "warn") end
+end
+
+-- ===== Clone Control panel (single place for every clone command) =====
+local function _openClonePanel()
+    _openPanel("clone", "Clone Control  ·  real + fake", 520, function(body)
+        label(body, "Real clone  ·  requires the alt to also run this script")
+        textbox(body, "Designate clone — enter alt username", function(v)
+            if not _G.__SeigeCloneSend then notify("Clone channel not ready", "warn"); return end
+            _G.__SeigeCloneSend("DESIGNATE", v)
+            notify("Clone designated: @" .. v, "good")
+        end)
+        button(body, "Follow me",      function() if _G.__SeigeCloneSend then _G.__SeigeCloneSend("FOLLOW", LP.Name); notify("Clone following you", "good") end end)
+        button(body, "Hover / stop",   function() if _G.__SeigeCloneSend then _G.__SeigeCloneSend("STOP", ""); notify("Clone hovering", "good") end end)
+        button(body, "Teleport to me", function() if _G.__SeigeCloneSend then _G.__SeigeCloneSend("TP", LP.Name); notify("Clone teleporting", "good") end end)
+        textbox(body, "Swarm target — username (orbits)", function(v)
+            if _G.__SeigeCloneSend then _G.__SeigeCloneSend("SWARM", v); notify("Clone swarming @" .. v, "good") end
+        end)
+        textbox(body, "Annoy target — username (chases)", function(v)
+            if _G.__SeigeCloneSend then _G.__SeigeCloneSend("ANNOY", v); notify("Clone annoying @" .. v, "good") end
+        end)
+        button(body, "Release clone", function() if _G.__SeigeCloneSend then _G.__SeigeCloneSend("RELEASE", ""); notify("Clone released", "good") end end)
+
+        label(body, "Fake clone  ·  local-only visual copy (no alt needed)")
+        textbox(body, "Spawn fake clone — enter any username", function(v)
+            cmdHandlers["fakeclone"](v)
+        end)
+        button(body, "Fly / hover (fake)", function()
+            if not _G.__SeigeFakeClone.model then notify("Spawn one first", "warn"); return end
+            _G.__SeigeFakeClone.mode = "fly"; _G.__SeigeFakeClone.target = nil
+            _G.__SeigeFakeClone.t0 = tick(); _fcLoop()
+            notify("Fake clone flying", "good")
+        end)
+        button(body, "Follow me (fake)",  function() cmdHandlers["fcfollow"]() end)
+        button(body, "Hold position (fake)", function() cmdHandlers["fcstop"]() end)
+        button(body, "Teleport to me (fake)", function() cmdHandlers["fctp"]() end)
+        textbox(body, "Fake swarm target", function(v) cmdHandlers["fcswarm"](v) end)
+        textbox(body, "Fake annoy target", function(v) cmdHandlers["fcannoy"](v) end)
+        button(body, "Remove fake clone", function() cmdHandlers["unfakeclone"]() end)
+
+        label(body, "Universal")
+        button(body, "!clonefly  ·  fly whichever clone is active", function() cmdHandlers["clonefly"]() end)
+    end)
+end
+_G.__SeigeOpenClonePanel = _openClonePanel
 
 
 
