@@ -16723,6 +16723,10 @@ if panels.Profile then panels.Profile.frame.Visible = true end
     local titleLbl, artistLbl, art, barFill, barKnob, tLeft, tRight, btnPlay
     local isPlaying = false
     local refreshRunning = false
+    local function fmt(ms)
+        ms = math.max(0, math.floor((ms or 0) / 1000))
+        return string.format("%d:%02d", math.floor(ms/60), ms % 60)
+    end
 
     local function _closePlayer()
         if playerGui then pcall(function() playerGui:Destroy() end) end
