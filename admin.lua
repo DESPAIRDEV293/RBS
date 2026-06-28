@@ -17884,6 +17884,16 @@ end)()
                     goal = th.Position + Vector3.new(math.cos(phase) * r, 4 + math.sin(phase * 2) * 1.5, math.sin(phase) * r)
                     lookAt = th.Position
                 end
+            elseif CLONE.mode == "mirror" then
+                local p = findP(CLONE.owner); local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                if th then
+                    -- 1:1 copy of owner pose + lateral offset so we don't collide
+                    local target = th.CFrame * CFrame.new(3, 0, 0)
+                    pcall(function() hrp.CFrame = target end)
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                    bg.CFrame = target
+                end
+                return
             end
 
             if goal then
