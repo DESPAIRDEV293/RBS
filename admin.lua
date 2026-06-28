@@ -115,6 +115,7 @@ local function _uiParents()
     add(LP:FindFirstChildOfClass("PlayerGui") or LP:WaitForChild("PlayerGui", 8))
     add(_hiddenUI())
     add(CoreGui)
+    if next(out) == nil then return nil end
     return out
 end
 local function safeParent(gui)
@@ -2892,7 +2893,7 @@ function TagDB:pushRemoteEntry(key, entry)
     local clean = nil
     if entry ~= nil then
         clean = cleanTagEntry(entry)
-        if not clean then return false, "empty entry" end
+        if not clean or next(clean) == nil then return false, "empty entry" end
     end
     -- Track in-flight pushes so a concurrent TagDB:load() doesn't revert the
     -- just-saved entry back to stale cloud state for ~90s.
