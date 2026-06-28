@@ -14008,6 +14008,7 @@ local function _openClonePanel()
         button(body, "Mirror me  ·  real clone copies your every move", function()
             if _G.__SeigeCloneSend then _G.__SeigeCloneSend("MIRROR", LP.Name); notify("Clone mirroring you", "good") end
         end)
+        button(body, "Roam server  ·  real clone wanders on its own", function() cmdHandlers["croam"]() end)
 
         label(body, "Fake clone  ·  local-only visual copy (no alt needed)")
         textbox(body, "Spawn fake clone — enter any username", function(v)
@@ -14027,11 +14028,14 @@ local function _openClonePanel()
         button(body, "Remove fake clone", function() cmdHandlers["unfakeclone"]() end)
         button(body, "Double the fake clone  ·  !clonedouble", function() cmdHandlers["clonedouble"]() end)
         button(body, "Mirror me (fake)  ·  copies your every move", function() cmdHandlers["fcmirror"]() end)
+        button(body, "Roam server (fake)  ·  wander slowly on its own", function() cmdHandlers["fcroam"]() end)
 
 
         label(body, "Universal")
         button(body, "!clonefly  ·  fly whichever clone is active", function() cmdHandlers["clonefly"]() end)
         button(body, "!clonemirror  ·  mirror you on whichever clone is active", function() cmdHandlers["clonemirror"]() end)
+        button(body, "!roam  ·  roam whichever clone is active", function() cmdHandlers["roam"]() end)
+        button(body, "Clone walkspeed  ·  open speed slider", function() _openCloneWalkspeedPanel() end)
     end)
 end
 _G.__SeigeOpenClonePanel = _openClonePanel
