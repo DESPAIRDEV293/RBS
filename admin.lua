@@ -13692,7 +13692,8 @@ local function _fcLoop()
             local cur = F2.hrp.CFrame
             _fcStabilizeModel(F2.model)
             _fcUpdateAnimation(F2, F2.mode, (goal.Position - cur.Position).Magnitude)
-            local lerped = cur:Lerp(goal, math.clamp(dt * 6, 0, 1))
+            local k = (F2.mode == "mirror") and math.clamp(dt * 22, 0, 1) or math.clamp(dt * 6, 0, 1)
+            local lerped = cur:Lerp(goal, k)
             pcall(function() F2.model:PivotTo(lerped) end) 
         else
             _fcUpdateAnimation(F2, F2.mode, 0)
