@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-28-spotify-library2"
+local ADMIN_BUILD = "2026-06-28-spotify-shiny"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -10605,6 +10605,75 @@ do
 end
 
 
+section(pgConfig, "Panel Movement")
+label(pgConfig, "When on, popup panels (player, command panels, etc) gently float and grow slightly on hover.")
+_G.__SeigePanelFloat = _G.__SeigePanelFloat or false
+do
+    local floatBase = setmetatable({}, { __mode = "k" })
+    local hoverBound = setmetatable({}, { __mode = "k" })
+    local applying = false
+
+    local function _ensureRegistered(win)
+        if not win or floatBase[win] then return end
+        floatBase[win] = { pos = win.Position, size = win.Size }
+        win:GetPropertyChangedSignal("Position"):Connect(function()
+            if not applying then floatBase[win].pos = win.Position end
+        end)
+        win:GetPropertyChangedSignal("Size"):Connect(function()
+            if not applying then floatBase[win].size = win.Size end
+        end)
+    end
+
+    local function _bindHover(win)
+        if not win or hoverBound[win] then return end
+        hoverBound[win] = true
+        win.MouseEnter:Connect(function()
+            if not _G.__SeigePanelFloat then return end
+            local b = floatBase[win]; if not b then return end
+            applying = true
+            local s = b.size
+            win.Size = UDim2.new(s.X.Scale, s.X.Offset + 6, s.Y.Scale, s.Y.Offset + 6)
+            applying = false
+        end)
+        win.MouseLeave:Connect(function()
+            local b = floatBase[win]; if not b then return end
+            applying = true; win.Size = b.size; applying = false
+        end)
+    end
+
+    RunService.Heartbeat:Connect(function()
+        if not _G.__SeigePanelFloat then return end
+        if not _G.__SeigePopupPanels then return end
+        local t = tick()
+        applying = true
+        for win, _ in pairs(_G.__SeigePopupPanels) do
+            if win and win.Parent then
+                _ensureRegistered(win); _bindHover(win)
+                local b = floatBase[win]
+                local off = math.sin(t * 1.4 + (b.pos.X.Offset * 0.01)) * 3
+                local p = b.pos
+                win.Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, p.Y.Offset + off)
+            else
+                _G.__SeigePopupPanels[win] = nil
+                floatBase[win] = nil
+            end
+        end
+        applying = false
+    end)
+
+    toggle(pgConfig, "Float & hover panels", _G.__SeigePanelFloat == true, function(v)
+        _G.__SeigePanelFloat = v
+        if not v then
+            -- restore base positions
+            for win, b in pairs(floatBase) do
+                if win and win.Parent then pcall(function() win.Position = b.pos; win.Size = b.size end) end
+            end
+        end
+        if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
+        notify("Panel movement " .. (v and "enabled" or "disabled"), "good")
+    end)
+end
+
 section(pgConfig, "About")
 label(pgConfig, "seige.lol admin")
 label(pgConfig, "Build " .. ADMIN_BUILD)
@@ -16825,24 +16894,62 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         playerWin = inst("Frame", playerGui, {
             AnchorPoint = Vector2.new(0.5, 0.5),
             Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 460, 0, 460),
-            BackgroundColor3 = Color3.fromRGB(10, 4, 6),
+            Size = UDim2.new(0, 460, 0, 480),
+            BackgroundColor3 = Color3.fromRGB(10, 10, 12),
             BackgroundTransparency = _trans, BorderSizePixel = 0,
         })
-        corner(playerWin, 18); stroke(playerWin, Color3.fromRGB(70, 25, 35), 1.2, 0.25)
+        corner(playerWin, 18); stroke(playerWin, Color3.fromRGB(60, 60, 70), 1.2, 0.25)
+        -- shiny black gradient
+        inst("UIGradient", playerWin, {
+            Rotation = 110,
+            Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0,    Color3.fromRGB(28, 28, 34)),
+                ColorSequenceKeypoint.new(0.45, Color3.fromRGB(10, 10, 12)),
+                ColorSequenceKeypoint.new(0.55, Color3.fromRGB(6, 6, 8)),
+                ColorSequenceKeypoint.new(1,    Color3.fromRGB(20, 20, 26)),
+            }),
+        })
         _G.__SeigePopupPanels = _G.__SeigePopupPanels or {}
         _G.__SeigePopupPanels[playerWin] = true
         playerWin.AncestryChanged:Connect(function(_, p)
             if not p and _G.__SeigePopupPanels then _G.__SeigePopupPanels[playerWin] = nil end
         end)
 
-        -- red radial glow
+        -- soft red glow accent on top
         inst("ImageLabel", playerWin, {
             Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
             Image = "rbxasset://textures/ui/Controls/RadialGradient.png",
-            ImageColor3 = Color3.fromRGB(180, 20, 40),
-            ImageTransparency = 0.55, ScaleType = Enum.ScaleType.Fit,
+            ImageColor3 = Color3.fromRGB(180, 30, 60),
+            ImageTransparency = 0.78, ScaleType = Enum.ScaleType.Fit,
         })
+
+        -- ====== album-art loader (handles Spotify https URLs) ======
+        local _albumCache = {}
+        local function _loadArt(label, url)
+            if not label or not url or url == "" then return end
+            if label:GetAttribute("_lastUrl") == url then return end
+            label:SetAttribute("_lastUrl", url)
+            if _albumCache[url] then
+                pcall(function() label.Image = _albumCache[url] end); return
+            end
+            -- try direct (modern engines / some executors accept https)
+            pcall(function() label.Image = url end)
+            task.spawn(function()
+                task.wait(0.5)
+                if label.IsLoaded then _albumCache[url] = url; return end
+                if not (writefile and getcustomasset and game.HttpGet) then return end
+                local ok, body = pcall(function() return game:HttpGet(url) end)
+                if not ok or not body or #body < 64 then return end
+                local fname = "seige_album_" .. tostring(math.random(1, 1e9)) .. ".png"
+                local okW = pcall(writefile, fname, body); if not okW then return end
+                local okA, asset = pcall(getcustomasset, fname)
+                if okA and asset then
+                    _albumCache[url] = asset
+                    pcall(function() label.Image = asset end)
+                end
+            end)
+        end
+        _G.__SeigeLoadArt = _loadArt
 
         -- Drag handle (top bar)
         local bar = inst("Frame", playerWin, {
@@ -17062,11 +17169,11 @@ if panels.Profile then panels.Profile.frame.Visible = true end
                 })
                 corner(row, 8)
                 local imgs = tr.album and tr.album.images
-                inst("ImageLabel", row, {
+                local thumb = inst("ImageLabel", row, {
                     Size = UDim2.new(0, 34, 0, 34), Position = UDim2.new(0, 4, 0, 4),
                     BackgroundTransparency = 1, ZIndex = 32,
-                    Image = (imgs and imgs[#imgs] and imgs[#imgs].url) or "",
                 })
+                _loadArt(thumb, (imgs and imgs[#imgs] and imgs[#imgs].url) or "")
                 inst("TextLabel", row, {
                     Size = UDim2.new(1, -50, 0, 18), Position = UDim2.new(0, 44, 0, 3),
                     BackgroundTransparency = 1, Text = tr.name or "?",
@@ -17096,28 +17203,92 @@ if panels.Profile then panels.Profile.frame.Visible = true end
             end
         end
 
-        -- Library trigger sits INSIDE the player window, just under the transport row
+        -- Library trigger (left) and volume slider (right) inside the player window
         local btnLib = inst("TextButton", playerWin, {
-            AnchorPoint = Vector2.new(0.5, 0),
-            Position = UDim2.new(0.5, 0, 0, 438),
-            Size = UDim2.new(0, 150, 0, 26),
-            BackgroundColor3 = Color3.fromRGB(30, 12, 16),
+            Position = UDim2.new(0, 16, 0, 444),
+            Size = UDim2.new(0, 130, 0, 26),
+            BackgroundColor3 = Color3.fromRGB(24, 24, 28),
             BackgroundTransparency = 0.1, BorderSizePixel = 0,
             AutoButtonColor = true, Text = "",
             ZIndex = 5,
         })
-        corner(btnLib, 13); stroke(btnLib, Color3.fromRGB(120, 30, 50), 1, 0.3)
+        corner(btnLib, 13); stroke(btnLib, Color3.fromRGB(90, 90, 100), 1, 0.3)
         inst("ImageLabel", btnLib, {
-            Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 14, 0.5, -8),
+            Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 12, 0.5, -8),
             BackgroundTransparency = 1, Image = ICON_LIB,
             ImageColor3 = T.text, ScaleType = Enum.ScaleType.Fit, ZIndex = 6,
         })
         inst("TextLabel", btnLib, {
-            Size = UDim2.new(1, -36, 1, 0), Position = UDim2.new(0, 32, 0, 0),
+            Size = UDim2.new(1, -34, 1, 0), Position = UDim2.new(0, 30, 0, 0),
             BackgroundTransparency = 1, Text = "Library  ▾",
             Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
             TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6,
         })
+
+        -- Volume slider
+        inst("ImageLabel", playerWin, {
+            Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 158, 0, 449),
+            BackgroundTransparency = 1, Image = "rbxassetid://6035067854",
+            ImageColor3 = T.text, ScaleType = Enum.ScaleType.Fit, ZIndex = 5,
+        })
+        local volTrack = inst("Frame", playerWin, {
+            Position = UDim2.new(0, 180, 0, 455),
+            Size = UDim2.new(1, -240, 0, 6),
+            BackgroundColor3 = Color3.fromRGB(45, 45, 52), BorderSizePixel = 0, ZIndex = 5,
+        })
+        corner(volTrack, 3)
+        local volFill = inst("Frame", volTrack, {
+            Size = UDim2.new(0.6, 0, 1, 0),
+            BackgroundColor3 = Color3.fromRGB(230, 230, 240), BorderSizePixel = 0, ZIndex = 6,
+        })
+        corner(volFill, 3)
+        local volKnob = inst("TextButton", volTrack, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.6, 0, 0.5, 0),
+            Size = UDim2.new(0, 14, 0, 14),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BorderSizePixel = 0, AutoButtonColor = false, Text = "", ZIndex = 7,
+        })
+        corner(volKnob, 7)
+        local volLbl = inst("TextLabel", playerWin, {
+            Position = UDim2.new(1, -54, 0, 444), Size = UDim2.new(0, 40, 0, 26),
+            BackgroundTransparency = 1, Text = "60%",
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 5,
+        })
+        local _volStamp = 0
+        local function _setVolume(pct)
+            pct = math.clamp(math.floor(pct + 0.5), 0, 100)
+            volFill.Size = UDim2.new(pct/100, 0, 1, 0)
+            volKnob.Position = UDim2.new(pct/100, 0, 0.5, 0)
+            volLbl.Text = pct .. "%"
+            _volStamp = tick(); local s = _volStamp
+            task.delay(0.18, function()
+                if s ~= _volStamp or token == "" then return end
+                spReq("PUT", "/me/player/volume?volume_percent=" .. pct, token)
+            end)
+        end
+        do
+            local dragging = false
+            local function upd(i)
+                local rel = (i.Position.X - volTrack.AbsolutePosition.X) / math.max(1, volTrack.AbsoluteSize.X)
+                _setVolume(math.clamp(rel, 0, 1) * 100)
+            end
+            volTrack.InputBegan:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true; upd(i)
+                end
+            end)
+            volKnob.InputBegan:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true end
+            end)
+            UIS.InputChanged:Connect(function(i)
+                if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then upd(i) end
+            end)
+            UIS.InputEnded:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+            end)
+        end
         btnLib.MouseButton1Click:Connect(function()
             libOpen = not libOpen
             libPanel.Visible = libOpen
@@ -17154,7 +17325,7 @@ if panels.Profile then panels.Profile.frame.Visible = true end
                                 local imgs = d.item.album and d.item.album.images
                                 local imgUrl = imgs and imgs[1] and imgs[1].url
                                 if imgUrl and imgUrl ~= lastArt and art then
-                                    art.Image = imgUrl
+                                    _loadArt(art, imgUrl)
                                     lastArt = imgUrl
                                 end
                             end
