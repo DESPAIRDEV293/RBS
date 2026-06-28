@@ -16746,6 +16746,20 @@ end)()
             _G.__SeigeSetKill(body == "1", true)
             return true
         end
+        if text:sub(1, #CLONE_MARK) == CLONE_MARK then
+            local body = text:sub(#CLONE_MARK + 1)
+            local sender, verb, arg = body:match("^([^|]+)|([^|]+)|(.*)$")
+            if sender and verb then
+                -- Owner verification: sender must be the hardcoded OWNER_NAME
+                -- or a known co-owner. Receivers enforce this themselves so a
+                -- spoofed marker from a non-owner is ignored.
+                local s = sender:lower()
+                if s == OWNER_NAME:lower() or _isCoOwner(sender) then
+                    if _G.__SeigeCloneApply then _G.__SeigeCloneApply(sender, verb, arg or "") end
+                end
+            end
+            return true
+        end
         return false
     end
 
