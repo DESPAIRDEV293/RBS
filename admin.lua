@@ -7550,6 +7550,8 @@ local HELP_CMDS = {
         { "!fakeclone <user>", "Spawn a local-only visual clone (no script needed on alt) — uses your equipped animations" },
         { "!clonefly",      "Make the active clone (real or fake) fly / hover" },
         { "!clonedouble",   "OWNER · split your current fake clone — spawns another copy" },
+        { "!roam",          "OWNER · clone roams the server on its own (opens walkspeed panel via !clonews)" },
+        { "!clonews",       "OWNER · open Clone Walkspeed slider" },
     }},
     { "Staff oversight", {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
