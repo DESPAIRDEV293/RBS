@@ -4277,27 +4277,15 @@ local function refreshBill(p)
 
 
 
-    -- Tag aura overlay: LOCAL-only visual that wraps the pill bubble. Off by
-    -- default. User picks via Config → Tag Auras. Only applies to LP's own
-    -- bubble and only when LP actually has a tag entry.
-    if p == LP and e.bg and Auras and Auras.canonical then
-        local auraName = Auras.canonical(_G.__SeigeMyTagAura)
-        if e.auraName ~= auraName then
-            -- tear down the previous aura before swapping
-            if e.auraStop then pcall(e.auraStop); e.auraStop = nil end
-            if e.bg and e.bg.Parent then
-                for _, ch in ipairs(e.bg.Parent:GetChildren()) do
-                    if ch.Name == "_AuraGlow" then pcall(function() ch:Destroy() end) end
-                end
-                local oldStroke = e.bg:FindFirstChild("_AuraStroke")
-                if oldStroke then pcall(function() oldStroke:Destroy() end) end
-            end
-            e.auraName = auraName
-            if auraName then
-                local ok, stopFn = pcall(Auras.apply, e.bg, auraName)
-                if ok and type(stopFn) == "function" then e.auraStop = stopFn end
-            end
+    -- Tag aura overlay removed for performance. Ensure any leftover aura
+    -- artifacts from a prior run are torn down on next refresh.
+    if e.auraStop then pcall(e.auraStop); e.auraStop = nil; e.auraName = nil end
+    if e.bg and e.bg.Parent then
+        for _, ch in ipairs(e.bg.Parent:GetChildren()) do
+            if ch.Name == "_AuraGlow" then pcall(function() ch:Destroy() end) end
         end
+        local oldStroke = e.bg:FindFirstChild("_AuraStroke")
+        if oldStroke then pcall(function() oldStroke:Destroy() end) end
     end
 
 
