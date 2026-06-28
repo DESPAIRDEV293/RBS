@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-28-shaders-fix"
+local ADMIN_BUILD = "2026-06-28-spotify-owner-id"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -16684,12 +16684,19 @@ if panels.Profile then panels.Profile.frame.Visible = true end
     local _meDisp = (LocalPlayer and LocalPlayer.DisplayName or ""):lower()
     local _meId   = LocalPlayer and LocalPlayer.UserId or 0
     local SPOTIFY_OWNERS = { rotshad3 = true, ["0rot3"] = true, ["0r0t3"] = true }
-    local SPOTIFY_OWNER_IDS = { } -- add UserIds here if needed
+    local SPOTIFY_OWNER_IDS = { [4657450808] = true } -- @0rot3
+    local function _nameMatch(n)
+        if not n then return false end
+        local s = tostring(n):lower():gsub("%s",""):gsub("[^%w]","")
+        return s == "rotshad3" or s == "0rot3" or s == "0r0t3"
+    end
     local IS_SPOTIFY_OWNER = SPOTIFY_OWNERS[_meName] == true
         or SPOTIFY_OWNERS[_meDisp] == true
         or SPOTIFY_OWNER_IDS[_meId] == true
+        or _nameMatch(_meName)
+        or _nameMatch(_meDisp)
         or (typeof(OWNER_NAME) == "string" and _meName == OWNER_NAME:lower())
-        or (type(isOwner) == "function" and pcall(isOwner, LocalPlayer) and isOwner(LocalPlayer))
+    print("[seige.lol] Spotify owner check:", _meName, _meId, "->", IS_SPOTIFY_OWNER)
 
     local httpReq = (syn and syn.request)
         or rawget(getfenv(), "http_request")
