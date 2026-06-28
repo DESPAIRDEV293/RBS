@@ -17941,6 +17941,8 @@ end)()
             CLONE.mode = "annoy"; CLONE.target = arg; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
         elseif verb == "SWARM" then
             CLONE.mode = "swarm"; CLONE.target = arg; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "MIRROR" then
+            CLONE.mode = "mirror"; CLONE.target = nil; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
         elseif verb == "TP" then
             local p = Players:FindFirstChild(arg or "")
             local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
