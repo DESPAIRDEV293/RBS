@@ -16718,132 +16718,224 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         notify("Token saved locally", "good")
     end)
 
-    -- ============ FANCY PLAYER CARD ============
-    section(pgSpotify, "Now Playing")
-    local card = inst("Frame", pgSpotify, {
-        Size = UDim2.new(1, -16, 0, 360),
-        BackgroundColor3 = Color3.fromRGB(10, 4, 6),
-        BorderSizePixel = 0,
-    })
-    corner(card, 18)
-    stroke(card, Color3.fromRGB(60, 20, 30), 1.2, 0.3)
-    -- red radial glow background
-    inst("ImageLabel", card, {
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundTransparency = 1,
-        Image = "rbxasset://textures/ui/Controls/RadialGradient.png",
-        ImageColor3 = Color3.fromRGB(180, 20, 40),
-        ImageTransparency = 0.55,
-        ScaleType = Enum.ScaleType.Fit,
-    })
-
-    -- Header
-    local header = inst("Frame", card, {
-        Size = UDim2.new(1, -24, 0, 36), Position = UDim2.new(0, 12, 0, 10),
-        BackgroundTransparency = 1,
-    })
-    inst("TextLabel", header, {
-        Size = UDim2.new(0, 28, 0, 28), Position = UDim2.new(0, 0, 0, 4),
-        BackgroundTransparency = 1, Text = "♫",
-        Font = Enum.Font.GothamBold, TextSize = 24, TextColor3 = T.text,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-    inst("TextLabel", header, {
-        Size = UDim2.new(1, -40, 0, 20), Position = UDim2.new(0, 34, 0, 0),
-        BackgroundTransparency = 1, Text = "Music",
-        Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-    inst("TextLabel", header, {
-        Size = UDim2.new(1, -40, 0, 14), Position = UDim2.new(0, 34, 0, 20),
-        BackgroundTransparency = 1, Text = "Spotify",
-        Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = Color3.fromRGB(235, 70, 90),
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-
-    -- Album art
-    local artWrap = inst("Frame", card, {
-        Size = UDim2.new(0, 160, 0, 160),
-        Position = UDim2.new(0.5, -80, 0, 56),
-        BackgroundColor3 = Color3.fromRGB(20, 8, 12), BorderSizePixel = 0,
-    })
-    corner(artWrap, 14); stroke(artWrap, Color3.fromRGB(80, 30, 40), 1, 0.3)
-    local art = inst("ImageLabel", artWrap, {
-        Size = UDim2.new(1, -6, 1, -6), Position = UDim2.new(0, 3, 0, 3),
-        BackgroundTransparency = 1, Image = "",
-        ScaleType = Enum.ScaleType.Crop,
-    })
-    corner(art, 12)
-
-    local titleLbl = inst("TextLabel", card, {
-        Size = UDim2.new(1, -24, 0, 22), Position = UDim2.new(0, 12, 0, 224),
-        BackgroundTransparency = 1, Text = "—",
-        Font = Enum.Font.GothamMedium, TextSize = 18, TextColor3 = T.text,
-    })
-    local artistLbl = inst("TextLabel", card, {
-        Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 246),
-        BackgroundTransparency = 1, Text = "Connect a token to begin",
-        Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = Color3.fromRGB(210, 180, 190),
-    })
-
-    -- Progress bar
-    local barBg = inst("Frame", card, {
-        Size = UDim2.new(1, -56, 0, 6), Position = UDim2.new(0, 28, 0, 282),
-        BackgroundColor3 = Color3.fromRGB(60, 30, 40), BorderSizePixel = 0,
-    })
-    corner(barBg, 3)
-    local barFill = inst("Frame", barBg, {
-        Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = Color3.fromRGB(235, 60, 80),
-        BorderSizePixel = 0,
-    })
-    corner(barFill, 3)
-    local barKnob = inst("Frame", barBg, {
-        Size = UDim2.new(0, 12, 0, 12), AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.new(0, 0, 0.5, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0,
-    })
-    corner(barKnob, 6)
-    local tLeft = inst("TextLabel", card, {
-        Size = UDim2.new(0, 50, 0, 14), Position = UDim2.new(0, 16, 0, 292),
-        BackgroundTransparency = 1, Text = "0:00",
-        Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(210, 180, 190),
-        TextXAlignment = Enum.TextXAlignment.Left,
-    })
-    local tRight = inst("TextLabel", card, {
-        Size = UDim2.new(0, 60, 0, 14), Position = UDim2.new(1, -76, 0, 292),
-        BackgroundTransparency = 1, Text = "-0:00",
-        Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(210, 180, 190),
-        TextXAlignment = Enum.TextXAlignment.Right,
-    })
-
-    -- Transport
-    local function transport(parent, glyph, x, size)
-        local b = inst("TextButton", parent, {
-            Size = UDim2.new(0, size, 0, size),
-            Position = UDim2.new(0.5, x - size/2, 0, 316),
-            BackgroundTransparency = 1, AutoButtonColor = false,
-            Text = glyph, Font = Enum.Font.GothamBold,
-            TextSize = size - 8, TextColor3 = T.text,
-        })
-        return b
-    end
-    local btnPrev = transport(card, "⏮", -60, 28)
-    local btnPlay = transport(card, "▶", 0, 36)
-    local btnNext = transport(card, "⏭", 60, 28)
+    -- ============ FLOATING PLAYER WINDOW (opens after token verifies) ============
+    local playerGui, playerWin
+    local titleLbl, artistLbl, art, barFill, barKnob, tLeft, tRight, btnPlay
     local isPlaying = false
-    btnPrev.MouseButton1Click:Connect(function()
-        if token == "" then notify("Connect first", "bad"); return end
-        spReq("POST", "/me/player/previous", token)
-    end)
-    btnNext.MouseButton1Click:Connect(function()
-        if token == "" then notify("Connect first", "bad"); return end
-        spReq("POST", "/me/player/next", token)
-    end)
-    btnPlay.MouseButton1Click:Connect(function()
-        if token == "" then notify("Connect first", "bad"); return end
-        if isPlaying then spReq("PUT", "/me/player/pause", token)
-        else spReq("PUT", "/me/player/play", token) end
-    end)
+    local refreshRunning = false
+    local function fmt(ms)
+        ms = math.max(0, math.floor((ms or 0) / 1000))
+        return string.format("%d:%02d", math.floor(ms/60), ms % 60)
+    end
+
+    local function _closePlayer()
+        if playerGui then pcall(function() playerGui:Destroy() end) end
+        playerGui, playerWin = nil, nil
+    end
+
+    local function _openPlayer()
+        if playerGui and playerGui.Parent then return end
+        playerGui = inst("ScreenGui", nil, {
+            Name = "SeigeMusicPlayer",
+            IgnoreGuiInset = true, ResetOnSpawn = false,
+            DisplayOrder = 230, ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        })
+        safeParent(playerGui)
+        local _trans = _G.__SeigeUITrans or 0.2
+        playerWin = inst("Frame", playerGui, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.5, 0, 0.5, 0),
+            Size = UDim2.new(0, 460, 0, 460),
+            BackgroundColor3 = Color3.fromRGB(10, 4, 6),
+            BackgroundTransparency = _trans, BorderSizePixel = 0,
+        })
+        corner(playerWin, 18); stroke(playerWin, Color3.fromRGB(70, 25, 35), 1.2, 0.25)
+        _G.__SeigePopupPanels = _G.__SeigePopupPanels or {}
+        _G.__SeigePopupPanels[playerWin] = true
+        playerWin.AncestryChanged:Connect(function(_, p)
+            if not p and _G.__SeigePopupPanels then _G.__SeigePopupPanels[playerWin] = nil end
+        end)
+
+        -- red radial glow
+        inst("ImageLabel", playerWin, {
+            Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+            Image = "rbxasset://textures/ui/Controls/RadialGradient.png",
+            ImageColor3 = Color3.fromRGB(180, 20, 40),
+            ImageTransparency = 0.55, ScaleType = Enum.ScaleType.Fit,
+        })
+
+        -- Drag handle (top bar)
+        local bar = inst("Frame", playerWin, {
+            Size = UDim2.new(1, 0, 0, 48), BackgroundTransparency = 1,
+        })
+        inst("TextLabel", bar, {
+            Size = UDim2.new(0, 28, 0, 28), Position = UDim2.new(0, 16, 0, 10),
+            BackgroundTransparency = 1, Text = "♫",
+            Font = Enum.Font.GothamBold, TextSize = 24, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        })
+        inst("TextLabel", bar, {
+            Size = UDim2.new(1, -120, 0, 20), Position = UDim2.new(0, 50, 0, 6),
+            BackgroundTransparency = 1, Text = "Music",
+            Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left,
+        })
+        inst("TextLabel", bar, {
+            Size = UDim2.new(1, -120, 0, 14), Position = UDim2.new(0, 50, 0, 26),
+            BackgroundTransparency = 1, Text = "Spotify",
+            Font = Enum.Font.GothamMedium, TextSize = 12,
+            TextColor3 = Color3.fromRGB(235, 70, 90),
+            TextXAlignment = Enum.TextXAlignment.Left,
+        })
+        local closeBtn = inst("TextButton", bar, {
+            AnchorPoint = Vector2.new(1, 0.5),
+            Position = UDim2.new(1, -14, 0.5, 0), Size = UDim2.new(0, 28, 0, 28),
+            BackgroundColor3 = Color3.fromRGB(30, 12, 16), AutoButtonColor = false,
+            Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = T.text, Text = "✕",
+        })
+        corner(closeBtn, 14)
+        closeBtn.MouseButton1Click:Connect(_closePlayer)
+
+        do
+            local dragging, startPos, startMouse
+            bar.InputBegan:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true; startPos = playerWin.Position; startMouse = i.Position
+                end
+            end)
+            UIS.InputChanged:Connect(function(i)
+                if dragging and playerWin and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
+                    local d = i.Position - startMouse
+                    playerWin.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+                end
+            end)
+            UIS.InputEnded:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+            end)
+        end
+
+        -- Album art
+        local artWrap = inst("Frame", playerWin, {
+            Size = UDim2.new(0, 200, 0, 200),
+            Position = UDim2.new(0.5, -100, 0, 70),
+            BackgroundColor3 = Color3.fromRGB(20, 8, 12), BorderSizePixel = 0,
+        })
+        corner(artWrap, 16); stroke(artWrap, Color3.fromRGB(80, 30, 40), 1, 0.3)
+        art = inst("ImageLabel", artWrap, {
+            Size = UDim2.new(1, -6, 1, -6), Position = UDim2.new(0, 3, 0, 3),
+            BackgroundTransparency = 1, Image = "",
+            ScaleType = Enum.ScaleType.Crop,
+        })
+        corner(art, 14)
+
+        titleLbl = inst("TextLabel", playerWin, {
+            Size = UDim2.new(1, -28, 0, 24), Position = UDim2.new(0, 14, 0, 282),
+            BackgroundTransparency = 1, Text = "—",
+            Font = Enum.Font.GothamMedium, TextSize = 18, TextColor3 = T.text,
+        })
+        artistLbl = inst("TextLabel", playerWin, {
+            Size = UDim2.new(1, -28, 0, 18), Position = UDim2.new(0, 14, 0, 306),
+            BackgroundTransparency = 1, Text = "Connect a token to begin",
+            Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = Color3.fromRGB(210, 180, 190),
+        })
+
+        local barBg = inst("Frame", playerWin, {
+            Size = UDim2.new(1, -64, 0, 6), Position = UDim2.new(0, 32, 0, 348),
+            BackgroundColor3 = Color3.fromRGB(60, 30, 40), BorderSizePixel = 0,
+        })
+        corner(barBg, 3)
+        barFill = inst("Frame", barBg, {
+            Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = Color3.fromRGB(235, 60, 80),
+            BorderSizePixel = 0,
+        })
+        corner(barFill, 3)
+        barKnob = inst("Frame", barBg, {
+            Size = UDim2.new(0, 14, 0, 14), AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0, 0, 0.5, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BorderSizePixel = 0,
+        })
+        corner(barKnob, 7)
+        tLeft = inst("TextLabel", playerWin, {
+            Size = UDim2.new(0, 60, 0, 14), Position = UDim2.new(0, 20, 0, 360),
+            BackgroundTransparency = 1, Text = "0:00",
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(210, 180, 190),
+            TextXAlignment = Enum.TextXAlignment.Left,
+        })
+        tRight = inst("TextLabel", playerWin, {
+            Size = UDim2.new(0, 70, 0, 14), Position = UDim2.new(1, -90, 0, 360),
+            BackgroundTransparency = 1, Text = "-0:00",
+            Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(210, 180, 190),
+            TextXAlignment = Enum.TextXAlignment.Right,
+        })
+
+        local function transport(parent, glyph, x, size)
+            local b = inst("TextButton", parent, {
+                Size = UDim2.new(0, size, 0, size),
+                Position = UDim2.new(0.5, x - size/2, 0, 392),
+                BackgroundTransparency = 1, AutoButtonColor = false,
+                Text = glyph, Font = Enum.Font.GothamBold,
+                TextSize = size - 8, TextColor3 = T.text,
+            })
+            return b
+        end
+        local btnPrev = transport(playerWin, "⏮", -70, 32)
+        btnPlay = transport(playerWin, "▶", 0, 42)
+        local btnNext = transport(playerWin, "⏭", 70, 32)
+
+        btnPrev.MouseButton1Click:Connect(function()
+            if token == "" then notify("Connect first", "bad"); return end
+            spReq("POST", "/me/player/previous", token)
+        end)
+        btnNext.MouseButton1Click:Connect(function()
+            if token == "" then notify("Connect first", "bad"); return end
+            spReq("POST", "/me/player/next", token)
+        end)
+        btnPlay.MouseButton1Click:Connect(function()
+            if token == "" then notify("Connect first", "bad"); return end
+            if isPlaying then spReq("PUT", "/me/player/pause", token)
+            else spReq("PUT", "/me/player/play", token) end
+        end)
+
+        if not refreshRunning then
+            refreshRunning = true
+            task.spawn(function()
+                local lastArt = ""
+                while playerGui and playerGui.Parent do
+                    if token ~= "" then
+                        local s, b = spReq("GET", "/me/player/currently-playing", token)
+                        if s == 200 and b and #b > 0 then
+                            local ok, d = pcall(function() return HttpService:JSONDecode(b) end)
+                            if ok and d and d.item then
+                                isPlaying = d.is_playing and true or false
+                                if btnPlay then btnPlay.Text = isPlaying and "❚❚" or "▶" end
+                                local artist = (d.item.artists and d.item.artists[1] and d.item.artists[1].name) or "?"
+                                if titleLbl then titleLbl.Text = d.item.name or "?" end
+                                if artistLbl then artistLbl.Text = artist end
+                                local dur = d.item.duration_ms or 0
+                                local pos = d.progress_ms or 0
+                                local pct = (dur > 0) and (pos / dur) or 0
+                                if barFill then barFill.Size = UDim2.new(pct, 0, 1, 0) end
+                                if barKnob then barKnob.Position = UDim2.new(pct, 0, 0.5, 0) end
+                                if tLeft then tLeft.Text = fmt(pos) end
+                                if tRight then tRight.Text = "-" .. fmt(dur - pos) end
+                                local imgs = d.item.album and d.item.album.images
+                                local imgUrl = imgs and imgs[1] and imgs[1].url
+                                if imgUrl and imgUrl ~= lastArt and art then
+                                    art.Image = imgUrl
+                                    lastArt = imgUrl
+                                end
+                            end
+                        end
+                    end
+                    task.wait(3)
+                end
+                refreshRunning = false
+            end)
+        end
+    end
+
+
+
 
     button(pgSpotify, "🔌  Connect / verify token", function()
         if token == "" then notify("Paste a token first", "bad"); return end
@@ -16851,8 +16943,9 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         if status == 200 then
             local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
             local who = (ok and data and (data.display_name or data.id)) or "you"
-            connStatus:set("✅  Connected as " .. tostring(who))
+            connStatus:set("✅  Connected as " .. tostring(who) .. " — player window opened")
             notify("Spotify connected: " .. tostring(who), "good")
+            _openPlayer()
         elseif status == 401 then
             connStatus:set("❌  Token expired — grab a fresh one")
             notify("Token expired (401) — get a new one", "bad")
@@ -16860,6 +16953,14 @@ if panels.Profile then panels.Profile.frame.Visible = true end
             connStatus:set("❌  Auth failed (" .. tostring(status) .. ")")
             notify("Token rejected (" .. tostring(status) .. ")", "bad")
         end
+    end)
+
+    button(pgSpotify, "🎵  Open music player window", function()
+        if token == "" then notify("Paste & connect a token first", "bad"); return end
+        _openPlayer()
+    end)
+    button(pgSpotify, "✕  Close music player window", function()
+        _closePlayer()
     end)
 
     section(pgSpotify, "Volume & search")
@@ -16895,45 +16996,6 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         if id then uri = "spotify:track:" .. id end
         local play = spReq("PUT", "/me/player/play", token, HttpService:JSONEncode({ uris = { uri } }))
         if play and play >= 400 then notify("Play failed " .. tostring(play), "bad") else notify("Playing " .. uri, "good") end
-    end)
-
-    local function fmt(ms)
-        ms = math.max(0, math.floor((ms or 0) / 1000))
-        return string.format("%d:%02d", math.floor(ms/60), ms % 60)
-    end
-
-    -- Now-playing refresh
-    task.spawn(function()
-        local lastArt = ""
-        while pgSpotify.Parent do
-            if token ~= "" then
-                local s, b = spReq("GET", "/me/player/currently-playing", token)
-                if s == 200 and b and #b > 0 then
-                    local ok, d = pcall(function() return HttpService:JSONDecode(b) end)
-                    if ok and d and d.item then
-                        isPlaying = d.is_playing and true or false
-                        btnPlay.Text = isPlaying and "❚❚" or "▶"
-                        local artist = (d.item.artists and d.item.artists[1] and d.item.artists[1].name) or "?"
-                        titleLbl.Text = d.item.name or "?"
-                        artistLbl.Text = artist
-                        local dur = d.item.duration_ms or 0
-                        local pos = d.progress_ms or 0
-                        local pct = (dur > 0) and (pos / dur) or 0
-                        barFill.Size = UDim2.new(pct, 0, 1, 0)
-                        barKnob.Position = UDim2.new(pct, 0, 0.5, 0)
-                        tLeft.Text = fmt(pos)
-                        tRight.Text = "-" .. fmt(dur - pos)
-                        local imgs = d.item.album and d.item.album.images
-                        local imgUrl = imgs and imgs[1] and imgs[1].url
-                        if imgUrl and imgUrl ~= lastArt then
-                            art.Image = imgUrl
-                            lastArt = imgUrl
-                        end
-                    end
-                end
-            end
-            task.wait(3)
-        end
     end)
 end)()
 
