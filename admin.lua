@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-28-fakeclone-animfly"
+local ADMIN_BUILD = "2026-06-28-shaders-fix"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -9244,30 +9244,41 @@ local fxDOF    = getOrMake("DepthOfFieldEffect",   "SeigeDOF")
 local fxSun    = getOrMake("SunRaysEffect",        "SeigeSun")
 
 section(pgShaders, "Graphics Quality")
-local _savedTech, _savedShadows, _savedSoft, _savedDif, _savedSpc
+local _savedTech, _savedShadows, _savedSoft, _savedDif, _savedSpc, _savedQ
+_G.__SeigeMaxVisTok = _G.__SeigeMaxVisTok or 0
 toggle(pgShaders, "Maximum visuals", false, function(on)
-    local Lighting = game:GetService("Lighting")
+    _G.__SeigeMaxVisTok = (_G.__SeigeMaxVisTok or 0) + 1
+    local tok = _G.__SeigeMaxVisTok
     if on then
-        _savedTech   = Lighting.Technology
+        _savedTech    = Lighting.Technology
         _savedShadows = Lighting.GlobalShadows
-        _savedSoft   = Lighting.ShadowSoftness
-        _savedDif    = Lighting.EnvironmentDiffuseScale
-        _savedSpc    = Lighting.EnvironmentSpecularScale
-        pcall(function()
-            Lighting.Technology = Enum.Technology.Future
-            Lighting.GlobalShadows = true
-            Lighting.ShadowSoftness = 0.2
-            Lighting.EnvironmentDiffuseScale = 1
-            Lighting.EnvironmentSpecularScale = 1
+        _savedSoft    = Lighting.ShadowSoftness
+        _savedDif     = Lighting.EnvironmentDiffuseScale
+        _savedSpc     = Lighting.EnvironmentSpecularScale
+        pcall(function() _savedQ = settings().Rendering.QualityLevel end)
+        local function apply()
+            pcall(function() Lighting.Technology = Enum.Technology.Future end)
+            pcall(function() Lighting.GlobalShadows = true end)
+            pcall(function() Lighting.ShadowSoftness = 0.2 end)
+            pcall(function() Lighting.EnvironmentDiffuseScale = 1 end)
+            pcall(function() Lighting.EnvironmentSpecularScale = 1 end)
+            pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level21 end)
+            local us = (rawget(getfenv(), "UserSettings") and UserSettings()) or nil
+            if us then pcall(function() us:GetService("UserGameSettings").SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel10 end) end
+        end
+        apply()
+        task.spawn(function()
+            while tok == _G.__SeigeMaxVisTok do apply(); task.wait(3) end
         end)
         notify("Quality: Maximum visuals enabled", "good")
     else
         pcall(function()
-            Lighting.Technology = (_savedTech ~= nil) and _savedTech or Enum.Technology.Compatibility
+            Lighting.Technology = (_savedTech ~= nil) and _savedTech or Enum.Technology.ShadowMap
             Lighting.GlobalShadows = (_savedShadows ~= nil) and _savedShadows or false
             Lighting.ShadowSoftness = (_savedSoft ~= nil) and _savedSoft or 1
             Lighting.EnvironmentDiffuseScale = (_savedDif ~= nil) and _savedDif or 0
             Lighting.EnvironmentSpecularScale = (_savedSpc ~= nil) and _savedSpc or 0
+            if _savedQ then settings().Rendering.QualityLevel = _savedQ end
         end)
         notify("Quality: Performance mode enabled", "good")
     end
@@ -9301,44 +9312,82 @@ button(pgShaders, "Clear tint (reset to white)", function()
     notify("Tint cleared", "good")
 end)
 
--- Helpers so the post-FX actually render: DOF needs ShadowMap/Future tech,
--- SunRays needs a Sky in Lighting (otherwise the effect has nothing to scatter).
-local function ensureModernLighting()
+-- DOF requires Future (ShadowMap renders it but extremely weakly).
+-- SunRays requires a Sky + a non-night ClockTime + Brightness > 0.
+local function ensureFuture()
     pcall(function()
-        if Lighting.Technology == Enum.Technology.Legacy or Lighting.Technology == Enum.Technology.Compatibility then
-            Lighting.Technology = Enum.Technology.ShadowMap
-        end
+        local t = Lighting.Technology
+        if t ~= Enum.Technology.Future then Lighting.Technology = Enum.Technology.Future end
     end)
 end
 local function ensureSky()
     pcall(function()
         local sky = Lighting:FindFirstChildOfClass("Sky")
         if not sky then
-            sky = Instance.new("Sky")
-            sky.Name = "SeigeSky"
-            sky.Parent = Lighting
+            sky = Instance.new("Sky"); sky.Name = "SeigeSky"; sky.Parent = Lighting
         end
+    end)
+    pcall(function()
+        if Lighting.ClockTime < 6 or Lighting.ClockTime > 19 then Lighting.ClockTime = 14 end
+        if Lighting.Brightness < 1 then Lighting.Brightness = 2 end
     end)
 end
 
+_G.__SeigeDofTok = _G.__SeigeDofTok or 0
+_G.__SeigeSunTok = _G.__SeigeSunTok or 0
+
 section(pgShaders, "Depth of field")
 toggle(pgShaders, "Enable DOF", false, function(v)
-    if v then ensureModernLighting() end
-    fxDOF.Enabled = v
+    _G.__SeigeDofTok = (_G.__SeigeDofTok or 0) + 1
+    local tok = _G.__SeigeDofTok
+    if v then
+        ensureFuture()
+        -- punchier defaults so the effect is visible immediately
+        if fxDOF.FocusDistance < 1 then fxDOF.FocusDistance = 18 end
+        if fxDOF.InFocusRadius < 1 then fxDOF.InFocusRadius = 6 end
+        if fxDOF.NearIntensity <= 0 then fxDOF.NearIntensity = 0.6 end
+        if fxDOF.FarIntensity <= 0 then fxDOF.FarIntensity = 0.85 end
+        fxDOF.Enabled = true
+        -- keep enabled and parented even if a game script strips it
+        task.spawn(function()
+            while tok == _G.__SeigeDofTok do
+                if fxDOF.Parent ~= Lighting then pcall(function() fxDOF.Parent = Lighting end) end
+                if not fxDOF.Enabled then pcall(function() fxDOF.Enabled = true end) end
+                task.wait(2)
+            end
+        end)
+    else
+        fxDOF.Enabled = false
+    end
 end)
-slider(pgShaders, "Focus distance",  0, 200, 25, function(v) fxDOF.FocusDistance = v end)
-slider(pgShaders, "In focus radius", 0, 100, 8,  function(v) fxDOF.InFocusRadius = v end)
-slider(pgShaders, "Near intensity",  0, 1,   0.25, function(v) fxDOF.NearIntensity = v end)
-slider(pgShaders, "Far intensity",   0, 1,   0.75, function(v) fxDOF.FarIntensity = v end)
+slider(pgShaders, "Focus distance",  0, 200, 18,   function(v) fxDOF.FocusDistance = v end)
+slider(pgShaders, "In focus radius", 0, 100, 6,    function(v) fxDOF.InFocusRadius = v end)
+slider(pgShaders, "Near intensity",  0, 1,   0.6,  function(v) fxDOF.NearIntensity = v end)
+slider(pgShaders, "Far intensity",   0, 1,   0.85, function(v) fxDOF.FarIntensity = v end)
 
 section(pgShaders, "Sun rays")
 toggle(pgShaders, "Enable sun rays", false, function(v)
-    if v then ensureSky() end
-    fxSun.Enabled = v
-    if v and fxSun.Intensity <= 0 then fxSun.Intensity = 0.25 end
+    _G.__SeigeSunTok = (_G.__SeigeSunTok or 0) + 1
+    local tok = _G.__SeigeSunTok
+    if v then
+        ensureSky()
+        if fxSun.Intensity <= 0.05 then fxSun.Intensity = 0.5 end
+        if fxSun.Spread <= 0.05 then fxSun.Spread = 0.6 end
+        fxSun.Enabled = true
+        task.spawn(function()
+            while tok == _G.__SeigeSunTok do
+                if fxSun.Parent ~= Lighting then pcall(function() fxSun.Parent = Lighting end) end
+                if not fxSun.Enabled then pcall(function() fxSun.Enabled = true end) end
+                task.wait(2)
+            end
+        end)
+    else
+        fxSun.Enabled = false
+    end
 end)
-slider(pgShaders, "Ray intensity", 0, 1, 0.25, function(v) fxSun.Intensity = v end)
-slider(pgShaders, "Ray spread",    0, 1, 1,    function(v) fxSun.Spread = v end)
+slider(pgShaders, "Ray intensity", 0, 1, 0.5, function(v) fxSun.Intensity = v end)
+slider(pgShaders, "Ray spread",    0, 1, 0.6, function(v) fxSun.Spread = v end)
+
 
 -- ── Cinematic realism preset: layered atmosphere + tuned bloom/DOF/color/sun
 -- for film-grade lighting. One toggle, fully reversible.
