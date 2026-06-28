@@ -10639,94 +10639,9 @@ do
 end
 
 
-section(pgConfig, "Panel Movement")
-label(pgConfig, "When on, popup panels (player, command panels, etc) gently float and grow slightly on hover.")
-_G.__SeigePanelFloat = _G.__SeigePanelFloat or false
-do
-    local floatBase = setmetatable({}, { __mode = "k" })
-    local hoverGrow = setmetatable({}, { __mode = "k" })
-    local applying = false
-    local mouse    = LP and LP:GetMouse()
+-- Panel Movement (float & hover) removed: caused panels to expand off-screen.
+_G.__SeigePanelFloat = false
 
-    local function _ensureRegistered(win)
-        if not win or floatBase[win] then return end
-        floatBase[win] = { pos = win.Position, size = win.Size }
-        hoverGrow[win] = 0
-        pcall(function() win.Active = true end)
-        win:GetPropertyChangedSignal("Position"):Connect(function()
-            if not applying then floatBase[win].pos = win.Position end
-        end)
-        win:GetPropertyChangedSignal("Size"):Connect(function()
-            if not applying then floatBase[win].size = win.Size end
-        end)
-        win.AncestryChanged:Connect(function(_, parent)
-            if not parent then
-                floatBase[win] = nil; hoverGrow[win] = nil
-                if _G.__SeigePopupPanels then _G.__SeigePopupPanels[win] = nil end
-            end
-        end)
-    end
-
-    local function _restore(win)
-        local b = floatBase[win]; if not b then return end
-        applying = true
-        pcall(function() win.Position = b.pos; win.Size = b.size end)
-        applying = false
-    end
-
-    local function _iterPanels(fn)
-        if _G.__SeigePopupPanels then
-            for win, _ in pairs(_G.__SeigePopupPanels) do
-                if win and win.Parent then fn(win) end
-            end
-        end
-        if _G.__SeigePanels then
-            for _, win in pairs(_G.__SeigePanels) do
-                if win and win.Parent then fn(win) end
-            end
-        end
-    end
-
-    RunService.Heartbeat:Connect(function(dt)
-        if not _G.__SeigePanelFloat then return end
-        local t = tick()
-        local mx, my = (mouse and mouse.X) or -1, (mouse and mouse.Y) or -1
-        applying = true
-        _iterPanels(function(win)
-            _ensureRegistered(win)
-            local b = floatBase[win]; if not b then return end
-            local ap, az = win.AbsolutePosition, win.AbsoluteSize
-            local inside = mx >= ap.X and mx <= ap.X + az.X and my >= ap.Y and my <= ap.Y + az.Y
-            local target = inside and 6 or 0
-            local cur = hoverGrow[win] or 0
-            cur = cur + (target - cur) * math.clamp(dt * 10, 0, 1)
-            hoverGrow[win] = cur
-
-            local s = b.size
-            local p = b.pos
-            local off = math.sin(t * 1.4 + (p.X.Offset * 0.01)) * 3
-            pcall(function()
-                win.Size = UDim2.new(s.X.Scale, s.X.Offset + cur,
-                                     s.Y.Scale, s.Y.Offset + cur)
-                win.Position = UDim2.new(p.X.Scale, p.X.Offset - cur * 0.5,
-                                         p.Y.Scale, p.Y.Offset + off - cur * 0.5)
-            end)
-        end)
-        applying = false
-    end)
-
-    toggle(pgConfig, "Float & hover panels", _G.__SeigePanelFloat == true, function(v)
-        _G.__SeigePanelFloat = v
-        if not v then
-            for win, _ in pairs(floatBase) do
-                if win and win.Parent then _restore(win) end
-                hoverGrow[win] = 0
-            end
-        end
-        if _G.__SeigeSaveCfg then pcall(_G.__SeigeSaveCfg) end
-        notify("Panel movement " .. (v and "enabled" or "disabled"), "good")
-    end)
-end
 
 
 section(pgConfig, "About")
