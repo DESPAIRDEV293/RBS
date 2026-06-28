@@ -4247,6 +4247,47 @@ local function refreshBill(p)
     if e.sh then
         e.sh.Position = UDim2.new(0.5, 0, 0, 6 + 46 + 4)
     end
+
+    -- ---------------------------------------------------------------------
+    -- Color enforcement watchdog: snapshot the desired text + bg colors and
+    -- re-apply them every ~0.25s. This defeats any race / external override
+    -- (text-fx coroutines, theme refreshes, etc.) that might quietly stomp
+    -- TextColor3 or BackgroundColor3 back to the white/dark defaults after
+    -- refreshBill returns. The watchdog is created exactly once per bill
+    -- and self-terminates when the bill is destroyed.
+    e._desired = e._desired or {}
+    e._desired.nameColor   = nameColor
+    e._desired.handleColor = handleColor
+    e._desired.statColor   = statColor
+    e._desired.bgColor     = e.bg and e.bg.BackgroundColor3 or nil
+    e._desired.strokeColor = e.stroke and e.stroke.Color or nil
+    -- If the user picked rainbow text and DID NOT also set a custom textColor,
+    -- let the rainbow coroutine own the text colors so the watchdog doesn't
+    -- fight it. Any other fx (typewriter, glitch, floating, …) leaves the
+    -- color alone, so enforcement is safe.
+    do
+        local _fx = tostring(cfg and cfg.textFx or ""):lower()
+        local _hasTC = cfg and cfg.textColor and cfg.textColor ~= ""
+        e._desired.skipTextColor = (_fx == "rainbow") and (not _hasTC)
+    end
+    if not e._colorWatch then
+        e._colorWatch = true
+        task.spawn(function()
+            while e and e.gui and e.gui.Parent do
+                local d = e._desired
+                if d then
+                    if not d.skipTextColor then
+                        if e.name   and d.nameColor   and e.name.TextColor3   ~= d.nameColor   then e.name.TextColor3   = d.nameColor   end
+                        if e.handle and d.handleColor and e.handle.TextColor3 ~= d.handleColor then e.handle.TextColor3 = d.handleColor end
+                        if e.stat   and d.statColor   and e.stat.TextColor3   ~= d.statColor   then e.stat.TextColor3   = d.statColor   end
+                    end
+                    if e.bg     and d.bgColor     and e.bg.BackgroundColor3 ~= d.bgColor   then e.bg.BackgroundColor3 = d.bgColor   end
+                    if e.stroke and d.strokeColor and e.stroke.Color       ~= d.strokeColor then e.stroke.Color      = d.strokeColor end
+                end
+                task.wait(0.25)
+            end
+        end)
+    end
 end
 
 
