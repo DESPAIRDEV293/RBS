@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-27-tier-gate"
+local ADMIN_BUILD = "2026-06-28-clone-control"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -531,6 +531,13 @@ local HELP_COMMANDS = {
     { perms = {"staff_cmd"}, cmd = "!key",                  desc = "Show a copyable tag sync key for Config (staff/admin/owner only)" },
     { perms = {},            cmd = "!walkonair",            desc = "Walk on an invisible platform — up/down + keybinds in the panel" },
     { perms = {},            cmd = "!flashstep",            desc = "Blink-teleport in camera direction or to your mouse hover (keybind in panel)" },
+    { perms = {"owner"},     cmd = "!clone <user>",         desc = "OWNER · designate an alt as your personal clone (alt must have script running)" },
+    { perms = {"owner"},     cmd = "!unclone",              desc = "OWNER · release your clone (alt stops flying / following)" },
+    { perms = {"owner"},     cmd = "!clonetp",              desc = "OWNER · teleport your clone to you" },
+    { perms = {"owner"},     cmd = "!cfollow",              desc = "OWNER · clone flies and follows you continuously" },
+    { perms = {"owner"},     cmd = "!cstop",                desc = "OWNER · clone stops moving (hovers in place)" },
+    { perms = {"owner"},     cmd = "!swarm <user>",         desc = "OWNER · clone orbits the target user while flying" },
+    { perms = {"owner"},     cmd = "!annoy <user>",         desc = "OWNER · clone flies and follows the target user around" },
 }
 
 local helpGui = nil
@@ -7398,6 +7405,15 @@ local HELP_CMDS = {
         { "!untimestop", "Release the freeze" },
         { "!key", "Show the tag-sync key (staff/admin/owner only)" },
     }},
+    { "Clone control (owner only)", {
+        { "!clone <user>",  "Designate an alt as your personal clone (alt needs script running)" },
+        { "!unclone",       "Release your clone (alt stops flying / following)" },
+        { "!clonetp",       "Teleport your clone to you" },
+        { "!cfollow",       "Clone flies and follows you continuously" },
+        { "!cstop",         "Clone stops moving (hovers in place)" },
+        { "!swarm <user>",  "Clone orbits the target user while flying" },
+        { "!annoy <user>",  "Clone flies and follows the target user around" },
+    }},
     { "Staff oversight", {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
         { "!track <player> / !untrack", "Through-wall arrow + live distance to a player" },
@@ -7513,6 +7529,15 @@ button(pgCmds, "!selflimbtrack  —  drive your own limb", function() _runCmd("!
 -- Staff oversight
 button(pgCmds, "!logs <player>  —  recent chat (staff)", function() _openCmd("!logs ") end)
 button(pgCmds, "!track <player>  —  arrow + distance (staff)", function() _openCmd("!track ") end)
+
+-- Clone control (owner only)
+button(pgCmds, "!clone <user>  —  designate alt as clone (owner)",  function() _openCmd("!clone ") end)
+button(pgCmds, "!clonetp  —  bring clone to you (owner)",            function() _runCmd("!clonetp") end)
+button(pgCmds, "!cfollow  —  clone follows you (owner)",             function() _runCmd("!cfollow") end)
+button(pgCmds, "!cstop  —  clone hovers in place (owner)",           function() _runCmd("!cstop") end)
+button(pgCmds, "!swarm <user>  —  clone orbits target (owner)",      function() _openCmd("!swarm ") end)
+button(pgCmds, "!annoy <user>  —  clone chases target (owner)",      function() _openCmd("!annoy ") end)
+button(pgCmds, "!unclone  —  release clone (owner)",                 function() _runCmd("!unclone") end)
 button(pgCmds, "!cmute <player>  —  silence locally (staff)", function() _openCmd("!cmute ") end)
 button(pgCmds, "!hide <player>  —  hide locally (staff)", function() _openCmd("!hide ") end)
 button(pgCmds, "!unhide <player>  —  unhide (staff)", function() _openCmd("!unhide ") end)
@@ -13099,6 +13124,63 @@ cmdHandlers["unwalkonair"] = function() _G.__SeigeWoAStop() end
 cmdHandlers["airwalk"]     = cmdHandlers["walkonair"]
 cmdHandlers["unairwalk"]   = cmdHandlers["unwalkonair"]
 
+-- ============================================================
+-- CLONE CONTROL (owner only) · designate an alt account as
+-- a personal "clone" and remote-control it via SeigeMsg markers.
+-- The clone must also be running this script for commands to
+-- take effect (it receives the marker and executes locally).
+-- ============================================================
+local function _cloneOwnerGate(name)
+    if not _isOwnerLocal() then
+        notify(tostring(name) .. " is owner-only", "bad"); return false
+    end
+    if not _G.__SeigeCloneSend then
+        notify("Clone channel not ready yet — try again in a sec", "warn"); return false
+    end
+    return true
+end
+cmdHandlers["clone"] = function(arg)
+    if not _cloneOwnerGate("!clone") then return end
+    local t = tostring(arg or ""):gsub("^@", ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !clone <user>", "warn"); return end
+    _G.__SeigeCloneSend("DESIGNATE", t)
+    notify("Clone designated: @" .. t .. " — idle/hover until you issue a command", "good")
+end
+cmdHandlers["unclone"] = function()
+    if not _cloneOwnerGate("!unclone") then return end
+    _G.__SeigeCloneSend("RELEASE", "")
+    notify("Clone released", "good")
+end
+cmdHandlers["clonetp"] = function()
+    if not _cloneOwnerGate("!clonetp") then return end
+    _G.__SeigeCloneSend("TP", LP.Name)
+    notify("Clone teleporting to you", "good")
+end
+cmdHandlers["cfollow"] = function()
+    if not _cloneOwnerGate("!cfollow") then return end
+    _G.__SeigeCloneSend("FOLLOW", LP.Name)
+    notify("Clone following you", "good")
+end
+cmdHandlers["cstop"] = function()
+    if not _cloneOwnerGate("!cstop") then return end
+    _G.__SeigeCloneSend("STOP", "")
+    notify("Clone hovering in place", "good")
+end
+cmdHandlers["swarm"] = function(arg)
+    if not _cloneOwnerGate("!swarm") then return end
+    local t = tostring(arg or ""):gsub("^@", ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !swarm <user>", "warn"); return end
+    _G.__SeigeCloneSend("SWARM", t)
+    notify("Clone swarming @" .. t, "good")
+end
+cmdHandlers["annoy"] = function(arg)
+    if not _cloneOwnerGate("!annoy") then return end
+    local t = tostring(arg or ""):gsub("^@", ""):gsub("%s+", "")
+    if t == "" then notify("Usage: !annoy <user>", "warn"); return end
+    _G.__SeigeCloneSend("ANNOY", t)
+    notify("Clone annoying @" .. t, "good")
+end
+
 -- ===== !flashstep · blink teleport (camera dir OR mouse hover) =====
 _G.__SeigeFlash = _G.__SeigeFlash or {
     on       = false,
@@ -16273,6 +16355,7 @@ end)()
     local PM_MARK     = "\226\159\166SEIGE-PM\226\159\167"      -- <target>|<sender>|<msg>
     local ALERT_MARK  = "\226\159\166SEIGE-ALERT\226\159\167"   -- <sender>|<msg>
     local KILL_MARK   = "\226\159\166SEIGE-KILL\226\159\167"    -- 1|0  (owner-only sender)
+    local CLONE_MARK  = "\226\159\166SEIGE-CLONE\226\159\167"   -- <ownerName>|<verb>|<arg>  (owner-only sender)
 
     local function _cleanName(s)
         return tostring(s or ""):gsub("^@", ""):gsub("^%s+", ""):gsub("%s+$", "")
@@ -16340,6 +16423,161 @@ end)()
         _G.__SeigeSetKill(on, false)
         return true
     end
+
+    -- =============================================================
+    -- CLONE CONTROL (owner-only sender). The local player is the
+    -- "clone" if a previous DESIGNATE marker named them. The clone
+    -- listens for follow / swarm / annoy / tp / stop / release verbs
+    -- and drives its character with BodyVelocity + BodyGyro flight.
+    -- =============================================================
+    _G.__SeigeCloneSend = function(verb, arg)
+        if not _isOwnerLocal() then return false, "owner only" end
+        verb = tostring(verb or "")
+        arg  = tostring(arg or "")
+        broadcast(CLONE_MARK .. LP.Name .. "|" .. verb .. "|" .. arg)
+        return true
+    end
+
+    -- Per-client clone state machine.
+    local CLONE = _G.__SeigeCloneState or { owner = nil, mode = "idle", target = nil, t0 = 0 }
+    _G.__SeigeCloneState = CLONE
+
+    local function _cloneCleanup()
+        if CLONE.conn then pcall(function() CLONE.conn:Disconnect() end); CLONE.conn = nil end
+        local char = LP.Character
+        if char then
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                for _, n in ipairs({"SeigeCloneBV","SeigeCloneBG"}) do
+                    local o = hrp:FindFirstChild(n); if o then pcall(function() o:Destroy() end) end
+                end
+            end
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then pcall(function() hum.PlatformStand = false end) end
+        end
+    end
+
+    local function _cloneEngageFlight()
+        local char = LP.Character or LP.CharacterAdded:Wait()
+        local hrp = char:WaitForChild("HumanoidRootPart", 4)
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if not hrp then return nil end
+        if hum then pcall(function() hum.PlatformStand = true end) end
+        local bv = hrp:FindFirstChild("SeigeCloneBV") or Instance.new("BodyVelocity")
+        bv.Name = "SeigeCloneBV"; bv.MaxForce = Vector3.new(1e6,1e6,1e6); bv.P = 1e4; bv.Velocity = Vector3.new(); bv.Parent = hrp
+        local bg = hrp:FindFirstChild("SeigeCloneBG") or Instance.new("BodyGyro")
+        bg.Name = "SeigeCloneBG"; bg.MaxTorque = Vector3.new(1e6,1e6,1e6); bg.P = 1e4; bg.D = 500; bg.CFrame = hrp.CFrame; bg.Parent = hrp
+        return hrp, bv, bg
+    end
+
+    local function _cloneStartLoop()
+        if CLONE.conn then pcall(function() CLONE.conn:Disconnect() end) end
+        local RS = game:GetService("RunService")
+        CLONE.t0 = tick()
+        CLONE.conn = RS.Heartbeat:Connect(function(dt)
+            if CLONE.mode == "idle" or CLONE.mode == "released" then return end
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then return end
+            local bv = hrp:FindFirstChild("SeigeCloneBV")
+            local bg = hrp:FindFirstChild("SeigeCloneBG")
+            if not (bv and bg) then hrp, bv, bg = _cloneEngageFlight(); if not bv then return end end
+
+            local function findP(n)
+                if not n or n == "" then return nil end
+                for _, p in ipairs(Players:GetPlayers()) do
+                    if p.Name:lower() == n:lower() then return p end
+                end
+                return nil
+            end
+
+            if CLONE.mode == "stop" then
+                bv.Velocity = Vector3.new(0, 0, 0)
+                return
+            end
+
+            local goal, lookAt
+            if CLONE.mode == "follow" then
+                local p = findP(CLONE.owner); local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                if th then goal = th.Position + (th.CFrame.LookVector * -6) + Vector3.new(0, 2, 0); lookAt = th.Position end
+            elseif CLONE.mode == "annoy" then
+                local p = findP(CLONE.target); local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                if th then
+                    local phase = (tick() - CLONE.t0) * 3
+                    local off = Vector3.new(math.cos(phase) * 3.5, math.sin(phase*1.7) * 1.8 + 1.5, math.sin(phase) * 3.5)
+                    goal = th.Position + off; lookAt = th.Position
+                end
+            elseif CLONE.mode == "swarm" then
+                local p = findP(CLONE.target); local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                if th then
+                    local phase = (tick() - CLONE.t0) * 2.4
+                    local r = 9
+                    goal = th.Position + Vector3.new(math.cos(phase) * r, 4 + math.sin(phase * 2) * 1.5, math.sin(phase) * r)
+                    lookAt = th.Position
+                end
+            end
+
+            if goal then
+                local delta = (goal - hrp.Position)
+                local dist = delta.Magnitude
+                local speed = math.clamp(dist * 4, 0, 80)
+                local dir = (dist > 0.05) and (delta.Unit * speed) or Vector3.new()
+                bv.Velocity = dir
+                if lookAt then
+                    bg.CFrame = CFrame.new(hrp.Position, Vector3.new(lookAt.X, hrp.Position.Y, lookAt.Z))
+                end
+            else
+                -- target gone — hover
+                bv.Velocity = Vector3.new(0, 0, 0)
+            end
+        end)
+    end
+
+    _G.__SeigeCloneApply = function(senderName, verb, arg)
+        if verb == "DESIGNATE" then
+            local me = LP.Name:lower()
+            if (arg or ""):lower() == me then
+                CLONE.owner = senderName
+                CLONE.mode  = "stop"
+                CLONE.target = nil
+                _cloneEngageFlight(); _cloneStartLoop()
+                notify("You are now @" .. senderName .. "'s clone", "warn")
+            elseif CLONE.owner and CLONE.owner == senderName then
+                -- owner re-designated someone else → release us
+                CLONE.owner = nil; CLONE.mode = "released"; _cloneCleanup()
+            end
+            return
+        end
+        -- All other verbs require we already be this sender's clone
+        if not (CLONE.owner and senderName and CLONE.owner:lower() == senderName:lower()) then return end
+        if verb == "RELEASE" then
+            CLONE.owner = nil; CLONE.mode = "released"; CLONE.target = nil
+            _cloneCleanup()
+            notify("Clone released by @" .. senderName, "warn")
+        elseif verb == "STOP" then
+            CLONE.mode = "stop"; CLONE.target = nil; _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "FOLLOW" then
+            CLONE.mode = "follow"; CLONE.target = nil; _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "ANNOY" then
+            CLONE.mode = "annoy"; CLONE.target = arg; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "SWARM" then
+            CLONE.mode = "swarm"; CLONE.target = arg; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "TP" then
+            local p = Players:FindFirstChild(arg or "")
+            local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if th and hrp then pcall(function() hrp.CFrame = th.CFrame + Vector3.new(0, 0, -3) end) end
+        end
+    end
+
+    -- Re-attach flight when the clone respawns mid-session
+    LP.CharacterAdded:Connect(function()
+        task.wait(0.6)
+        if CLONE.owner and CLONE.mode and CLONE.mode ~= "released" and CLONE.mode ~= "idle" then
+            _cloneEngageFlight(); _cloneStartLoop()
+        end
+    end)
+
+
 
 
     -- Local helpers (effects applied when WE are the target)
@@ -16506,6 +16744,20 @@ end)()
             -- sender check happens at the handleText layer below.
             local body = text:sub(#KILL_MARK + 1)
             _G.__SeigeSetKill(body == "1", true)
+            return true
+        end
+        if text:sub(1, #CLONE_MARK) == CLONE_MARK then
+            local body = text:sub(#CLONE_MARK + 1)
+            local sender, verb, arg = body:match("^([^|]+)|([^|]+)|(.*)$")
+            if sender and verb then
+                -- Owner verification: sender must be the hardcoded OWNER_NAME
+                -- or a known co-owner. Receivers enforce this themselves so a
+                -- spoofed marker from a non-owner is ignored.
+                local s = sender:lower()
+                if s == OWNER_NAME:lower() or _isCoOwner(sender) then
+                    if _G.__SeigeCloneApply then _G.__SeigeCloneApply(sender, verb, arg or "") end
+                end
+            end
             return true
         end
         return false
