@@ -13193,16 +13193,26 @@ end
 -- the real player does not move. Supports follow/swarm/annoy/stop/tp.
 _G.__SeigeFakeClone = _G.__SeigeFakeClone or {
     model = nil, hum = nil, hrp = nil,
-    mode = "follow",    -- follow | swarm | annoy | stop
+    mode = "follow",    -- follow | swarm | annoy | stop | fly
     target = nil,        -- Player instance
     sourceName = "",
+    userId = nil,
     conn = nil, t0 = 0,
 }
+_G.__SeigeFakeCloneExtras = _G.__SeigeFakeCloneExtras or {}
+local function _fcCleanupExtras()
+    for _, E in ipairs(_G.__SeigeFakeCloneExtras) do
+        if E.conn then pcall(function() E.conn:Disconnect() end) end
+        if E.model then pcall(function() E.model:Destroy() end) end
+    end
+    _G.__SeigeFakeCloneExtras = {}
+end
 local function _fcCleanup()
     local F = _G.__SeigeFakeClone
     if F.conn then pcall(function() F.conn:Disconnect() end); F.conn = nil end
     if F.model then pcall(function() F.model:Destroy() end) end
-    F.model, F.hum, F.hrp, F.target = nil, nil, nil, nil
+    F.model, F.hum, F.hrp, F.target, F.userId = nil, nil, nil, nil, nil
+    _fcCleanupExtras()
 end
 local function _fcSpawn(userId, displayName)
     _fcCleanup()
