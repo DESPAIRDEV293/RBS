@@ -16675,7 +16675,7 @@ end))
 if panels.Profile then panels.Profile.frame.Visible = true end
 
 
-------------------------------------------------------- SPOTIFY
+------------------------------------------------------- SPOTIFY (fancy player)
 (function()
     local httpReq = (syn and syn.request)
         or rawget(getfenv(), "http_request")
@@ -16692,47 +16692,181 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         return res.StatusCode or res.status_code or 0, res.Body or res.body or ""
     end
 
-    section(pgSpotify, "Spotify Connect")
-    label(pgSpotify, "Paste a Spotify OAuth token (see Spotify Web API docs).")
     local token = ""
-    local readToken = function() local ok, t = pcall(function() return (readfile and readfile("seige_spotify.txt")) or "" end) if ok and t then token = t end end
-    pcall(readToken)
-    local nowPlaying = label(pgSpotify, token ~= "" and "Token loaded — press Connect to verify" or "Not connected")
-    textbox(pgSpotify, "Spotify access token (BQ…)", function(v)
-        token = (v or ""):gsub("^%s+", ""):gsub("%s+$", "")
-        pcall(function() if writefile then writefile("seige_spotify.txt", token) end end)
-        notify("Token saved", "good")
+    pcall(function() if readfile then token = readfile("seige_spotify.txt") or "" end end)
+    token = (token or ""):gsub("^%s+",""):gsub("%s+$","")
+
+    -- ============ HOW TO CONNECT (step-by-step) ============
+    section(pgSpotify, "How to connect")
+    label(pgSpotify, "1.  Make sure Spotify (any plan; Premium required for playback control) is OPEN on a device — phone, desktop, or web player.")
+    label(pgSpotify, "2.  Click 'Open token helper' below. It copies the Spotify Web API console URL to your clipboard.")
+    label(pgSpotify, "3.  In your browser, paste the URL, then click 'Get Token' on that page. Check the scopes: user-read-playback-state, user-modify-playback-state, user-read-currently-playing.")
+    label(pgSpotify, "4.  Click 'Request Token', log into Spotify, copy the long token that starts with BQ…")
+    label(pgSpotify, "5.  Paste it into the box below. Press Connect. The fancy player appears once verified.")
+    label(pgSpotify, "Note: Spotify tokens expire after 1 hour. Just grab a new one and paste again — your settings stay saved.")
+
+    button(pgSpotify, "📋  Copy token helper URL", function()
+        if setclipboard then pcall(setclipboard, "https://developer.spotify.com/console/get-current-user/") end
+        notify("URL copied — paste into browser, then click 'Get Token'", "good")
     end)
-    button(pgSpotify, "Connect / verify token", function()
+
+    section(pgSpotify, "Access token")
+    local connStatus = label(pgSpotify, token ~= "" and "Token loaded — press Connect to verify" or "❌  Not connected")
+    textbox(pgSpotify, "Paste access token (BQ…)", function(v)
+        token = (v or ""):gsub("^%s+",""):gsub("%s+$","")
+        pcall(function() if writefile then writefile("seige_spotify.txt", token) end end)
+        notify("Token saved locally", "good")
+    end)
+
+    -- ============ FANCY PLAYER CARD ============
+    section(pgSpotify, "Now Playing")
+    local card = inst("Frame", pgSpotify, {
+        Size = UDim2.new(1, -16, 0, 360),
+        BackgroundColor3 = Color3.fromRGB(10, 4, 6),
+        BorderSizePixel = 0,
+    })
+    corner(card, 18)
+    stroke(card, Color3.fromRGB(60, 20, 30), 1.2, 0.3)
+    -- red radial glow background
+    inst("ImageLabel", card, {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Image = "rbxasset://textures/ui/Controls/RadialGradient.png",
+        ImageColor3 = Color3.fromRGB(180, 20, 40),
+        ImageTransparency = 0.55,
+        ScaleType = Enum.ScaleType.Fit,
+    })
+
+    -- Header
+    local header = inst("Frame", card, {
+        Size = UDim2.new(1, -24, 0, 36), Position = UDim2.new(0, 12, 0, 10),
+        BackgroundTransparency = 1,
+    })
+    inst("TextLabel", header, {
+        Size = UDim2.new(0, 28, 0, 28), Position = UDim2.new(0, 0, 0, 4),
+        BackgroundTransparency = 1, Text = "♫",
+        Font = Enum.Font.GothamBold, TextSize = 24, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+    inst("TextLabel", header, {
+        Size = UDim2.new(1, -40, 0, 20), Position = UDim2.new(0, 34, 0, 0),
+        BackgroundTransparency = 1, Text = "Music",
+        Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = T.text,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+    inst("TextLabel", header, {
+        Size = UDim2.new(1, -40, 0, 14), Position = UDim2.new(0, 34, 0, 20),
+        BackgroundTransparency = 1, Text = "Spotify",
+        Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = Color3.fromRGB(235, 70, 90),
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+
+    -- Album art
+    local artWrap = inst("Frame", card, {
+        Size = UDim2.new(0, 160, 0, 160),
+        Position = UDim2.new(0.5, -80, 0, 56),
+        BackgroundColor3 = Color3.fromRGB(20, 8, 12), BorderSizePixel = 0,
+    })
+    corner(artWrap, 14); stroke(artWrap, Color3.fromRGB(80, 30, 40), 1, 0.3)
+    local art = inst("ImageLabel", artWrap, {
+        Size = UDim2.new(1, -6, 1, -6), Position = UDim2.new(0, 3, 0, 3),
+        BackgroundTransparency = 1, Image = "",
+        ScaleType = Enum.ScaleType.Crop,
+    })
+    corner(art, 12)
+
+    local titleLbl = inst("TextLabel", card, {
+        Size = UDim2.new(1, -24, 0, 22), Position = UDim2.new(0, 12, 0, 224),
+        BackgroundTransparency = 1, Text = "—",
+        Font = Enum.Font.GothamMedium, TextSize = 18, TextColor3 = T.text,
+    })
+    local artistLbl = inst("TextLabel", card, {
+        Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 246),
+        BackgroundTransparency = 1, Text = "Connect a token to begin",
+        Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = Color3.fromRGB(210, 180, 190),
+    })
+
+    -- Progress bar
+    local barBg = inst("Frame", card, {
+        Size = UDim2.new(1, -56, 0, 6), Position = UDim2.new(0, 28, 0, 282),
+        BackgroundColor3 = Color3.fromRGB(60, 30, 40), BorderSizePixel = 0,
+    })
+    corner(barBg, 3)
+    local barFill = inst("Frame", barBg, {
+        Size = UDim2.new(0, 0, 1, 0), BackgroundColor3 = Color3.fromRGB(235, 60, 80),
+        BorderSizePixel = 0,
+    })
+    corner(barFill, 3)
+    local barKnob = inst("Frame", barBg, {
+        Size = UDim2.new(0, 12, 0, 12), AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.new(0, 0, 0.5, 0), BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BorderSizePixel = 0,
+    })
+    corner(barKnob, 6)
+    local tLeft = inst("TextLabel", card, {
+        Size = UDim2.new(0, 50, 0, 14), Position = UDim2.new(0, 16, 0, 292),
+        BackgroundTransparency = 1, Text = "0:00",
+        Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(210, 180, 190),
+        TextXAlignment = Enum.TextXAlignment.Left,
+    })
+    local tRight = inst("TextLabel", card, {
+        Size = UDim2.new(0, 60, 0, 14), Position = UDim2.new(1, -76, 0, 292),
+        BackgroundTransparency = 1, Text = "-0:00",
+        Font = Enum.Font.Gotham, TextSize = 11, TextColor3 = Color3.fromRGB(210, 180, 190),
+        TextXAlignment = Enum.TextXAlignment.Right,
+    })
+
+    -- Transport
+    local function transport(parent, glyph, x, size)
+        local b = inst("TextButton", parent, {
+            Size = UDim2.new(0, size, 0, size),
+            Position = UDim2.new(0.5, x - size/2, 0, 316),
+            BackgroundTransparency = 1, AutoButtonColor = false,
+            Text = glyph, Font = Enum.Font.GothamBold,
+            TextSize = size - 8, TextColor3 = T.text,
+        })
+        return b
+    end
+    local btnPrev = transport(card, "⏮", -60, 28)
+    local btnPlay = transport(card, "▶", 0, 36)
+    local btnNext = transport(card, "⏭", 60, 28)
+    local isPlaying = false
+    btnPrev.MouseButton1Click:Connect(function()
+        if token == "" then notify("Connect first", "bad"); return end
+        spReq("POST", "/me/player/previous", token)
+    end)
+    btnNext.MouseButton1Click:Connect(function()
+        if token == "" then notify("Connect first", "bad"); return end
+        spReq("POST", "/me/player/next", token)
+    end)
+    btnPlay.MouseButton1Click:Connect(function()
+        if token == "" then notify("Connect first", "bad"); return end
+        if isPlaying then spReq("PUT", "/me/player/pause", token)
+        else spReq("PUT", "/me/player/play", token) end
+    end)
+
+    button(pgSpotify, "🔌  Connect / verify token", function()
         if token == "" then notify("Paste a token first", "bad"); return end
         local status, body = spReq("GET", "/me", token)
         if status == 200 then
             local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
             local who = (ok and data and (data.display_name or data.id)) or "you"
-            nowPlaying:set("Connected as " .. tostring(who))
+            connStatus:set("✅  Connected as " .. tostring(who))
             notify("Spotify connected: " .. tostring(who), "good")
+        elseif status == 401 then
+            connStatus:set("❌  Token expired — grab a fresh one")
+            notify("Token expired (401) — get a new one", "bad")
         else
-            nowPlaying:set("Auth failed (" .. tostring(status) .. ")")
-            notify("Token rejected (" .. tostring(status) .. ") — get a fresh one", "bad")
+            connStatus:set("❌  Auth failed (" .. tostring(status) .. ")")
+            notify("Token rejected (" .. tostring(status) .. ")", "bad")
         end
     end)
-    button(pgSpotify, "Open token helper (developer.spotify.com)", function()
-        if setclipboard then pcall(setclipboard, "https://developer.spotify.com/console/get-current-user/") end
-        notify("URL copied: developer.spotify.com/console — Get Token w/ user-modify-playback-state", "good")
-    end)
 
-    section(pgSpotify, "Playback")
-    local nowTrack = label(pgSpotify, "—")
-    button(pgSpotify, "▶  Play",  function() local s = spReq("PUT",  "/me/player/play",  token); if s and s >= 400 then notify("Play failed " .. s, "bad") end end)
-    button(pgSpotify, "❚❚ Pause", function() local s = spReq("PUT",  "/me/player/pause", token); if s and s >= 400 then notify("Pause failed " .. s, "bad") end end)
-    button(pgSpotify, "⏭  Next",  function() local s = spReq("POST", "/me/player/next",  token); if s and s >= 400 then notify("Next failed " .. s, "bad") end end)
-    button(pgSpotify, "⏮  Previous", function() local s = spReq("POST", "/me/player/previous", token); if s and s >= 400 then notify("Prev failed " .. s, "bad") end end)
+    section(pgSpotify, "Volume & search")
     slider(pgSpotify, "Volume", 0, 100, 60, function(v)
         if token == "" then return end
         spReq("PUT", "/me/player/volume?volume_percent=" .. tostring(math.floor(v + 0.5)), token)
     end)
-
-    section(pgSpotify, "Search & play")
     textbox(pgSpotify, "Search a track (artist — title)", function(q)
         if token == "" then notify("Connect first", "bad"); return end
         q = (q or ""):gsub("^%s+",""):gsub("%s+$","")
@@ -16746,15 +16880,14 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         if not first then notify("No results", "warn"); return end
         local uri = first.uri
         local artist = (first.artists and first.artists[1] and first.artists[1].name) or "?"
-        local play, perr = spReq("PUT", "/me/player/play", token, HttpService:JSONEncode({ uris = { uri } }))
+        local play = spReq("PUT", "/me/player/play", token, HttpService:JSONEncode({ uris = { uri } }))
         if play and play >= 400 then
             notify("Open Spotify on a device first (" .. tostring(play) .. ")", "bad")
         else
             notify("Playing: " .. artist .. " — " .. (first.name or "?"), "good")
-            nowTrack:set(artist .. " — " .. (first.name or "?"))
         end
     end)
-    textbox(pgSpotify, "Or paste a spotify URI / URL", function(v)
+    textbox(pgSpotify, "Or paste a Spotify URI / URL", function(v)
         if token == "" then notify("Connect first", "bad"); return end
         v = (v or ""):gsub("^%s+",""):gsub("%s+$","")
         local uri = v
@@ -16764,20 +16897,42 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         if play and play >= 400 then notify("Play failed " .. tostring(play), "bad") else notify("Playing " .. uri, "good") end
     end)
 
-    -- Periodic now-playing refresh
+    local function fmt(ms)
+        ms = math.max(0, math.floor((ms or 0) / 1000))
+        return string.format("%d:%02d", math.floor(ms/60), ms % 60)
+    end
+
+    -- Now-playing refresh
     task.spawn(function()
+        local lastArt = ""
         while pgSpotify.Parent do
             if token ~= "" then
                 local s, b = spReq("GET", "/me/player/currently-playing", token)
                 if s == 200 and b and #b > 0 then
                     local ok, d = pcall(function() return HttpService:JSONDecode(b) end)
                     if ok and d and d.item then
+                        isPlaying = d.is_playing and true or false
+                        btnPlay.Text = isPlaying and "❚❚" or "▶"
                         local artist = (d.item.artists and d.item.artists[1] and d.item.artists[1].name) or "?"
-                        nowTrack:set((d.is_playing and "▶ " or "❚❚ ") .. artist .. " — " .. (d.item.name or "?"))
+                        titleLbl.Text = d.item.name or "?"
+                        artistLbl.Text = artist
+                        local dur = d.item.duration_ms or 0
+                        local pos = d.progress_ms or 0
+                        local pct = (dur > 0) and (pos / dur) or 0
+                        barFill.Size = UDim2.new(pct, 0, 1, 0)
+                        barKnob.Position = UDim2.new(pct, 0, 0.5, 0)
+                        tLeft.Text = fmt(pos)
+                        tRight.Text = "-" .. fmt(dur - pos)
+                        local imgs = d.item.album and d.item.album.images
+                        local imgUrl = imgs and imgs[1] and imgs[1].url
+                        if imgUrl and imgUrl ~= lastArt then
+                            art.Image = imgUrl
+                            lastArt = imgUrl
+                        end
                     end
                 end
             end
-            task.wait(5)
+            task.wait(3)
         end
     end)
 end)()
