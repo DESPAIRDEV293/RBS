@@ -13875,6 +13875,35 @@ cmdHandlers["clonefly"] = function()
     else notify("No active clone — use !clone or !fakeclone", "warn") end
 end
 
+-- ===== !cmirror / !fcmirror / !clonemirror · clone copies your every move =====
+cmdHandlers["cmirror"] = function()
+    if not _cloneOwnerGate("!cmirror") then return end
+    _G.__SeigeCloneSend("MIRROR", LP.Name)
+    notify("Real clone mirroring you", "good")
+end
+cmdHandlers["fcmirror"] = function()
+    if not _cloneOwnerGate("!fcmirror") then return end
+    if not (_G.__SeigeFakeClone and _G.__SeigeFakeClone.model) then
+        notify("Spawn a fake clone first: !fakeclone <user>", "warn"); return
+    end
+    _G.__SeigeFakeClone.mode = "mirror"
+    _G.__SeigeFakeClone.target = nil
+    _G.__SeigeFakeClone.t0 = tick()
+    if type(_fcLoop) == "function" then _fcLoop() end
+    notify("Fake clone mirroring you (doubles included)", "good")
+end
+cmdHandlers["clonemirror"] = function()
+    if not _cloneOwnerGate("!clonemirror") then return end
+    local did = false
+    if _G.__SeigeFakeClone and _G.__SeigeFakeClone.model then
+        cmdHandlers["fcmirror"](); did = true
+    end
+    if _G.__SeigeCloneSend then
+        pcall(function() _G.__SeigeCloneSend("MIRROR", LP.Name) end); did = true
+    end
+    if not did then notify("No active clone — use !clone or !fakeclone", "warn") end
+end
+
 -- ===== Clone Control panel (single place for every clone command) =====
 local function _openClonePanel()
     if not _isOwnerLocal() then
