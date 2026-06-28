@@ -13354,11 +13354,97 @@ cmdHandlers["fcswarm"] = function(arg)
     _fcLoop(); notify("Fake clone swarming @" .. p.Name, "good")
 end
 cmdHandlers["fcannoy"] = function(arg)
+    if not _cloneOwnerGate("!fcannoy") then return end
     if not _G.__SeigeFakeClone.model then notify("Spawn one first: !fakeclone <user>", "warn"); return end
     local t = tostring(arg or ""):gsub("^@",""):gsub("%s+","")
     local p = findPlr(t); if not p then notify("Annoy target not found", "warn"); return end
     _G.__SeigeFakeClone.target = p; _G.__SeigeFakeClone.mode = "annoy"
     _fcLoop(); notify("Fake clone annoying @" .. p.Name, "good")
+end
+
+-- ===== !clonedouble · split the current fake clone (spawn another copy) =====
+local function _fcSpawnExtra()
+    local F = _G.__SeigeFakeClone
+    if not F.userId then return nil end
+    local ok, model = pcall(function()
+        return Players:CreateHumanoidModelFromUserId(F.userId)
+    end)
+    if not ok or not model then return nil end
+    local idx = #_G.__SeigeFakeCloneExtras + 1
+    model.Name = "SeigeFakeCloneExtra_" .. tostring(F.sourceName) .. "_" .. idx
+    local char = LP.Character
+    local hrp0 = char and char:FindFirstChild("HumanoidRootPart")
+    local jitter = Vector3.new(math.random(-4,4), 0, math.random(-4,4))
+    if hrp0 then model:PivotTo(hrp0.CFrame * CFrame.new(jitter.X, 0, -6 + jitter.Z)) end
+    model.Parent = workspace
+    local hum  = model:FindFirstChildOfClass("Humanoid")
+    local head = model:FindFirstChild("Head")
+    if head then
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "SeigeFakeTag"; bb.Adornee = head; bb.Size = UDim2.new(0, 140, 0, 22)
+        bb.StudsOffset = Vector3.new(0, 2.4, 0); bb.AlwaysOnTop = true
+        local tl = Instance.new("TextLabel", bb)
+        tl.BackgroundTransparency = 0.25; tl.BackgroundColor3 = Color3.fromRGB(20,0,0)
+        tl.Size = UDim2.new(1,0,1,0); tl.Font = Enum.Font.GothamBold; tl.TextSize = 12
+        tl.TextColor3 = Color3.fromRGB(255,80,80)
+        tl.Text = "FAKE x" .. (idx+1) .. " · " .. tostring(F.sourceName)
+        bb.Parent = head
+    end
+    if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
+    pcall(function()
+        local myAnimate = LP.Character and LP.Character:FindFirstChild("Animate")
+        local oldA = model:FindFirstChild("Animate"); if oldA then oldA:Destroy() end
+        if myAnimate then local c = myAnimate:Clone(); c.Disabled = false; c.Parent = model end
+    end)
+    local E = {
+        model = model, hum = hum, hrp = model:FindFirstChild("HumanoidRootPart"),
+        t0 = tick(), phase = math.random() * math.pi * 2, conn = nil,
+    }
+    local RS = game:GetService("RunService")
+    E.conn = RS.Heartbeat:Connect(function(dt)
+        if not E.model or not E.hrp or not E.hrp.Parent then return end
+        local F2 = _G.__SeigeFakeClone
+        local mode = (F2 and F2.mode) or "follow"
+        local myChar = LP.Character
+        local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        local t = tick() - E.t0 + E.phase
+        local goal
+        if mode == "stop" then
+            goal = E.hrp.CFrame
+        elseif mode == "fly" and myHRP then
+            local r = 5 + idx * 1.5
+            local ang = t * 1.4 + E.phase
+            local off = Vector3.new(math.cos(ang)*r, 6 + math.sin(t*2)*1.2, math.sin(ang)*r)
+            goal = CFrame.new(myHRP.Position + off, myHRP.Position + Vector3.new(0,3,0))
+        elseif mode == "follow" and myHRP then
+            local sideOff = (idx % 2 == 0) and -3 or 3
+            goal = myHRP.CFrame * CFrame.new(sideOff * (1 + math.floor(idx/2)), 1, 6)
+        elseif (mode == "swarm" or mode == "annoy") and F2.target and F2.target.Character then
+            local thrp = F2.target.Character:FindFirstChild("HumanoidRootPart")
+            if thrp then
+                local radius = (mode == "annoy") and 3.5 or 7
+                local speed  = (mode == "annoy") and 6.0 or 2.5
+                local ang = t * speed + E.phase
+                local off = Vector3.new(math.cos(ang)*radius, math.sin(t*2)*1.5 + 2, math.sin(ang)*radius)
+                goal = CFrame.new(thrp.Position + off, thrp.Position)
+            end
+        end
+        if goal then
+            local lerped = E.hrp.CFrame:Lerp(goal, math.clamp(dt * 6, 0, 1))
+            pcall(function() E.model:PivotTo(lerped) end)
+        end
+    end)
+    table.insert(_G.__SeigeFakeCloneExtras, E)
+    return E
+end
+cmdHandlers["clonedouble"] = function()
+    if not _cloneOwnerGate("!clonedouble") then return end
+    if not _G.__SeigeFakeClone.model or not _G.__SeigeFakeClone.userId then
+        notify("Spawn a fake clone first: !fakeclone <user>", "warn"); return
+    end
+    local E = _fcSpawnExtra()
+    if not E then notify("Clone double: failed to spawn copy", "bad"); return end
+    notify("Fake clone doubled — total now " .. (#_G.__SeigeFakeCloneExtras + 1), "good")
 end
 
 -- ===== !clonefly · make the active clone fly/hover =====
