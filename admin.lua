@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-28-spotify-library"
+local ADMIN_BUILD = "2026-06-28-spotify-library2"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -17096,14 +17096,27 @@ if panels.Profile then panels.Profile.frame.Visible = true end
             end
         end
 
-        local btnLib = inst("ImageButton", bar, {
-            Size = UDim2.new(0, 26, 0, 26), Position = UDim2.new(1, -78, 0, 11),
-            BackgroundTransparency = 1, AutoButtonColor = true,
-            Image = ICON_LIB, ImageColor3 = T.text, ScaleType = Enum.ScaleType.Fit,
+        -- Library trigger sits INSIDE the player window, just under the transport row
+        local btnLib = inst("TextButton", playerWin, {
+            AnchorPoint = Vector2.new(0.5, 0),
+            Position = UDim2.new(0.5, 0, 0, 438),
+            Size = UDim2.new(0, 150, 0, 26),
+            BackgroundColor3 = Color3.fromRGB(30, 12, 16),
+            BackgroundTransparency = 0.1, BorderSizePixel = 0,
+            AutoButtonColor = true, Text = "",
+            ZIndex = 5,
+        })
+        corner(btnLib, 13); stroke(btnLib, Color3.fromRGB(120, 30, 50), 1, 0.3)
+        inst("ImageLabel", btnLib, {
+            Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 14, 0.5, -8),
+            BackgroundTransparency = 1, Image = ICON_LIB,
+            ImageColor3 = T.text, ScaleType = Enum.ScaleType.Fit, ZIndex = 6,
         })
         inst("TextLabel", btnLib, {
-            Size = UDim2.new(1,0,1,0), BackgroundTransparency = 1, Text = "≣",
-            Font = Enum.Font.GothamBold, TextSize = 20, TextColor3 = T.text, Visible = false,
+            Size = UDim2.new(1, -36, 1, 0), Position = UDim2.new(0, 32, 0, 0),
+            BackgroundTransparency = 1, Text = "Library  ▾",
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6,
         })
         btnLib.MouseButton1Click:Connect(function()
             libOpen = not libOpen
