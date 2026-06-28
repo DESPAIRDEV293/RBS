@@ -540,6 +540,7 @@ local HELP_COMMANDS = {
     { perms = {"owner"},     cmd = "!annoy <user>",         desc = "OWNER · clone flies and follows the target user around" },
     { perms = {"owner"},     cmd = "!fakeclone <user>",     desc = "OWNER · spawn a local-only visual clone of a user (no script needed on alt)" },
     { perms = {"owner"},     cmd = "!unfakeclone",          desc = "OWNER · remove the local fake clone" },
+    { perms = {"owner"},     cmd = "!clonedouble",          desc = "OWNER · split the active fake clone — spawn another copy" },
     { perms = {"owner"},     cmd = "!fcfollow",             desc = "OWNER · fake clone follows you" },
     { perms = {"owner"},     cmd = "!fcswarm <user>",       desc = "OWNER · fake clone orbits target" },
     { perms = {"owner"},     cmd = "!fcannoy <user>",       desc = "OWNER · fake clone chases target" },
