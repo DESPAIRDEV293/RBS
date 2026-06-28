@@ -16934,12 +16934,8 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         end
     end
 
-    local function fmt(ms)
-        ms = math.max(0, math.floor((ms or 0) / 1000))
-        return string.format("%d:%02d", math.floor(ms/60), ms % 60)
-    end
-    -- expose fmt to the refresh loop (defined-before-use across closures)
-    _G.__SeigeSpotifyFmt = fmt
+
+
 
     button(pgSpotify, "🔌  Connect / verify token", function()
         if token == "" then notify("Paste a token first", "bad"); return end
