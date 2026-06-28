@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-28-clone-control"
+local ADMIN_BUILD = "2026-06-28-fakeclone"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -538,6 +538,13 @@ local HELP_COMMANDS = {
     { perms = {"owner"},     cmd = "!cstop",                desc = "OWNER · clone stops moving (hovers in place)" },
     { perms = {"owner"},     cmd = "!swarm <user>",         desc = "OWNER · clone orbits the target user while flying" },
     { perms = {"owner"},     cmd = "!annoy <user>",         desc = "OWNER · clone flies and follows the target user around" },
+    { perms = {"owner"},     cmd = "!fakeclone <user>",     desc = "OWNER · spawn a local-only visual clone of a user (no script needed on alt)" },
+    { perms = {"owner"},     cmd = "!unfakeclone",          desc = "OWNER · remove the local fake clone" },
+    { perms = {"owner"},     cmd = "!fcfollow",             desc = "OWNER · fake clone follows you" },
+    { perms = {"owner"},     cmd = "!fcswarm <user>",       desc = "OWNER · fake clone orbits target" },
+    { perms = {"owner"},     cmd = "!fcannoy <user>",       desc = "OWNER · fake clone chases target" },
+    { perms = {"owner"},     cmd = "!fcstop",               desc = "OWNER · fake clone holds position" },
+    { perms = {"owner"},     cmd = "!fctp",                 desc = "OWNER · teleport fake clone to you" },
 }
 
 local helpGui = nil
@@ -7413,6 +7420,13 @@ local HELP_CMDS = {
         { "!cstop",         "Clone stops moving (hovers in place)" },
         { "!swarm <user>",  "Clone orbits the target user while flying" },
         { "!annoy <user>",  "Clone flies and follows the target user around" },
+        { "!fakeclone <user>", "Local-only visual clone of a user (alt does NOT need script)" },
+        { "!unfakeclone",   "Remove the local fake clone" },
+        { "!fcfollow",      "Fake clone follows you" },
+        { "!fcswarm <user>","Fake clone orbits target" },
+        { "!fcannoy <user>","Fake clone chases target" },
+        { "!fcstop",        "Fake clone holds position" },
+        { "!fctp",          "Teleport fake clone to you" },
     }},
     { "Staff oversight", {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
@@ -7538,6 +7552,13 @@ button(pgCmds, "!cstop  —  clone hovers in place (owner)",           function(
 button(pgCmds, "!swarm <user>  —  clone orbits target (owner)",      function() _openCmd("!swarm ") end)
 button(pgCmds, "!annoy <user>  —  clone chases target (owner)",      function() _openCmd("!annoy ") end)
 button(pgCmds, "!unclone  —  release clone (owner)",                 function() _runCmd("!unclone") end)
+button(pgCmds, "!fakeclone <user>  —  local-only visual clone (owner)", function() _openCmd("!fakeclone ") end)
+button(pgCmds, "!fcfollow  —  fake clone follows you (owner)",       function() _runCmd("!fcfollow") end)
+button(pgCmds, "!fcswarm <user>  —  fake clone orbits target (owner)", function() _openCmd("!fcswarm ") end)
+button(pgCmds, "!fcannoy <user>  —  fake clone chases target (owner)", function() _openCmd("!fcannoy ") end)
+button(pgCmds, "!fcstop  —  fake clone holds (owner)",               function() _runCmd("!fcstop") end)
+button(pgCmds, "!fctp  —  fake clone to you (owner)",                function() _runCmd("!fctp") end)
+button(pgCmds, "!unfakeclone  —  remove fake clone (owner)",         function() _runCmd("!unfakeclone") end)
 button(pgCmds, "!cmute <player>  —  silence locally (staff)", function() _openCmd("!cmute ") end)
 button(pgCmds, "!hide <player>  —  hide locally (staff)", function() _openCmd("!hide ") end)
 button(pgCmds, "!unhide <player>  —  unhide (staff)", function() _openCmd("!unhide ") end)
@@ -13180,6 +13201,148 @@ cmdHandlers["annoy"] = function(arg)
     _G.__SeigeCloneSend("ANNOY", t)
     notify("Clone annoying @" .. t, "good")
 end
+
+-- ===== !fakeclone · local-only visual clone of a target user =====
+-- Spawns a client-only copy of the target avatar via
+-- Players:CreateHumanoidModelFromUserId. Only you (and anyone else
+-- running this script who happens to also spawn one) can see it —
+-- the real player does not move. Supports follow/swarm/annoy/stop/tp.
+_G.__SeigeFakeClone = _G.__SeigeFakeClone or {
+    model = nil, hum = nil, hrp = nil,
+    mode = "follow",    -- follow | swarm | annoy | stop
+    target = nil,        -- Player instance
+    sourceName = "",
+    conn = nil, t0 = 0,
+}
+local function _fcCleanup()
+    local F = _G.__SeigeFakeClone
+    if F.conn then pcall(function() F.conn:Disconnect() end); F.conn = nil end
+    if F.model then pcall(function() F.model:Destroy() end) end
+    F.model, F.hum, F.hrp, F.target = nil, nil, nil, nil
+end
+local function _fcSpawn(userId, displayName)
+    _fcCleanup()
+    local F = _G.__SeigeFakeClone
+    local ok, model = pcall(function()
+        return Players:CreateHumanoidModelFromUserId(userId)
+    end)
+    if not ok or not model then
+        notify("Fake clone: failed to build avatar (userId " .. tostring(userId) .. ")", "warn"); return false
+    end
+    model.Name = "SeigeFakeClone_" .. tostring(displayName or userId)
+    -- local-only: parent to workspace from the client; will not replicate
+    local char = LP.Character
+    local hrp0 = char and char:FindFirstChild("HumanoidRootPart")
+    if hrp0 then
+        model:PivotTo(hrp0.CFrame * CFrame.new(0, 0, -6))
+    end
+    model.Parent = workspace
+    -- Add a floating label so you can tell it's a fake
+    local hum = model:FindFirstChildOfClass("Humanoid")
+    local head = model:FindFirstChild("Head")
+    if head then
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "SeigeFakeTag"; bb.Adornee = head; bb.Size = UDim2.new(0, 120, 0, 22)
+        bb.StudsOffset = Vector3.new(0, 2.4, 0); bb.AlwaysOnTop = true
+        local tl = Instance.new("TextLabel", bb)
+        tl.BackgroundTransparency = 0.25; tl.BackgroundColor3 = Color3.fromRGB(20,0,0)
+        tl.Size = UDim2.new(1,0,1,0); tl.Font = Enum.Font.GothamBold; tl.TextSize = 12
+        tl.TextColor3 = Color3.fromRGB(255,80,80); tl.Text = "FAKE · " .. tostring(displayName or "?")
+        bb.Parent = head
+    end
+    if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
+    F.model = model
+    F.hum   = hum
+    F.hrp   = model:FindFirstChild("HumanoidRootPart")
+    F.sourceName = tostring(displayName or userId)
+    F.t0 = tick()
+    return true
+end
+local function _fcLoop()
+    local F = _G.__SeigeFakeClone
+    if F.conn then pcall(function() F.conn:Disconnect() end) end
+    local RS = game:GetService("RunService")
+    F.conn = RS.Heartbeat:Connect(function(dt)
+        local F2 = _G.__SeigeFakeClone
+        if not F2.model or not F2.hrp or not F2.hrp.Parent then return end
+        local myChar = LP.Character
+        local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        local t = tick() - F2.t0
+        local goal
+        if F2.mode == "stop" then
+            goal = F2.hrp.CFrame
+        elseif F2.mode == "follow" and myHRP then
+            local back = myHRP.CFrame * CFrame.new(0, 1, 6)
+            goal = back
+        elseif (F2.mode == "swarm" or F2.mode == "annoy") and F2.target and F2.target.Character then
+            local thrp = F2.target.Character:FindFirstChild("HumanoidRootPart")
+            if thrp then
+                local radius = (F2.mode == "annoy") and 3.5 or 7
+                local speed  = (F2.mode == "annoy") and 6.0 or 2.5
+                local ang = t * speed
+                local off = Vector3.new(math.cos(ang)*radius, math.sin(t*2)*1.5 + 2, math.sin(ang)*radius)
+                goal = CFrame.new(thrp.Position + off, thrp.Position)
+            end
+        end
+        if goal then
+            local cur = F2.hrp.CFrame
+            local lerped = cur:Lerp(goal, math.clamp(dt * 6, 0, 1))
+            pcall(function() F2.model:PivotTo(lerped) end) 
+        end
+    end)
+end
+cmdHandlers["fakeclone"] = function(arg)
+    if not _cloneOwnerGate("!fakeclone") then return end
+    local t = tostring(arg or ""):gsub("^@",""):gsub("%s+","")
+    if t == "" then notify("Usage: !fakeclone <user>", "warn"); return end
+    local p = findPlr(t)
+    local uid, dname
+    if p then uid, dname = p.UserId, p.DisplayName
+    else
+        local ok, id = pcall(function() return Players:GetUserIdFromNameAsync(t) end)
+        if not ok or not id then notify("Fake clone: user '" .. t .. "' not found", "warn"); return end
+        uid, dname = id, t
+    end
+    if not _fcSpawn(uid, dname) then return end
+    _G.__SeigeFakeClone.mode = "follow"
+    _fcLoop()
+    notify("Fake clone of @" .. tostring(dname) .. " spawned (local-only)", "good")
+end
+cmdHandlers["unfakeclone"] = function()
+    _fcCleanup(); notify("Fake clone removed", "good")
+end
+cmdHandlers["fcfollow"] = function()
+    if not _G.__SeigeFakeClone.model then notify("No fake clone — use !fakeclone <user>", "warn"); return end
+    _G.__SeigeFakeClone.mode = "follow"; _G.__SeigeFakeClone.target = nil
+    notify("Fake clone following you", "good")
+end
+cmdHandlers["fcstop"] = function()
+    if not _G.__SeigeFakeClone.model then return end
+    _G.__SeigeFakeClone.mode = "stop"; notify("Fake clone holding position", "good")
+end
+cmdHandlers["fctp"] = function()
+    local F = _G.__SeigeFakeClone
+    if not F.model then notify("No fake clone active", "warn"); return end
+    local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then pcall(function() F.model:PivotTo(hrp.CFrame * CFrame.new(0,0,-4)) end) end
+    notify("Fake clone teleported to you", "good")
+end
+cmdHandlers["fcswarm"] = function(arg)
+    if not _G.__SeigeFakeClone.model then notify("Spawn one first: !fakeclone <user>", "warn"); return end
+    local t = tostring(arg or ""):gsub("^@",""):gsub("%s+","")
+    local p = findPlr(t); if not p then notify("Swarm target not found", "warn"); return end
+    _G.__SeigeFakeClone.target = p; _G.__SeigeFakeClone.mode = "swarm"
+    _fcLoop(); notify("Fake clone swarming @" .. p.Name, "good")
+end
+cmdHandlers["fcannoy"] = function(arg)
+    if not _G.__SeigeFakeClone.model then notify("Spawn one first: !fakeclone <user>", "warn"); return end
+    local t = tostring(arg or ""):gsub("^@",""):gsub("%s+","")
+    local p = findPlr(t); if not p then notify("Annoy target not found", "warn"); return end
+    _G.__SeigeFakeClone.target = p; _G.__SeigeFakeClone.mode = "annoy"
+    _fcLoop(); notify("Fake clone annoying @" .. p.Name, "good")
+end
+
+
 
 -- ===== !flashstep · blink teleport (camera dir OR mouse hover) =====
 _G.__SeigeFlash = _G.__SeigeFlash or {
