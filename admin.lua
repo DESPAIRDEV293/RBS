@@ -13208,6 +13208,9 @@ _G.__SeigeFakeCloneExtras = _G.__SeigeFakeCloneExtras or {}
 local function _fcCleanupExtras()
     for _, E in ipairs(_G.__SeigeFakeCloneExtras) do
         if E.conn then pcall(function() E.conn:Disconnect() end) end
+        if E.anim and E.anim.tracks then
+            for _, tr in pairs(E.anim.tracks) do pcall(function() tr:Stop(0) end) end
+        end
         if E.model then pcall(function() E.model:Destroy() end) end
     end
     _G.__SeigeFakeCloneExtras = {}
@@ -13507,16 +13510,18 @@ local function _fcSpawnExtra()
         tl.Text = "FAKE x" .. (idx+1) .. " · " .. tostring(F.sourceName)
         bb.Parent = head
     end
-    if hum then hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None end
-    pcall(function()
-        local myAnimate = LP.Character and LP.Character:FindFirstChild("Animate")
-        local oldA = model:FindFirstChild("Animate"); if oldA then oldA:Destroy() end
-        if myAnimate then local c = myAnimate:Clone(); c.Disabled = false; c.Parent = model end
-    end)
+    if hum then
+        hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+        pcall(function() hum:ChangeState(Enum.HumanoidStateType.Physics) end)
+    end
+    local oldA = model:FindFirstChild("Animate"); if oldA then oldA:Destroy() end
+    _fcStabilizeModel(model)
     local E = {
         model = model, hum = hum, hrp = model:FindFirstChild("HumanoidRootPart"),
-        t0 = tick(), phase = math.random() * math.pi * 2, conn = nil,
+        t0 = tick(), phase = math.random() * math.pi * 2, conn = nil, anim = nil,
     }
+    _fcInstallAnimations(E)
+    _fcPlayAnim(E, "idle", 1)
     local RS = game:GetService("RunService")
     E.conn = RS.Heartbeat:Connect(function(dt)
         if not E.model or not E.hrp or not E.hrp.Parent then return end
@@ -13529,9 +13534,9 @@ local function _fcSpawnExtra()
         if mode == "stop" then
             goal = E.hrp.CFrame
         elseif mode == "fly" and myHRP then
-            local r = 5 + idx * 1.5
-            local ang = t * 1.4 + E.phase
-            local off = Vector3.new(math.cos(ang)*r, 6 + math.sin(t*2)*1.2, math.sin(ang)*r)
+            local side = (idx % 2 == 0) and -1 or 1
+            local row = 1 + math.floor((idx - 1) / 2)
+            local off = Vector3.new(side * (4 + row * 2), 5 + row * 0.6, 5 + row * 2)
             goal = CFrame.new(myHRP.Position + off, myHRP.Position + Vector3.new(0,3,0))
         elseif mode == "follow" and myHRP then
             local sideOff = (idx % 2 == 0) and -3 or 3
@@ -13542,13 +13547,17 @@ local function _fcSpawnExtra()
                 local radius = (mode == "annoy") and 3.5 or 7
                 local speed  = (mode == "annoy") and 6.0 or 2.5
                 local ang = t * speed + E.phase
-                local off = Vector3.new(math.cos(ang)*radius, math.sin(t*2)*1.5 + 2, math.sin(ang)*radius)
+                local off = Vector3.new(math.cos(ang)*radius, 2.5 + (idx * 0.15), math.sin(ang)*radius)
                 goal = CFrame.new(thrp.Position + off, thrp.Position)
             end
         end
         if goal then
+            _fcStabilizeModel(E.model)
+            _fcUpdateAnimation(E, mode, (goal.Position - E.hrp.Position).Magnitude)
             local lerped = E.hrp.CFrame:Lerp(goal, math.clamp(dt * 6, 0, 1))
             pcall(function() E.model:PivotTo(lerped) end)
+        else
+            _fcUpdateAnimation(E, mode, 0)
         end
     end)
     table.insert(_G.__SeigeFakeCloneExtras, E)
