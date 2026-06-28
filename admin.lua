@@ -4276,9 +4276,11 @@ local function refreshBill(p)
             while e and e.gui and e.gui.Parent do
                 local d = e._desired
                 if d then
-                    if e.name   and d.nameColor   and e.name.TextColor3   ~= d.nameColor   then e.name.TextColor3   = d.nameColor   end
-                    if e.handle and d.handleColor and e.handle.TextColor3 ~= d.handleColor then e.handle.TextColor3 = d.handleColor end
-                    if e.stat   and d.statColor   and e.stat.TextColor3   ~= d.statColor   then e.stat.TextColor3   = d.statColor   end
+                    if not d.skipTextColor then
+                        if e.name   and d.nameColor   and e.name.TextColor3   ~= d.nameColor   then e.name.TextColor3   = d.nameColor   end
+                        if e.handle and d.handleColor and e.handle.TextColor3 ~= d.handleColor then e.handle.TextColor3 = d.handleColor end
+                        if e.stat   and d.statColor   and e.stat.TextColor3   ~= d.statColor   then e.stat.TextColor3   = d.statColor   end
+                    end
                     if e.bg     and d.bgColor     and e.bg.BackgroundColor3 ~= d.bgColor   then e.bg.BackgroundColor3 = d.bgColor   end
                     if e.stroke and d.strokeColor and e.stroke.Color       ~= d.strokeColor then e.stroke.Color      = d.strokeColor end
                 end
