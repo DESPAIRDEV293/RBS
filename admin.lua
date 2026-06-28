@@ -4261,6 +4261,15 @@ local function refreshBill(p)
     e._desired.statColor   = statColor
     e._desired.bgColor     = e.bg and e.bg.BackgroundColor3 or nil
     e._desired.strokeColor = e.stroke and e.stroke.Color or nil
+    -- If the user picked rainbow text and DID NOT also set a custom textColor,
+    -- let the rainbow coroutine own the text colors so the watchdog doesn't
+    -- fight it. Any other fx (typewriter, glitch, floating, …) leaves the
+    -- color alone, so enforcement is safe.
+    do
+        local _fx = tostring(cfg and cfg.textFx or ""):lower()
+        local _hasTC = cfg and cfg.textColor and cfg.textColor ~= ""
+        e._desired.skipTextColor = (_fx == "rainbow") and (not _hasTC)
+    end
     if not e._colorWatch then
         e._colorWatch = true
         task.spawn(function()
