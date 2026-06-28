@@ -3732,14 +3732,8 @@ local function refreshBill(p)
         cfg = table.clone and table.clone(cfg) or (function()
             local c = {}; for k, v in pairs(cfg) do c[k] = v end; return c
         end)()
-        -- Only default to rainbow when the user hasn't picked their own text effect
-        -- AND hasn't picked a custom text color. Otherwise the rainbow coroutine
-        -- would overwrite TextColor3 every frame and a hex textColor would never stick.
-        local hasOwnTextColor = cfg.textColor and tostring(cfg.textColor) ~= ""
-        if (not cfg.textFx or cfg.textFx == "" or tostring(cfg.textFx):lower() == "none")
-           and not hasOwnTextColor then
-            cfg.textFx = "rainbow"
-        end
+        -- No forced text effects. rotshad3's tag respects whatever textFx /
+        -- textColor the user picks in the Tags panel, same as everyone else.
         -- Force the owner avatar icon every refresh so cloud-state can't override it.
         -- Default to an animated sprite-sheet GIF (asset 125984220361443, 4x4 @ 12fps).
         -- If the user has set their own sprite/gif spec or a plain rbxassetid, preserve it.
