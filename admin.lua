@@ -18022,6 +18022,11 @@ end)()
             CLONE.mode = "swarm"; CLONE.target = arg; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
         elseif verb == "MIRROR" then
             CLONE.mode = "mirror"; CLONE.target = nil; CLONE.t0 = tick(); _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "ROAM" then
+            CLONE.mode = "roam"; CLONE.target = nil; CLONE.roamGoal = nil; CLONE.t0 = tick()
+            _cloneEngageFlight(); _cloneStartLoop()
+        elseif verb == "WSPEED" then
+            local n = tonumber(arg); if n then _G.__SeigeCloneWalkSpeed = math.clamp(n, 1, 60) end
         elseif verb == "TP" then
             local p = Players:FindFirstChild(arg or "")
             local th = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
