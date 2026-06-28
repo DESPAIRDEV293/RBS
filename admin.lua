@@ -7529,6 +7529,15 @@ button(pgCmds, "!selflimbtrack  —  drive your own limb", function() _runCmd("!
 -- Staff oversight
 button(pgCmds, "!logs <player>  —  recent chat (staff)", function() _openCmd("!logs ") end)
 button(pgCmds, "!track <player>  —  arrow + distance (staff)", function() _openCmd("!track ") end)
+
+-- Clone control (owner only)
+button(pgCmds, "!clone <user>  —  designate alt as clone (owner)",  function() _openCmd("!clone ") end)
+button(pgCmds, "!clonetp  —  bring clone to you (owner)",            function() _runCmd("!clonetp") end)
+button(pgCmds, "!cfollow  —  clone follows you (owner)",             function() _runCmd("!cfollow") end)
+button(pgCmds, "!cstop  —  clone hovers in place (owner)",           function() _runCmd("!cstop") end)
+button(pgCmds, "!swarm <user>  —  clone orbits target (owner)",      function() _openCmd("!swarm ") end)
+button(pgCmds, "!annoy <user>  —  clone chases target (owner)",      function() _openCmd("!annoy ") end)
+button(pgCmds, "!unclone  —  release clone (owner)",                 function() _runCmd("!unclone") end)
 button(pgCmds, "!cmute <player>  —  silence locally (staff)", function() _openCmd("!cmute ") end)
 button(pgCmds, "!hide <player>  —  hide locally (staff)", function() _openCmd("!hide ") end)
 button(pgCmds, "!unhide <player>  —  unhide (staff)", function() _openCmd("!unhide ") end)
