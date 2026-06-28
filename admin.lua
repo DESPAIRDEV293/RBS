@@ -13839,6 +13839,16 @@ local function _fcSpawnExtra()
             local row = 1 + math.floor((idx - 1) / 2)
             local off = Vector3.new(side * (4 + row * 2), 5 + row * 0.6, 5 + row * 2)
             goal = CFrame.new(myHRP.Position + off, myHRP.Position + Vector3.new(0,3,0))
+        elseif mode == "roam" then
+            if not E.roamGoal or (E.roamGoal - E.hrp.Position).Magnitude < 3 then
+                E.roamGoal = _cloneRoamPick(E.hrp.Position)
+            end
+            local toGoal = E.roamGoal - E.hrp.Position
+            local dir = (toGoal.Magnitude > 0.01) and toGoal.Unit or E.hrp.CFrame.LookVector
+            local ws = _G.__SeigeCloneWalkSpeed or 6
+            local step = math.min(toGoal.Magnitude, ws * dt)
+            local newPos = E.hrp.Position + Vector3.new(dir.X, 0, dir.Z) * step
+            goal = CFrame.new(newPos, newPos + Vector3.new(dir.X, 0, dir.Z))
         elseif mode == "follow" and myHRP then
             local sideOff = (idx % 2 == 0) and -3 or 3
             goal = myHRP.CFrame * CFrame.new(sideOff * (1 + math.floor(idx/2)), 1, 6)
@@ -13855,7 +13865,9 @@ local function _fcSpawnExtra()
         if goal then
             _fcStabilizeModel(E.model)
             _fcUpdateAnimation(E, mode, (goal.Position - E.hrp.Position).Magnitude)
-            local k = (mode == "mirror") and math.clamp(dt * 22, 0, 1) or math.clamp(dt * 6, 0, 1)
+            local k = (mode == "mirror") and math.clamp(dt * 22, 0, 1)
+                or (mode == "roam") and 1
+                or math.clamp(dt * 6, 0, 1)
             local lerped = E.hrp.CFrame:Lerp(goal, k)
             pcall(function() E.model:PivotTo(lerped) end)
         else
