@@ -2,7 +2,7 @@
 --  seige.lol Admin — Full overhaul
 --  Sleek dark glass UI · comprehensive feature pack
 --==============================================================
-local ADMIN_BUILD = "2026-06-28-spotify-gui"
+local ADMIN_BUILD = "2026-06-28-shaders-fix"
 -- Injected by server (admin.lua endpoint) based on the script_key tier.
 -- Defaults to "normal" if served unreplaced (e.g. browser preview).
 local _SEIGE_KEY_TIER = "__SEIGE_KEY_TIER__"
@@ -16692,204 +16692,47 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         return res.StatusCode or res.status_code or 0, res.Body or res.body or ""
     end
 
-    local token = ""
-    local pcall_read = function() local ok, t = pcall(function() return (readfile and readfile("seige_spotify.txt")) or "" end) if ok and t then token = t end end
-    pcall(pcall_read)
-
-    ----------------------------------------------------- FLOATING PLAYER
-    local Player = nil
-    local PlayerState = { open = false, art = nil, title = nil, artist = nil, bar = nil, fill = nil, knob = nil, tNow = nil, tEnd = nil, playBtn = nil, isPlaying = false, durMs = 1, posMs = 0 }
-
-    local function buildPlayer()
-        if Player and Player.Parent then return Player end
-        Player = inst("Frame", Root, {
-            Name = "SeigeSpotifyPlayer",
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, 540, 0, 460),
-            BackgroundColor3 = Color3.fromRGB(12, 6, 8),
-            BorderSizePixel = 0,
-            Visible = false,
-            ZIndex = 50,
-        })
-        corner(Player, 18); stroke(Player, Color3.fromRGB(60, 12, 18), 1.5, 0.2)
-        -- red radial glow
-        local glow = inst("ImageLabel", Player, {
-            BackgroundTransparency = 1,
-            Image = "rbxasset://textures/ui/Glow.png",
-            ImageColor3 = Color3.fromRGB(190, 20, 30),
-            ImageTransparency = 0.35,
-            Size = UDim2.new(1.6, 0, 1.6, 0),
-            Position = UDim2.new(-0.3, 0, -0.3, 0),
-            ZIndex = 50,
-        })
-        local g = inst("UIGradient", Player, {
-            Color = ColorSequence.new{
-                ColorSequenceKeypoint.new(0, Color3.fromRGB(60, 8, 14)),
-                ColorSequenceKeypoint.new(1, Color3.fromRGB(8, 4, 6)),
-            },
-            Rotation = 135,
-        })
-
-        -- Header
-        local header = inst("Frame", Player, { Size = UDim2.new(1, -24, 0, 44), Position = UDim2.new(0, 12, 0, 12), BackgroundTransparency = 1, ZIndex = 52 })
-        inst("TextLabel", header, {
-            Text = "♫  Music", Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = Color3.new(1,1,1),
-            TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1, Size = UDim2.new(1, -50, 0, 26), Position = UDim2.new(0, 0, 0, 0), ZIndex = 52,
-        })
-        inst("TextLabel", header, {
-            Text = "Spotify", Font = Enum.Font.Gotham, TextSize = 13, TextColor3 = Color3.fromRGB(235, 60, 70),
-            TextXAlignment = Enum.TextXAlignment.Left, BackgroundTransparency = 1, Size = UDim2.new(1, -50, 0, 16), Position = UDim2.new(0, 0, 0, 26), ZIndex = 52,
-        })
-        local close = inst("TextButton", header, {
-            Text = "✕", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = Color3.new(1,1,1),
-            BackgroundColor3 = Color3.fromRGB(40, 12, 18), AutoButtonColor = true,
-            Size = UDim2.new(0, 36, 0, 36), Position = UDim2.new(1, -36, 0, 4), ZIndex = 52,
-        })
-        corner(close, 18); stroke(close, Color3.fromRGB(80, 20, 30), 1, 0.2)
-        close.MouseButton1Click:Connect(function() Player.Visible = false; PlayerState.open = false end)
-
-        -- Album art
-        PlayerState.art = inst("ImageLabel", Player, {
-            BackgroundColor3 = Color3.fromRGB(20, 8, 10), BorderSizePixel = 0,
-            Size = UDim2.new(0, 220, 0, 220), Position = UDim2.new(0.5, -110, 0, 70),
-            Image = "", ScaleType = Enum.ScaleType.Crop, ZIndex = 52,
-        })
-        corner(PlayerState.art, 14); stroke(PlayerState.art, Color3.fromRGB(70, 14, 20), 1, 0.3)
-
-        PlayerState.title = inst("TextLabel", Player, {
-            Text = "—", Font = Enum.Font.GothamMedium, TextSize = 20, TextColor3 = Color3.new(1,1,1),
-            BackgroundTransparency = 1, Size = UDim2.new(1, -24, 0, 26), Position = UDim2.new(0, 12, 0, 300), ZIndex = 52,
-        })
-        PlayerState.artist = inst("TextLabel", Player, {
-            Text = "Not playing", Font = Enum.Font.Gotham, TextSize = 14, TextColor3 = Color3.fromRGB(200, 200, 200),
-            BackgroundTransparency = 1, Size = UDim2.new(1, -24, 0, 18), Position = UDim2.new(0, 12, 0, 326), ZIndex = 52,
-        })
-
-        -- Progress bar
-        PlayerState.bar = inst("Frame", Player, {
-            BackgroundColor3 = Color3.fromRGB(45, 18, 22), BorderSizePixel = 0,
-            Size = UDim2.new(1, -48, 0, 6), Position = UDim2.new(0, 24, 0, 360), ZIndex = 52,
-        })
-        corner(PlayerState.bar, 3)
-        PlayerState.fill = inst("Frame", PlayerState.bar, {
-            BackgroundColor3 = Color3.fromRGB(230, 50, 60), BorderSizePixel = 0,
-            Size = UDim2.new(0, 0, 1, 0), ZIndex = 53,
-        })
-        corner(PlayerState.fill, 3)
-        PlayerState.knob = inst("Frame", PlayerState.fill, {
-            BackgroundColor3 = Color3.new(1,1,1), BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0.5),
-            Position = UDim2.new(1, 0, 0.5, 0), Size = UDim2.new(0, 14, 0, 14), ZIndex = 54,
-        })
-        corner(PlayerState.knob, 7)
-        PlayerState.tNow = inst("TextLabel", Player, {
-            Text = "0:00", Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = Color3.fromRGB(200,200,200),
-            BackgroundTransparency = 1, Size = UDim2.new(0, 60, 0, 14), Position = UDim2.new(0, 24, 0, 372), TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 52,
-        })
-        PlayerState.tEnd = inst("TextLabel", Player, {
-            Text = "0:00", Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = Color3.fromRGB(200,200,200),
-            BackgroundTransparency = 1, Size = UDim2.new(0, 60, 0, 14), Position = UDim2.new(1, -84, 0, 372), TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 52,
-        })
-
-        -- Transport
-        local function tbtn(txt, x)
-            local b = inst("TextButton", Player, {
-                Text = txt, Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = Color3.new(1,1,1),
-                BackgroundColor3 = Color3.fromRGB(28, 10, 14), AutoButtonColor = true,
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                Size = UDim2.new(0, 56, 0, 56), Position = UDim2.new(0.5, x, 0, 415), ZIndex = 52,
-            })
-            corner(b, 28); stroke(b, Color3.fromRGB(80, 20, 30), 1, 0.2)
-            return b
-        end
-        local prev = tbtn("⏮", -90)
-        PlayerState.playBtn = tbtn("▶", 0)
-        local nxt = tbtn("⏭", 90)
-        prev.MouseButton1Click:Connect(function() if token ~= "" then spReq("POST", "/me/player/previous", token) end end)
-        nxt.MouseButton1Click:Connect(function() if token ~= "" then spReq("POST", "/me/player/next", token) end end)
-        PlayerState.playBtn.MouseButton1Click:Connect(function()
-            if token == "" then return end
-            if PlayerState.isPlaying then spReq("PUT", "/me/player/pause", token)
-            else spReq("PUT", "/me/player/play", token) end
-        end)
-
-        -- Draggable
-        do
-            local UIS = game:GetService("UserInputService")
-            local dragging, dragStart, startPos
-            header.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                    dragging = true; dragStart = input.Position; startPos = Player.Position
-                end
-            end)
-            header.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
-            end)
-            UIS.InputChanged:Connect(function(input)
-                if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                    local d = input.Position - dragStart
-                    Player.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-                end
-            end)
-        end
-
-        return Player
-    end
-
-    local function fmt(ms)
-        ms = math.max(0, math.floor((ms or 0) / 1000))
-        return string.format("%d:%02d", math.floor(ms / 60), ms % 60)
-    end
-
-    local function openPlayer()
-        buildPlayer()
-        Player.Visible = true
-        PlayerState.open = true
-    end
-
-    ----------------------------------------------------- TAB UI
-    section(pgSpotify, "How to connect (Spotify token)")
-    label(pgSpotify, "1. Open developer.spotify.com/console (click the link button below).")
-    label(pgSpotify, "2. Pick any 'Player' endpoint (e.g. 'Get Currently Playing Track').")
-    label(pgSpotify, "3. Click 'GET TOKEN'. Tick these scopes:")
-    label(pgSpotify, "    • user-read-playback-state")
-    label(pgSpotify, "    • user-modify-playback-state")
-    label(pgSpotify, "    • user-read-currently-playing")
-    label(pgSpotify, "4. Sign in with Spotify, copy the token (starts with 'BQ…').")
-    label(pgSpotify, "5. Paste it below and press Connect. Tokens last ~1 hour — re-paste when it expires.")
-    label(pgSpotify, "Note: Spotify must be open & playing on a device (phone / desktop) for controls to work.")
-
     section(pgSpotify, "Spotify Connect")
+    label(pgSpotify, "Paste a Spotify OAuth token (see Spotify Web API docs).")
+    local token = ""
+    local readToken = function() local ok, t = pcall(function() return (readfile and readfile("seige_spotify.txt")) or "" end) if ok and t then token = t end end
+    pcall(readToken)
     local nowPlaying = label(pgSpotify, token ~= "" and "Token loaded — press Connect to verify" or "Not connected")
     textbox(pgSpotify, "Spotify access token (BQ…)", function(v)
         token = (v or ""):gsub("^%s+", ""):gsub("%s+$", "")
         pcall(function() if writefile then writefile("seige_spotify.txt", token) end end)
         notify("Token saved", "good")
     end)
-    button(pgSpotify, "Connect / verify token  →  open player", function()
+    button(pgSpotify, "Connect / verify token", function()
         if token == "" then notify("Paste a token first", "bad"); return end
         local status, body = spReq("GET", "/me", token)
         if status == 200 then
             local ok, data = pcall(function() return HttpService:JSONDecode(body) end)
             local who = (ok and data and (data.display_name or data.id)) or "you"
             nowPlaying:set("Connected as " .. tostring(who))
-            notify("Spotify connected: " .. tostring(who) .. " — opening player", "good")
-            openPlayer()
+            notify("Spotify connected: " .. tostring(who), "good")
         else
             nowPlaying:set("Auth failed (" .. tostring(status) .. ")")
             notify("Token rejected (" .. tostring(status) .. ") — get a fresh one", "bad")
         end
     end)
-    button(pgSpotify, "Open Music player GUI", function()
-        if token == "" then notify("Connect a token first", "bad"); return end
-        openPlayer()
-    end)
-    button(pgSpotify, "Copy token helper URL", function()
+    button(pgSpotify, "Open token helper (developer.spotify.com)", function()
         if setclipboard then pcall(setclipboard, "https://developer.spotify.com/console/get-current-user/") end
-        notify("URL copied — paste in browser, then GET TOKEN with playback scopes", "good")
+        notify("URL copied: developer.spotify.com/console — Get Token w/ user-modify-playback-state", "good")
     end)
 
-    section(pgSpotify, "Quick search & play (also works without opening player)")
+    section(pgSpotify, "Playback")
+    local nowTrack = label(pgSpotify, "—")
+    button(pgSpotify, "▶  Play",  function() local s = spReq("PUT",  "/me/player/play",  token); if s and s >= 400 then notify("Play failed " .. s, "bad") end end)
+    button(pgSpotify, "❚❚ Pause", function() local s = spReq("PUT",  "/me/player/pause", token); if s and s >= 400 then notify("Pause failed " .. s, "bad") end end)
+    button(pgSpotify, "⏭  Next",  function() local s = spReq("POST", "/me/player/next",  token); if s and s >= 400 then notify("Next failed " .. s, "bad") end end)
+    button(pgSpotify, "⏮  Previous", function() local s = spReq("POST", "/me/player/previous", token); if s and s >= 400 then notify("Prev failed " .. s, "bad") end end)
+    slider(pgSpotify, "Volume", 0, 100, 60, function(v)
+        if token == "" then return end
+        spReq("PUT", "/me/player/volume?volume_percent=" .. tostring(math.floor(v + 0.5)), token)
+    end)
+
+    section(pgSpotify, "Search & play")
     textbox(pgSpotify, "Search a track (artist — title)", function(q)
         if token == "" then notify("Connect first", "bad"); return end
         q = (q or ""):gsub("^%s+",""):gsub("%s+$","")
@@ -16903,12 +16746,12 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         if not first then notify("No results", "warn"); return end
         local uri = first.uri
         local artist = (first.artists and first.artists[1] and first.artists[1].name) or "?"
-        local play = spReq("PUT", "/me/player/play", token, HttpService:JSONEncode({ uris = { uri } }))
+        local play, perr = spReq("PUT", "/me/player/play", token, HttpService:JSONEncode({ uris = { uri } }))
         if play and play >= 400 then
             notify("Open Spotify on a device first (" .. tostring(play) .. ")", "bad")
         else
             notify("Playing: " .. artist .. " — " .. (first.name or "?"), "good")
-            openPlayer()
+            nowTrack:set(artist .. " — " .. (first.name or "?"))
         end
     end)
     textbox(pgSpotify, "Or paste a spotify URI / URL", function(v)
@@ -16918,55 +16761,26 @@ if panels.Profile then panels.Profile.frame.Visible = true end
         local id = v:match("track/([%w]+)")
         if id then uri = "spotify:track:" .. id end
         local play = spReq("PUT", "/me/player/play", token, HttpService:JSONEncode({ uris = { uri } }))
-        if play and play >= 400 then notify("Play failed " .. tostring(play), "bad") else notify("Playing " .. uri, "good"); openPlayer() end
-    end)
-    slider(pgSpotify, "Volume", 0, 100, 60, function(v)
-        if token == "" then return end
-        spReq("PUT", "/me/player/volume?volume_percent=" .. tostring(math.floor(v + 0.5)), token)
+        if play and play >= 400 then notify("Play failed " .. tostring(play), "bad") else notify("Playing " .. uri, "good") end
     end)
 
-    -- Periodic now-playing refresh — feeds both tab label and floating player
+    -- Periodic now-playing refresh
     task.spawn(function()
         while pgSpotify.Parent do
-            if token ~= "" and (PlayerState.open or true) then
+            if token ~= "" then
                 local s, b = spReq("GET", "/me/player/currently-playing", token)
                 if s == 200 and b and #b > 0 then
                     local ok, d = pcall(function() return HttpService:JSONDecode(b) end)
                     if ok and d and d.item then
                         local artist = (d.item.artists and d.item.artists[1] and d.item.artists[1].name) or "?"
-                        PlayerState.isPlaying = d.is_playing and true or false
-                        PlayerState.durMs = d.item.duration_ms or 1
-                        PlayerState.posMs = d.progress_ms or 0
-                        if Player and Player.Parent then
-                            PlayerState.title.Text = d.item.name or "?"
-                            PlayerState.artist.Text = artist
-                            PlayerState.playBtn.Text = PlayerState.isPlaying and "❚❚" or "▶"
-                            PlayerState.tEnd.Text = fmt(PlayerState.durMs)
-                            local img = d.item.album and d.item.album.images and d.item.album.images[1] and d.item.album.images[1].url
-                            if img and PlayerState.art.Image ~= img then PlayerState.art.Image = img end
-                        end
+                        nowTrack:set((d.is_playing and "▶ " or "❚❚ ") .. artist .. " — " .. (d.item.name or "?"))
                     end
                 end
             end
-            task.wait(3)
-        end
-    end)
-    -- Smooth progress tween at 10Hz
-    task.spawn(function()
-        while pgSpotify.Parent do
-            if Player and Player.Parent and Player.Visible then
-                if PlayerState.isPlaying then PlayerState.posMs = PlayerState.posMs + 100 end
-                if PlayerState.posMs > PlayerState.durMs then PlayerState.posMs = PlayerState.durMs end
-                local pct = math.clamp(PlayerState.posMs / math.max(1, PlayerState.durMs), 0, 1)
-                PlayerState.fill.Size = UDim2.new(pct, 0, 1, 0)
-                PlayerState.tNow.Text = fmt(PlayerState.posMs)
-            end
-            task.wait(0.1)
+            task.wait(5)
         end
     end)
 end)()
-
-
 
 
 ------------------------------------------------------- EXEC NOTIFICATIONS (cross-client)
@@ -18193,12 +18007,10 @@ do
         if t then pcall(function() t.bg:Destroy() end); tracked[plr] = nil end
     end
 
-    local hbConn
     _G.__SeigeHeadStatsCleanup = function()
         for plr, _ in pairs(tracked) do destroyFor(plr) end
         tracked = {}
         for plr, c in pairs(conns) do pcall(function() c:Disconnect() end); conns[plr] = nil end
-        if hbConn then pcall(function() hbConn:Disconnect() end); hbConn = nil end
     end
 
     local function ensureGui(plr)
@@ -18208,9 +18020,12 @@ do
         local char = plr.Character or plr.CharacterAdded:Wait()
         local head = char:FindFirstChild("Head") or char:WaitForChild("Head", 5)
         if not head then return nil end
+
+        -- remove any stray prior tag on this head (defensive against duplicates)
         for _, c in ipairs(head:GetChildren()) do
             if c.Name == "SeigeHeadStat" then pcall(function() c:Destroy() end) end
         end
+
         local bg = Instance.new("BillboardGui")
         bg.Name = "SeigeHeadStat"
         bg.Adornee = head
@@ -18220,6 +18035,7 @@ do
         bg.MaxDistance = 220
         bg.LightInfluence = 0
         bg.ResetOnSpawn = false
+
         local card = Instance.new("Frame", bg)
         card.Size = UDim2.new(1, 0, 1, 0)
         card.BackgroundColor3 = Color3.fromRGB(14, 16, 22)
@@ -18228,12 +18044,14 @@ do
         local cc = Instance.new("UICorner", card); cc.CornerRadius = UDim.new(1, 0)
         local st = Instance.new("UIStroke", card)
         st.Color = Color3.fromRGB(80, 220, 255); st.Thickness = 1; st.Transparency = 0.55
+
         local dot = Instance.new("Frame", card)
         dot.Size = UDim2.new(0, 6, 0, 6)
         dot.Position = UDim2.new(0, 7, 0.5, -3)
         dot.BackgroundColor3 = Color3.fromRGB(120, 255, 140)
         dot.BorderSizePixel = 0
         local dc = Instance.new("UICorner", dot); dc.CornerRadius = UDim.new(1, 0)
+
         local pingLbl = Instance.new("TextLabel", card)
         pingLbl.BackgroundTransparency = 1
         pingLbl.Size = UDim2.new(0, 34, 1, 0)
@@ -18243,6 +18061,7 @@ do
         pingLbl.TextXAlignment = Enum.TextXAlignment.Left
         pingLbl.TextColor3 = Color3.fromRGB(230, 240, 255)
         pingLbl.Text = "--"
+
         local nameLbl = Instance.new("TextLabel", card)
         nameLbl.BackgroundTransparency = 1
         nameLbl.Size = UDim2.new(1, -55, 1, 0)
@@ -18253,7 +18072,9 @@ do
         nameLbl.TextTruncate = Enum.TextTruncate.AtEnd
         nameLbl.TextColor3 = Color3.fromRGB(190, 205, 230)
         nameLbl.Text = "@" .. plr.Name
+
         bg.Parent = game:GetService("CoreGui")
+
         samples[plr] = samples[plr] or {}
         local entry = { bg = bg, pingLbl = pingLbl, dot = dot, plr = plr }
         tracked[plr] = entry
@@ -18264,7 +18085,7 @@ do
         local t = tracked[plr]; if not t or not t.bg.Parent then return end
         local ms = readPing(plr)
         local col = pingColor(ms)
-        t.pingLbl.Text = (ms > 0) and (tostring(ms) .. "ms") or "--"
+        t.pingLbl.Text = tostring(ms) .. "ms"
         t.pingLbl.TextColor3 = col
         t.dot.BackgroundColor3 = col
     end
@@ -18272,7 +18093,7 @@ do
     local function attach(plr)
         if plr == lp then return end
         if _G.__SeigeHeadStatsOn ~= true then return end
-        if conns[plr] then return end
+        if conns[plr] then return end -- already attached, prevent duplicate handlers
         conns[plr] = plr.CharacterAdded:Connect(function()
             destroyFor(plr)
             if _G.__SeigeHeadStatsOn == false then return end
@@ -18288,6 +18109,7 @@ do
         end
     end
 
+    -- Default OFF; only attach if user enabled in Config.
     if _G.__SeigeHeadStatsOn == true then
         for _, p in ipairs(Players:GetPlayers()) do attach(p) end
     end
@@ -18298,17 +18120,9 @@ do
         samples[p] = nil
     end)
 
-    -- Throttled sampler: ~10Hz, only when head stats are visible. Previously
-    -- this ran every Heartbeat (~60Hz) for every player which was a measurable
-    -- per-frame cost even with no tags visible.
-    task.spawn(function()
-        while true do
-            if _G.__SeigeHeadStatsOn == true then
-                for plr, _ in pairs(tracked) do
-                    if plr.Parent then pcall(sampleTick, plr) end
-                end
-            end
-            task.wait(0.1)
+    RunService.Heartbeat:Connect(function()
+        for plr, _ in pairs(tracked) do
+            if plr.Parent then pcall(sampleTick, plr) end
         end
     end)
 
