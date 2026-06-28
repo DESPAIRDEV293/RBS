@@ -17134,28 +17134,92 @@ if panels.Profile then panels.Profile.frame.Visible = true end
             end
         end
 
-        -- Library trigger sits INSIDE the player window, just under the transport row
+        -- Library trigger (left) and volume slider (right) inside the player window
         local btnLib = inst("TextButton", playerWin, {
-            AnchorPoint = Vector2.new(0.5, 0),
-            Position = UDim2.new(0.5, 0, 0, 438),
-            Size = UDim2.new(0, 150, 0, 26),
-            BackgroundColor3 = Color3.fromRGB(30, 12, 16),
+            Position = UDim2.new(0, 16, 0, 444),
+            Size = UDim2.new(0, 130, 0, 26),
+            BackgroundColor3 = Color3.fromRGB(24, 24, 28),
             BackgroundTransparency = 0.1, BorderSizePixel = 0,
             AutoButtonColor = true, Text = "",
             ZIndex = 5,
         })
-        corner(btnLib, 13); stroke(btnLib, Color3.fromRGB(120, 30, 50), 1, 0.3)
+        corner(btnLib, 13); stroke(btnLib, Color3.fromRGB(90, 90, 100), 1, 0.3)
         inst("ImageLabel", btnLib, {
-            Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 14, 0.5, -8),
+            Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 12, 0.5, -8),
             BackgroundTransparency = 1, Image = ICON_LIB,
             ImageColor3 = T.text, ScaleType = Enum.ScaleType.Fit, ZIndex = 6,
         })
         inst("TextLabel", btnLib, {
-            Size = UDim2.new(1, -36, 1, 0), Position = UDim2.new(0, 32, 0, 0),
+            Size = UDim2.new(1, -34, 1, 0), Position = UDim2.new(0, 30, 0, 0),
             BackgroundTransparency = 1, Text = "Library  ▾",
             Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
             TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 6,
         })
+
+        -- Volume slider
+        inst("ImageLabel", playerWin, {
+            Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 158, 0, 449),
+            BackgroundTransparency = 1, Image = "rbxassetid://6035067854",
+            ImageColor3 = T.text, ScaleType = Enum.ScaleType.Fit, ZIndex = 5,
+        })
+        local volTrack = inst("Frame", playerWin, {
+            Position = UDim2.new(0, 180, 0, 455),
+            Size = UDim2.new(1, -240, 0, 6),
+            BackgroundColor3 = Color3.fromRGB(45, 45, 52), BorderSizePixel = 0, ZIndex = 5,
+        })
+        corner(volTrack, 3)
+        local volFill = inst("Frame", volTrack, {
+            Size = UDim2.new(0.6, 0, 1, 0),
+            BackgroundColor3 = Color3.fromRGB(230, 230, 240), BorderSizePixel = 0, ZIndex = 6,
+        })
+        corner(volFill, 3)
+        local volKnob = inst("TextButton", volTrack, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new(0.6, 0, 0.5, 0),
+            Size = UDim2.new(0, 14, 0, 14),
+            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+            BorderSizePixel = 0, AutoButtonColor = false, Text = "", ZIndex = 7,
+        })
+        corner(volKnob, 7)
+        local volLbl = inst("TextLabel", playerWin, {
+            Position = UDim2.new(1, -54, 0, 444), Size = UDim2.new(0, 40, 0, 26),
+            BackgroundTransparency = 1, Text = "60%",
+            Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = T.text,
+            TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 5,
+        })
+        local _volStamp = 0
+        local function _setVolume(pct)
+            pct = math.clamp(math.floor(pct + 0.5), 0, 100)
+            volFill.Size = UDim2.new(pct/100, 0, 1, 0)
+            volKnob.Position = UDim2.new(pct/100, 0, 0.5, 0)
+            volLbl.Text = pct .. "%"
+            _volStamp = tick(); local s = _volStamp
+            task.delay(0.18, function()
+                if s ~= _volStamp or token == "" then return end
+                spReq("PUT", "/me/player/volume?volume_percent=" .. pct, token)
+            end)
+        end
+        do
+            local dragging = false
+            local function upd(i)
+                local rel = (i.Position.X - volTrack.AbsolutePosition.X) / math.max(1, volTrack.AbsoluteSize.X)
+                _setVolume(math.clamp(rel, 0, 1) * 100)
+            end
+            volTrack.InputBegan:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+                    dragging = true; upd(i)
+                end
+            end)
+            volKnob.InputBegan:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true end
+            end)
+            UIS.InputChanged:Connect(function(i)
+                if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then upd(i) end
+            end)
+            UIS.InputEnded:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end
+            end)
+        end
         btnLib.MouseButton1Click:Connect(function()
             libOpen = not libOpen
             libPanel.Visible = libOpen
