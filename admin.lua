@@ -13262,6 +13262,7 @@ local function _fcSpawn(userId, displayName)
     F.hum   = hum
     F.hrp   = model:FindFirstChild("HumanoidRootPart")
     F.sourceName = tostring(displayName or userId)
+    F.userId = userId
     F.t0 = tick()
     return true
 end
