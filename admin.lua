@@ -13509,6 +13509,9 @@ local function _openClonePanel()
         button(body, "Remove fake clone", function() cmdHandlers["unfakeclone"]() end)
 
         label(body, "Universal")
+        button(body, "Double the fake clone  ·  !clonedouble", function() cmdHandlers["clonedouble"]() end)
+
+        label(body, "Universal")
         button(body, "!clonefly  ·  fly whichever clone is active", function() cmdHandlers["clonefly"]() end)
     end)
 end
