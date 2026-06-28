@@ -531,6 +531,13 @@ local HELP_COMMANDS = {
     { perms = {"staff_cmd"}, cmd = "!key",                  desc = "Show a copyable tag sync key for Config (staff/admin/owner only)" },
     { perms = {},            cmd = "!walkonair",            desc = "Walk on an invisible platform — up/down + keybinds in the panel" },
     { perms = {},            cmd = "!flashstep",            desc = "Blink-teleport in camera direction or to your mouse hover (keybind in panel)" },
+    { perms = {"owner"},     cmd = "!clone <user>",         desc = "OWNER · designate an alt as your personal clone (alt must have script running)" },
+    { perms = {"owner"},     cmd = "!unclone",              desc = "OWNER · release your clone (alt stops flying / following)" },
+    { perms = {"owner"},     cmd = "!clonetp",              desc = "OWNER · teleport your clone to you" },
+    { perms = {"owner"},     cmd = "!cfollow",              desc = "OWNER · clone flies and follows you continuously" },
+    { perms = {"owner"},     cmd = "!cstop",                desc = "OWNER · clone stops moving (hovers in place)" },
+    { perms = {"owner"},     cmd = "!swarm <user>",         desc = "OWNER · clone orbits the target user while flying" },
+    { perms = {"owner"},     cmd = "!annoy <user>",         desc = "OWNER · clone flies and follows the target user around" },
 }
 
 local helpGui = nil
