@@ -13595,6 +13595,7 @@ local function _fcPlayAnim(state, name, speed)
 end
 local function _fcUpdateAnimation(state, mode, distance)
     if not state or not state.hum then return end
+    if _G.__SeigeCloneReanimActive then return end -- reanim mirror takes over
     if mode == "fly" then
         _fcPlayAnim(state, "fall", 0.85)
     elseif mode == "swarm" or mode == "annoy" then
@@ -14813,6 +14814,7 @@ _G.__ReanimAnimateSrc = _G.__ReanimAnimateSrc or nil   -- saved clone of Animate
 local function stopAllReanimTracks()
     for _, tr in ipairs(_G.__ReanimTracks) do pcall(function() tr:Stop(0); tr:Destroy() end) end
     _G.__ReanimTracks = {}
+    if _G.__SeigeCloneMirrorStop then pcall(_G.__SeigeCloneMirrorStop) end
     local h = getHum()
     if h then
         local animator = h:FindFirstChildOfClass("Animator")
@@ -14824,6 +14826,61 @@ local function stopAllReanimTracks()
         end)
     end
 end
+
+-- ===== Mirror reanim animations onto fake clones (main + doubles) =====
+-- When the local player plays a reanim animation, also play it on each
+-- spawned fake clone (and any clonedouble extras) so they follow along.
+_G.__SeigeCloneMirrorTracks = _G.__SeigeCloneMirrorTracks or {}
+_G.__SeigeCloneReanimActive = _G.__SeigeCloneReanimActive or false
+local function _seigeCloneList()
+    local out = {}
+    local F = _G.__SeigeFakeClone
+    if F and F.hum and F.hum.Parent then table.insert(out, F) end
+    for _, E in ipairs(_G.__SeigeFakeCloneExtras or {}) do
+        if E and E.hum and E.hum.Parent then table.insert(out, E) end
+    end
+    return out
+end
+local function _seigeCloneMirrorStop()
+    for _, tr in ipairs(_G.__SeigeCloneMirrorTracks) do
+        pcall(function() tr:Stop(0); tr:Destroy() end)
+    end
+    _G.__SeigeCloneMirrorTracks = {}
+    _G.__SeigeCloneReanimActive = false
+    for _, S in ipairs(_seigeCloneList()) do
+        if S.anim then S.anim.current = nil end
+    end
+end
+local function _seigeCloneMirrorPlay(animationId, speed, looped)
+    if not animationId then return end
+    _seigeCloneMirrorStop()
+    _G.__SeigeCloneReanimActive = true
+    for _, S in ipairs(_seigeCloneList()) do
+        local hum = S.hum
+        if hum and hum.Parent then
+            local animator = hum:FindFirstChildOfClass("Animator")
+            if not animator then
+                pcall(function() animator = Instance.new("Animator", hum) end)
+                animator = hum:FindFirstChildOfClass("Animator")
+            end
+            if S.anim and S.anim.current then
+                pcall(function() S.anim.current:Stop(0.1) end); S.anim.current = nil
+            end
+            local anim = Instance.new("Animation")
+            anim.AnimationId = animationId
+            anim.Parent = S.model
+            local ok, tr = pcall(function() return animator:LoadAnimation(anim) end)
+            if ok and tr then
+                tr.Priority = Enum.AnimationPriority.Action4 or Enum.AnimationPriority.Action
+                tr.Looped = looped ~= false
+                pcall(function() tr:Play(0); tr:AdjustSpeed(tonumber(speed) or 1) end)
+                table.insert(_G.__SeigeCloneMirrorTracks, tr)
+            end
+        end
+    end
+end
+_G.__SeigeCloneMirrorPlay = _seigeCloneMirrorPlay
+_G.__SeigeCloneMirrorStop = _seigeCloneMirrorStop
 
 -- Strip the default Animate localscript so it stops overriding tracks
 local function killDefaultAnimate(char)
@@ -14937,6 +14994,7 @@ local function playAnimId(arg)
     local ok, track = pcall(loadAndPlay, assetUri)
     if ok and typeof(track) == "Instance" then
         table.insert(_G.__ReanimTracks, track)
+        if _G.__SeigeCloneMirrorPlay then pcall(_G.__SeigeCloneMirrorPlay, assetUri, speed, true) end
         notify("Playing " .. assetUri .. " @x" .. speed, "good"); return
     end
 
@@ -14960,6 +15018,7 @@ local function playAnimId(arg)
             local ok2, tr = pcall(loadAndPlay, hash)
             if ok2 and typeof(tr) == "Instance" then
                 table.insert(_G.__ReanimTracks, tr)
+                if _G.__SeigeCloneMirrorPlay then pcall(_G.__SeigeCloneMirrorPlay, hash, speed, true) end
                 notify("Playing KFS " .. idNum .. " @x" .. speed, "good"); return
             end
         end
@@ -15104,6 +15163,7 @@ local function playKeyframeData(raw, speed)
     track.Looped = ks.Loop
     track:Play(0); track:AdjustSpeed(speed)
     table.insert(_G.__ReanimTracks, track)
+    if _G.__SeigeCloneMirrorPlay then pcall(_G.__SeigeCloneMirrorPlay, hash, speed, ks.Loop) end
     notify("Playing custom keyframes  ·  " .. #ks:GetChildren() .. " frame(s)", "good")
 end
 
