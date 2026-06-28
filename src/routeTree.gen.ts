@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ValidateRouteImport } from './routes/validate'
 import { Route as UnlockRouteImport } from './routes/unlock'
+import { Route as SpotifyConnectRouteImport } from './routes/spotify-connect'
 import { Route as PastebinKeyRouteImport } from './routes/pastebin-key'
 import { Route as GetKeyRouteImport } from './routes/get-key'
 import { Route as IndexRouteImport } from './routes/index'
@@ -18,6 +19,8 @@ import { Route as ApiPublicTags_writeRouteImport } from './routes/api/public/tag
 import { Route as ApiPublicTagsRouteImport } from './routes/api/public/tags'
 import { Route as ApiPublicTag_sync_keyRouteImport } from './routes/api/public/tag_sync_key'
 import { Route as ApiPublicTag_groupsRouteImport } from './routes/api/public/tag_groups'
+import { Route as ApiPublicSpotify_exchangeRouteImport } from './routes/api/public/spotify_exchange'
+import { Route as ApiPublicSpotify_dropRouteImport } from './routes/api/public/spotify_drop'
 import { Route as ApiPublicSpotify_callbackRouteImport } from './routes/api/public/spotify_callback'
 import { Route as ApiPublicRolesRouteImport } from './routes/api/public/roles'
 import { Route as ApiPublicReanimDotluaRouteImport } from './routes/api/public/reanim[.]lua'
@@ -34,6 +37,11 @@ const ValidateRoute = ValidateRouteImport.update({
 const UnlockRoute = UnlockRouteImport.update({
   id: '/unlock',
   path: '/unlock',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SpotifyConnectRoute = SpotifyConnectRouteImport.update({
+  id: '/spotify-connect',
+  path: '/spotify-connect',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PastebinKeyRoute = PastebinKeyRouteImport.update({
@@ -69,6 +77,17 @@ const ApiPublicTag_sync_keyRoute = ApiPublicTag_sync_keyRouteImport.update({
 const ApiPublicTag_groupsRoute = ApiPublicTag_groupsRouteImport.update({
   id: '/api/public/tag_groups',
   path: '/api/public/tag_groups',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSpotify_exchangeRoute =
+  ApiPublicSpotify_exchangeRouteImport.update({
+    id: '/api/public/spotify_exchange',
+    path: '/api/public/spotify_exchange',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicSpotify_dropRoute = ApiPublicSpotify_dropRouteImport.update({
+  id: '/api/public/spotify_drop',
+  path: '/api/public/spotify_drop',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicSpotify_callbackRoute =
@@ -112,6 +131,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/get-key': typeof GetKeyRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/spotify-connect': typeof SpotifyConnectRoute
   '/unlock': typeof UnlockRoute
   '/validate': typeof ValidateRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
@@ -120,6 +140,8 @@ export interface FileRoutesByFullPath {
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/spotify_callback': typeof ApiPublicSpotify_callbackRoute
+  '/api/public/spotify_drop': typeof ApiPublicSpotify_dropRoute
+  '/api/public/spotify_exchange': typeof ApiPublicSpotify_exchangeRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
   '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
@@ -130,6 +152,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/get-key': typeof GetKeyRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/spotify-connect': typeof SpotifyConnectRoute
   '/unlock': typeof UnlockRoute
   '/validate': typeof ValidateRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
@@ -138,6 +161,8 @@ export interface FileRoutesByTo {
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/spotify_callback': typeof ApiPublicSpotify_callbackRoute
+  '/api/public/spotify_drop': typeof ApiPublicSpotify_dropRoute
+  '/api/public/spotify_exchange': typeof ApiPublicSpotify_exchangeRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
   '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
@@ -149,6 +174,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/get-key': typeof GetKeyRoute
   '/pastebin-key': typeof PastebinKeyRoute
+  '/spotify-connect': typeof SpotifyConnectRoute
   '/unlock': typeof UnlockRoute
   '/validate': typeof ValidateRoute
   '/api/public/admin.lua': typeof ApiPublicAdminDotluaRoute
@@ -157,6 +183,8 @@ export interface FileRoutesById {
   '/api/public/reanim.lua': typeof ApiPublicReanimDotluaRoute
   '/api/public/roles': typeof ApiPublicRolesRoute
   '/api/public/spotify_callback': typeof ApiPublicSpotify_callbackRoute
+  '/api/public/spotify_drop': typeof ApiPublicSpotify_dropRoute
+  '/api/public/spotify_exchange': typeof ApiPublicSpotify_exchangeRoute
   '/api/public/tag_groups': typeof ApiPublicTag_groupsRoute
   '/api/public/tag_sync_key': typeof ApiPublicTag_sync_keyRoute
   '/api/public/tags': typeof ApiPublicTagsRoute
@@ -169,6 +197,7 @@ export interface FileRouteTypes {
     | '/'
     | '/get-key'
     | '/pastebin-key'
+    | '/spotify-connect'
     | '/unlock'
     | '/validate'
     | '/api/public/admin.lua'
@@ -177,6 +206,8 @@ export interface FileRouteTypes {
     | '/api/public/reanim.lua'
     | '/api/public/roles'
     | '/api/public/spotify_callback'
+    | '/api/public/spotify_drop'
+    | '/api/public/spotify_exchange'
     | '/api/public/tag_groups'
     | '/api/public/tag_sync_key'
     | '/api/public/tags'
@@ -187,6 +218,7 @@ export interface FileRouteTypes {
     | '/'
     | '/get-key'
     | '/pastebin-key'
+    | '/spotify-connect'
     | '/unlock'
     | '/validate'
     | '/api/public/admin.lua'
@@ -195,6 +227,8 @@ export interface FileRouteTypes {
     | '/api/public/reanim.lua'
     | '/api/public/roles'
     | '/api/public/spotify_callback'
+    | '/api/public/spotify_drop'
+    | '/api/public/spotify_exchange'
     | '/api/public/tag_groups'
     | '/api/public/tag_sync_key'
     | '/api/public/tags'
@@ -205,6 +239,7 @@ export interface FileRouteTypes {
     | '/'
     | '/get-key'
     | '/pastebin-key'
+    | '/spotify-connect'
     | '/unlock'
     | '/validate'
     | '/api/public/admin.lua'
@@ -213,6 +248,8 @@ export interface FileRouteTypes {
     | '/api/public/reanim.lua'
     | '/api/public/roles'
     | '/api/public/spotify_callback'
+    | '/api/public/spotify_drop'
+    | '/api/public/spotify_exchange'
     | '/api/public/tag_groups'
     | '/api/public/tag_sync_key'
     | '/api/public/tags'
@@ -224,6 +261,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GetKeyRoute: typeof GetKeyRoute
   PastebinKeyRoute: typeof PastebinKeyRoute
+  SpotifyConnectRoute: typeof SpotifyConnectRoute
   UnlockRoute: typeof UnlockRoute
   ValidateRoute: typeof ValidateRoute
   ApiPublicAdminDotluaRoute: typeof ApiPublicAdminDotluaRoute
@@ -232,6 +270,8 @@ export interface RootRouteChildren {
   ApiPublicReanimDotluaRoute: typeof ApiPublicReanimDotluaRoute
   ApiPublicRolesRoute: typeof ApiPublicRolesRoute
   ApiPublicSpotify_callbackRoute: typeof ApiPublicSpotify_callbackRoute
+  ApiPublicSpotify_dropRoute: typeof ApiPublicSpotify_dropRoute
+  ApiPublicSpotify_exchangeRoute: typeof ApiPublicSpotify_exchangeRoute
   ApiPublicTag_groupsRoute: typeof ApiPublicTag_groupsRoute
   ApiPublicTag_sync_keyRoute: typeof ApiPublicTag_sync_keyRoute
   ApiPublicTagsRoute: typeof ApiPublicTagsRoute
@@ -253,6 +293,13 @@ declare module '@tanstack/react-router' {
       path: '/unlock'
       fullPath: '/unlock'
       preLoaderRoute: typeof UnlockRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/spotify-connect': {
+      id: '/spotify-connect'
+      path: '/spotify-connect'
+      fullPath: '/spotify-connect'
+      preLoaderRoute: typeof SpotifyConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pastebin-key': {
@@ -302,6 +349,20 @@ declare module '@tanstack/react-router' {
       path: '/api/public/tag_groups'
       fullPath: '/api/public/tag_groups'
       preLoaderRoute: typeof ApiPublicTag_groupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/spotify_exchange': {
+      id: '/api/public/spotify_exchange'
+      path: '/api/public/spotify_exchange'
+      fullPath: '/api/public/spotify_exchange'
+      preLoaderRoute: typeof ApiPublicSpotify_exchangeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/spotify_drop': {
+      id: '/api/public/spotify_drop'
+      path: '/api/public/spotify_drop'
+      fullPath: '/api/public/spotify_drop'
+      preLoaderRoute: typeof ApiPublicSpotify_dropRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/spotify_callback': {
@@ -360,6 +421,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GetKeyRoute: GetKeyRoute,
   PastebinKeyRoute: PastebinKeyRoute,
+  SpotifyConnectRoute: SpotifyConnectRoute,
   UnlockRoute: UnlockRoute,
   ValidateRoute: ValidateRoute,
   ApiPublicAdminDotluaRoute: ApiPublicAdminDotluaRoute,
@@ -368,6 +430,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicReanimDotluaRoute: ApiPublicReanimDotluaRoute,
   ApiPublicRolesRoute: ApiPublicRolesRoute,
   ApiPublicSpotify_callbackRoute: ApiPublicSpotify_callbackRoute,
+  ApiPublicSpotify_dropRoute: ApiPublicSpotify_dropRoute,
+  ApiPublicSpotify_exchangeRoute: ApiPublicSpotify_exchangeRoute,
   ApiPublicTag_groupsRoute: ApiPublicTag_groupsRoute,
   ApiPublicTag_sync_keyRoute: ApiPublicTag_sync_keyRoute,
   ApiPublicTagsRoute: ApiPublicTagsRoute,
