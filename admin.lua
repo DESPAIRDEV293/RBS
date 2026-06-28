@@ -15162,6 +15162,7 @@ local function playKeyframeData(raw, speed)
     track.Looped = ks.Loop
     track:Play(0); track:AdjustSpeed(speed)
     table.insert(_G.__ReanimTracks, track)
+    if _G.__SeigeCloneMirrorPlay then pcall(_G.__SeigeCloneMirrorPlay, hash, speed, ks.Loop) end
     notify("Playing custom keyframes  ·  " .. #ks:GetChildren() .. " frame(s)", "good")
 end
 
