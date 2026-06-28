@@ -7417,6 +7417,7 @@ local HELP_CMDS = {
         { "!clone <user>",  "Designate an alt as your personal clone (alt needs script running)" },
         { "!fakeclone <user>", "Spawn a local-only visual clone (no script needed on alt) — uses your equipped animations" },
         { "!clonefly",      "Make the active clone (real or fake) fly / hover" },
+        { "!clonedouble",   "OWNER · split your current fake clone — spawns another copy" },
     }},
     { "Staff oversight", {
         { "!logs <player>", "Show last 20 chat messages captured from a player" },
