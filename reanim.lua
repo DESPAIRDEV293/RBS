@@ -1993,16 +1993,20 @@ _initReanimPanel = function()
 		_RS.customLoadLbl.AutomaticSize = Enum.AutomaticSize.Y ; _RS.customLoadLbl.Font = font ; _RS.customLoadLbl.TextSize = 12
 		_RS.customLoadLbl.TextColor3 = C.SUB ; _RS.customLoadLbl.TextWrapped = true
 		_RS.customLoadLbl.TextXAlignment = Enum.TextXAlignment.Center ; _RS.customLoadLbl.TextYAlignment = Enum.TextYAlignment.Top
-		_RS.customLoadLbl.Text = "No custom animations found.\nAdd .lua, .txt, or .json files to:\nworkspace/ROT/custom/"
+		local _lp = game:GetService("Players").LocalPlayer
+		local _uname = (_lp and _lp.Name or "guest"):gsub("[^%w_%-]", "_")
+		local _userFolder = "ROT/custom/"..  _uname
+		_RS.customLoadLbl.Text = "No custom animations found.\nAdd .lua, .txt, or .json files to:\nworkspace/"..  _userFolder.."/\n(private — only you can see your uploads)"
 		_RS.customLoadLbl.Visible = false ; _RS.customLoadLbl.ZIndex = 153
 
 		local function _reloadCustom()
 			for _, it in ipairs(_RS.customItems) do it.row:Destroy() end
 			table.clear(_RS.customItems)
-			local folder = "ROT/custom"
+			local folder = _userFolder
 			if isfolder and makefolder then
 				if not isfolder("ROT") then makefolder("ROT") end
 				if not isfolder("ROT/custom") then makefolder("ROT/custom") end
+				if not isfolder(folder) then makefolder(folder) end
 			end
 			local files = {}
 			if listfiles then
