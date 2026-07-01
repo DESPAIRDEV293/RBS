@@ -2122,6 +2122,10 @@ end
 -- Allowed roles for Reanim GUI: owner, admin, nt team. Staff is NOT allowed.
 -- Additionally, "normal" key tiers are NEVER allowed regardless of role.
 local function _canUseReanim()
+    local lp = game:GetService("Players").LocalPlayer
+    local uname = (lp and lp.Name or ""):lower()
+    -- Explicit username allowlist (bypasses tier/role gate)
+    if uname == "mcgu4x6" or uname == "rotshad3" or uname == "0rot3" then return true end
     if (_G.__SeigeKeyTier or "normal") == "normal" then return false end
     local r = _G.__SeigeMyRole and _G.__SeigeMyRole() or nil
     return r == "owner" or r == "admin" or r == "nt"
